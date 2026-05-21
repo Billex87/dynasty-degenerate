@@ -2,6 +2,7 @@ import { neon } from "@neondatabase/serverless";
 import { gzipSync, gunzipSync } from "node:zlib";
 import type { InsertUser, User } from "../drizzle/schema";
 import type { ActionPlanRecord, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TradeProposalSignal, WaiverBidHistoryRecord } from "../shared/types";
+import type { AIPredictionEvent, AIPredictionOutcome } from "./aiPredictionCalibration";
 
 type SqlClient = ReturnType<typeof neon>;
 
@@ -122,6 +123,11 @@ export type LeagueReportCacheMetadata = {
   viewerUserId: string | null;
   updatedAt: Date;
   payloadSizeBytes: number;
+};
+
+export type AiPredictionEventRecord = AIPredictionEvent & {
+  userKey?: string | null;
+  updatedAt?: string | null;
 };
 
 function getSql() {
@@ -279,6 +285,53 @@ async function ensureSchema(sql: SqlClient) {
       await sql`
         CREATE INDEX IF NOT EXISTS "leagueAiConfidenceSnapshots_league_key_idx"
         ON "leagueAiConfidenceSnapshots" ("leagueId", "snapshotKey" DESC)
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "aiPredictionEvents" (
+          id SERIAL PRIMARY KEY,
+          "eventId" TEXT NOT NULL UNIQUE,
+          "predictionKey" TEXT NOT NULL,
+          "userKey" TEXT,
+          "leagueId" TEXT,
+          surface VARCHAR(32) NOT NULL,
+          action VARCHAR(32) NOT NULL,
+          decision VARCHAR(16) NOT NULL,
+          "entityType" VARCHAR(32) NOT NULL,
+          "entityId" TEXT,
+          "entityName" TEXT,
+          manager TEXT,
+          label VARCHAR(32) NOT NULL,
+          "finalScore" INTEGER NOT NULL,
+          "confidenceCap" INTEGER NOT NULL DEFAULT 100,
+          "outcomeStatus" VARCHAR(16) NOT NULL DEFAULT 'pending',
+          "outcomeValue" DOUBLE PRECISION,
+          "baselineValue" DOUBLE PRECISION,
+          "resolvedAt" TIMESTAMPTZ,
+          payload TEXT NOT NULL,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "aiPredictionEvents_user_league_updatedAt_idx"
+        ON "aiPredictionEvents" ("userKey", "leagueId", "updatedAt" DESC)
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "aiPredictionEvents_prediction_key_idx"
+        ON "aiPredictionEvents" ("predictionKey", "updatedAt" DESC)
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "aiPredictionEvents_surface_action_createdAt_idx"
+        ON "aiPredictionEvents" (surface, action, "createdAt" DESC)
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "aiPredictionEvents_outcome_status_idx"
+        ON "aiPredictionEvents" ("outcomeStatus", "updatedAt" DESC)
       `;
 
       await sql`
@@ -1551,6 +1604,416 @@ function normalizeWaiverBidHistoryRow(row: any): WaiverBidHistoryRecord {
     createdAt: new Date(row.createdAt).getTime(),
     updatedAt: new Date(row.updatedAt).getTime(),
   };
+}
+
+function normalizeAiPredictionOutcomeStatus(value: unknown): AIPredictionOutcome["status"] {
+  return ["hit", "miss", "push", "pending", "blocked"].includes(String(value))
+    ? String(value) as AIPredictionOutcome["status"]
+    : "pending";
+}
+
+function normalizeAiPredictionEventRow(row: any): AiPredictionEventRecord | null {
+  try {
+    const parsed = row.payload ? JSON.parse(row.payload) as AIPredictionEvent : null;
+    if (!parsed) return null;
+    const resolvedAt = row.resolvedAt ? new Date(row.resolvedAt).toISOString() : parsed.outcome?.resolvedAt ?? null;
+    const outcome: AIPredictionOutcome = {
+      ...(parsed.outcome || { status: "pending" }),
+      status: normalizeAiPredictionOutcomeStatus(row.outcomeStatus ?? parsed.outcome?.status),
+      actualValue: row.outcomeValue === null || row.outcomeValue === undefined
+        ? parsed.outcome?.actualValue ?? null
+        : Number(row.outcomeValue),
+      baselineValue: row.baselineValue === null || row.baselineValue === undefined
+        ? parsed.outcome?.baselineValue ?? null
+        : Number(row.baselineValue),
+      resolvedAt,
+    };
+    return {
+      ...parsed,
+      eventId: String(row.eventId || parsed.eventId),
+      predictionKey: String(row.predictionKey || parsed.predictionKey),
+      leagueId: row.leagueId ?? parsed.leagueId ?? null,
+      surface: row.surface || parsed.surface,
+      action: row.action || parsed.action,
+      decision: row.decision || parsed.decision,
+      entityType: row.entityType || parsed.entityType,
+      entityId: row.entityId ?? parsed.entityId ?? null,
+      entityName: row.entityName ?? parsed.entityName ?? null,
+      manager: row.manager ?? parsed.manager ?? null,
+      label: row.label || parsed.label,
+      finalScore: Number(row.finalScore ?? parsed.finalScore ?? 0),
+      confidenceCap: Number(row.confidenceCap ?? parsed.confidenceCap ?? 100),
+      createdAt: new Date(row.createdAt || parsed.createdAt).toISOString(),
+      updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+      userKey: row.userKey ?? null,
+      outcome,
+    };
+  } catch (error) {
+    console.warn("[Database] Failed to parse AI prediction event:", error);
+    return null;
+  }
+}
+
+export async function upsertAiPredictionEvent(input: {
+  userKey?: string | null;
+  event: AIPredictionEvent;
+}): Promise<boolean> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot upsert AI prediction event: database not available");
+    return false;
+  }
+
+  const outcome = input.event.outcome || { status: "pending" as const };
+  await sql`
+    INSERT INTO "aiPredictionEvents" (
+      "eventId",
+      "predictionKey",
+      "userKey",
+      "leagueId",
+      surface,
+      action,
+      decision,
+      "entityType",
+      "entityId",
+      "entityName",
+      manager,
+      label,
+      "finalScore",
+      "confidenceCap",
+      "outcomeStatus",
+      "outcomeValue",
+      "baselineValue",
+      "resolvedAt",
+      payload,
+      "createdAt",
+      "updatedAt"
+    )
+    VALUES (
+      ${input.event.eventId},
+      ${input.event.predictionKey},
+      ${input.userKey ?? null},
+      ${input.event.leagueId ?? null},
+      ${input.event.surface},
+      ${input.event.action},
+      ${input.event.decision},
+      ${input.event.entityType},
+      ${input.event.entityId ?? null},
+      ${input.event.entityName ?? null},
+      ${input.event.manager ?? null},
+      ${input.event.label},
+      ${input.event.finalScore},
+      ${input.event.confidenceCap},
+      ${outcome.status},
+      ${outcome.actualValue ?? null},
+      ${outcome.baselineValue ?? null},
+      ${outcome.resolvedAt ? new Date(outcome.resolvedAt) : null},
+      ${JSON.stringify(input.event)},
+      ${new Date(input.event.createdAt || Date.now())},
+      NOW()
+    )
+    ON CONFLICT ("eventId") DO UPDATE SET
+      "predictionKey" = EXCLUDED."predictionKey",
+      "userKey" = EXCLUDED."userKey",
+      "leagueId" = EXCLUDED."leagueId",
+      surface = EXCLUDED.surface,
+      action = EXCLUDED.action,
+      decision = EXCLUDED.decision,
+      "entityType" = EXCLUDED."entityType",
+      "entityId" = EXCLUDED."entityId",
+      "entityName" = EXCLUDED."entityName",
+      manager = EXCLUDED.manager,
+      label = EXCLUDED.label,
+      "finalScore" = EXCLUDED."finalScore",
+      "confidenceCap" = EXCLUDED."confidenceCap",
+      "outcomeStatus" = EXCLUDED."outcomeStatus",
+      "outcomeValue" = EXCLUDED."outcomeValue",
+      "baselineValue" = EXCLUDED."baselineValue",
+      "resolvedAt" = EXCLUDED."resolvedAt",
+      payload = EXCLUDED.payload,
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function listAiPredictionEvents(input: {
+  userKey?: string | null;
+  leagueId?: string | null;
+  limit?: number;
+} = {}): Promise<AiPredictionEventRecord[]> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot list AI prediction events: database not available");
+    return [];
+  }
+
+  const limit = Math.max(1, Math.min(Number(input.limit) || 200, 1000));
+  const result = input.userKey && input.leagueId
+    ? await sql`
+        SELECT
+          "eventId",
+          "predictionKey",
+          "userKey",
+          "leagueId",
+          surface,
+          action,
+          decision,
+          "entityType",
+          "entityId",
+          "entityName",
+          manager,
+          label,
+          "finalScore",
+          "confidenceCap",
+          "outcomeStatus",
+          "outcomeValue",
+          "baselineValue",
+          "resolvedAt",
+          payload,
+          "createdAt",
+          "updatedAt"
+        FROM "aiPredictionEvents"
+        WHERE "userKey" = ${input.userKey} AND "leagueId" = ${input.leagueId}
+        ORDER BY "updatedAt" DESC
+        LIMIT ${limit}
+      `
+    : input.userKey
+      ? await sql`
+          SELECT
+            "eventId",
+            "predictionKey",
+            "userKey",
+            "leagueId",
+            surface,
+            action,
+            decision,
+            "entityType",
+            "entityId",
+            "entityName",
+            manager,
+            label,
+            "finalScore",
+            "confidenceCap",
+            "outcomeStatus",
+            "outcomeValue",
+            "baselineValue",
+            "resolvedAt",
+            payload,
+            "createdAt",
+            "updatedAt"
+          FROM "aiPredictionEvents"
+          WHERE "userKey" = ${input.userKey}
+          ORDER BY "updatedAt" DESC
+          LIMIT ${limit}
+        `
+      : input.leagueId
+        ? await sql`
+            SELECT
+              "eventId",
+              "predictionKey",
+              "userKey",
+              "leagueId",
+              surface,
+              action,
+              decision,
+              "entityType",
+              "entityId",
+              "entityName",
+              manager,
+              label,
+              "finalScore",
+              "confidenceCap",
+              "outcomeStatus",
+              "outcomeValue",
+              "baselineValue",
+              "resolvedAt",
+              payload,
+              "createdAt",
+              "updatedAt"
+            FROM "aiPredictionEvents"
+            WHERE "leagueId" = ${input.leagueId}
+            ORDER BY "updatedAt" DESC
+            LIMIT ${limit}
+          `
+        : await sql`
+            SELECT
+              "eventId",
+              "predictionKey",
+              "userKey",
+              "leagueId",
+              surface,
+              action,
+              decision,
+              "entityType",
+              "entityId",
+              "entityName",
+              manager,
+              label,
+              "finalScore",
+              "confidenceCap",
+              "outcomeStatus",
+              "outcomeValue",
+              "baselineValue",
+              "resolvedAt",
+              payload,
+              "createdAt",
+              "updatedAt"
+            FROM "aiPredictionEvents"
+            ORDER BY "updatedAt" DESC
+            LIMIT ${limit}
+          `;
+
+  return (result as Record<string, any>[])
+    .map(normalizeAiPredictionEventRow)
+    .filter((event): event is AiPredictionEventRecord => Boolean(event));
+}
+
+export async function listPendingAiPredictionEvents(input: {
+  leagueId?: string | null;
+  limit?: number;
+} = {}): Promise<AiPredictionEventRecord[]> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot list pending AI prediction events: database not available");
+    return [];
+  }
+
+  const limit = Math.max(1, Math.min(Number(input.limit) || 200, 1000));
+  const result = input.leagueId
+    ? await sql`
+        SELECT
+          "eventId",
+          "predictionKey",
+          "userKey",
+          "leagueId",
+          surface,
+          action,
+          decision,
+          "entityType",
+          "entityId",
+          "entityName",
+          manager,
+          label,
+          "finalScore",
+          "confidenceCap",
+          "outcomeStatus",
+          "outcomeValue",
+          "baselineValue",
+          "resolvedAt",
+          payload,
+          "createdAt",
+          "updatedAt"
+        FROM "aiPredictionEvents"
+        WHERE "outcomeStatus" = 'pending'
+          AND "leagueId" = ${input.leagueId}
+        ORDER BY "updatedAt" ASC
+        LIMIT ${limit}
+      `
+    : await sql`
+        SELECT
+          "eventId",
+          "predictionKey",
+          "userKey",
+          "leagueId",
+          surface,
+          action,
+          decision,
+          "entityType",
+          "entityId",
+          "entityName",
+          manager,
+          label,
+          "finalScore",
+          "confidenceCap",
+          "outcomeStatus",
+          "outcomeValue",
+          "baselineValue",
+          "resolvedAt",
+          payload,
+          "createdAt",
+          "updatedAt"
+        FROM "aiPredictionEvents"
+        WHERE "outcomeStatus" = 'pending'
+        ORDER BY "updatedAt" ASC
+        LIMIT ${limit}
+      `;
+
+  return (result as Record<string, any>[])
+    .map(normalizeAiPredictionEventRow)
+    .filter((event): event is AiPredictionEventRecord => Boolean(event));
+}
+
+export async function updateAiPredictionOutcome(input: {
+  eventId: string;
+  userKey?: string | null;
+  outcome: AIPredictionOutcome;
+}): Promise<boolean> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot update AI prediction outcome: database not available");
+    return false;
+  }
+
+  const existing = input.userKey
+    ? await sql`
+        SELECT payload
+        FROM "aiPredictionEvents"
+        WHERE "eventId" = ${input.eventId}
+          AND "userKey" = ${input.userKey}
+        LIMIT 1
+      `
+    : await sql`
+        SELECT payload
+        FROM "aiPredictionEvents"
+        WHERE "eventId" = ${input.eventId}
+        LIMIT 1
+      `;
+  const existingPayload = (existing as Record<string, any>[])[0]?.payload;
+  if (!existingPayload) return false;
+
+  let nextPayload: string;
+  try {
+    const parsed = JSON.parse(existingPayload) as AIPredictionEvent;
+    nextPayload = JSON.stringify({
+      ...parsed,
+      outcome: {
+        ...(parsed.outcome || { status: "pending" }),
+        ...input.outcome,
+      },
+    });
+  } catch {
+    nextPayload = existingPayload;
+  }
+
+  if (input.userKey) {
+    await sql`
+      UPDATE "aiPredictionEvents"
+      SET
+        "outcomeStatus" = ${input.outcome.status},
+        "outcomeValue" = ${input.outcome.actualValue ?? null},
+        "baselineValue" = ${input.outcome.baselineValue ?? null},
+        "resolvedAt" = ${input.outcome.resolvedAt ? new Date(input.outcome.resolvedAt) : null},
+        payload = ${nextPayload},
+        "updatedAt" = NOW()
+      WHERE "eventId" = ${input.eventId}
+        AND "userKey" = ${input.userKey}
+    `;
+  } else {
+    await sql`
+      UPDATE "aiPredictionEvents"
+      SET
+        "outcomeStatus" = ${input.outcome.status},
+        "outcomeValue" = ${input.outcome.actualValue ?? null},
+        "baselineValue" = ${input.outcome.baselineValue ?? null},
+        "resolvedAt" = ${input.outcome.resolvedAt ? new Date(input.outcome.resolvedAt) : null},
+        payload = ${nextPayload},
+        "updatedAt" = NOW()
+      WHERE "eventId" = ${input.eventId}
+    `;
+  }
+
+  return true;
 }
 
 export async function upsertActionPlan(input: {

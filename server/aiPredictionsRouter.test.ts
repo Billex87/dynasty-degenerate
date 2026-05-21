@@ -1,0 +1,92 @@
+import { afterEach, describe, expect, it } from "vitest";
+import type { TrpcContext } from "./_core/context";
+import { appRouter } from "./routers";
+
+type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
+
+const originalDatabaseUrl = process.env.DATABASE_URL;
+
+function createContext(user: Partial<AuthenticatedUser> | null = {}): TrpcContext {
+  return {
+    user: user === null ? null : {
+      id: 1,
+      openId: "sample-user",
+      email: "sample@example.com",
+      name: "Sample User",
+      loginMethod: "admin-passphrase",
+      role: "user",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSignedIn: new Date(),
+      ...user,
+    },
+    req: {
+      protocol: "https",
+      headers: {},
+    } as TrpcContext["req"],
+    res: {} as TrpcContext["res"],
+  };
+}
+
+function predictionEvent() {
+  return {
+    schemaVersion: 1 as const,
+    eventId: "ai-test-event",
+    predictionKey: "waiver:pickup:13000000000000:tester:player:p1:2026:1",
+    createdAt: "2026-09-01T00:00:00.000Z",
+    surface: "waiver" as const,
+    action: "pickup" as const,
+    decision: "do" as const,
+    entityType: "player" as const,
+    entityId: "p1",
+    entityName: "Waiver Receiver",
+    leagueId: "13000000000000",
+    manager: "Tester",
+    season: "2026",
+    week: 1,
+    label: "priority" as const,
+    finalScore: 78,
+    confidenceCap: 100,
+    evidence: ["League roster snapshot shows this player is available."],
+    missingEvidence: [],
+    hardBlockers: [],
+    softPenalties: [],
+    sourceTrace: [{ label: "Sleeper roster snapshot", status: "loaded" as const }],
+    sourceAgreement: null,
+    whyThisFired: "Waiver read fired with enough evidence.",
+    outcome: { status: "pending" as const },
+    metadata: { source: "test" },
+  };
+}
+
+describe("aiPredictions router", () => {
+  afterEach(() => {
+    if (originalDatabaseUrl) {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    } else {
+      delete process.env.DATABASE_URL;
+    }
+  });
+
+  it("requires authentication", async () => {
+    const caller = appRouter.createCaller(createContext(null));
+
+    await expect(caller.aiPredictions.list({ leagueId: "13000000000000" })).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
+  it("accepts typed prediction events when the database is unavailable", async () => {
+    delete process.env.DATABASE_URL;
+    const caller = appRouter.createCaller(createContext());
+
+    const result = await caller.aiPredictions.upsertMany({
+      events: [predictionEvent()],
+    });
+
+    expect(result).toEqual({
+      accepted: 1,
+      persisted: 0,
+    });
+  });
+});

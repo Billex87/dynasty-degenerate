@@ -1,4 +1,4 @@
-import type { PlayerCohortDraftCapital, PlayerCohortEvidenceGrade, PlayerCohortOutcomeBucket, PlayerCohortPhase, PlayerCohortProfile, PlayerDetails } from '../shared/types';
+import type { PlayerCohortAnomalyFlag, PlayerCohortDraftCapital, PlayerCohortEvidenceGrade, PlayerCohortOutcomeBucket, PlayerCohortPhase, PlayerCohortProfile, PlayerDetails } from '../shared/types';
 import { attachPlayerSeasonOutcomeReceipts, type CompactPlayerSeasonCalibration } from './playerCohortCalibrationReceipts';
 
 const AGE_CURVES: Record<string, { earlyMax: number; primeMax: number; latePrimeMax: number }> = {
@@ -310,6 +310,144 @@ function hasBreakoutOpportunitySignal(details: PlayerDetails): boolean {
   if ((delta.qualitySignal === 'major-opening' || delta.qualitySignal === 'minor-opening') && delta.vacatedImpactScore >= 40) return true;
   return isTopReturningDepthPlayer(details)
     && (delta.incumbentOpportunitySignal === 'major-promotion' || delta.incumbentOpportunitySignal === 'minor-promotion');
+}
+
+function buildAnomalyFlags(input: {
+  details: PlayerDetails;
+  position: string;
+  agePhase: PlayerCohortPhase;
+  productionScore: number | null;
+  marketScore: number | null;
+  marketProductionDelta: number | null;
+  draftCapital: PlayerCohortDraftCapital;
+  features: CohortFeatureVector;
+}): PlayerCohortAnomalyFlag[] {
+  const flags: PlayerCohortAnomalyFlag[] = [];
+  const games = numeric(input.details.lastSeasonGames);
+  const age = numeric(input.details.age);
+  const injuryRisk = input.features.injuryRiskScore;
+  const usageScore = input.features.usageScore;
+  const opportunityScore = input.features.opportunityScore;
+  const delta = input.details.rosterRoom?.opportunityDelta;
+  const production = input.productionScore ?? 0;
+  const market = input.marketScore ?? 0;
+  const marketProductionDelta = input.marketProductionDelta ?? 0;
+
+  const addFlag = (flag: PlayerCohortAnomalyFlag) => {
+    if (flags.some(item => item.key === flag.key)) return;
+    flags.push({
+      ...flag,
+      score: Math.round(clamp(flag.score, 0, 100)),
+      evidence: flag.evidence.filter(Boolean).slice(0, 4),
+    });
+  };
+
+  if (
+    (input.agePhase === 'late-prime' || input.agePhase === 'decline')
+    && production >= 64
+  ) {
+    addFlag({
+      key: 'age-curve-outlier',
+      label: 'Age-curve outlier',
+      tone: production >= 76 && marketProductionDelta <= 8 ? 'info' : 'warn',
+      score: 54 + production * 0.42 + Math.max(0, -marketProductionDelta) * 0.22,
+      detail: `${input.details.fullName || 'Player'} is producing above the normal ${input.position} age-curve band.`,
+      evidence: [
+        age !== null ? `Age ${age} maps to ${input.agePhase}.` : `Age phase ${input.agePhase}.`,
+        `Production score ${production}.`,
+        input.marketProductionDelta !== null ? `Market-production delta ${input.marketProductionDelta}.` : '',
+      ],
+    });
+  }
+
+  if (
+    input.agePhase !== 'early'
+    && production >= 58
+    && market <= 66
+    && (input.draftCapital.tier === 'late-round' || input.draftCapital.tier === 'undrafted' || input.draftCapital.tier === 'unknown')
+  ) {
+    addFlag({
+      key: 'late-breakout',
+      label: 'Late breakout',
+      tone: input.agePhase === 'prime' ? 'good' : 'info',
+      score: 50 + production * 0.35 + Math.max(0, 66 - market) * 0.22,
+      detail: `${input.details.fullName || 'Player'} has breakout-level production without a premium market or draft runway.`,
+      evidence: [
+        `Age phase ${input.agePhase}.`,
+        `Production score ${production}.`,
+        `Market score ${market}.`,
+        `Draft capital ${input.draftCapital.tier}.`,
+      ],
+    });
+  }
+
+  if (
+    injuryRisk !== null
+    && injuryRisk >= 42
+    && (production >= 50 || (usageScore || 0) >= 55)
+  ) {
+    addFlag({
+      key: 'injury-comeback',
+      label: 'Injury comeback',
+      tone: games !== null && games >= 10 ? 'info' : 'warn',
+      score: 44 + injuryRisk * 0.34 + Math.max(production, usageScore || 0) * 0.24,
+      detail: `${input.details.fullName || 'Player'} has enough recent role or production evidence to separate comeback signal from pure injury risk.`,
+      evidence: [
+        `Injury risk score ${injuryRisk}.`,
+        production ? `Production score ${production}.` : '',
+        usageScore !== null ? `Usage score ${usageScore}.` : '',
+        games !== null ? `${games} games in the production sample.` : '',
+      ],
+    });
+  }
+
+  if (
+    games !== null
+    && games > 0
+    && games <= 7
+    && (production >= 48 || market >= 56 || (usageScore || 0) >= 58)
+  ) {
+    addFlag({
+      key: 'small-sample-spike',
+      label: 'Small-sample spike',
+      tone: 'warn',
+      score: 48 + Math.max(production, market, usageScore || 0) * 0.38 + (8 - games) * 4,
+      detail: `${input.details.fullName || 'Player'} is carrying a strong signal on only ${games} game${games === 1 ? '' : 's'}.`,
+      evidence: [
+        `${games} game sample.`,
+        production ? `Production score ${production}.` : '',
+        market ? `Market score ${market}.` : '',
+        usageScore !== null ? `Usage score ${usageScore}.` : '',
+      ],
+    });
+  }
+
+  if (
+    delta
+    && (
+      delta.qualitySignal === 'major-opening'
+      || delta.qualitySignal === 'minor-opening'
+      || delta.incumbentOpportunitySignal === 'major-promotion'
+      || delta.incumbentOpportunitySignal === 'minor-promotion'
+    )
+    && (opportunityScore || 0) >= 58
+  ) {
+    addFlag({
+      key: 'role-driven-jump',
+      label: 'Role-driven jump',
+      tone: delta.qualitySignal === 'major-opening' || delta.incumbentOpportunitySignal === 'major-promotion' ? 'good' : 'info',
+      score: 48 + (opportunityScore || 0) * 0.42 + (usageScore || 0) * 0.18,
+      detail: `${input.details.fullName || 'Player'} has a role-change signal that can explain a production or market jump.`,
+      evidence: [
+        delta.qualitySignal ? `Opportunity quality ${delta.qualitySignal}.` : '',
+        delta.incumbentOpportunitySignal ? `Incumbent signal ${delta.incumbentOpportunitySignal}.` : '',
+        `Opportunity score ${opportunityScore}.`,
+        delta.note,
+      ],
+    });
+  }
+
+  return flags.sort((a, b) => b.score - a.score).slice(0, 4);
 }
 
 function getDraftCapital(details: PlayerDetails): PlayerCohortDraftCapital {
@@ -637,6 +775,7 @@ function buildCalibration(input: {
   marketScore: number | null;
   marketProductionDelta: number | null;
   draftCapital: PlayerCohortDraftCapital;
+  anomalyFlags?: PlayerCohortAnomalyFlag[];
 }): PlayerCohortCalibration {
   const sources = sourceCount(input.details);
   const missingSignals: string[] = [];
@@ -666,6 +805,11 @@ function buildCalibration(input: {
   if (input.details.rosterRoom?.weeklyCoverage && input.details.rosterRoom.weeklyCoverage.currentSeasonPlayers + input.details.rosterRoom.weeklyCoverage.previousSeasonPlayers === 0) {
     cautionFlags.push('roster movement timing unavailable');
   }
+  input.anomalyFlags?.forEach((flag) => {
+    if (flag.tone === 'warn' || flag.tone === 'danger') {
+      cautionFlags.push(flag.label.toLowerCase());
+    }
+  });
 
   const evidenceScore = Math.round(clamp(
     12
@@ -727,6 +871,7 @@ function buildTrace(input: {
   outcomeBucket: PlayerCohortOutcomeBucket;
   draftCapital: PlayerCohortDraftCapital;
   calibration: PlayerCohortCalibration;
+  anomalyFlags: PlayerCohortAnomalyFlag[];
 }): string[] {
   return [
     `Calibration: ${input.calibration.note}`,
@@ -743,6 +888,9 @@ function buildTrace(input: {
     input.value !== null ? `Primary value: ${input.value}.` : 'Primary value is unavailable.',
     input.productionScore !== null ? `Production score: ${input.productionScore}.` : 'Production score is unavailable.',
     input.marketProductionDelta !== null ? `Market vs production delta: ${input.marketProductionDelta}.` : 'Market-production delta is unavailable.',
+    input.anomalyFlags.length
+      ? `Anomaly rules: ${input.anomalyFlags.map(flag => `${flag.label} (${flag.score})`).join('; ')}.`
+      : 'No anomaly rules fired.',
     `Outcome bucket: ${input.outcomeBucket}.`,
     `Evidence grade: ${input.calibration.evidenceGrade}; evidence score ${input.calibration.evidenceScore}; confidence cap ${input.calibration.confidenceCap}.`,
     input.calibration.missingSignals.length ? `Missing signals: ${input.calibration.missingSignals.join(', ')}.` : 'No major calibration gaps detected.',
@@ -784,19 +932,6 @@ export function buildPlayerCohortProfiles(input: {
         breakoutOpportunitySignal: hasBreakoutOpportunitySignal(details),
         draftCapitalTier: draftCapital.tier,
       });
-      const calibration = buildCalibration({
-        details,
-        value,
-        agePhase,
-        productionScore,
-        marketScore,
-        marketProductionDelta,
-        draftCapital,
-      });
-      const confidence = Math.min(
-        getRawConfidence(details, productionScore, marketScore, draftCapital),
-        calibration.confidenceCap
-      );
       const features = buildFeatureVector({
         details,
         age,
@@ -806,6 +941,30 @@ export function buildPlayerCohortProfiles(input: {
         draftCapital,
         position,
       });
+      const anomalyFlags = buildAnomalyFlags({
+        details,
+        position,
+        agePhase,
+        productionScore,
+        marketScore,
+        marketProductionDelta,
+        draftCapital,
+        features,
+      });
+      const calibration = buildCalibration({
+        details,
+        value,
+        agePhase,
+        productionScore,
+        marketScore,
+        marketProductionDelta,
+        draftCapital,
+        anomalyFlags,
+      });
+      const confidence = Math.min(
+        getRawConfidence(details, productionScore, marketScore, draftCapital),
+        calibration.confidenceCap
+      );
 
       return {
         playerId,
@@ -825,6 +984,7 @@ export function buildPlayerCohortProfiles(input: {
           outcomeBucket,
           confidence,
           calibration,
+          anomalyFlags,
           draftCapital,
           seasonOutcomeReceipt: null,
           peers: [],
@@ -872,6 +1032,7 @@ export function buildPlayerCohortProfiles(input: {
           outcomeBucket: row.profile.outcomeBucket,
           draftCapital: row.profile.draftCapital,
           calibration: row.profile.calibration,
+          anomalyFlags: row.profile.anomalyFlags || [],
         }),
         `Historical comps: ${historicalComps.summary}`,
         historicalComps.closest.length

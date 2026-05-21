@@ -1,6 +1,7 @@
 import type { ScheduleTier } from '../shared/types';
 import { recordApiProviderCacheHit, recordApiProviderTelemetryEvent } from './apiProviderTelemetry';
 import { findLatestProviderDataSnapshot, upsertProviderDataSnapshot } from './db';
+import { normalizeNflTeamCode } from './nflTeamCodes';
 import { getProviderSnapshotDateKey, parseProviderSnapshotPayload } from './providerDataSnapshots';
 
 export type DraftSharksScheduleStatus = 'disabled' | 'missing_config' | 'loaded' | 'empty' | 'error';
@@ -9,11 +10,21 @@ export type DraftSharksSosProfile = {
   team: string;
   position: string;
   seasonSOS: number | null;
+  remainingSOS: number | null;
   scheduleTier: ScheduleTier;
   streamerWeeks: number[];
   avoidWeeks: number[];
+  weeklyMatchups: DraftSharksWeeklySos[];
   source: string;
   updatedAt: string;
+};
+
+export type DraftSharksWeeklySos = {
+  week: number;
+  opponent: string | null;
+  homeAway: 'home' | 'away' | 'neutral' | null;
+  matchupPercent: number;
+  matchupTier: ScheduleTier;
 };
 
 export type DraftSharksScheduleContext = {
@@ -41,16 +52,6 @@ const DEFAULT_TIMEOUT_MS = 8000;
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const ENABLED_VALUES = new Set(['1', 'true', 'yes', 'on']);
 
-const TEAM_ALIASES: Record<string, string> = {
-  ARZ: 'ARI',
-  JAC: 'JAX',
-  LA: 'LAR',
-  OAK: 'LV',
-  SD: 'LAC',
-  STL: 'LAR',
-  WSH: 'WAS',
-};
-
 let cachedContext: { expiresAt: number; value: DraftSharksScheduleContext } | null = null;
 
 type DraftSharksScheduleSnapshotPayload = {
@@ -65,9 +66,7 @@ function enabled() {
 }
 
 function normalizeTeam(value: unknown): string | null {
-  const normalized = String(value || '').trim().toUpperCase();
-  if (!normalized || normalized === 'FA') return null;
-  return TEAM_ALIASES[normalized] || normalized;
+  return normalizeNflTeamCode(value);
 }
 
 function normalizePosition(value: unknown): string | null {
@@ -79,7 +78,9 @@ function normalizePosition(value: unknown): string | null {
 }
 
 function numberField(value: unknown): number | null {
-  const parsed = Number(value);
+  const clean = String(value ?? '').replace(/%/g, '').trim();
+  if (!clean) return null;
+  const parsed = Number(clean);
   return Number.isFinite(parsed) ? Math.round(parsed * 10) / 10 : null;
 }
 
@@ -103,6 +104,14 @@ function normalizeTier(value: unknown, score: number | null): ScheduleTier {
   return 'neutral';
 }
 
+function normalizePercentTier(percent: number | null): ScheduleTier {
+  if (percent === null) return 'neutral';
+  if (percent >= 25) return 'elite';
+  if (percent >= 8) return 'easy';
+  if (percent <= -8) return 'hard';
+  return 'neutral';
+}
+
 function normalizeWeeks(value: unknown): number[] {
   const rawValues = Array.isArray(value)
     ? value
@@ -114,6 +123,104 @@ function normalizeWeeks(value: unknown): number[] {
     .map((week) => Number(week))
     .filter((week) => Number.isInteger(week) && week >= 1 && week <= 18)))
     .sort((a, b) => a - b);
+}
+
+function normalizeHomeAway(value: unknown): DraftSharksWeeklySos['homeAway'] {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['home', 'h', 'vs', 'v'].includes(normalized)) return 'home';
+  if (['away', 'a', '@', 'at'].includes(normalized)) return 'away';
+  if (['neutral', 'n'].includes(normalized)) return 'neutral';
+  return null;
+}
+
+function getWeeklyField(row: Record<string, unknown>, week: number, suffixes: string[]): unknown {
+  const capitalizedSuffixes = suffixes
+    .filter(Boolean)
+    .map((suffix) => `${suffix[0].toUpperCase()}${suffix.slice(1)}`);
+  const keys = [
+    `week${week}`,
+    `week_${week}`,
+    `wk${week}`,
+    `wk_${week}`,
+    `w${week}`,
+    ...suffixes.flatMap((suffix) => [
+      `week${week}${suffix}`,
+      `week${week}_${suffix}`,
+      `week_${week}_${suffix}`,
+      `wk${week}${suffix}`,
+      `wk${week}_${suffix}`,
+      `wk_${week}_${suffix}`,
+      `w${week}${suffix}`,
+      `w${week}_${suffix}`,
+    ]),
+    ...capitalizedSuffixes.flatMap((suffix) => [
+      `week${week}${suffix}`,
+      `wk${week}${suffix}`,
+      `w${week}${suffix}`,
+    ]),
+  ];
+  return stringField(row, keys);
+}
+
+function parseWeeklyCell(value: unknown): Pick<DraftSharksWeeklySos, 'matchupPercent' | 'opponent' | 'homeAway'> | null {
+  if (value === null || value === undefined || value === '') return null;
+  const raw = String(value).trim();
+  if (/^bye$/i.test(raw)) return null;
+  const percent = numberField(raw.match(/-?\d+(?:\.\d+)?\s*%?/)?.[0] || raw);
+  if (percent === null) return null;
+  const opponentMatch = raw.match(/(?:^|[\s\n])(@|at|vs\.?|v)?\s*([A-Z]{2,3})(?:\s|$)/i);
+  const homeAway = normalizeHomeAway(opponentMatch?.[1] || null);
+  return {
+    matchupPercent: percent,
+    opponent: normalizeTeam(opponentMatch?.[2]) || null,
+    homeAway,
+  };
+}
+
+function normalizeWeeklyMatchupRows(row: Record<string, unknown>): DraftSharksWeeklySos[] {
+  const nestedWeeks = stringField(row, ['weeks', 'weekly', 'matchups', 'schedule']);
+  const rows = Array.isArray(nestedWeeks)
+    ? nestedWeeks.filter((weekRow): weekRow is Record<string, unknown> => Boolean(weekRow && typeof weekRow === 'object'))
+    : [];
+
+  if (rows.length) {
+    return rows.map((weekRow) => {
+      const week = Number(stringField(weekRow, ['week', 'wk', 'w']));
+      const percent = numberField(stringField(weekRow, [
+        'matchup_percent',
+        'matchupPercent',
+        'percent',
+        'value',
+        'score',
+        'sos',
+      ]));
+      if (!Number.isInteger(week) || week < 1 || week > 18 || percent === null) return null;
+      return {
+        week,
+        opponent: normalizeTeam(stringField(weekRow, ['opponent', 'opp', 'defense', 'team'])) || null,
+        homeAway: normalizeHomeAway(stringField(weekRow, ['homeAway', 'home_away', 'site'])),
+        matchupPercent: percent,
+        matchupTier: normalizePercentTier(percent),
+      };
+    }).filter((weekRow): weekRow is DraftSharksWeeklySos => Boolean(weekRow));
+  }
+
+  const weeklyMatchups: DraftSharksWeeklySos[] = [];
+  for (let week = 1; week <= 18; week += 1) {
+    const cell = parseWeeklyCell(getWeeklyField(row, week, ['', 'percent', 'pct', 'value', 'sos', 'matchup']));
+    const explicitPercent = numberField(getWeeklyField(row, week, ['percent', 'pct', 'value', 'sos', 'matchup']));
+    const percent = cell?.matchupPercent ?? explicitPercent;
+    if (percent === null) continue;
+    const opponent = cell?.opponent || normalizeTeam(getWeeklyField(row, week, ['opponent', 'opp', 'team']));
+    weeklyMatchups.push({
+      week,
+      opponent,
+      homeAway: cell?.homeAway || normalizeHomeAway(getWeeklyField(row, week, ['homeAway', 'home_away', 'site'])),
+      matchupPercent: percent,
+      matchupTier: normalizePercentTier(percent),
+    });
+  }
+  return weeklyMatchups;
 }
 
 function rowsFromPayload(payload: unknown): Array<Record<string, unknown>> {
@@ -157,6 +264,13 @@ export function normalizeDraftSharksSosPayload(payload: unknown): Record<string,
       'sosScore',
       'score',
     ]));
+    const remainingSOS = numberField(stringField(row, [
+      'remaining_sos',
+      'remainingSOS',
+      'remaining',
+      'remaining_score',
+      'remainingScore',
+    ]));
     const scheduleTier = normalizeTier(stringField(row, ['tier', 'schedule_tier', 'scheduleTier', 'difficulty']), seasonSOS);
     const streamerWeeks = normalizeWeeks(stringField(row, [
       'streamer_weeks',
@@ -179,9 +293,11 @@ export function normalizeDraftSharksSosPayload(payload: unknown): Record<string,
       team,
       position,
       seasonSOS,
+      remainingSOS,
       scheduleTier,
       streamerWeeks,
       avoidWeeks,
+      weeklyMatchups: normalizeWeeklyMatchupRows(row),
       source: SOURCE,
       updatedAt: safeUpdatedAt(stringField(row, ['updated_at', 'updatedAt', 'last_updated', 'lastUpdated'])),
     };

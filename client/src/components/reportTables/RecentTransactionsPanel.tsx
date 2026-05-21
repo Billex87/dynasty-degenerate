@@ -28,6 +28,8 @@ type WaiverPosition = (typeof WAIVER_POSITIONS)[number];
 
 function getAiNeuralSurfaceClass(theme = "neutral", extraClassName = "") {
   return [
+    "ai-surface-r3f",
+    "ai-neural-surface-tron",
     AI_NEURAL_SURFACE_CLASS,
     `${AI_NEURAL_SURFACE_CLASS}-${theme}`,
     extraClassName,

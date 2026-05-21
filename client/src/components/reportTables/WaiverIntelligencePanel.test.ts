@@ -9,6 +9,7 @@ import type {
 } from "@shared/types";
 import { buildMatchupWindowSet } from "@shared/matchupWindows";
 import {
+  buildWaiverRecommendationContext,
   buildWaiverDefensePairingPlan,
   buildWaiverOutcomeLearning,
   getWaiverPlanOutcomeRead,
@@ -102,13 +103,13 @@ function defenseSignal(
     isBye: false,
   }));
   return {
-    signalType: "matchup-calendar",
+    signalType: "draftsharks-sos",
     playerId,
-    fantasyProsId: playerId,
+    fantasyProsId: null,
     name,
     position: "DEF",
     team,
-    source: "FantasyPros",
+    source: "DraftSharks",
     updatedAt: "2026-09-08T18:00:00.000Z",
     weeks,
     bestWeek: 1,
@@ -257,5 +258,158 @@ describe("waiver defense pairing read", () => {
     });
     expect(plan?.summary).toContain("easy");
     expect(plan?.evidence.join(" ")).toContain("Available Defense");
+  });
+});
+
+describe("waiver recommendation evidence gate", () => {
+  const waiverReceiver: TrendingPlayer = {
+    player_id: "waiver1",
+    name: "Waiver Receiver",
+    pos: "WR",
+    team: "NYJ",
+    owner: null,
+    count: 500,
+    ktcValue: 2800,
+    currentPositionRank: "WR42",
+    playerDetails: {
+      playerId: "waiver1",
+      fullName: "Waiver Receiver",
+      position: "WR",
+      team: "NYJ",
+      valueProfile: {
+        dynastyValue: 2800,
+        seasonValue: 3400,
+        dynastyPositionRank: "WR42",
+        seasonPositionRank: "WR31",
+        sources: ["KTC", "FantasyCalc"],
+      },
+    },
+  };
+
+  const baseManagerIntel = {
+    manager: "Bill",
+    tradePlan: { needPosition: "WR", surplusPosition: null, summary: "Need WR." },
+    benchBaseline: [],
+    reservePlayers: [],
+    rosterPlayers: [],
+    droppablePlayers: [
+      {
+        player_id: "drop1",
+        name: "Bench Receiver",
+        pos: "WR",
+        value: 900,
+        seasonValue: 700,
+        currentPositionRank: "WR96",
+        seasonPositionRank: "WR88",
+      },
+    ],
+    holes: { flexDepth: 0 },
+  } as unknown as NonNullable<ReportData["managerRosterIntelligence"]>[number];
+
+  const basePositionCounts = {
+    manager: "Bill",
+    activePlayerCount: 8,
+    reservePlayerCount: 0,
+    QB: 1,
+    QB_starters: 1,
+    RB: 2,
+    RB_starters: 2,
+    WR: 3,
+    WR_starters: 2,
+    TE: 1,
+    TE_starters: 1,
+    K: 0,
+    K_starters: 0,
+    DEF: 1,
+    DEF_starters: 1,
+    lineupPlayers: [],
+    rosterPlayers: [],
+  } as ReportData["managerPositionCounts"][number];
+
+  function waiverData(player: TrendingPlayer): NonNullable<ReportData["waiverIntelligence"]> {
+    return {
+      rosteredTrendingAdds: [],
+      availableTrendingAdds: [player],
+      highestKtcAvailable: player,
+      bestAvailableByPosition: {
+        QB: null,
+        RB: null,
+        WR: player,
+        TE: null,
+        K: null,
+        DEF: null,
+      },
+      bestTaxiStashes: [],
+      recentlyDroppedValuable: [],
+      weeklyEcrTargets: [],
+      omittedCandidates: [],
+    };
+  }
+
+  it("does not recommend a stale available player after a live transaction add", () => {
+    const context = buildWaiverRecommendationContext({
+      data: waiverData(waiverReceiver),
+      viewerManager: "Bill",
+      managerRosterIntelligence: [baseManagerIntel],
+      managerPositionCounts: [basePositionCounts],
+      positionDepth: [{ manager: "Bill", position: "WR", status: "shortage", count: 3 }],
+      leagueDiagnostics: {
+        rosterSlots: ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "DEF", "BN", "BN"],
+        valueMode: "redraft",
+      } as ReportData["leagueDiagnostics"],
+      recentTransactions: [
+        transaction({
+          id: "tx-claimed",
+          date: "2026-05-03",
+          manager: "Tester",
+          addedPlayer: {
+            player_id: "waiver1",
+            name: "Waiver Receiver",
+            pos: "WR",
+            team: "NYJ",
+            ktcValue: 2800,
+          },
+          droppedPlayer: null,
+        }),
+      ],
+      leagueValueMode: "redraft",
+    });
+
+    expect(context.recommendations.map(recommendation => recommendation.player.name)).not.toContain("Waiver Receiver");
+    expect(context.summary).toBeNull();
+  });
+
+  it("blocks dynasty-only stash evidence from redraft waiver advice", () => {
+    const dynastyOnly = {
+      ...waiverReceiver,
+      player_id: "dynasty-only",
+      name: "Dynasty Only Stash",
+      playerDetails: {
+        ...waiverReceiver.playerDetails,
+        playerId: "dynasty-only",
+        fullName: "Dynasty Only Stash",
+        valueProfile: {
+          dynastyValue: 2600,
+          dynastyPositionRank: "WR48",
+          sources: ["KTC", "FantasyCalc"],
+        },
+      },
+    } as TrendingPlayer;
+
+    const context = buildWaiverRecommendationContext({
+      data: waiverData(dynastyOnly),
+      viewerManager: "Bill",
+      managerRosterIntelligence: [baseManagerIntel],
+      managerPositionCounts: [basePositionCounts],
+      positionDepth: [{ manager: "Bill", position: "WR", status: "shortage", count: 3 }],
+      leagueDiagnostics: {
+        rosterSlots: ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "DEF", "BN", "BN"],
+        valueMode: "redraft",
+      } as ReportData["leagueDiagnostics"],
+      recentTransactions: [],
+      leagueValueMode: "redraft",
+    });
+
+    expect(context.recommendations.map(recommendation => recommendation.player.name)).not.toContain("Dynasty Only Stash");
   });
 });

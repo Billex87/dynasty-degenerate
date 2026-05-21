@@ -50,6 +50,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import { HeaderCssLights } from "@/components/HeaderCssLights";
+import { AITronSurface, type AITronTheme } from "@/components/AITronSurface";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import {
   PremiumFxLayer,
@@ -89,6 +91,7 @@ import type {
   ReportData,
   WaiverWeeklyEcrWeek,
 } from "@shared/types";
+import { getAIEvidenceReceiptItems } from "@shared/aiEvidenceEngine";
 import type { AppRouter } from "../../../server/routers";
 import type {
   LeagueGlobeConnection,
@@ -108,6 +111,25 @@ import {
   type ScheduleEdgeSortMode,
   type ScheduleEdgeTone,
 } from "@/lib/scheduleEdgeRows";
+import { buildAutopilotData } from "@/lib/autopilot/buildAutopilotData";
+import { AUTOPILOT_MOCK_DATA } from "@/lib/autopilot/mockData";
+import type { AIActionQueueItem } from "@/lib/autopilot/types";
+import {
+  buildAIPredictionEventsForReport,
+  getAIPredictionEventBatchSignature,
+} from "@/lib/aiPredictionEvents";
+import { detectAIActionConflicts } from "@/lib/aiActionMemory";
+import {
+  AI_VOICE_MODE_CHANGE_EVENT,
+  AI_VOICE_MODE_OPTIONS,
+  getAIDeltaBriefCopy,
+  getAIVoiceMode,
+  getAIVoiceModeDescription,
+  getAIVoiceModeLabel,
+  normalizeAIVoiceMode,
+  setAIVoiceMode as persistAIVoiceMode,
+  type AIVoiceMode,
+} from "@/lib/aiVoice";
 
 const DraftAnalysis = lazy(() =>
   import("@/components/DraftAnalysis").then(module => ({
@@ -211,13 +233,16 @@ const AssistantFeatureShells = lazy(() =>
 const AITeamAutopilot = lazy(() => import("@/components/AITeamAutopilot"));
 
 const DYNASTY_LOGO_SRC =
-  "/brand/logos/svg/logo-header-lockup-premium-color.svg?v=20260518-brand-refresh";
+  "/brand/logos/uploads/report-header-logo-compact-transparent-cropped-720.webp?v=20260520-home-perf";
 const DYNASTY_MOBILE_REPORT_LOGO_SRC =
   "/brand/logos/png/mobile-dd-stacked-transparent.png?v=20260519-mobile-transparent";
 const DYNASTY_REPORT_HEADER_LOGO_SRC =
   "/brand/logos/uploads/report-header-logo-compact-transparent-cropped.png?v=20260518-compact-crop";
-const REPORT_CACHE_DATA_VERSION = "manager-identity-alias-v1";
+const REPORT_CACHE_DATA_VERSION = "draftsharks-sos-only-v1";
 const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v25";
+const REPORT_DELTA_SNAPSHOT_KEY =
+  "dynasty-degenerates:report-delta-snapshots:v1";
+const REPORT_DELTA_MAX_LEAGUES = 12;
 const REPORT_CACHE_DB_NAME = "dynasty-degenerates-report-cache";
 const REPORT_CACHE_DB_VERSION = 1;
 const REPORT_CACHE_DB_STORE = "reports";
@@ -721,7 +746,7 @@ function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
   const preview = buildRosterStarterPreview(data);
   return [
     {
-      label: "Strongest Starters",
+      label: "Strongest",
       compactLabel: "Strongest",
       value: renderPreviewManagerIdentity(
         preview.strongestStarterManager,
@@ -732,7 +757,7 @@ function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
     },
     preview.weakestStarterManager
       ? {
-          label: "Weakest Starters",
+          label: "Weakest",
           compactLabel: "Weakest",
           value: renderPreviewManagerIdentity(
             preview.weakestStarterManager,
@@ -754,8 +779,8 @@ function buildTaxiPreviewMetrics(data: ReportData): PreviewMetric[] {
       ? {
           label:
             preview.promoteCount === 1
-              ? "Most Promotable"
-              : `Most Promotable (${preview.promoteCount})`,
+              ? "Promotable"
+              : `Promotable (${preview.promoteCount})`,
           value: renderPreviewManagerIdentity(
             preview.mostPromotableManager,
             data.managerAvatars
@@ -768,10 +793,72 @@ function buildTaxiPreviewMetrics(data: ReportData): PreviewMetric[] {
       ? {
           label:
             preview.cutCount === 1
-              ? "Most Cuttable"
-              : `Most Cuttable (${preview.cutCount})`,
+              ? "Cuttable"
+              : `Cuttable (${preview.cutCount})`,
           value: renderPreviewManagerIdentity(
             preview.mostCuttableManager,
+            data.managerAvatars
+          ),
+          tone: "warn",
+          className: "analysis-preview-chip-manager-preview",
+        }
+      : null,
+  ].filter(Boolean) as PreviewMetric[];
+}
+
+function buildOwnerIntelPreviewMetrics(
+  data: ReportData,
+  sortMode: OwnerIntelSortMode
+): PreviewMetric[] {
+  const rows = data.managerRosterIntelligence || [];
+  if (!rows.length) return [];
+  const growthRows = data.managerRosterValueGrowth || [];
+  const powerRows = data.powerRankings || [];
+  const maxGrowthValue = Math.max(
+    0,
+    ...growthRows.map(row => row.total_val || 0)
+  );
+  const getOverviewRow = (manager: string) =>
+    data.leagueOverview?.find(row => row.manager === manager);
+  const getTimelineRow = (manager: string) =>
+    data.dynastyTimelines?.find(row => row.manager === manager);
+  const getPowerRow = (manager: string) =>
+    powerRows.find(row => row.manager === manager);
+  const getGrowthRow = (manager: string) =>
+    growthRows.find(row => row.manager === manager);
+  const getScore = (row: (typeof rows)[number]) => {
+    const timelineRow = getTimelineRow(row.manager);
+    if (sortMode === "contender") return timelineRow?.contenderScore ?? -1;
+    if (sortMode === "rebuilder") return timelineRow?.rebuildScore ?? -1;
+    const rosterValue = getPowerRow(row.manager)?.rosterValue;
+    if (typeof rosterValue === "number") return rosterValue;
+    const growthValue = getGrowthRow(row.manager)?.total_val;
+    return maxGrowthValue > 0 && typeof growthValue === "number"
+      ? Math.round((growthValue / maxGrowthValue) * 100)
+      : (getOverviewRow(row.manager)?.total_val ?? -1);
+  };
+  const ordered = [...rows].sort((a, b) => {
+    const scoreDiff = getScore(b) - getScore(a);
+    if (scoreDiff !== 0) return scoreDiff;
+    return a.manager.localeCompare(b.manager);
+  });
+  return [
+    ordered[0]
+      ? {
+          label: "Apex",
+          value: renderPreviewManagerIdentity(
+            ordered[0].manager,
+            data.managerAvatars
+          ),
+          tone: "good",
+          className: "analysis-preview-chip-manager-preview",
+        }
+      : null,
+    ordered[ordered.length - 1]
+      ? {
+          label: "Cellar",
+          value: renderPreviewManagerIdentity(
+            ordered[ordered.length - 1].manager,
             data.managerAvatars
           ),
           tone: "warn",
@@ -847,12 +934,19 @@ function buildTradePreviewMetrics(
 ): PreviewMetric[] {
   const tradeHistory = [...(data.tradeHistory || [])];
   const tradeTendencies = [...(data.tradeTendencies || [])];
-  const managerIntel = data.managerRosterIntelligence || [];
-
-  const uniqueTradeManagers = new Set<string>();
-  tradeHistory.forEach(trade => {
-    if (trade.team_a) uniqueTradeManagers.add(trade.team_a);
-    if (trade.team_b) uniqueTradeManagers.add(trade.team_b);
+  const tradeTendencyByManager = new Map(
+    tradeTendencies.map(row => [row.manager, row])
+  );
+  const leagueTradeActivity = getReportManagerNames(
+    data,
+    data.viewerManager
+  ).map((manager, index) => {
+    const tendency = tradeTendencyByManager.get(manager);
+    return {
+      manager,
+      tradeCount: tendency?.tradeCount ?? 0,
+      index,
+    };
   });
 
   const biggestGap =
@@ -867,86 +961,46 @@ function buildTradePreviewMetrics(
     [...tradeTendencies].sort((a, b) => b.tradeCount - a.tradeCount)[0] || null;
   const bestWinRate =
     [...tradeTendencies].sort((a, b) => b.winPct - a.winPct)[0] || null;
-  const taxiRows = managerIntel.filter(
-    row => (row.taxiTriage?.items.length || 0) > 0
-  );
-  const promotableRows = [...managerIntel]
-    .filter(row => (row.taxiTriage?.counts["Promote Now"] || 0) > 0)
-    .sort(
-      (a, b) =>
-        (b.taxiTriage?.counts["Promote Now"] || 0) -
-          (a.taxiTriage?.counts["Promote Now"] || 0) ||
-        a.manager.localeCompare(b.manager)
-    );
-  const cuttableRows = [...managerIntel]
-    .filter(row => (row.taxiTriage?.counts.Cuttable || 0) > 0)
-    .sort(
-      (a, b) =>
-        (b.taxiTriage?.counts.Cuttable || 0) -
-          (a.taxiTriage?.counts.Cuttable || 0) ||
-        a.manager.localeCompare(b.manager)
-    );
-  const topPromotable = promotableRows[0] || null;
-  const topCuttable = cuttableRows[0] || null;
-  const topPromotableCount =
-    topPromotable?.taxiTriage?.counts["Promote Now"] || 0;
-  const topCuttableCount = topCuttable?.taxiTriage?.counts.Cuttable || 0;
+  const worstProfit =
+    [...tradeTendencies].sort((a, b) => a.profit - b.profit)[0] || null;
+  const quietestTrader =
+    [...leagueTradeActivity].sort(
+      (a, b) => a.tradeCount - b.tradeCount || a.index - b.index
+    )[0] || null;
   const cookedManager = getTradeLoserManager(biggestGap);
+  const auraManager = biggestGap?.winner || null;
+  const latestTradeGap = latestTrade
+    ? formatPreviewNumber(Math.abs(latestTrade.point_gap || 0))
+    : null;
 
   switch (section) {
     case "war-room":
       return [
-        {
-          label: "Managers",
-          value: managerIntel.length,
-          tone: managerIntel.length ? "info" : "warn",
-        },
-        topPromotable
+        bestProfit
           ? {
-              label: `Most promotable${topPromotableCount ? ` (${topPromotableCount})` : ""}`,
+              label: `Market Shark (${formatPreviewNumber(bestProfit.profit)})`,
               value: renderPreviewManagerIdentity(
-                topPromotable.manager,
+                bestProfit.manager,
                 data.managerAvatars
               ),
               tone: "good",
               className: "analysis-preview-chip-manager-preview",
             }
           : null,
-        topCuttable
+        worstProfit
           ? {
-              label: `Most cuttable${topCuttableCount ? ` (${topCuttableCount})` : ""}`,
+              label: `Bag Holder (${formatPreviewNumber(worstProfit.profit)})`,
               value: renderPreviewManagerIdentity(
-                topCuttable.manager,
+                worstProfit.manager,
                 data.managerAvatars
               ),
               tone: "danger",
               className: "analysis-preview-chip-manager-preview",
             }
           : null,
-        {
-          label: "Taxi triage",
-          value: taxiRows.length,
-          tone: taxiRows.length ? "info" : "neutral",
-        },
       ].filter(Boolean) as PreviewMetric[];
     case "leaderboard":
       return [
-        {
-          label: "Trades",
-          value: tradeTendencies.length,
-          tone: tradeTendencies.length ? "info" : "warn",
-        },
-        bestProfit
-          ? {
-              label: `Top profit (${formatPreviewNumber(bestProfit.profit)})`,
-              value: renderPreviewManagerIdentity(
-                bestProfit.manager,
-                data.managerAvatars
-              ),
-              tone: bestProfit.profit >= 0 ? "good" : "danger",
-              className: "analysis-preview-chip-manager-preview",
-            }
-          : null,
         busiestTrader
           ? {
               label: `Most trades (${busiestTrader.tradeCount})`,
@@ -955,6 +1009,17 @@ function buildTradePreviewMetrics(
                 data.managerAvatars
               ),
               tone: "info",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+        quietestTrader
+          ? {
+              label: `Least trades (${quietestTrader.tradeCount})`,
+              value: renderPreviewManagerIdentity(
+                quietestTrader.manager,
+                data.managerAvatars
+              ),
+              tone: "neutral",
               className: "analysis-preview-chip-manager-preview",
             }
           : null,
@@ -972,11 +1037,17 @@ function buildTradePreviewMetrics(
       ].filter(Boolean) as PreviewMetric[];
     case "theft":
       return [
-        {
-          label: "Trades",
-          value: tradeHistory.length,
-          tone: tradeHistory.length ? "info" : "warn",
-        },
+        auraManager
+          ? {
+              label: "Aura Farmer",
+              value: renderPreviewManagerIdentity(
+                auraManager,
+                data.managerAvatars
+              ),
+              tone: "good",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
         cookedManager
           ? {
               label: `Most cooked${biggestGap ? ` (${formatPreviewNumber(Math.abs(biggestGap.point_gap || 0))})` : ""}`,
@@ -988,18 +1059,6 @@ function buildTradePreviewMetrics(
               className: "analysis-preview-chip-manager-preview",
             }
           : null,
-        biggestGap
-          ? {
-              label: "Largest gap",
-              value: formatPreviewNumber(Math.abs(biggestGap.point_gap || 0)),
-              tone: "warn",
-            }
-          : null,
-        {
-          label: "Trade managers",
-          value: uniqueTradeManagers.size,
-          tone: uniqueTradeManagers.size ? "neutral" : "warn",
-        },
       ].filter(Boolean) as PreviewMetric[];
     case "ledger":
     default:
@@ -1007,12 +1066,7 @@ function buildTradePreviewMetrics(
         {
           label: "Trades",
           value: tradeHistory.length,
-          tone: tradeHistory.length ? "info" : "warn",
-        },
-        {
-          label: "Trade managers",
-          value: uniqueTradeManagers.size,
-          tone: uniqueTradeManagers.size ? "neutral" : "warn",
+          tone: tradeHistory.length ? "neutral" : "warn",
         },
         latestTrade
           ? {
@@ -1021,15 +1075,11 @@ function buildTradePreviewMetrics(
               tone: "info",
             }
           : null,
-        biggestGap
+        latestTradeGap
           ? {
-              label: `Largest gap (${formatPreviewNumber(Math.abs(biggestGap.point_gap || 0))})`,
-              value: renderPreviewManagerIdentity(
-                biggestGap.winner,
-                data.managerAvatars
-              ),
+              label: "Last gap",
+              value: latestTradeGap,
               tone: "warn",
-              className: "analysis-preview-chip-manager-preview",
             }
           : null,
       ].filter(Boolean) as PreviewMetric[];
@@ -1218,58 +1268,38 @@ function buildMomentumPreviewMetrics(data: ReportData): PreviewMetric[] {
   ].filter(Boolean) as PreviewMetric[];
 }
 
-function buildWeeklyRiserPreviewMetrics(data: ReportData): PreviewMetric[] {
-  return [...(data.weeklyRisers || [])]
-    .sort((a, b) => b.pct_change - a.pct_change)
-    .slice(0, 2)
-    .map(
-      (player, index): PreviewMetric => ({
-        label: `Riser ${index + 1}`,
-        value: renderPreviewPlayerMetric(
-          renderMomentumPreviewPlayer(player),
-          formatPreviewPercent(player.pct_change)
-        ),
-        tone: "good",
-        hideLabel: true,
-      })
-    );
-}
+function buildCombinedTrendingPreviewMetrics(data: ReportData): PreviewMetric[] {
+  const topAdd = [...(data.trendingAdds || [])].sort(
+    (a, b) => b.count - a.count || (b.ktcValue || 0) - (a.ktcValue || 0)
+  )[0];
+  const topDrop = [...(data.trendingDrops || [])].sort(
+    (a, b) => b.count - a.count || (b.ktcValue || 0) - (a.ktcValue || 0)
+  )[0];
 
-function buildWeeklyFallerPreviewMetrics(data: ReportData): PreviewMetric[] {
-  return [...(data.weeklyFallers || [])]
-    .sort((a, b) => a.pct_change - b.pct_change)
-    .slice(0, 2)
-    .map(
-      (player, index): PreviewMetric => ({
-        label: `Faller ${index + 1}`,
-        value: renderPreviewPlayerMetric(
-          renderMomentumPreviewPlayer(player),
-          formatPreviewPercent(player.pct_change)
-        ),
-        tone: "danger",
-        hideLabel: true,
-      })
-    );
-}
-
-function buildTrendingPreviewMetrics(
-  players: NonNullable<ReportData["trendingAdds"]>,
-  direction: "up" | "down"
-): PreviewMetric[] {
-  return [...players]
-    .sort((a, b) => b.count - a.count || (b.ktcValue || 0) - (a.ktcValue || 0))
-    .slice(0, 4)
-    .map(
-      (player, index): PreviewMetric => ({
-        label: `${direction === "up" ? "Add" : "Drop"} ${index + 1}`,
-        value: renderPreviewPlayerMetric(
-          renderTrendingPreviewPlayer(player),
-          formatPreviewCount(player.count)
-        ),
-        tone: direction === "up" ? "good" : "danger",
-        hideLabel: true,
-      })
-    );
+  return [
+    topAdd
+      ? {
+          label: `Top add (${formatPreviewCount(topAdd.count)})`,
+          value: renderPreviewPlayerMetric(
+            renderTrendingPreviewPlayer(topAdd),
+            null
+          ),
+          tone: "good",
+          hideLabel: true,
+        }
+      : null,
+    topDrop
+      ? {
+          label: `Top drop (${formatPreviewCount(topDrop.count)})`,
+          value: renderPreviewPlayerMetric(
+            renderTrendingPreviewPlayer(topDrop),
+            null
+          ),
+          tone: "danger",
+          hideLabel: true,
+        }
+      : null,
+  ].filter(Boolean) as PreviewMetric[];
 }
 
 function buildRecentTransactionPreviewMetrics(
@@ -1433,6 +1463,57 @@ type CachedReport = {
   activeTab: string;
   reportData: ReportData;
   savedAt: number;
+};
+
+type ReportDeltaTone = "good" | "info" | "warn" | "danger" | "neutral";
+
+type ReportDeltaPlayer = {
+  id: string;
+  name: string;
+  position: string | null;
+  team: string | null;
+  metricLabel: string | null;
+};
+
+type ReportDeltaAction = {
+  id: string;
+  decision: AIActionQueueItem["decision"];
+  label: string;
+  target: string;
+  confidence: number;
+};
+
+type ReportDeltaSnapshot = {
+  schemaVersion: 1;
+  leagueId: string;
+  leagueName: string;
+  savedAt: number;
+  valueMode: LeagueValueMode;
+  action: ReportDeltaAction | null;
+  topRiser: ReportDeltaPlayer | null;
+  topFaller: ReportDeltaPlayer | null;
+  topWaiver: ReportDeltaPlayer | null;
+  tradeCount: number;
+  transactionCount: number;
+  scheduleStatus: string | null;
+  scheduleSignalCount: number;
+  aiConfidence: number | null;
+  signature: string;
+};
+
+type ReportDeltaSnapshotStore = {
+  schemaVersion: 1;
+  snapshots: Record<string, ReportDeltaSnapshot>;
+};
+
+type ReportDeltaChange = {
+  id: string;
+  label: string;
+  summary: string;
+  detail: string;
+  tone: ReportDeltaTone;
+  receipts: string[];
+  priority: number;
 };
 
 type LastLeague = Omit<CachedReport, "reportData">;
@@ -1619,6 +1700,387 @@ function writeBrowserReportCache(report: CachedReport) {
   } catch {
     localStorage.removeItem(REPORT_CACHE_KEY);
   }
+}
+
+function getEmptyReportDeltaSnapshotStore(): ReportDeltaSnapshotStore {
+  return {
+    schemaVersion: 1,
+    snapshots: {},
+  };
+}
+
+function readReportDeltaSnapshotStore(): ReportDeltaSnapshotStore {
+  if (typeof window === "undefined") return getEmptyReportDeltaSnapshotStore();
+  try {
+    const raw = window.localStorage.getItem(REPORT_DELTA_SNAPSHOT_KEY);
+    if (!raw) return getEmptyReportDeltaSnapshotStore();
+    const parsed = JSON.parse(raw) as Partial<ReportDeltaSnapshotStore>;
+    if (parsed.schemaVersion !== 1 || !parsed.snapshots) {
+      return getEmptyReportDeltaSnapshotStore();
+    }
+    return {
+      schemaVersion: 1,
+      snapshots: parsed.snapshots as Record<string, ReportDeltaSnapshot>,
+    };
+  } catch {
+    window.localStorage.removeItem(REPORT_DELTA_SNAPSHOT_KEY);
+    return getEmptyReportDeltaSnapshotStore();
+  }
+}
+
+function readReportDeltaSnapshot(leagueId?: string | null): ReportDeltaSnapshot | null {
+  const normalizedLeagueId = String(leagueId || "").trim();
+  if (!normalizedLeagueId) return null;
+  return readReportDeltaSnapshotStore().snapshots[normalizedLeagueId] || null;
+}
+
+function writeReportDeltaSnapshot(snapshot: ReportDeltaSnapshot) {
+  if (typeof window === "undefined") return;
+  const store = readReportDeltaSnapshotStore();
+  const nextSnapshots: Record<string, ReportDeltaSnapshot> = {
+    ...store.snapshots,
+    [snapshot.leagueId]: snapshot,
+  };
+  const prunedEntries = Object.entries(nextSnapshots)
+    .sort(([, a], [, b]) => (b.savedAt || 0) - (a.savedAt || 0))
+    .slice(0, REPORT_DELTA_MAX_LEAGUES);
+
+  try {
+    window.localStorage.setItem(
+      REPORT_DELTA_SNAPSHOT_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        snapshots: prunedEntries.reduce<Record<string, ReportDeltaSnapshot>>(
+          (acc, [key, value]) => {
+            acc[key] = value;
+            return acc;
+          },
+          {}
+        ),
+      })
+    );
+  } catch {
+    window.localStorage.removeItem(REPORT_DELTA_SNAPSHOT_KEY);
+  }
+}
+
+function getReportDeltaPlayerId(
+  player?: { player_id?: string | null; id?: string | null; name?: string | null } | null
+) {
+  return String(player?.player_id || player?.id || player?.name || "").trim();
+}
+
+function buildReportDeltaPlayer(
+  player?: {
+    player_id?: string | null;
+    id?: string | null;
+    name?: string | null;
+    pos?: string | null;
+    position?: string | null;
+    team?: string | null;
+    playerDetails?: { team?: string | null } | null;
+  } | null,
+  metricLabel?: string | null
+): ReportDeltaPlayer | null {
+  const name = String(player?.name || "").trim();
+  if (!name) return null;
+  return {
+    id: getReportDeltaPlayerId(player) || name,
+    name,
+    position: player?.pos || player?.position || null,
+    team: player?.playerDetails?.team || player?.team || null,
+    metricLabel: metricLabel || null,
+  };
+}
+
+function getReportDeltaPlayerFingerprint(player?: ReportDeltaPlayer | null) {
+  if (!player) return "none";
+  return `${player.id || player.name}:${player.position || ""}`;
+}
+
+function getReportDeltaActionFingerprint(action?: ReportDeltaAction | null) {
+  if (!action) return "none";
+  return `${action.id}:${action.decision}:${action.target}:${action.confidence}`;
+}
+
+function getReportDeltaSnapshotSignature(snapshot: Omit<ReportDeltaSnapshot, "signature">) {
+  return [
+    snapshot.valueMode,
+    getReportDeltaActionFingerprint(snapshot.action),
+    getReportDeltaPlayerFingerprint(snapshot.topRiser),
+    getReportDeltaPlayerFingerprint(snapshot.topFaller),
+    getReportDeltaPlayerFingerprint(snapshot.topWaiver),
+    snapshot.tradeCount,
+    snapshot.transactionCount,
+    snapshot.scheduleStatus || "none",
+    snapshot.scheduleSignalCount,
+    snapshot.aiConfidence ?? "none",
+  ].join("|");
+}
+
+function buildReportDeltaAction(
+  reportData: ReportData,
+  valueMode: LeagueValueMode
+): ReportDeltaAction | null {
+  const autopilotMode = valueMode === "redraft" ? "redraft" : "dynasty";
+  try {
+    const action = buildAutopilotData({
+      reportData,
+      mode: autopilotMode,
+      fallback: AUTOPILOT_MOCK_DATA[autopilotMode],
+    }).actionQueue?.[0];
+    if (!action) return null;
+    return {
+      id: action.id,
+      decision: action.decision,
+      label: action.label,
+      target: action.target,
+      confidence: action.confidence,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function buildReportDeltaSnapshot(
+  reportData: ReportData,
+  leagueId: string,
+  leagueName: string
+): ReportDeltaSnapshot | null {
+  const normalizedLeagueId = leagueId.trim();
+  if (!normalizedLeagueId) return null;
+  const valueMode = normalizeLeagueValueMode(
+    reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode
+  );
+  const topRiser =
+    [...(reportData.weeklyRisers || [])].sort(
+      (a, b) => (b.pct_change || 0) - (a.pct_change || 0)
+    )[0] || null;
+  const topFaller =
+    [...(reportData.weeklyFallers || [])].sort(
+      (a, b) => (a.pct_change || 0) - (b.pct_change || 0)
+    )[0] || null;
+  const weeklyWaiverTarget =
+    [...(reportData.waiverIntelligence?.weeklyEcrTargets || [])].sort(
+      (a, b) => (b.score || 0) - (a.score || 0)
+    )[0]?.player || null;
+  const topWaiver =
+    weeklyWaiverTarget ||
+    [...(reportData.waiverIntelligence?.availableTrendingAdds || [])].sort(
+      (a, b) => (b.count || 0) - (a.count || 0)
+    )[0] ||
+    null;
+  const schedulePlanning = reportData.schedulePlanning || null;
+  const scheduleSignalCount =
+    (schedulePlanning?.rosterGaps?.length || 0) +
+    (schedulePlanning?.streamerCandidates?.length || 0) +
+    (schedulePlanning?.byeWeekNotes?.length || 0);
+  const snapshotWithoutSignature: Omit<ReportDeltaSnapshot, "signature"> = {
+    schemaVersion: 1,
+    leagueId: normalizedLeagueId,
+    leagueName: leagueName || "Sleeper League",
+    savedAt: Date.now(),
+    valueMode,
+    action: buildReportDeltaAction(reportData, valueMode),
+    topRiser: buildReportDeltaPlayer(
+      topRiser,
+      topRiser ? formatDashboardSignedPercentLabel(topRiser.pct_change) : null
+    ),
+    topFaller: buildReportDeltaPlayer(
+      topFaller,
+      topFaller ? formatDashboardSignedPercentLabel(topFaller.pct_change) : null
+    ),
+    topWaiver: buildReportDeltaPlayer(
+      topWaiver,
+      topWaiver ? "Top available" : null
+    ),
+    tradeCount: reportData.tradeHistory?.length || 0,
+    transactionCount: reportData.recentTransactions?.length || 0,
+    scheduleStatus: schedulePlanning?.status || null,
+    scheduleSignalCount,
+    aiConfidence: reportData.leagueDiagnostics?.aiConfidence?.score ?? null,
+  };
+
+  return {
+    ...snapshotWithoutSignature,
+    signature: getReportDeltaSnapshotSignature(snapshotWithoutSignature),
+  };
+}
+
+function formatReportDeltaSavedAt(value?: number | null): string {
+  if (!value || !Number.isFinite(value)) return "the last saved report";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "the last saved report";
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function getReportDeltaActionTone(action?: ReportDeltaAction | null): ReportDeltaTone {
+  if (!action) return "neutral";
+  if (action.decision === "do") return "good";
+  if (action.decision === "blocked") return "danger";
+  if (action.decision === "hold") return "warn";
+  return "info";
+}
+
+function describeReportDeltaPlayer(player?: ReportDeltaPlayer | null): string {
+  if (!player) return "No player";
+  const meta = [player.position, player.team].filter(Boolean).join(" · ");
+  return meta ? `${player.name} (${meta})` : player.name;
+}
+
+function buildReportDeltaChanges(
+  previous: ReportDeltaSnapshot | null,
+  current: ReportDeltaSnapshot | null
+): ReportDeltaChange[] {
+  if (!previous || !current || previous.signature === current.signature) {
+    return [];
+  }
+
+  const changes: ReportDeltaChange[] = [];
+  const previousAction = previous.action;
+  const currentAction = current.action;
+  if (getReportDeltaActionFingerprint(previousAction) !== getReportDeltaActionFingerprint(currentAction) && currentAction) {
+    changes.push({
+      id: "action",
+      label: "Decision changed",
+      summary: `${getAIActionDecisionLabel(currentAction.decision)}: ${currentAction.target}`,
+      detail: previousAction
+        ? `Previously ${previousAction.target}; now ${currentAction.label}.`
+        : `${currentAction.label} is the current primary action.`,
+      tone: getReportDeltaActionTone(currentAction),
+      receipts: [
+        `Previous: ${previousAction ? previousAction.target : "no action"}`,
+        `Current confidence: ${currentAction.confidence}%`,
+        `Mode: ${current.valueMode}`,
+      ],
+      priority: 10,
+    });
+  }
+
+  if (getReportDeltaPlayerFingerprint(previous.topWaiver) !== getReportDeltaPlayerFingerprint(current.topWaiver) && current.topWaiver) {
+    changes.push({
+      id: "waiver",
+      label: "Waiver target changed",
+      summary: describeReportDeltaPlayer(current.topWaiver),
+      detail: previous.topWaiver
+        ? `Moved ahead of ${previous.topWaiver.name} in the available-player read.`
+        : "A new available-player target has enough evidence to surface.",
+      tone: "info",
+      receipts: [
+        current.topWaiver.metricLabel || "Top available",
+        `Previous: ${previous.topWaiver?.name || "none"}`,
+      ],
+      priority: 8,
+    });
+  }
+
+  if (current.transactionCount > previous.transactionCount) {
+    const added = current.transactionCount - previous.transactionCount;
+    changes.push({
+      id: "transactions",
+      label: "Sleeper activity changed",
+      summary: `${added} new transaction${added === 1 ? "" : "s"}`,
+      detail: "Roster ownership/status moved since the last saved report.",
+      tone: "warn",
+      receipts: [
+        `Previous events: ${previous.transactionCount}`,
+        `Current events: ${current.transactionCount}`,
+      ],
+      priority: 7,
+    });
+  }
+
+  if (current.tradeCount > previous.tradeCount) {
+    const added = current.tradeCount - previous.tradeCount;
+    changes.push({
+      id: "trades",
+      label: "Trade market moved",
+      summary: `${added} new trade${added === 1 ? "" : "s"}`,
+      detail: "The trade ledger changed enough to re-check manager tendencies.",
+      tone: "info",
+      receipts: [
+        `Previous trades: ${previous.tradeCount}`,
+        `Current trades: ${current.tradeCount}`,
+      ],
+      priority: 6,
+    });
+  }
+
+  if (getReportDeltaPlayerFingerprint(previous.topRiser) !== getReportDeltaPlayerFingerprint(current.topRiser) && current.topRiser) {
+    changes.push({
+      id: "riser",
+      label: "Top riser changed",
+      summary: describeReportDeltaPlayer(current.topRiser),
+      detail: `${current.topRiser.name} is now the strongest positive market move.`,
+      tone: "good",
+      receipts: [
+        current.topRiser.metricLabel || "Positive weekly movement",
+        `Previous: ${previous.topRiser?.name || "none"}`,
+      ],
+      priority: 5,
+    });
+  }
+
+  if (getReportDeltaPlayerFingerprint(previous.topFaller) !== getReportDeltaPlayerFingerprint(current.topFaller) && current.topFaller) {
+    changes.push({
+      id: "faller",
+      label: "Top faller changed",
+      summary: describeReportDeltaPlayer(current.topFaller),
+      detail: `${current.topFaller.name} is now the sharpest negative market move.`,
+      tone: "danger",
+      receipts: [
+        current.topFaller.metricLabel || "Negative weekly movement",
+        `Previous: ${previous.topFaller?.name || "none"}`,
+      ],
+      priority: 4,
+    });
+  }
+
+  if (
+    previous.scheduleStatus !== current.scheduleStatus ||
+    previous.scheduleSignalCount !== current.scheduleSignalCount
+  ) {
+    changes.push({
+      id: "schedule",
+      label: "Schedule read updated",
+      summary: `${current.scheduleSignalCount} schedule signal${current.scheduleSignalCount === 1 ? "" : "s"}`,
+      detail: "Bye-week, streamer, or schedule-planning evidence changed.",
+      tone: current.scheduleStatus === "ready" ? "good" : "warn",
+      receipts: [
+        `Previous: ${previous.scheduleStatus || "missing"}`,
+        `Current: ${current.scheduleStatus || "missing"}`,
+      ],
+      priority: 3,
+    });
+  }
+
+  if (
+    typeof previous.aiConfidence === "number" &&
+    typeof current.aiConfidence === "number" &&
+    Math.abs(current.aiConfidence - previous.aiConfidence) >= 5
+  ) {
+    const delta = current.aiConfidence - previous.aiConfidence;
+    changes.push({
+      id: "confidence",
+      label: "Confidence moved",
+      summary: `${delta > 0 ? "+" : ""}${delta} AI confidence`,
+      detail:
+        delta > 0
+          ? "More source evidence is supporting the current read."
+          : "The current read is capped harder than the previous baseline.",
+      tone: delta > 0 ? "good" : "warn",
+      receipts: [
+        `Previous: ${previous.aiConfidence}`,
+        `Current: ${current.aiConfidence}`,
+      ],
+      priority: 2,
+    });
+  }
+
+  return changes.sort((a, b) => b.priority - a.priority);
 }
 
 function getLeagueIdAnalysisPreview(leagueId: string): AnalysisLeaguePreview {
@@ -2092,6 +2554,72 @@ function HomeActionRow() {
   );
 }
 
+function AIVoiceModeMenu({
+  mode,
+  onChange,
+}: {
+  mode: AIVoiceMode;
+  onChange: (mode: AIVoiceMode) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="report-header-action report-footer-primary-action report-ai-voice-trigger !w-full max-w-[32rem] justify-between gap-2 sm:!w-auto sm:max-w-none"
+          aria-label={`AI voice mode: ${getAIVoiceModeLabel(mode)}`}
+          title={getAIVoiceModeDescription(mode)}
+        >
+          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+            <Bot className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="report-header-action-label min-w-0 truncate">
+              AI Voice: {getAIVoiceModeLabel(mode)}
+            </span>
+          </span>
+          <ChevronDown
+            className="h-3.5 w-3.5 shrink-0 opacity-80"
+            aria-hidden="true"
+          />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="center"
+        className="w-72 border-cyan-400/20 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/20"
+      >
+        <DropdownMenuLabel className="px-2 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-400">
+          AI Voice
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator className="bg-slate-800/80" />
+        <DropdownMenuRadioGroup
+          value={mode}
+          onValueChange={value => {
+            const nextMode = normalizeAIVoiceMode(value);
+            if (nextMode) onChange(nextMode);
+          }}
+        >
+          {AI_VOICE_MODE_OPTIONS.map(option => (
+            <DropdownMenuRadioItem
+              key={option}
+              value={option}
+              className="gap-3 py-2 pr-3 pl-8"
+            >
+              <span className="grid min-w-0 gap-0.5">
+                <span className="font-semibold text-cyan-50">
+                  {getAIVoiceModeLabel(option)}
+                </span>
+                <span className="text-xs leading-snug text-slate-400">
+                  {getAIVoiceModeDescription(option)}
+                </span>
+              </span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function AdminManagerSwitcher({
   managers,
   activeManager,
@@ -2192,6 +2720,9 @@ function HomeLogoChrome() {
         <img
           src={DYNASTY_LOGO_SRC}
           alt="Dynasty Degenerates Logo"
+          width={720}
+          height={200}
+          decoding="async"
           className="home-header-logo"
         />
       </div>
@@ -2354,7 +2885,8 @@ function HomeBrandLockup() {
 
 function HomeFooterChrome({ showBrand = true }: { showBrand?: boolean }) {
   return (
-    <div className="home-footer-inner max-w-7xl mx-auto">
+    <div className="home-footer-inner home-footer-light-shell max-w-7xl mx-auto">
+      <HeaderCssLights className="dd-footer-css-lights" />
       <HomeActionRow />
       {showBrand && <HomeBrandLockup />}
     </div>
@@ -3429,9 +3961,7 @@ function getReportDashboardHeroConfig({
 } {
   const teamCount = getDashboardTeamCount(reportData);
   const starterSlots = getDashboardStarterSlotCount(reportData);
-  const leagueValue = getDashboardLeagueValue(reportData);
   const tradeCount = reportData.tradeHistory?.length || 0;
-  const rookieCount = reportData.draftPicks?.length || 0;
   const weeklyRisers = [...(reportData.weeklyRisers || [])].sort(
     (a, b) => (b.pct_change || 0) - (a.pct_change || 0)
   );
@@ -3474,7 +4004,6 @@ function getReportDashboardHeroConfig({
   const aiScore = reportData.leagueDiagnostics?.aiConfidence?.score ?? null;
 
   if (activeTab === "momentum") {
-    const moveCount = weeklyRisers.length + weeklyFallers.length;
     return {
       kicker: "Weekly Momentum Radar",
       pillLabel: "Momentum signals",
@@ -3493,15 +4022,6 @@ function getReportDashboardHeroConfig({
           value: getDashboardPlayerName(weeklyFallers[0]),
           subLabel: formatDashboardSignedPercentLabel(weeklyFallers[0]?.pct_change),
           tone: "danger",
-        },
-        {
-          key: "market-heat",
-          kind: "meter",
-          label: "Market Heat",
-          value: `${moveCount} moves`,
-          subLabel: "Weekly volatility",
-          score: getDashboardActivityScore(moveCount, Math.max(teamCount * 2, 1)),
-          tone: moveCount > teamCount ? "warn" : "info",
         },
         {
           key: "adds",
@@ -3544,30 +4064,11 @@ function getReportDashboardHeroConfig({
     const sourceBlendLabel = reportData.rankings?.sourceWeightProfiles
       ? "Weighted"
       : "Default";
-    const prospectCount =
-      reportData.rankings?.draftBuzzScoreboardCount ||
-      reportData.rankings?.draftBuzzScoreboard?.length ||
-      reportData.rankings?.devySf?.length ||
-      0;
     return {
       kicker: "League-Matched Value Board",
       pillLabel: "Ranking signals",
       pills: ["Format matched", "Rostered values", "Prospect board", "Source blend"],
       metrics: [
-        {
-          key: "ranked",
-          label: "Ranked Assets",
-          value: formatDashboardWholeNumber(rankingRowCount),
-          subLabel: "Player board",
-          tone: rankingRowCount ? "info" : "warn",
-        },
-        {
-          key: "profile",
-          label: "Value Lens",
-          value: "Matched",
-          subLabel: profileLabel,
-          tone: "info",
-        },
         {
           key: "coverage",
           kind: "meter",
@@ -3587,13 +4088,6 @@ function getReportDashboardHeroConfig({
           value: sourceBlendLabel,
           subLabel: profileLabel,
           tone: reportData.rankings?.sourceWeightProfiles ? "good" : "info",
-        },
-        {
-          key: "prospects",
-          label: "Prospect Pool",
-          value: formatDashboardWholeNumber(prospectCount),
-          subLabel: "College archive",
-          tone: prospectCount ? "info" : "neutral",
         },
       ],
     };
@@ -3663,13 +4157,6 @@ function getReportDashboardHeroConfig({
       pills: ["Capital efficiency", "Hit rate", "Passed value", "Rookie runway"],
       metrics: [
         {
-          key: "draft-picks",
-          label: "Draft Picks",
-          value: formatDashboardWholeNumber(draftTotals.totalPicks || rookieCount),
-          subLabel: "Audited",
-          tone: draftTotals.totalPicks || rookieCount ? "info" : "neutral",
-        },
-        {
           key: "hit-rate",
           kind: "ring",
           label: "Hits",
@@ -3696,15 +4183,6 @@ function getReportDashboardHeroConfig({
           value: formatDashboardSignedNumber(avgDraftChange),
           subLabel: "Value movement",
           tone: getDashboardHeroToneForSignedValue(avgDraftChange),
-        },
-        {
-          key: "rookie-pool",
-          kind: "meter",
-          label: "Rookie Pool",
-          value: formatDashboardWholeNumber(rookieCount),
-          subLabel: "Tracked assets",
-          score: getDashboardActivityScore(rookieCount, Math.max(teamCount * 25, 1)),
-          tone: rookieCount ? "info" : "neutral",
         },
       ],
     };
@@ -3778,13 +4256,6 @@ function getReportDashboardHeroConfig({
     pills: ["Market data", "Season value", "Roster context", "AI-driven reads"],
     metrics: [
       {
-        key: "league-value",
-        label: "League Value",
-        value: formatDashboardCompactNumber(leagueValue || null),
-        subLabel: leagueValueMode === "redraft" ? "Season lens" : "Total",
-        tone: "info",
-      },
-      {
         key: "starter-pool",
         kind: "meter",
         label: "Starter Pool",
@@ -3817,13 +4288,6 @@ function getReportDashboardHeroConfig({
         subLabel: "YTD market",
         score: getDashboardActivityScore(tradeCount, Math.max(teamCount * 2, 1)),
         tone: tradeCount >= teamCount ? "good" : "info",
-      },
-      {
-        key: "rookie-pool",
-        label: "Rookie Pool",
-        value: formatDashboardWholeNumber(rookieCount),
-        subLabel: "Tracked assets",
-        tone: rookieCount ? "info" : "neutral",
       },
     ],
   };
@@ -3869,7 +4333,7 @@ function ReportOverviewHero({
         </div>
       </div>
       <div
-        className="report-overview-metrics"
+        className={`report-overview-metrics report-overview-metrics-${heroConfig.metrics.length}`}
         aria-label={`${leagueName} ${heroConfig.pillLabel.toLowerCase()}`}
       >
         {heroConfig.metrics.map(metric => (
@@ -4440,12 +4904,14 @@ function ReportDashboardSpotlight({
   leagueValueMode,
   reportData,
   managerAvatars,
+  variant = "sidebar",
 }: {
   manager: string | null;
   activeTab: ReportDashboardTab;
   leagueValueMode: LeagueValueMode;
   reportData: ReportData;
   managerAvatars?: Record<string, string | null | undefined>;
+  variant?: "sidebar" | "inline";
 }) {
   if (!manager) return null;
 
@@ -4544,21 +5010,22 @@ function ReportDashboardSpotlight({
       intel?.summary || (intel as { nextMove?: string } | undefined)?.nextMove,
   });
   const isOverviewSpotlight = activeTab === "overview";
-
-  return (
-    <aside className="report-dashboard-spotlight" aria-label="Manager spotlight">
-      <div className="dashboard-spotlight-header">
-        <span className="dashboard-spotlight-avatar">
-          <DashboardManagerAvatar
-            manager={manager}
-            avatarUrl={getDashboardManagerAvatar(manager, managerAvatars)}
-          />
-        </span>
-        <div>
-          <span>{spotlightConfig.eyebrow}</span>
-          <strong>{manager}</strong>
-        </div>
+  const spotlightHeader = (
+    <div className="dashboard-spotlight-header">
+      <span className="dashboard-spotlight-avatar">
+        <DashboardManagerAvatar
+          manager={manager}
+          avatarUrl={getDashboardManagerAvatar(manager, managerAvatars)}
+        />
+      </span>
+      <div>
+        <span>{spotlightConfig.eyebrow}</span>
+        <strong>{manager}</strong>
       </div>
+    </div>
+  );
+  const spotlightBody = (
+    <>
       <div className="dashboard-spotlight-metrics">
         {spotlightConfig.metrics.map(metric => (
           <DashboardVisualMetric key={metric.key} metric={metric} />
@@ -4589,9 +5056,7 @@ function ReportDashboardSpotlight({
               <div className={rankGridClassName}>
                 {starterRankGroups.map(group => (
                   <span key={group.key} data-position={group.position}>
-                    <em>
-                      {group.label}
-                    </em>
+                    <em>{group.label}</em>
                     <strong>{formatDashboardRank(group.rank)}</strong>
                     <b>{group.tier}</b>
                   </span>
@@ -4620,7 +5085,109 @@ function ReportDashboardSpotlight({
         <span>{spotlightConfig.readTitle}</span>
         <p>{spotlightConfig.read}</p>
       </div>
+    </>
+  );
+
+  if (variant === "inline") {
+    return (
+      <details
+        className="report-dashboard-spotlight report-dashboard-spotlight-inline"
+        aria-label="Manager spotlight"
+      >
+        <summary className="dashboard-spotlight-inline-summary">
+          {spotlightHeader}
+          <span className="dashboard-spotlight-inline-copy">
+            <strong>{spotlightConfig.chips[0] || "Manager context"}</strong>
+            <span>{spotlightConfig.readTitle}</span>
+          </span>
+          <ChevronDown className="dashboard-spotlight-inline-icon" aria-hidden="true" />
+        </summary>
+        <div className="dashboard-spotlight-inline-body">
+          {spotlightBody}
+        </div>
+      </details>
+    );
+  }
+
+  return (
+    <aside
+      className={`report-dashboard-spotlight report-dashboard-spotlight-${variant}`}
+      aria-label="Manager spotlight"
+    >
+      {spotlightHeader}
+      {spotlightBody}
     </aside>
+  );
+}
+
+function getReportDeltaTronTheme(tone: ReportDeltaTone): AITronTheme {
+  if (tone === "good") return "green";
+  if (tone === "warn") return "amber";
+  if (tone === "danger") return "red";
+  if (tone === "info") return "blue";
+  return "cyan";
+}
+
+function getReportDeltaSurfaceClass(tone: ReportDeltaTone): string {
+  if (tone === "good") return "ai-neural-surface-core";
+  if (tone === "danger") return "ai-neural-surface-risk";
+  if (tone === "warn") return "ai-neural-surface-draft";
+  return "ai-neural-surface-window";
+}
+
+function ReportSinceLastReportBrief({
+  changes,
+  previousSavedAt,
+}: {
+  changes: ReportDeltaChange[];
+  previousSavedAt?: number | null;
+}) {
+  if (!changes.length) return null;
+  const visibleChanges = changes.slice(0, 3);
+  const primaryChange = visibleChanges[0];
+  const hiddenCount = Math.max(0, changes.length - visibleChanges.length);
+  const deltaCopy = getAIDeltaBriefCopy(hiddenCount);
+
+  return (
+    <section
+      className={`report-delta-brief ai-surface-r3f ai-neural-surface-tron ${getReportDeltaSurfaceClass(primaryChange.tone)}`}
+      aria-label="Changed since last report"
+    >
+      <AITronSurface
+        theme={getReportDeltaTronTheme(primaryChange.tone)}
+        density="small"
+        routeKey={`report-delta-${primaryChange.id}-${visibleChanges.length}`}
+      />
+      <div className="report-delta-brief-copy">
+        <span className="report-delta-brief-kicker">
+          <Bot aria-hidden="true" />
+          {deltaCopy.kicker}
+          <em>Since {formatReportDeltaSavedAt(previousSavedAt)}</em>
+        </span>
+        <h2>{deltaCopy.title}</h2>
+        <p>{primaryChange.summary}</p>
+      </div>
+      <div className="report-delta-brief-list">
+        {visibleChanges.map(change => (
+          <article key={change.id} data-tone={change.tone}>
+            <span>
+              <ClipboardList aria-hidden="true" />
+              {change.label}
+            </span>
+            <strong>{change.summary}</strong>
+            <p>{change.detail}</p>
+            <div className="report-delta-brief-receipts">
+              {change.receipts.slice(0, 2).map(receipt => (
+                <em key={receipt}>{receipt}</em>
+              ))}
+            </div>
+          </article>
+        ))}
+        {deltaCopy.hidden && (
+          <span className="report-delta-brief-more">{deltaCopy.hidden}</span>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -4763,6 +5330,9 @@ type AdminValueDiagnosticRow = {
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type SourceCoverageMatrixData = RouterOutputs["system"]["sourceCoverageMatrix"];
 type SourceCoverageRow = SourceCoverageMatrixData["rows"][number];
+type AICalibrationData = RouterOutputs["system"]["aiCalibration"];
+type AICalibrationAdjustmentRow =
+  AICalibrationData["adjustmentProfile"]["adjustments"][number];
 
 type AdminBlendSummary = {
   id: string;
@@ -5789,6 +6359,40 @@ type AIReadoutDiagnosticRow = {
   tone: AIReadoutDiagnosticTone;
 };
 
+type AIDecisionLogRow = {
+  id: string;
+  lane: string;
+  surface: string;
+  owner: string;
+  decision: string;
+  confidence: string;
+  tone: AIReadoutDiagnosticTone;
+  why: string;
+  receipts: string[];
+  blockers: string[];
+  missingEvidence: string[];
+  changeTriggers: string[];
+};
+
+type AISurfaceRegistryRole = "action-owner" | "context" | "hidden" | "merge";
+
+type AISurfaceRegistryRow = {
+  id: string;
+  tab: string;
+  surface: string;
+  owner: string;
+  role: AISurfaceRegistryRole;
+  roleLabel: string;
+  tone: AIReadoutDiagnosticTone;
+  visibility: string;
+  allowedClaim: string;
+  evidenceStatus: string;
+  noiseRule: string;
+  nextStep: string;
+};
+
+type AIReadoutDiagnostics = ReturnType<typeof buildAIReadoutDiagnostics>;
+
 function getAIReadoutDiagnosticTone(row: {
   hasConfidence: boolean;
   hasTrace: boolean;
@@ -5807,6 +6411,347 @@ function buildAIReadoutRow(
   return {
     ...row,
     tone: getAIReadoutDiagnosticTone(row),
+  };
+}
+
+function compactDecisionLogItems(
+  values: Array<string | null | undefined>,
+  limit = 4
+): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  values.forEach(value => {
+    const clean = String(value || "").replace(/\s+/g, " ").trim();
+    const key = clean.toLowerCase();
+    if (!clean || seen.has(key)) return;
+    seen.add(key);
+    result.push(clean);
+  });
+
+  return result.slice(0, limit);
+}
+
+function getAIActionDecisionLabel(decision: AIActionQueueItem["decision"]) {
+  if (decision === "do") return "Do this";
+  if (decision === "blocked") return "Do not do this";
+  if (decision === "hold") return "No move is best";
+  return "Watch only";
+}
+
+function getAIActionDecisionTone(
+  decision: AIActionQueueItem["decision"],
+  fallbackTone: AIActionQueueItem["tone"]
+): AIReadoutDiagnosticTone {
+  if (decision === "do") return "good";
+  if (decision === "blocked") return "danger";
+  if (decision === "hold") return "info";
+  if (fallbackTone === "danger" || fallbackTone === "warn" || fallbackTone === "info") {
+    return fallbackTone;
+  }
+  return "good";
+}
+
+function getReadoutPolicy(row: AIReadoutDiagnosticRow): {
+  decision: string;
+  tone: AIReadoutDiagnosticTone;
+} {
+  if (row.duplicateRisk) {
+    return {
+      decision: "Merge or remove",
+      tone: "danger",
+    };
+  }
+
+  if (row.count <= 0) {
+    return {
+      decision: "Hide until backed",
+      tone: "info",
+    };
+  }
+
+  if (!row.hasConfidence || !row.hasTrace) {
+    return {
+      decision: "Data-only",
+      tone: "warn",
+    };
+  }
+
+  if (row.sourceLimited) {
+    return {
+      decision: "Context only",
+      tone: "info",
+    };
+  }
+
+  if (row.id === "autopilot-actions") {
+    return {
+      decision: "Primary action owner",
+      tone: "good",
+    };
+  }
+
+  return {
+    decision: "Context only",
+    tone: "good",
+  };
+}
+
+function getAISurfaceRegistryRole(row: AIReadoutDiagnosticRow): {
+  role: AISurfaceRegistryRole;
+  roleLabel: string;
+  tone: AIReadoutDiagnosticTone;
+} {
+  if (row.duplicateRisk) {
+    return {
+      role: "merge",
+      roleLabel: "Merge / remove",
+      tone: "danger",
+    };
+  }
+
+  if (row.id === "autopilot-actions" && row.count > 0 && row.hasConfidence && row.hasTrace) {
+    return {
+      role: "action-owner",
+      roleLabel: "Action owner",
+      tone: "good",
+    };
+  }
+
+  if (row.count <= 0 || !row.hasConfidence || !row.hasTrace) {
+    return {
+      role: "hidden",
+      roleLabel: row.count <= 0 ? "Hidden / no data" : "Data only",
+      tone: row.count <= 0 ? "info" : "warn",
+    };
+  }
+
+  return {
+    role: "context",
+    roleLabel: "Context only",
+    tone: row.sourceLimited ? "info" : "good",
+  };
+}
+
+function buildAISurfaceRegistry(diagnostics: AIReadoutDiagnostics) {
+  const rows: AISurfaceRegistryRow[] = diagnostics.rows.map(row => {
+    const role = getAISurfaceRegistryRole(row);
+    const missing = compactDecisionLogItems([
+      !row.hasConfidence ? "confidence" : null,
+      !row.hasTrace ? "source trace" : null,
+      row.sourceLimited ? "fresh source coverage" : null,
+    ], 3);
+
+    return {
+      id: row.id,
+      tab: row.tab,
+      surface: row.surface,
+      owner: row.owner,
+      role: role.role,
+      roleLabel: role.roleLabel,
+      tone: role.tone,
+      visibility: row.count > 0 ? `${row.count} rendered` : "Hidden until backed",
+      allowedClaim:
+        role.role === "action-owner"
+          ? "May say do this or do not do this"
+          : role.role === "context"
+            ? "May explain evidence only"
+            : role.role === "merge"
+              ? "No separate user-facing claim"
+              : "No confident AI claim",
+      evidenceStatus: missing.length
+        ? `Missing ${missing.join(", ")}`
+        : row.sourceLimited
+          ? "Source-limited but traceable"
+          : "Evidence attached",
+      noiseRule:
+        role.role === "action-owner"
+          ? "Only one primary action can own the recommendation."
+          : role.role === "context"
+            ? "Support the owning action without adding another recommendation."
+            : role.role === "merge"
+              ? "Move repeated copy into the owning surface or remove it."
+              : "Stay hidden or render insufficient evidence until backed.",
+      nextStep:
+        role.role === "action-owner"
+          ? "Keep ranked alternates held back unless the primary action is blocked."
+          : row.duplicateRisk
+            ? "Merge this read into the owner listed above."
+            : row.count <= 0
+              ? "Wait for the source payload before showing the surface."
+              : missing.length
+                ? `Attach ${missing.join(" and ")} before promoting.`
+                : row.sourceLimited
+                  ? "Refresh source context before raising confidence."
+                  : "Leave as context-only unless Action Queue delegates ownership.",
+    };
+  });
+
+  return {
+    rows,
+    actionOwners: rows.filter(row => row.role === "action-owner").length,
+    contextRows: rows.filter(row => row.role === "context").length,
+    hiddenRows: rows.filter(row => row.role === "hidden").length,
+    mergeRows: rows.filter(row => row.role === "merge").length,
+    riskRows: rows.filter(row =>
+      row.role === "hidden" || row.role === "merge" || row.tone === "warn" || row.tone === "danger"
+    ).length,
+  };
+}
+
+function buildAIActionDecisionLogRows(reportData: ReportData): AIDecisionLogRow[] {
+  const mode = normalizeLeagueValueMode(
+    reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode
+  );
+
+  try {
+    const actionQueue = buildAutopilotData({
+      reportData,
+      mode,
+      fallback: AUTOPILOT_MOCK_DATA[mode],
+    }).actionQueue;
+
+    const primaryRows = (actionQueue || []).slice(0, 1).map(item => {
+      const conflicts = detectAIActionConflicts(item);
+      const conflictReceipts = conflicts.map(
+        conflict => `${conflict.label}: ${conflict.detail}`
+      );
+      const conflictBlockers = conflicts
+        .filter(conflict => conflict.tone === "danger")
+        .map(conflict => conflict.detail);
+      const conflictMissingEvidence = conflicts
+        .filter(conflict => conflict.tone === "warn")
+        .map(conflict => conflict.detail);
+
+      return {
+        id: `action-${item.id}`,
+        lane: "Action Queue",
+        surface: item.label,
+        owner: `${item.source.charAt(0).toUpperCase()}${item.source.slice(1)} action`,
+        decision: getAIActionDecisionLabel(item.decision),
+        confidence: `${item.confidence}%`,
+        tone: getAIActionDecisionTone(item.decision, item.tone),
+        why: item.why || item.detail,
+        receipts: compactDecisionLogItems([
+          ...conflictReceipts,
+          ...item.receipts,
+          ...item.sourceHealth,
+          item.signals[0] ? `Signal: ${item.signals[0]}` : null,
+        ]),
+        blockers: compactDecisionLogItems([
+          ...item.blockers,
+          ...conflictBlockers,
+        ], 3),
+        missingEvidence: compactDecisionLogItems([
+          ...item.missingEvidence,
+          ...conflictMissingEvidence,
+        ], 3),
+        changeTriggers: item.changeTriggers.slice(0, 3),
+      };
+    });
+
+    const suppressedCount = Math.max(0, (actionQueue || []).length - primaryRows.length);
+    if (!suppressedCount) return primaryRows;
+
+    return [
+      ...primaryRows,
+      {
+        id: "action-queue-alternates-held",
+        lane: "Action Queue",
+        surface: "Lower-ranked alternates",
+        owner: "Noise governor",
+        decision: "Context only",
+        confidence: "Suppressed",
+        tone: "info" as const,
+        why: `${suppressedCount} lower-ranked action${suppressedCount === 1 ? "" : "s"} stayed out of the visible queue so the AI makes one call.`,
+        receipts: compactDecisionLogItems([
+          `${suppressedCount} alternate read${suppressedCount === 1 ? "" : "s"} available`,
+          "Primary action owns the recommendation",
+          "Alternates remain available through receipts/source tables",
+        ]),
+        blockers: [],
+        missingEvidence: [],
+        changeTriggers: ["Primary action becomes blocked or lower-confidence"],
+      },
+    ];
+  } catch {
+    return [
+      {
+        id: "action-queue-build-error",
+        lane: "Action Queue",
+        surface: "Autopilot action queue",
+        owner: "Do-now recommendations",
+        decision: "Hide until backed",
+        confidence: "Build error",
+        tone: "danger",
+        why: "The action queue could not be built from this report payload, so no action should be shown from this path.",
+        receipts: ["Autopilot builder failed"],
+        blockers: ["Action queue build failed"],
+        missingEvidence: ["Valid action queue payload"],
+        changeTriggers: ["Fix the action queue build path for this report"],
+      },
+    ];
+  }
+}
+
+function buildAIReadoutPolicyDecisionLogRows(
+  diagnostics: AIReadoutDiagnostics
+): AIDecisionLogRow[] {
+  return diagnostics.rows.map(row => {
+    const policy = getReadoutPolicy(row);
+    return {
+      id: `readout-${row.id}`,
+      lane: row.tab,
+      surface: row.surface,
+      owner: row.owner,
+      decision: policy.decision,
+      confidence: row.hasConfidence ? "Attached" : "Missing",
+      tone: policy.tone,
+      why: row.note,
+      receipts: compactDecisionLogItems([
+        `${row.count} rendered`,
+        row.owner,
+        row.hasTrace ? "Source trace attached" : null,
+        row.hasConfidence ? "Confidence score attached" : null,
+      ]),
+      blockers: row.duplicateRisk
+        ? ["Duplicate conclusion is competing with the owning surface"]
+        : [],
+      missingEvidence: compactDecisionLogItems([
+        !row.hasConfidence ? "Scored confidence" : null,
+        !row.hasTrace ? "Source trace" : null,
+        row.sourceLimited ? "Fresh or complete source payload" : null,
+      ]),
+      changeTriggers: compactDecisionLogItems([
+        row.count <= 0 ? `Return data for ${row.owner.toLowerCase()}` : null,
+        !row.hasConfidence ? "Attach shared AI confidence output" : null,
+        !row.hasTrace ? "Attach evidence/source trace" : null,
+        row.duplicateRisk ? "Move repeated copy into the owning surface" : null,
+        row.sourceLimited ? "Refresh the source backing this read" : null,
+      ]),
+    };
+  });
+}
+
+function buildAIDecisionLogRows(
+  reportData: ReportData,
+  diagnostics: AIReadoutDiagnostics
+): AIDecisionLogRow[] {
+  const actionRows = buildAIActionDecisionLogRows(reportData);
+  const policyRows = buildAIReadoutPolicyDecisionLogRows(diagnostics);
+  return [...actionRows, ...policyRows];
+}
+
+function buildAIDecisionLogSummary(rows: AIDecisionLogRow[]) {
+  return {
+    actionRows: rows.filter(row => row.decision === "Primary action owner").length,
+    contextRows: rows.filter(row =>
+      row.decision === "Watch only" || row.decision === "Context only"
+    ).length,
+    hiddenRows: rows.filter(row =>
+      row.decision === "Hide until backed" || row.decision === "Data-only"
+    ).length,
+    mergeRows: rows.filter(row => row.decision === "Merge or remove").length,
   };
 }
 
@@ -5938,6 +6883,20 @@ function buildAIReadoutDiagnostics(reportData: ReportData) {
         : "Actions stay roster-first until matchup or player-role data is stable enough to use.",
     }),
     buildAIReadoutRow({
+      id: "schedule-edge",
+      tab: "Schedule",
+      surface: "Schedule Edge",
+      owner: "DraftSharks SOS and matchup windows",
+      count: hasScheduleContext ? 1 : 0,
+      hasConfidence: hasScheduleContext && hasLeagueConfidence,
+      hasTrace: hasScheduleContext,
+      duplicateRisk: false,
+      sourceLimited: !hasScheduleContext,
+      note: hasScheduleContext
+        ? "Schedule reads stay DraftSharks-first and can support waiver, lineup, and trade context without owning the final action."
+        : "Schedule reads stay hidden until DraftSharks/Sleeper schedule context is available.",
+    }),
+    buildAIReadoutRow({
       id: "player-situation",
       tab: "Player Detail",
       surface: "Player Situation Reads",
@@ -6064,32 +7023,35 @@ function AdminAIReadoutDiagnosticsSection({
   reportData: ReportData;
 }) {
   const diagnostics = buildAIReadoutDiagnostics(reportData);
+  const registry = buildAISurfaceRegistry(diagnostics);
+  const decisionLogRows = buildAIDecisionLogRows(reportData, diagnostics);
+  const decisionLogSummary = buildAIDecisionLogSummary(decisionLogRows);
   const flaggedRows = diagnostics.rows.filter(
     row =>
       row.count > 0 &&
       (!row.hasConfidence || !row.hasTrace || row.duplicateRisk)
   );
-  if (!flaggedRows.length) return null;
+  if (!flaggedRows.length && !decisionLogRows.length) return null;
 
   return (
     <CollapsibleReportSection
-      title="AI Readout Coverage"
-      kicker="Confidence, traces, and duplicate-risk checks"
+      title="AI Decision Log"
+      kicker="Action ownership, evidence receipts, and duplicate-readout checks"
       previewMetrics={[
         {
-          label: "Readouts",
-          value: diagnostics.totalReadouts,
-          tone: diagnostics.totalReadouts ? "info" : "warn",
+          label: "Decisions",
+          value: decisionLogRows.length,
+          tone: decisionLogRows.length ? "info" : "warn",
         },
         {
-          label: "Trace Flags",
-          value: diagnostics.missingTrace,
-          tone: diagnostics.missingTrace ? "warn" : "good",
+          label: "Action Owners",
+          value: registry.actionOwners,
+          tone: registry.actionOwners === 1 ? "good" : "warn",
         },
         {
-          label: "Dupes",
-          value: diagnostics.duplicateRisk,
-          tone: diagnostics.duplicateRisk ? "danger" : "good",
+          label: "Hidden/Data",
+          value: registry.hiddenRows + registry.mergeRows,
+          tone: registry.hiddenRows || registry.mergeRows ? "warn" : "good",
         },
       ]}
       premium
@@ -6127,6 +7089,155 @@ function AdminAIReadoutDiagnosticsSection({
             </article>
           ))}
         </div>
+
+        <section
+          className="admin-ai-surface-registry"
+          aria-label="AI surface registry"
+        >
+          <div className="admin-ai-surface-registry-head">
+            <div>
+              <span>Surface Registry</span>
+              <strong>One action owner, every other read is evidence</strong>
+              <p>
+                This registry is the product contract for AI noise: each surface
+                is allowed to act, explain context, stay hidden, or merge away.
+              </p>
+            </div>
+            <div className="admin-ai-surface-registry-metrics">
+              <span>
+                <strong>{registry.actionOwners}</strong>
+                <em>action owner</em>
+              </span>
+              <span>
+                <strong>{registry.contextRows}</strong>
+                <em>context</em>
+              </span>
+              <span>
+                <strong>{registry.hiddenRows}</strong>
+                <em>hidden/data</em>
+              </span>
+              <span>
+                <strong>{registry.mergeRows}</strong>
+                <em>merge</em>
+              </span>
+            </div>
+          </div>
+
+          <div className="admin-ai-surface-registry-grid">
+            {registry.rows.map(row => (
+              <article
+                key={row.id}
+                className={`admin-ai-surface-registry-row admin-ai-surface-registry-row-${row.role} admin-ai-readout-row-${row.tone}`}
+              >
+                <div className="admin-ai-surface-registry-row-head">
+                  <span>{row.tab}</span>
+                  <strong>{row.surface}</strong>
+                  <em>{row.roleLabel}</em>
+                </div>
+                <div className="admin-ai-surface-registry-body">
+                  <p>{row.noiseRule}</p>
+                  <p>{row.nextStep}</p>
+                </div>
+                <div className="admin-ai-surface-registry-receipts">
+                  <span>Owner: {row.owner}</span>
+                  <span>{row.visibility}</span>
+                  <span>{row.allowedClaim}</span>
+                  <span>{row.evidenceStatus}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section
+          className="admin-ai-decision-log"
+          aria-label="AI decision log rows"
+        >
+          <div className="admin-ai-decision-log-head">
+            <div>
+              <span>Decision Log</span>
+              <strong>
+                One action owner, supporting reads stay contextual
+              </strong>
+              <p>
+                This is the noise-control layer: every AI surface is either
+                allowed to act, kept as evidence, hidden until backed, or marked
+                for merge/removal.
+              </p>
+            </div>
+            <div className="admin-ai-decision-log-metrics">
+              <span>
+                <strong>{decisionLogSummary.actionRows}</strong>
+                <em>action owner</em>
+              </span>
+              <span>
+                <strong>{decisionLogSummary.contextRows}</strong>
+                <em>context</em>
+              </span>
+              <span>
+                <strong>{decisionLogSummary.hiddenRows}</strong>
+                <em>hidden/data</em>
+              </span>
+              <span>
+                <strong>{decisionLogSummary.mergeRows}</strong>
+                <em>merge</em>
+              </span>
+            </div>
+          </div>
+
+          <div className="admin-ai-decision-log-grid">
+            {decisionLogRows.map(row => (
+              <article
+                key={row.id}
+                className={`admin-ai-decision-log-row admin-ai-readout-row-${row.tone}`}
+              >
+                <div className="admin-ai-decision-log-row-head">
+                  <span>{row.lane}</span>
+                  <strong>{row.surface}</strong>
+                  <em>{row.decision}</em>
+                </div>
+                <p>{row.why}</p>
+                <div className="admin-ai-decision-log-receipts">
+                  <span>Owner: {row.owner}</span>
+                  <span>Confidence: {row.confidence}</span>
+                  {row.receipts.map(receipt => (
+                    <span key={receipt}>{receipt}</span>
+                  ))}
+                </div>
+                {(row.blockers.length > 0 ||
+                  row.missingEvidence.length > 0 ||
+                  row.changeTriggers.length > 0) && (
+                  <div className="admin-ai-decision-log-lists">
+                    {row.blockers.length > 0 && (
+                      <div>
+                        <span>Blockers</span>
+                        {row.blockers.map(blocker => (
+                          <p key={blocker}>{blocker}</p>
+                        ))}
+                      </div>
+                    )}
+                    {row.missingEvidence.length > 0 && (
+                      <div>
+                        <span>Missing</span>
+                        {row.missingEvidence.map(item => (
+                          <p key={item}>{item}</p>
+                        ))}
+                      </div>
+                    )}
+                    {row.changeTriggers.length > 0 && (
+                      <div>
+                        <span>What changes this</span>
+                        {row.changeTriggers.map(item => (
+                          <p key={item}>{item}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
 
         {flaggedRows.length > 0 ? (
           <section
@@ -6660,13 +7771,16 @@ function getScheduleEdgeWeekStarCount(week: WaiverWeeklyEcrWeek): number | null 
 }
 
 function ScheduleEdgePlayerCell({ row }: { row: ScheduleEdgeRow }) {
-  const showDefenseLogoOnly = row.position === "DEF" && row.team;
+  const isDefenseRow = row.position === "DEF" && row.team;
+  const rankBadge = row.seasonRankNumber
+    ? `#${row.seasonRankNumber}`
+    : row.seasonRank || row.bestRank;
 
   return (
     <div
       className={[
         "admin-schedule-player-cell",
-        showDefenseLogoOnly ? "admin-schedule-player-cell-defense" : "",
+        isDefenseRow ? "admin-schedule-player-cell-defense" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -6680,8 +7794,16 @@ function ScheduleEdgePlayerCell({ row }: { row: ScheduleEdgeRow }) {
         />
       )}
       <div className="admin-schedule-player-copy">
-        <strong>{showDefenseLogoOnly ? "DEF" : row.player.name}</strong>
-        <span>{row.position}</span>
+        <span className="admin-schedule-player-rankline">
+          <span className="admin-schedule-player-rank-pill">
+            {rankBadge}
+          </span>
+          <span className="admin-schedule-player-rank-source">
+            {row.seasonRank ? "Current-season rank" : "Source rank"}
+          </span>
+        </span>
+        <strong>{row.player.name}</strong>
+        <span>{[row.position, row.team].filter(Boolean).join(" · ")}</span>
       </div>
     </div>
   );
@@ -6802,8 +7924,8 @@ function AdminScheduleEdgeSection({
 
   return (
     <CollapsibleReportSection
-      title="Matchup Edge Table"
-      kicker="Next-three-week matchups"
+      title="Schedule Edge Table"
+      kicker="DraftSharks SOS windows"
       previewAccessory={
         issueCount > 0 ? (
           <AdminAttentionBadge
@@ -6946,6 +8068,7 @@ function AdminScheduleEdgeSection({
                   <th>Rank</th>
                   <th>Selected Weeks</th>
                   <th>Value</th>
+                  <th>Decision</th>
                   <th>League Status</th>
                 </tr>
               </thead>
@@ -6960,8 +8083,19 @@ function AdminScheduleEdgeSection({
                         <ScheduleEdgePlayerCell row={row} />
                       </td>
                       <td>
-                        <strong>{row.bestRank}</strong>
-                        <span>{row.bestWeek ? `Best W${row.bestWeek}` : "Rolling"}</span>
+                        <strong>{row.seasonRank || row.bestRank}</strong>
+                        <span>
+                          {row.seasonRank
+                            ? "Current-season rank"
+                            : row.bestWeek
+                              ? `Best W${row.bestWeek}`
+                              : "Rolling"}
+                        </span>
+                        {row.seasonRank && row.bestRank !== row.seasonRank ? (
+                          <span className="admin-schedule-rank-source">
+                            SOS row {row.bestRank}
+                          </span>
+                        ) : null}
                       </td>
                       <td className="admin-schedule-edge-weeks-cell">
                         <div className="admin-schedule-week-chip-list">
@@ -6986,7 +8120,34 @@ function AdminScheduleEdgeSection({
                       </td>
                       <td>
                         <strong>{formatScheduleEdgeValue(row.value)}</strong>
-                        <span>{row.currentRank || "No rank"}</span>
+                        <span>
+                          {row.targetScore !== null
+                            ? `Target ${Math.round(row.targetScore)}`
+                            : row.currentRank
+                              ? "Season value"
+                              : "No rank"}
+                        </span>
+                      </td>
+                      <td className="admin-schedule-decision-cell">
+                        <span
+                          className={`admin-schedule-edge-pill admin-schedule-edge-pill-${row.decisionTone}`}
+                          title={row.evidenceRead.whyThisFired}
+                        >
+                          {row.decisionLabel}
+                        </span>
+                        <span
+                          className={`admin-schedule-evidence-label admin-schedule-evidence-label-${row.evidenceRead.label.replace(/\s+/g, "-")}`}
+                        >
+                          {row.evidenceRead.label} · {row.evidenceRead.finalScore}%
+                        </span>
+                        <details className="admin-schedule-evidence-receipts">
+                          <summary>Receipts</summary>
+                          <ul>
+                            {getAIEvidenceReceiptItems(row.evidenceRead).map(item => (
+                              <li key={item}>{item}</li>
+                            ))}
+                          </ul>
+                        </details>
                       </td>
                       <td>
                         <span
@@ -7004,11 +8165,11 @@ function AdminScheduleEdgeSection({
           </div>
         ) : (
           <div className="admin-schedule-edge-empty">
-            <strong>No matchup rows yet</strong>
+            <strong>No DraftSharks SOS rows yet</strong>
             <p>
-              The report did not return stored FantasyPros matchup targets. Run
-              the FantasyPros snapshot refresh or regenerate after the weekly
-              matchup job has data for the rolling week window.
+              The report did not return stored DraftSharks schedule targets.
+              Refresh the DraftSharks SOS snapshot or regenerate after the
+              schedule-strength job has percentage rows for the selected window.
             </p>
           </div>
         )}
@@ -7155,6 +8316,387 @@ function isPrioritySourceHealthEvent(event: {
   return event.level === "danger" || event.level === "warn";
 }
 
+function getCalibrationTone(row: AICalibrationAdjustmentRow): "danger" | "warn" | "info" | "good" {
+  return row.priority === "danger" || row.priority === "warn" || row.priority === "good"
+    ? row.priority
+    : "info";
+}
+
+function formatCalibrationGroup(group: Record<string, string>): string {
+  const entries = Object.entries(group);
+  if (!entries.length || group.all) return "All AI reads";
+  return entries
+    .map(([key, value]) => `${key.replace(/([A-Z])/g, " $1")}: ${value}`)
+    .join(" · ");
+}
+
+function formatCalibrationAdjustment(row: AICalibrationAdjustmentRow): string {
+  const score = row.scoreAdjustment > 0
+    ? `+${row.scoreAdjustment}`
+    : String(row.scoreAdjustment);
+  const cap = row.confidenceCap !== null
+    ? ` · cap ${row.confidenceCap}%`
+    : "";
+  return `${score} score${cap}`;
+}
+
+function getCalibrationActionCount(data?: AICalibrationData): number {
+  if (!data) return 0;
+  return data.adjustmentProfile.adjustments.filter(row =>
+    row.recommendation === "review-model" ||
+    row.recommendation === "lower-confidence"
+  ).length;
+}
+
+function AdminAICalibrationSection() {
+  const authQuery = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+  });
+  const canViewTelemetry = canViewAdminTelemetryForUser(authQuery.data);
+  const calibrationQuery = trpc.system.aiCalibration.useQuery(
+    { limit: 1000 },
+    {
+      enabled: canViewTelemetry,
+      refetchOnWindowFocus: false,
+      retry: false,
+      staleTime: 1000 * 60,
+    }
+  );
+  const actionCount = getCalibrationActionCount(calibrationQuery.data);
+  const tone = calibrationQuery.data?.adjustmentProfile.adjustments.some(row => row.priority === "danger")
+    ? "danger"
+    : "warn";
+
+  return (
+    <CollapsibleReportSection
+      title="AI Calibration"
+      kicker="Outcome feedback loop"
+      previewAccessory={
+        actionCount > 0 ? (
+          <AdminAttentionBadge
+            count={actionCount}
+            label="Score changes"
+            tone={tone}
+          />
+        ) : undefined
+      }
+      premium
+      defaultOpen
+    >
+      <AdminAICalibrationPanel
+        canViewTelemetry={canViewTelemetry}
+        isAuthLoading={authQuery.isLoading}
+        data={calibrationQuery.data}
+        error={calibrationQuery.error}
+        isLoading={calibrationQuery.isLoading}
+        isFetching={calibrationQuery.isFetching}
+        refetch={calibrationQuery.refetch}
+      />
+    </CollapsibleReportSection>
+  );
+}
+
+function AdminAICalibrationPanel({
+  canViewTelemetry,
+  isAuthLoading,
+  data,
+  error,
+  isLoading,
+  isFetching,
+  refetch,
+}: {
+  canViewTelemetry: boolean;
+  isAuthLoading: boolean;
+  data: AICalibrationData | undefined;
+  error: { message: string } | null;
+  isLoading: boolean;
+  isFetching: boolean;
+  refetch: () => Promise<unknown>;
+}) {
+  const resolveMutation = trpc.system.resolveAiPredictionOutcomes.useMutation({
+    onSuccess: () => {
+      void refetch();
+    },
+  });
+
+  if (isAuthLoading) {
+    return (
+      <div className="rankings-empty-state">
+        Checking AI calibration access...
+      </div>
+    );
+  }
+
+  if (!canViewTelemetry) {
+    return (
+      <div className="admin-traffic-panel admin-traffic-panel-error">
+        <p>AI calibration is locked until Admin Tools are unlocked.</p>
+        <span>
+          This panel exposes hit rates, confidence drift, and scoring changes
+          from stored AI prediction outcomes.
+        </span>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="rankings-empty-state">
+        Loading AI calibration...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="admin-traffic-panel admin-traffic-panel-error">
+        <p>AI calibration is unavailable for this session.</p>
+        <span>{error.message}</span>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="rankings-empty-state">
+        No AI calibration events available.
+      </div>
+    );
+  }
+
+  const profile = data.adjustmentProfile;
+  const global = profile.globalAdjustment;
+  const actionableRows = profile.adjustments
+    .filter(row =>
+      row.recommendation === "review-model" ||
+      row.recommendation === "lower-confidence" ||
+      row.recommendation === "raise-confidence"
+    )
+    .slice(0, 8);
+  const recentResolved = data.recentEvents
+    .filter(event => event.outcomeStatus !== "pending")
+    .slice(0, 8);
+  const counterfactual = data.counterfactuals;
+  const counterfactualBuckets = counterfactual.buckets
+    .filter(bucket => bucket.status !== "all")
+    .slice(0, 6);
+  const pendingCount = profile.pendingCount;
+  const totalCards = [
+    {
+      label: "Scored",
+      value: profile.scoredCount,
+      detail: `${profile.eventCount.toLocaleString()} logged reads`,
+      tone: profile.scoredCount >= 20 ? "good" : "neutral",
+    },
+    {
+      label: "Pending",
+      value: pendingCount,
+      detail: pendingCount ? "Resolve outcomes to calibrate" : "No pending outcomes",
+      tone: pendingCount ? "warn" : "good",
+    },
+    {
+      label: "Hit Rate",
+      value: global.hitRate === null ? "n/a" : `${global.hitRate}%`,
+      detail: `${global.avgConfidence ?? 0}% average confidence`,
+      tone: global.recommendation === "review-model" ? "danger" : "neutral",
+    },
+    {
+      label: "Gap",
+      value: global.calibrationGap === null ? "n/a" : `${global.calibrationGap}`,
+      detail: global.reason,
+      tone: global.priority,
+    },
+    {
+      label: "Global Move",
+      value: formatCalibrationAdjustment(global),
+      detail: global.recommendation.replace(/-/g, " "),
+      tone: global.priority,
+    },
+    {
+      label: "Baseline Edge",
+      value: counterfactual.avgEdge === null ? "n/a" : `${counterfactual.avgEdge}`,
+      detail: `${counterfactual.baselineCount.toLocaleString()} reads with counterfactuals`,
+      tone: counterfactual.doWithoutBaselineEdgeCount ? "warn" : "good",
+    },
+  ];
+
+  return (
+    <div className="admin-traffic-panel admin-ai-calibration-panel">
+      <div className="admin-traffic-header">
+        <div>
+          <span>Calibration engine</span>
+          <strong>
+            Outcome-weighted AI scoring · {formatAdminTelemetryDate(data.generatedAt)}
+          </strong>
+        </div>
+        <div className="admin-ai-calibration-actions">
+          <Button
+            type="button"
+            variant="outline"
+            className="admin-traffic-refresh"
+            disabled={isFetching}
+            onClick={() => void refetch()}
+          >
+            Refresh
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="admin-traffic-refresh"
+            disabled={resolveMutation.isPending}
+            onClick={() => resolveMutation.mutate({ limit: 200 })}
+          >
+            {resolveMutation.isPending ? "Resolving..." : "Resolve Pending"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="admin-traffic-stat-grid">
+        {totalCards.map(card => (
+          <article
+            key={card.label}
+            className={`admin-traffic-stat admin-traffic-stat-${card.tone}`}
+          >
+            <span>{card.label}</span>
+            <strong>
+              {typeof card.value === "number"
+                ? card.value.toLocaleString()
+                : card.value}
+            </strong>
+            <em>{card.detail}</em>
+          </article>
+        ))}
+      </div>
+
+      {resolveMutation.data && (
+        <div className="admin-ai-readout-clean">
+          Resolved {resolveMutation.data.resolved.toLocaleString()} outcome
+          {resolveMutation.data.resolved === 1 ? "" : "s"} ·{" "}
+          {resolveMutation.data.pending.toLocaleString()} still pending ·{" "}
+          {resolveMutation.data.failed.toLocaleString()} failed
+        </div>
+      )}
+
+      <div className="admin-traffic-grid admin-provider-telemetry-grid">
+        <section className="admin-traffic-card">
+          <h4>Score Adjustments</h4>
+          <div className="admin-traffic-list">
+            {actionableRows.length ? (
+              actionableRows.map(row => (
+                <article
+                  key={row.key}
+                  className={`admin-traffic-row admin-traffic-row-${getCalibrationTone(row) === "danger" ? "error" : getCalibrationTone(row)}`}
+                >
+                  <strong>{formatCalibrationGroup(row.group)}</strong>
+                  <span>
+                    {formatCalibrationAdjustment(row)} · {row.recommendation.replace(/-/g, " ")}
+                  </span>
+                  <em>
+                    {row.scoredCount.toLocaleString()} scored · hit{" "}
+                    {row.hitRate ?? "n/a"}% · avg {row.avgConfidence ?? "n/a"}%
+                  </em>
+                  <em>{row.reason}</em>
+                </article>
+              ))
+            ) : (
+              <p className="admin-traffic-empty">
+                No actionable scoring changes yet. Keep collecting resolved
+                outcomes before moving confidence.
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card">
+          <h4>Source Agreement</h4>
+          <div className="admin-traffic-list">
+            {data.sourceAgreement.buckets
+              .filter(bucket => bucket.key !== "all")
+              .slice(0, 6)
+              .map(bucket => (
+                <div key={bucket.key} className="admin-traffic-row">
+                  <strong>{bucket.group.sourceAgreement || "unknown"}</strong>
+                  <span>
+                    {bucket.scoredCount.toLocaleString()} scored · hit{" "}
+                    {bucket.hitRate ?? "n/a"}% · gap {bucket.calibrationGap ?? "n/a"}
+                  </span>
+                  <em>{bucket.recommendation.replace(/-/g, " ")}</em>
+                </div>
+              ))}
+            {data.sourceAgreement.buckets.length <= 1 && (
+              <p className="admin-traffic-empty">
+                Source-agreement samples are still building.
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card">
+          <h4>Baseline Tests</h4>
+          <div className="admin-traffic-list">
+            {counterfactualBuckets.length ? (
+              counterfactualBuckets.map(bucket => (
+                <div key={bucket.status} className="admin-traffic-row">
+                  <strong>{bucket.status.replace(/-/g, " ")}</strong>
+                  <span>
+                    {bucket.eventCount.toLocaleString()} reads · edge{" "}
+                    {bucket.avgEdge ?? "n/a"} · hit {bucket.hitRate ?? "n/a"}%
+                  </span>
+                  <em>
+                    {bucket.scoredCount.toLocaleString()} scored · avg confidence{" "}
+                    {bucket.avgConfidence ?? "n/a"}%
+                  </em>
+                </div>
+              ))
+            ) : (
+              <p className="admin-traffic-empty">
+                Counterfactual baselines are still building.
+              </p>
+            )}
+            {counterfactual.doWithoutBaselineEdgeCount > 0 && (
+              <p className="admin-ai-readout-clean">
+                {counterfactual.doWithoutBaselineEdgeCount.toLocaleString()} do-read
+                {counterfactual.doWithoutBaselineEdgeCount === 1 ? "" : "s"} need a stronger baseline edge.
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="admin-traffic-card">
+          <h4>Recent Outcomes</h4>
+          <div className="admin-traffic-list">
+            {recentResolved.length ? (
+              recentResolved.map(event => (
+                <div
+                  key={event.eventId}
+                  className={`admin-traffic-row admin-traffic-row-${event.outcomeStatus === "miss" ? "error" : "success"}`}
+                >
+                  <strong>{event.entityName || event.label}</strong>
+                  <span>
+                    {event.surface} · {event.action} · {event.outcomeStatus} · {event.finalScore}%
+                  </span>
+                  <em>
+                    {event.baselineLabel || "baseline"}{" "}
+                    {event.baselineScore === null ? "n/a" : `${event.baselineScore}%`} ·{" "}
+                    {event.counterfactualStatus.replace(/-/g, " ")}
+                  </em>
+                  <em>{formatAdminTelemetryDate(event.updatedAt)}</em>
+                </div>
+              ))
+            ) : (
+              <p className="admin-traffic-empty">
+                No resolved AI outcomes in the recent event window.
+              </p>
+            )}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function AdminTrafficTelemetrySection() {
   const authQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
@@ -7180,7 +8722,7 @@ function AdminTrafficTelemetrySection() {
 
   return (
     <CollapsibleReportSection
-      title="Traffic & Abuse Telemetry"
+      title="Traffic Telemetry"
       kicker="Request telemetry"
       previewAccessory={
         priorityEvents.length > 0 ? (
@@ -7645,7 +9187,7 @@ function AdminSourceCoverageSection() {
 
   return (
     <CollapsibleReportSection
-      title="Source Coverage Matrix"
+      title="Source Matrix"
       kicker="Actionable snapshot issues"
       previewAccessory={
         needsAttention.length > 0 ? (
@@ -8120,6 +9662,10 @@ export default function Home() {
     staleTime: 1000 * 60 * 5,
   });
   const utils = trpc.useUtils();
+  const lastAiPredictionBatchSignatureRef = useRef("");
+  const aiPredictionMutation = trpc.aiPredictions.upsertMany.useMutation({
+    retry: false,
+  });
   const [leagueId, setLeagueId] = useState("");
   const [sleeperUsername, setSleeperUsername] = useState("");
   const [leagueIdHistory, setLeagueIdHistory] = useState<string[]>(() =>
@@ -8143,10 +9689,15 @@ export default function Home() {
   const [adminViewerManager, setAdminViewerManager] = useState<string | null>(
     null
   );
+  const [aiVoiceMode, setAiVoiceMode] = useState<AIVoiceMode>(() =>
+    getAIVoiceMode()
+  );
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [reportScanCompletedAt, setReportScanCompletedAt] = useState<
     number | null
   >(null);
+  const [previousReportDeltaSnapshot, setPreviousReportDeltaSnapshot] =
+    useState<ReportDeltaSnapshot | null>(null);
   const [reportDataCacheVersion, setReportDataCacheVersion] = useState<
     string | null
   >(null);
@@ -8168,15 +9719,41 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (new URLSearchParams(window.location.search).get('preview') === 'success') {
+    const previewMode = new URLSearchParams(window.location.search).get('preview');
+    if (previewMode === 'loading' || previewMode === 'success') {
       setIsLoading(true);
-      setAnalysisCompleteMessage({
+      const previewLeague = {
         leagueName: 'The Fantasy Degenerates',
         leagueFormat: '12-Team Dynasty SF PPR TEP',
         leagueLogo: '/favicon-32x32.png',
-      });
+      };
+      if (previewMode === 'success') {
+        setLoadingTransitionPhase("success");
+        setAnalysisCompleteMessage(previewLeague);
+      } else {
+        setLoadingTransitionPhase("loading");
+        setPendingAnalysisLeague(previewLeague);
+        setAnalysisCompleteMessage(null);
+      }
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const syncVoiceMode = () => setAiVoiceMode(getAIVoiceMode());
+    window.addEventListener("storage", syncVoiceMode);
+    window.addEventListener(AI_VOICE_MODE_CHANGE_EVENT, syncVoiceMode);
+    return () => {
+      window.removeEventListener("storage", syncVoiceMode);
+      window.removeEventListener(AI_VOICE_MODE_CHANGE_EVENT, syncVoiceMode);
+    };
+  }, []);
+
+  const handleAIVoiceModeChange = (mode: AIVoiceMode) => {
+    const nextMode = persistAIVoiceMode(mode);
+    setAiVoiceMode(nextMode);
+    toast.success(`AI voice set to ${getAIVoiceModeLabel(nextMode)}.`);
+  };
 
   const [pendingAnalysisLeague, setPendingAnalysisLeague] =
     useState<AnalysisLeaguePreview | null>(null);
@@ -9158,6 +10735,7 @@ export default function Home() {
     (hasAuthenticatedAdminPermissions
       ? adminViewMode === "admin"
       : hasSleeperAdminPermissions && adminViewMode === "admin");
+  const canViewAdminDiagnostics = canViewAdminFeatureExpansion;
 
   useEffect(() => {
     if (
@@ -9249,10 +10827,50 @@ export default function Home() {
     rankingsQuery.data?.rankings || reportData?.rankings;
   const isProspectArchiveLoading =
     rankingsQuery.isLoading && !rankingsForReport;
-  const reportDataWithRankings =
-    reportData && rankingsForReport
-      ? { ...reportData, rankings: rankingsForReport }
-      : reportData;
+  const reportDataWithRankings = useMemo(
+    () =>
+      reportData && rankingsForReport
+        ? { ...reportData, rankings: rankingsForReport }
+        : reportData,
+    [rankingsForReport, reportData]
+  );
+  const aiPredictionEvents = useMemo(
+    () =>
+      buildAIPredictionEventsForReport({
+        reportData: reportDataWithRankings,
+        leagueId,
+        leagueName,
+        manager: reportDataWithRankings?.viewerManager || null,
+      }),
+    [leagueId, leagueName, reportDataWithRankings]
+  );
+  const aiPredictionBatchSignature = useMemo(
+    () => getAIPredictionEventBatchSignature(aiPredictionEvents),
+    [aiPredictionEvents]
+  );
+
+  useEffect(() => {
+    if (!authQuery.data || !aiPredictionEvents.length || !aiPredictionBatchSignature) {
+      return;
+    }
+    if (lastAiPredictionBatchSignatureRef.current === aiPredictionBatchSignature) {
+      return;
+    }
+    lastAiPredictionBatchSignatureRef.current = aiPredictionBatchSignature;
+    aiPredictionMutation.mutate({ events: aiPredictionEvents });
+  }, [
+    aiPredictionBatchSignature,
+    aiPredictionEvents,
+    aiPredictionMutation,
+    authQuery.data,
+  ]);
+  const currentReportDeltaSnapshot = useMemo(
+    () =>
+      reportDataWithRankings
+        ? buildReportDeltaSnapshot(reportDataWithRankings, leagueId, leagueName)
+        : null,
+    [leagueId, leagueName, reportDataWithRankings]
+  );
   const showAutopilotAccessToast = () => {
     if (autopilotAccessToastShownRef.current) return;
     autopilotAccessToastShownRef.current = true;
@@ -9290,6 +10908,19 @@ export default function Home() {
   useEffect(() => {
     setReportScanCompletedAt(reportData ? Date.now() : null);
   }, [reportData]);
+
+  useEffect(() => {
+    if (!currentReportDeltaSnapshot) {
+      setPreviousReportDeltaSnapshot(null);
+      return;
+    }
+
+    const previousSnapshot = readReportDeltaSnapshot(
+      currentReportDeltaSnapshot.leagueId
+    );
+    setPreviousReportDeltaSnapshot(previousSnapshot);
+    writeReportDeltaSnapshot(currentReportDeltaSnapshot);
+  }, [currentReportDeltaSnapshot]);
 
   useEffect(() => {
     if (
@@ -9650,6 +11281,12 @@ export default function Home() {
     const showTradeMarketRadar =
       reportData.weeklyRisers.some(player => player.val_now >= 2500) ||
       reportData.weeklyFallers.some(player => player.val_now >= 1800);
+    const reportDeltaChanges = currentReportDeltaSnapshot
+      ? buildReportDeltaChanges(
+          previousReportDeltaSnapshot,
+          currentReportDeltaSnapshot
+        )
+      : [];
     return (
       <>
         <ManagerChampionshipProvider
@@ -9657,6 +11294,7 @@ export default function Home() {
         >
           <div
             className={`report-shell min-h-screen flex flex-col ${isLoadingRevealPhase ? "report-shell-entering" : ""}`}
+            data-ai-voice-mode={aiVoiceMode}
           >
             <PremiumFxLayer
               variant={reportFxVariant}
@@ -9669,7 +11307,8 @@ export default function Home() {
             >
             {/* Premium Header */}
             <div className="report-header sticky top-0 z-50">
-              <div className="report-header-inner max-w-7xl mx-auto px-4 sm:pl-6 sm:pr-2 md:pl-6 md:pr-1 lg:pr-0 py-3 md:py-2">
+              <HeaderCssLights />
+              <div className="report-header-inner dd-header-content max-w-7xl mx-auto px-4 sm:pl-6 sm:pr-2 md:pl-6 md:pr-1 lg:pr-0 py-3 md:py-2">
                 <div className="report-header-grid">
                   {/* Left: Brand */}
                   <div className="report-header-brand min-w-0">
@@ -9702,10 +11341,10 @@ export default function Home() {
                     >
                       <BarChart3 className="h-4 w-4" aria-hidden="true" />
                       <span className="report-tab-label-full" aria-hidden="true">
-                        Overview
+                        OverView
                       </span>
                       <span className="report-tab-label-short" aria-hidden="true">
-                        Overview
+                        OverView
                       </span>
                     </TabsTrigger>
 
@@ -9738,7 +11377,7 @@ export default function Home() {
                     >
                       <TrendingUp className="h-4 w-4" aria-hidden="true" />
                       <span className="report-tab-label-full" aria-hidden="true">
-                        Weekly Momentum
+                        Momentum
                       </span>
                       <span className="report-tab-label-short" aria-hidden="true">
                         Momentum
@@ -9764,7 +11403,7 @@ export default function Home() {
                     >
                       <Repeat2 className="h-4 w-4" aria-hidden="true" />
                       <span className="report-tab-label-full" aria-hidden="true">
-                        Trade History
+                        Trades
                       </span>
                       <span className="report-tab-label-short" aria-hidden="true">
                         Trades
@@ -9782,13 +11421,13 @@ export default function Home() {
                           className="report-tab-label-full"
                           aria-hidden="true"
                         >
-                          Draft History
+                          Drafts
                         </span>
                         <span
                           className="report-tab-label-short"
                           aria-hidden="true"
                         >
-                          Draft
+                          Drafts
                         </span>
                       </TabsTrigger>
                     )}
@@ -9856,6 +11495,18 @@ export default function Home() {
                     leagueValueMode={leagueValueMode}
                     reportData={reportDataForView}
                     leagueBalanceScore={dashboardLeagueHealthScore}
+                  />
+                  <ReportDashboardSpotlight
+                    manager={dashboardViewerManager}
+                    activeTab={resolvedActiveTab}
+                    leagueValueMode={leagueValueMode}
+                    reportData={reportDataForView}
+                    managerAvatars={reportData.managerAvatars}
+                    variant="inline"
+                  />
+                  <ReportSinceLastReportBrief
+                    changes={reportDeltaChanges}
+                    previousSavedAt={previousReportDeltaSnapshot?.savedAt}
                   />
                   <Suspense fallback={<ReportSectionLoadingFallback />}>
                     <TabsContent value="overview" className="report-tab-content">
@@ -9970,7 +11621,7 @@ export default function Home() {
                             />
                           </CollapsibleReportSection>
                           <CollapsibleReportSection
-                            title="Trade Finder, Partners & League Exploits"
+                            title="Trade Finder"
                             kicker={
                               isRedraftReport
                                 ? "Trade partners, upgrade lanes, and weekly pressure points"
@@ -10071,6 +11722,14 @@ export default function Home() {
                                     onChange={setOwnerIntelSortMode}
                                   />
                                 ) : undefined
+                              }
+                              previewMetrics={
+                                !isRedraftReport
+                                  ? buildOwnerIntelPreviewMetrics(
+                                      reportDataForView,
+                                      ownerIntelSortMode
+                                    )
+                                  : undefined
                               }
                             >
                               <OwnerIntelMatrix
@@ -10268,15 +11927,25 @@ export default function Home() {
                         />
                       </CollapsibleReportSection>
                       <CollapsibleReportSection
-                        title="Top 10 Weekly Risers"
-                        kicker="7-day % gainers"
-                        previewMetrics={buildWeeklyRiserPreviewMetrics(
+                        title="Market Movers"
+                        kicker="Biggest weekly value swings"
+                        previewMetrics={buildMomentumPreviewMetrics(
                           reportData
                         )}
                       >
                         <WeeklyMomentumTable
-                          data={reportData.weeklyRisers}
-                          title="Weekly Risers"
+                          data={[]}
+                          sections={[
+                            {
+                              title: "Top Trenders",
+                              data: reportData.weeklyRisers,
+                            },
+                            {
+                              title: "Biggest Sliders",
+                              data: reportData.weeklyFallers,
+                            },
+                          ]}
+                          title="Market Movers"
                           managerAvatars={reportData.managerAvatars}
                           playerDetailsById={reportData.playerDetailsById}
                           leagueId={leagueId}
@@ -10286,63 +11955,32 @@ export default function Home() {
                         />
                       </CollapsibleReportSection>
                       <CollapsibleReportSection
-                        title="Top 10 Weekly Fallers"
-                        kicker="7-day % drops"
-                        previewMetrics={buildWeeklyFallerPreviewMetrics(
-                          reportData
-                        )}
-                      >
-                        <WeeklyMomentumTable
-                          data={reportData.weeklyFallers}
-                          title="Weekly Fallers"
-                          managerAvatars={reportData.managerAvatars}
-                          playerDetailsById={reportData.playerDetailsById}
-                          leagueId={leagueId}
-                          leagueLogo={leagueLogo}
-                          viewerManager={effectiveViewerManager}
-                          leagueValueMode={leagueValueMode}
-                        />
-                      </CollapsibleReportSection>
-                      <CollapsibleReportSection
-                        title="Trending Adds"
+                        title="Trending"
                         kicker={
                           isRedraftReport
-                            ? "Sleeper add activity"
-                            : "Sleeper activity"
+                            ? "Sleeper add and drop activity"
+                            : "Sleeper market heat"
                         }
-                        previewMetrics={buildTrendingPreviewMetrics(
-                          reportData.trendingAdds || [],
-                          "up"
+                        previewMetrics={buildCombinedTrendingPreviewMetrics(
+                          reportData
                         )}
                       >
                         <TrendingPlayersTable
-                          data={reportData.trendingAdds || []}
-                          title="Trending Adds"
+                          data={[]}
+                          sections={[
+                            {
+                              title: "Top Trenders",
+                              countLabel: "Adds",
+                              data: reportData.trendingAdds || [],
+                            },
+                            {
+                              title: "Top Drops",
+                              countLabel: "Drops",
+                              data: reportData.trendingDrops || [],
+                            },
+                          ]}
+                          title="Trending"
                           countLabel="Adds"
-                          managerAvatars={reportData.managerAvatars}
-                          playerDetailsById={reportData.playerDetailsById}
-                          leagueId={leagueId}
-                          leagueLogo={leagueLogo}
-                          viewerManager={effectiveViewerManager}
-                          leagueValueMode={leagueValueMode}
-                        />
-                      </CollapsibleReportSection>
-                      <CollapsibleReportSection
-                        title="Trending Drops"
-                        kicker={
-                          isRedraftReport
-                            ? "Sleeper drop activity"
-                            : "Sleeper activity"
-                        }
-                        previewMetrics={buildTrendingPreviewMetrics(
-                          reportData.trendingDrops || [],
-                          "down"
-                        )}
-                      >
-                        <TrendingPlayersTable
-                          data={reportData.trendingDrops || []}
-                          title="Trending Drops"
-                          countLabel="Drops"
                           managerAvatars={reportData.managerAvatars}
                           playerDetailsById={reportData.playerDetailsById}
                           leagueId={leagueId}
@@ -10386,6 +12024,7 @@ export default function Home() {
                               board={isRedraftReport ? "redraft" : "dynasty"}
                               hidePicks={isRedraftReport}
                               leagueValueMode={leagueValueMode}
+                              leagueDiagnostics={reportData.leagueDiagnostics}
                               showAIReads={canViewAdminFeatureExpansion}
                             />
                           </div>
@@ -10416,6 +12055,7 @@ export default function Home() {
                               board="devy"
                               hidePicks
                               leagueValueMode={leagueValueMode}
+                              leagueDiagnostics={reportData.leagueDiagnostics}
                               showAIReads={canViewAdminFeatureExpansion}
                             />
                           )}
@@ -10445,14 +12085,15 @@ export default function Home() {
                               board="draftbuzz"
                               hidePicks
                               leagueValueMode={leagueValueMode}
+                              leagueDiagnostics={reportData.leagueDiagnostics}
                               showAIReads={canViewAdminFeatureExpansion}
                             />
                           )}
                         </CollapsibleReportSection>
                       )}
-                      {canViewAdminFeatureExpansion && (
+                      {canViewAdminDiagnostics && (
                         <section
-                          className="admin-diagnostics-shell"
+                          className="admin-diagnostics-shell ai-surface-r3f admin-diagnostics-shell-tron"
                           aria-label="Admin diagnostics"
                         >
                           <div className="admin-diagnostics-shell-header">
@@ -10462,6 +12103,7 @@ export default function Home() {
                               report so normal owner analysis stays focused.
                             </p>
                           </div>
+                          <AdminAICalibrationSection />
                           <AdminProviderTelemetrySection />
                           <AdminSourceCoverageSection />
                           <AdminTrafficTelemetrySection />
@@ -10542,8 +12184,8 @@ export default function Home() {
                       <CollapsibleReportSection
                         title={
                           isRedraftReport
-                            ? "Trade Value Leaderboard"
-                            : "All-Time Trade Profit Leaderboard"
+                            ? "Trade Value Board"
+                            : "Trade Profit Board"
                         }
                         kicker={
                           isRedraftReport
@@ -10619,8 +12261,8 @@ export default function Home() {
                         />
                       </CollapsibleReportSection>
                       <ModalReportSection
-                        title="Full Trade Ledger"
-                        kicker="Every completed deal"
+                        title="Trade Receipts"
+                        kicker="Every completed trade"
                         previewMetrics={buildTradePreviewMetrics(
                           reportData,
                           leagueValueMode,
@@ -10671,6 +12313,7 @@ export default function Home() {
                         currentStandings={reportData.currentStandings}
                         leagueOverview={reportData.leagueOverview}
                         leagueValueMode={leagueValueMode}
+                        leagueDiagnostics={reportData.leagueDiagnostics}
                         showAIReads={canViewAdminFeatureExpansion}
                       />
                     </TabsContent>
@@ -10689,7 +12332,8 @@ export default function Home() {
 
             {/* Bottom Action Buttons */}
             <div className="report-footer border-t border-orange-500/20 bg-slate-950/80 backdrop-blur">
-              <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
+              <HeaderCssLights className="dd-footer-css-lights" />
+              <div className="dd-header-content mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
                 <div className="report-footer-actions">
                   <div className="report-footer-primary-actions">
                     {(canOpenAdminToolsEntry ||
@@ -10734,6 +12378,10 @@ export default function Home() {
                         )}
                       </div>
                     )}
+                    <AIVoiceModeMenu
+                      mode={aiVoiceMode}
+                      onChange={handleAIVoiceModeChange}
+                    />
                     <Button
                       onClick={handleAnalyzeAnotherLeague}
                       variant="outline"
@@ -10875,7 +12523,6 @@ export default function Home() {
   return (
     <>
       <div className="home-shell min-h-screen flex flex-col premium-fx-host">
-        <PremiumFxLayer variant="home-hero" intensity="low" />
         <div className="home-header px-4 py-4 sm:py-5">
           <HomeLogoChrome />
           <HomeHeaderShortcuts
@@ -10886,7 +12533,7 @@ export default function Home() {
             onUserSelect={handleCachedSleeperUserSelect}
           />
         </div>
-        <div className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
+        <main className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
           <div className="home-hero w-full max-w-3xl space-y-8 sm:space-y-12">
             {/* Main Title */}
             <div className="home-hero-copy space-y-3 sm:space-y-4 text-center">
@@ -11094,7 +12741,7 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </div>
+        </main>
 
         {!reportData && (
           <div className="home-footer mt-auto px-4 py-6 sm:py-8">
@@ -11287,7 +12934,10 @@ function ModalReportSection({
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
       </button>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="full-trade-ledger-modal flex max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[90vh] sm:max-w-6xl">
+        <DialogContent
+          className="full-trade-ledger-modal flex max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[90vh] sm:max-w-6xl"
+          overlayClassName="full-trade-ledger-backdrop"
+        >
           <DialogHeader className="trade-ledger-modal-header">
             <DialogTitle className="trade-ledger-modal-title">
               {title}
@@ -11303,6 +12953,13 @@ function ModalReportSection({
               {children}
             </Suspense>
           </div>
+          <button
+            type="button"
+            className="trade-ledger-modal-mobile-close"
+            onClick={() => setIsOpen(false)}
+          >
+            Close Ledger
+          </button>
         </DialogContent>
       </Dialog>
     </section>

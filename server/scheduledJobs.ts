@@ -1,6 +1,6 @@
 import { storeKtcSnapshot } from './ktcSnapshotJob';
 import { shouldRunMonthlyProspectSnapshot, storeNflDraftBuzzProspectSnapshot } from './prospectSource';
-import { refreshFantasyProsEndpointSnapshotRefresh, refreshFantasyProsMatchupCalendarRefresh, runDynamicDataRefresh } from './dynamicDataJobs';
+import { refreshFantasyProsEndpointSnapshotRefresh, runDynamicDataRefresh } from './dynamicDataJobs';
 import {
   getFantasyProsEndpointSnapshotScheduleLabel,
   getPacificScheduleParts,
@@ -90,12 +90,9 @@ export function initializeScheduledJobs() {
     ) {
       lastFantasyProsEndpointSnapshotRunKey = fantasyProsEndpointSnapshotRunKey;
       const scheduleParts = getPacificScheduleParts(now);
-      console.log(`[Scheduled Jobs] Running FantasyPros endpoint and matchup snapshots at ${now.toISOString()} (${scheduleParts.dateKey} ${String(scheduleParts.hour).padStart(2, '0')}:00 ${SNAPSHOT_TIME_ZONE})`);
-      Promise.all([
-        refreshFantasyProsEndpointSnapshotRefresh(),
-        refreshFantasyProsMatchupCalendarRefresh(),
-      ]).catch((error) => {
-        console.error('[Scheduled Jobs] Error running FantasyPros endpoint or matchup snapshots:', error);
+      console.log(`[Scheduled Jobs] Running FantasyPros endpoint snapshots at ${now.toISOString()} (${scheduleParts.dateKey} ${String(scheduleParts.hour).padStart(2, '0')}:00 ${SNAPSHOT_TIME_ZONE})`);
+      refreshFantasyProsEndpointSnapshotRefresh().catch((error) => {
+        console.error('[Scheduled Jobs] Error running FantasyPros endpoint snapshots:', error);
       });
     }
   }
@@ -103,5 +100,5 @@ export function initializeScheduledJobs() {
   // Check every minute if we should run the snapshot
   setInterval(checkAndRunKtcSnapshot, 60000);
   
-  console.log(`[Scheduled Jobs] Initialized - KTC snapshots run daily at ${SNAPSHOT_HOURS.join(':00 and ')}:00, prospect snapshots run monthly at ${PROSPECT_SNAPSHOT_HOUR}:00, dynamic data refresh runs daily at ${DYNAMIC_REFRESH_HOUR}:${String(DYNAMIC_REFRESH_MINUTE).padStart(2, '0')}, and FantasyPros endpoint/matchup snapshots run ${getFantasyProsEndpointSnapshotScheduleLabel()}`);
+  console.log(`[Scheduled Jobs] Initialized - KTC snapshots run daily at ${SNAPSHOT_HOURS.join(':00 and ')}:00, prospect snapshots run monthly at ${PROSPECT_SNAPSHOT_HOUR}:00, dynamic data refresh runs daily at ${DYNAMIC_REFRESH_HOUR}:${String(DYNAMIC_REFRESH_MINUTE).padStart(2, '0')}, and FantasyPros endpoint snapshots run ${getFantasyProsEndpointSnapshotScheduleLabel()}`);
 }

@@ -1,0 +1,11 @@
+{
+  "name": "dynasty-degens-header-light-fx-kit",
+  "files": [
+    "components/HeaderLightFx.tsx",
+    "components/HeaderCssLights.tsx",
+    "styles/header-light-fx.css",
+    "examples/DashboardHeader.example.tsx",
+    "codex-prompts/CODEX_HEADER_LIGHTS_PROMPT.md",
+    "README.md"
+  ]
+}

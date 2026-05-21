@@ -142,6 +142,7 @@
    ============================================================ */
 .analysis-loading-dialog {
   border-radius: 1.15rem !important;
+  z-index: 51 !important;
 }
 
 .analysis-loading-dialog-loading,
@@ -185,12 +186,62 @@
   opacity: 0.2;
 }
 
+.analysis-loading-loader-kit {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255, 106, 0, 0.24), transparent 32%),
+    radial-gradient(circle at 88% 2%, rgba(0, 212, 219, 0.24), transparent 34%),
+    linear-gradient(145deg, rgba(2, 8, 18, 0.62), rgba(1, 13, 24, 0.46) 48%, rgba(2, 6, 23, 0.6)) !important;
+}
+
+.analysis-loading-loader-kit::before {
+  display: none;
+}
+
+.analysis-loading-loader-kit-fallback {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(36, 245, 255, 0.16), transparent 34%),
+    radial-gradient(circle at 12% 84%, rgba(255, 159, 67, 0.14), transparent 30%),
+    linear-gradient(135deg, #07040a 0%, #03101f 45%, #020712 100%);
+}
+
+.dd-loading-scene-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.98;
+  transition: opacity 420ms ease;
+  mask-image: linear-gradient(90deg, transparent 0%, transparent 14%, #000 24%, #000 76%, transparent 86%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, transparent 14%, #000 24%, #000 76%, transparent 86%, transparent 100%);
+}
+
+.dd-loading-scene-backdrop[data-state="exit"] {
+  opacity: 0;
+}
+
+@media (max-width: 700px) {
+  .dd-loading-scene-backdrop {
+    mask-image: linear-gradient(90deg, transparent 0%, #000 5%, #000 95%, transparent 100%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 5%, #000 95%, transparent 100%);
+  }
+}
+
 .analysis-loading-tron .ai-tron-surface {
   opacity: 0.82 !important;
 }
 
 .analysis-loading-tron .ai-tron-particle-field {
   opacity: 0.42;
+}
+
+[data-slot="dialog-content"].analysis-loading-dialog-loading {
+  transform-origin: 50% 50%;
+  transform-style: preserve-3d;
+  animation: analysis-loader-kit-dialog-float 5.7s ease-in-out infinite !important;
 }
 
 .analysis-loading-panel > :not(.loading-tron-backdrop):not(.dd-loading-letterbox) {
@@ -211,8 +262,8 @@
 }
 
 .loading-modal-bolt {
-  height: clamp(3rem, 11vw, 3.55rem);
-  width: clamp(3rem, 11vw, 3.55rem);
+  height: clamp(3.35rem, 11vw, 4.25rem);
+  width: clamp(3.35rem, 11vw, 4.25rem);
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -426,6 +477,17 @@
   100% { left: 100%; opacity: 0; }
 }
 
+@keyframes analysis-loader-kit-dialog-float {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) translateY(0) rotateX(0deg);
+  }
+
+  50% {
+    transform: translate(-50%, -50%) translateY(-8px) rotateX(1.2deg);
+  }
+}
+
 @media (max-width: 480px) {
   .loading-modal-header {
     padding-top: 0.25rem;
@@ -496,8 +558,13 @@
   .dd-loading-crown-wrap,
   .dd-loading-crown-wrap[data-complete="true"],
   .dd-success-crown-bloom,
-  .dd-success-crown-bloom img {
+  .dd-success-crown-bloom img,
+  [data-slot="dialog-content"].analysis-loading-dialog-loading {
     animation: none;
     transition: none;
+  }
+
+  [data-slot="dialog-content"].analysis-loading-dialog-loading {
+    transform: translate(-50%, -50%);
   }
 }

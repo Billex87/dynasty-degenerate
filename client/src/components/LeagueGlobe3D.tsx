@@ -134,7 +134,12 @@ export default function LeagueGlobe3D({
             powerPreference: "high-performance",
           }}
           onCreated={({ gl }) => {
-            gl.domElement.addEventListener(
+            const canvas = gl.domElement;
+            if (!canvas) {
+              setCanvasFailed(true);
+              return;
+            }
+            canvas.addEventListener(
               "webglcontextlost",
               event => {
                 event.preventDefault();

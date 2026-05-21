@@ -22,6 +22,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AIActionQueue } from '@/components/AIActionQueue';
 import type { LeagueValueMode } from '@/lib/leagueValueMode';
 import { buildAutopilotData, clampPercent, getDirectionTone, getRiskTone } from '@/lib/autopilot/buildAutopilotData';
 import { AUTOPILOT_MOCK_DATA } from '@/lib/autopilot/mockData';
@@ -97,6 +98,16 @@ function normalizeAutopilotData(
       actionPlan: asArray(direction?.actionPlan, fallback.direction.actionPlan),
     },
     systemRead: asArray(data?.systemRead, fallback.systemRead),
+    actionQueue: asArray(data?.actionQueue, fallback.actionQueue).map((item, index) => ({
+      ...item,
+      rank: Number.isFinite(item.rank) ? item.rank : index + 1,
+      blockers: asArray(item.blockers),
+      missingEvidence: asArray(item.missingEvidence),
+      sourceHealth: asArray(item.sourceHealth),
+      receipts: asArray(item.receipts),
+      changeTriggers: asArray(item.changeTriggers),
+      signals: asArray(item.signals),
+    })),
     lineup: normalizeRecommendations(data?.lineup, fallback.lineup),
     weeklyPlan: normalizeWeeklyPlan(data?.weeklyPlan, fallback.weeklyPlan),
     waivers: normalizeRecommendations(data?.waivers, fallback.waivers),
@@ -508,10 +519,6 @@ export default function AITeamAutopilot({
       return fallback;
     }
   }, [mode, reportData]);
-  const allRecommendations = useMemo(
-    () => [...data.lineup, ...data.waivers, ...data.trades],
-    [data]
-  );
 
   return (
     <section className="autopilot-dashboard" data-mode={mode}>
@@ -537,6 +544,13 @@ export default function AITeamAutopilot({
           <ScoreTile key={score.label} score={score} />
         ))}
       </div>
+
+      <AIActionQueue
+        items={data.actionQueue}
+        subtitle="The one place where Autopilot decides: act, watch, hold, or block."
+        memoryKey={`autopilot:${mode}:${data.focusManager || leagueName || 'league'}`}
+        memoryContext={`AI Autopilot · ${data.focusManager || leagueName || 'League'}`}
+      />
 
       <section className="autopilot-direction-panel">
         <div className="autopilot-direction-read">
@@ -570,8 +584,8 @@ export default function AITeamAutopilot({
           <strong>{data.weeklyPlan?.options?.length ? `${data.weeklyPlan.options.length} start-over options` : 'No forced swap'}</strong>
         </div>
         <div>
-          <span>Recommendation set</span>
-          <strong>{allRecommendations.length} cards</strong>
+          <span>Action queue</span>
+          <strong>{data.actionQueue.length ? `${data.actionQueue.length} ranked reads` : 'No forced action'}</strong>
         </div>
         <div>
           <span>Trade screenshots</span>

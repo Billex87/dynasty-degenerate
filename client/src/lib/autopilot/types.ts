@@ -1,3 +1,5 @@
+import type { AIEvidenceResult } from '@shared/aiEvidenceEngine';
+
 export type AutopilotMode = 'dynasty' | 'redraft';
 export type AutopilotTone = 'good' | 'info' | 'warn' | 'danger' | 'neutral';
 export type ValueDirection = 'Rising' | 'Falling' | 'Stable';
@@ -20,7 +22,33 @@ export type AutopilotRecommendation = {
   summary: string;
   reasons: string[];
   signals: string[];
+  evidenceRead?: AIEvidenceResult;
   tone: AutopilotTone;
+};
+
+export type AIActionQueueDecision = 'do' | 'watch' | 'hold' | 'blocked';
+
+export type AIActionQueueSource = 'lineup' | 'waiver' | 'trade' | 'strategy';
+
+export type AIActionQueueItem = {
+  id: string;
+  source: AIActionQueueSource;
+  decision: AIActionQueueDecision;
+  rank: number;
+  label: string;
+  action: string;
+  target: string;
+  detail: string;
+  why: string;
+  risk: string;
+  confidence: number;
+  tone: AutopilotTone;
+  blockers: string[];
+  missingEvidence: string[];
+  sourceHealth: string[];
+  receipts: string[];
+  changeTriggers: string[];
+  signals: string[];
 };
 
 export type PlayerProjection = {
@@ -120,6 +148,7 @@ export type AutopilotData = {
     actionPlan: string[];
   };
   systemRead: AutopilotScore[];
+  actionQueue: AIActionQueueItem[];
   lineup: AutopilotRecommendation[];
   weeklyPlan?: WeeklyActionPlan;
   weeklyRecap?: WeeklyRecapRead;

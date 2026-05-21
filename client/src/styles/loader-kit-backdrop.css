@@ -1,0 +1,271 @@
+.loader-kit-backdrop,
+.loader-kit-backdrop * {
+  box-sizing: border-box;
+}
+
+.loader-kit-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(36, 245, 255, 0.14), transparent 34%),
+    radial-gradient(circle at 14% 86%, rgba(255, 138, 42, 0.14), transparent 30%),
+    linear-gradient(135deg, #07040a 0%, #03101f 48%, #020712 100%);
+}
+
+.loader-kit-backdrop--ambient {
+  border-radius: 0;
+}
+
+.loader-kit-backdrop__stage,
+.loader-kit-backdrop__stage canvas,
+.loader-kit-backdrop__matrix,
+.loader-kit-backdrop__scanline,
+.loader-kit-backdrop__vignette,
+.loader-kit-backdrop__fallback {
+  position: absolute;
+  inset: 0;
+}
+
+.loader-kit-backdrop__canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.loader-kit-backdrop__stage {
+  z-index: 1;
+}
+
+.loader-kit-backdrop--panel .loader-kit-backdrop__stage {
+  opacity: 0.9;
+  transform: scale(1.22);
+}
+
+.loader-kit-backdrop--ambient .loader-kit-backdrop__stage {
+  opacity: 1;
+  transform: scale(1.06);
+}
+
+.loader-kit-backdrop__manager-anchors {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.loader-kit-backdrop__manager-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: clamp(1.7rem, 3.2vw, 2.35rem);
+  height: clamp(1.7rem, 3.2vw, 2.35rem);
+  opacity: var(--anchor-opacity, 0);
+  transform:
+    translate3d(var(--anchor-x, 50vw), var(--anchor-y, 50vh), 0)
+    translate(-50%, -50%)
+    scale(var(--anchor-scale, 1));
+  transition: opacity 180ms ease;
+  filter:
+    drop-shadow(0 0 0.7rem rgba(36, 245, 255, 0.24))
+    drop-shadow(0 0 0.8rem rgba(255, 138, 42, 0.16));
+  will-change: transform, opacity;
+}
+
+.loader-kit-backdrop__manager-node,
+.loader-kit-backdrop__manager-orbit,
+.loader-kit-backdrop__manager-avatar {
+  position: absolute;
+  pointer-events: none;
+}
+
+.loader-kit-backdrop__manager-node {
+  left: 50%;
+  top: 50%;
+  width: 116%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(36, 245, 255, 0.82) 0 18%, rgba(36, 245, 255, 0.3) 44%, transparent 72%);
+  box-shadow:
+    0 0 0.55rem rgba(36, 245, 255, 0.72),
+    0 0 1rem rgba(36, 245, 255, 0.32);
+  transform: translate(-50%, -50%);
+}
+
+.loader-kit-backdrop__manager-anchor--orange .loader-kit-backdrop__manager-node {
+  background: radial-gradient(circle, rgba(255, 138, 42, 0.86) 0 18%, rgba(255, 138, 42, 0.34) 44%, transparent 72%);
+  box-shadow:
+    0 0 0.55rem rgba(255, 138, 42, 0.72),
+    0 0 1rem rgba(255, 138, 42, 0.32);
+}
+
+.loader-kit-backdrop__manager-orbit {
+  inset: -0.18rem;
+  border: 1px solid rgba(36, 245, 255, 0.3);
+  border-top-color: rgba(255, 138, 42, 0.58);
+  border-radius: 999px;
+  animation: loader-kit-manager-spin 3.6s linear infinite;
+}
+
+.loader-kit-backdrop__manager-avatar {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(125, 247, 255, 0.42);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.24), transparent 26%),
+    linear-gradient(135deg, rgba(7, 18, 32, 0.92), rgba(2, 6, 23, 0.98));
+  box-shadow:
+    inset 0 0 0 2px rgba(2, 6, 23, 0.58),
+    0 0 1rem rgba(36, 245, 255, 0.22);
+  overflow: hidden;
+}
+
+.loader-kit-backdrop__manager-anchor--orange .loader-kit-backdrop__manager-avatar {
+  border-color: rgba(255, 138, 42, 0.48);
+  box-shadow:
+    inset 0 0 0 2px rgba(2, 6, 23, 0.58),
+    0 0 1rem rgba(255, 138, 42, 0.24);
+}
+
+.loader-kit-backdrop__manager-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.loader-kit-backdrop__manager-avatar > span {
+  width: 48%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 34%, rgba(255, 248, 231, 0.82) 0 26%, transparent 27%),
+    linear-gradient(rgba(255, 248, 231, 0.82) 0 0) center 78% / 70% 30% no-repeat;
+  opacity: 0.8;
+}
+
+.loader-kit-backdrop__matrix {
+  display: none;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(36, 245, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 245, 255, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at 70% 26%, rgba(255, 159, 67, 0.13), transparent 32%);
+  background-size: 3.4rem 3.4rem, 3.4rem 3.4rem, auto;
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 14%, #000 84%, transparent 100%);
+  opacity: 0.44;
+  transform: perspective(900px) rotateX(58deg) translateY(18%) scale(1.55);
+  transform-origin: center bottom;
+}
+
+.loader-kit-backdrop--ambient .loader-kit-backdrop__matrix {
+  opacity: 0.9;
+}
+
+.loader-kit-backdrop__scanline {
+  pointer-events: none;
+  z-index: 4;
+  background: linear-gradient(
+    transparent 0%,
+    rgba(36, 245, 255, 0.05) 46%,
+    rgba(36, 245, 255, 0.14) 50%,
+    rgba(255, 138, 42, 0.08) 53%,
+    transparent 100%
+  );
+  opacity: 0.62;
+  transform: translateY(-100%);
+  animation: loader-kit-backdrop-scan 3.8s linear infinite;
+}
+
+.loader-kit-backdrop__vignette {
+  pointer-events: none;
+  z-index: 5;
+  background:
+    radial-gradient(circle, transparent 26%, rgba(2, 7, 18, 0.22) 56%, rgba(2, 7, 18, 0.88) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.42), transparent 22%, transparent 78%, rgba(0, 0, 0, 0.42));
+}
+
+.loader-kit-backdrop--panel .loader-kit-backdrop__vignette {
+  background:
+    radial-gradient(circle, transparent 24%, rgba(2, 7, 18, 0.12) 54%, rgba(2, 7, 18, 0.72) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.3), transparent 22%, transparent 78%, rgba(0, 0, 0, 0.34));
+}
+
+.loader-kit-backdrop--ambient .loader-kit-backdrop__vignette {
+  background:
+    radial-gradient(circle, transparent 30%, rgba(2, 7, 18, 0.04) 56%, rgba(2, 7, 18, 0.58) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.24), transparent 20%, transparent 80%, rgba(0, 0, 0, 0.24));
+}
+
+.loader-kit-backdrop__fallback {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle, rgba(36, 245, 255, 0.12), transparent 46%);
+}
+
+.loader-kit-backdrop__fallback-core {
+  width: min(42vw, 17.5rem);
+  aspect-ratio: 1;
+  border: 1px solid rgba(36, 245, 255, 0.5);
+  border-radius: 50%;
+  box-shadow: 0 0 5rem rgba(36, 245, 255, 0.22), inset 0 0 3rem rgba(255, 138, 42, 0.1);
+}
+
+.loader-kit-backdrop__fallback-ring {
+  position: absolute;
+  width: min(50vw, 22rem);
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 138, 42, 0.34);
+  border-radius: 50%;
+  animation: loader-kit-backdrop-spin 8s linear infinite;
+}
+
+.loader-kit-backdrop__fallback-ring-b {
+  width: min(58vw, 26rem);
+  border-color: rgba(36, 245, 255, 0.28);
+  animation-duration: 11s;
+  animation-direction: reverse;
+}
+
+@keyframes loader-kit-backdrop-scan {
+  from {
+    transform: translateY(-100%);
+  }
+
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes loader-kit-backdrop-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes loader-kit-manager-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (max-width: 700px) {
+  .loader-kit-backdrop__manager-anchor {
+    width: 1.48rem;
+    height: 1.48rem;
+  }
+
+  .loader-kit-backdrop__manager-anchor:nth-child(n + 6) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-kit-backdrop__scanline,
+  .loader-kit-backdrop__fallback-ring,
+  .loader-kit-backdrop__manager-orbit {
+    animation: none !important;
+  }
+}

@@ -22,6 +22,14 @@ import {
   Users,
 } from 'lucide-react';
 import type { ActionPlanRecord, DraftPick, ManagerIntelPlayer, ManagerStarterPlayer, PlayerDetails, PlayerInfo, RankingPlayer, ReportData, TrendingPlayer, WeeklyMomentum } from '@shared/types';
+import {
+  evaluateAIEvidence,
+  getAIEvidenceLeagueContextFromDiagnostics,
+  getAIEvidenceReceiptItems,
+  type AIEvidenceMode,
+  type AIEvidenceResult,
+} from '@shared/aiEvidenceEngine';
+import { buildAIEvidenceLeagueActivityContext } from '@shared/leagueActivityContext';
 import { AIReadPanel, type AIReadChip } from './AIReadPanel';
 import { EmptyState, MetricPill, PlayerIdentityRow } from './reportPrimitives';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
@@ -30,6 +38,7 @@ import { TeamLogoPill } from './TeamLogoPill';
 import { normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { isPlaceholderManagerName } from '@/lib/managerDisplay';
+import { getManagerProfileLabel } from '@/lib/managerProfileLabels';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import { trpc } from '@/lib/trpc';
 import { buildTradeValueCalibrationCoverage } from '@/lib/tradeValueCalibration';
@@ -51,6 +60,9 @@ import {
   type OverviewManagerIntelRow as ManagerIntelRow,
   type OverviewPosition as Position,
 } from '@/lib/overviewInsights';
+import { AIActionQueue } from '@/components/AIActionQueue';
+import { buildAutopilotData } from '@/lib/autopilot/buildAutopilotData';
+import { AUTOPILOT_MOCK_DATA } from '@/lib/autopilot/mockData';
 
 type ManagerAvatars = ReportData['managerAvatars'];
 type BlueprintSignal = 'buy' | 'hold' | 'sell';
@@ -270,6 +282,13 @@ function getRankingsConfidence(data: ReportData, rowCount: number): number {
   return capByAiConfidence(data, rawConfidence, null, 18);
 }
 
+function getRankingProfileRowCount(data: ReportData, profileKey?: string | null): number {
+  if (!profileKey) return 0;
+  const rows = data.rankings?.profiles?.[profileKey];
+  if (Array.isArray(rows) && rows.length > 0) return rows.length;
+  return data.rankings?.profileRowCounts?.[profileKey] || 0;
+}
+
 function getTradeHistoryConfidence(data: ReportData): number {
   const tradeCount = data.tradeHistory?.length || 0;
   const rawConfidence = confidenceFromEvidence(tradeCount ? 42 : 30, [
@@ -280,6 +299,221 @@ function getTradeHistoryConfidence(data: ReportData): number {
     [Boolean(data.standingsHistory?.length), 5],
   ]);
   return capByAiConfidence(data, rawConfidence, null, 16);
+}
+
+function getEvidenceChip(read: AIEvidenceResult): AIReadChip {
+  return {
+    label: `${read.label} ${read.finalScore}%`,
+    tone:
+      read.label === 'blocked'
+        ? 'danger'
+        : read.label === 'thin'
+          ? 'warn'
+          : read.canAct
+            ? 'good'
+            : 'info',
+  };
+}
+
+function getReportEvidenceModes(data: ReportData): AIEvidenceMode[] {
+  return isRedraftReportData(data)
+    ? ['redraft', 'current']
+    : ['dynasty', 'current'];
+}
+
+function buildOwnerIntelEvidenceRead(
+  data: ReportData,
+  manager: string,
+  baseScore: number
+): AIEvidenceResult {
+  const intel = getIntel(data, manager);
+  const overview = getOverview(data, manager);
+  const power = getPower(data, manager);
+  const counts = data.managerPositionCounts?.find((row) => row.manager === manager) || null;
+  const pickPortfolio = data.pickPortfolios?.find((row) => row.manager === manager) || null;
+  const tradeTendency = data.tradeTendencies?.find((row) => row.manager === manager) || null;
+  const isRedraft = isRedraftReportData(data);
+  const sourceCount = [
+    intel,
+    overview,
+    power,
+    counts,
+    isRedraft ? true : pickPortfolio,
+    tradeTendency,
+  ].filter(Boolean).length;
+
+  return evaluateAIEvidence({
+    surface: 'owner-intel',
+    action: 'watch',
+    leagueValueMode: isRedraft ? 'redraft' : 'dynasty',
+    leagueContext: getAIEvidenceLeagueContextFromDiagnostics(
+      data.leagueDiagnostics,
+      isRedraft ? 'redraft' : 'dynasty'
+    ),
+    leagueActivity: buildAIEvidenceLeagueActivityContext(data),
+    signalModes: getReportEvidenceModes(data),
+    baseScore,
+    evidence: [
+      intel ? `${manager} roster intelligence returned.` : null,
+      overview ? `${manager} league overview row returned.` : null,
+      power ? `${manager} power ranking returned.` : null,
+      counts ? `${manager} roster position counts returned.` : null,
+      pickPortfolio && !isRedraft ? `${manager} pick portfolio returned.` : null,
+      tradeTendency ? `${manager} trade tendency row returned.` : null,
+    ].filter((value): value is string => Boolean(value)),
+    missingEvidence: [
+      !intel ? 'Manager roster intelligence missing.' : null,
+      !overview ? 'League overview row missing.' : null,
+      !power ? 'Power ranking row missing.' : null,
+      !counts ? 'Roster position counts missing.' : null,
+      !isRedraft && !pickPortfolio ? 'Pick portfolio missing.' : null,
+      !tradeTendency ? 'Trade tendency row missing.' : null,
+    ].filter((value): value is string => Boolean(value)),
+    sourceTrace: [
+      { label: 'Manager roster intelligence', status: intel ? 'loaded' : 'missing', detail: manager },
+      { label: 'League overview', status: overview ? 'loaded' : 'missing', detail: overview ? `Value rank #${overview.rank_value}` : null },
+      { label: 'Power rankings', status: power ? 'loaded' : 'missing', detail: power ? `Power rank #${power.rank}` : null },
+      { label: 'Roster position counts', status: counts ? 'loaded' : 'missing', detail: counts ? `${counts.totalRosterPlayerCount || counts.rosterPlayers?.length || 0} players` : null },
+      { label: isRedraft ? 'Current-season lens' : 'Pick portfolio', status: isRedraft || pickPortfolio ? 'loaded' : 'missing', detail: isRedraft ? 'Redraft mode' : pickPortfolio ? formatCompactValue(pickPortfolio.totalValue) : null },
+      { label: 'Trade tendencies', status: tradeTendency ? 'loaded' : 'missing', detail: tradeTendency ? `${tradeTendency.tradeCount} trades` : null },
+    ],
+    player: {
+      name: manager,
+      sourceCount,
+      hasCurrentSeasonValue: isRedraft ? Boolean(intel && overview) : true,
+      hasDynastyValue: !isRedraft ? Boolean(intel && (power || pickPortfolio)) : false,
+    },
+    requiresCurrentSeasonEvidence: isRedraft,
+    requiresActiveTeam: false,
+    requiresLiveAvailability: false,
+    staleSourceCap: 60,
+  });
+}
+
+function buildRankingsEvidenceRead(
+  data: ReportData,
+  rows: RankingPlayer[],
+  baseScore: number,
+  availableRowCount = rows.length
+): AIEvidenceResult {
+  const isRedraft = isRedraftReportData(data);
+  const diagnostics = isRedraft
+    ? data.rankings?.redraftSourceDiagnostics || []
+    : data.rankings?.dynastySourceDiagnostics || [];
+  const profileSources = data.rankings?.defaultProfileKey
+    ? data.rankings.sourceWeightProfiles?.[data.rankings.defaultProfileKey]?.sources || []
+    : [];
+  const loadedDiagnostics = diagnostics.filter((row) => row.status === 'loaded' && row.rowCount > 0);
+  const sourceCount = loadedDiagnostics.length || profileSources.length;
+  const ownedCount = rows.filter((row) => row.owner).length;
+  const valueRows = rows.filter((row) => !row.isPick && !row.isDevy && Number.isFinite(Number(row.value)));
+  const rowCount = Math.max(rows.length, availableRowCount);
+
+  return evaluateAIEvidence({
+    surface: 'rankings',
+    action: 'watch',
+    leagueValueMode: isRedraft ? 'redraft' : 'dynasty',
+    leagueContext: getAIEvidenceLeagueContextFromDiagnostics(
+      data.leagueDiagnostics,
+      isRedraft ? 'redraft' : 'dynasty'
+    ),
+    leagueActivity: buildAIEvidenceLeagueActivityContext(data),
+    signalModes: getReportEvidenceModes(data),
+    baseScore,
+    evidence: [
+      rowCount ? `${rowCount} ranking assets indexed.` : null,
+      valueRows.length ? `${valueRows.length} player value rows returned.` : null,
+      sourceCount ? `${sourceCount} ranking sources loaded.` : null,
+      ownedCount ? `${ownedCount} rows include live roster ownership.` : null,
+      data.rankings?.defaultProfileKey ? `Default profile ${data.rankings.defaultProfileKey}.` : null,
+    ].filter((value): value is string => Boolean(value)),
+    missingEvidence: [
+      !rowCount ? 'Ranking rows missing.' : null,
+      !sourceCount ? 'Ranking source trace missing.' : null,
+      rows.length && !ownedCount ? 'Roster ownership not attached to ranking rows.' : null,
+      isRedraft && !data.rankings?.defaultRedraftProfileKey ? 'Redraft profile key missing.' : null,
+    ].filter((value): value is string => Boolean(value)),
+    sourceTrace: diagnostics.length
+      ? diagnostics.slice(0, 8).map((row) => ({
+          label: row.source,
+          status: row.status === 'empty' || row.status === 'disabled' ? 'missing' : row.status,
+          detail: `${row.rowCount} rows - ${row.note}`,
+          ageHours: row.loadedAt ? Math.max(0, Math.round(((Date.now() - Date.parse(row.loadedAt)) / (1000 * 60 * 60)) * 10) / 10) : null,
+        }))
+      : profileSources.slice(0, 8).map((source) => ({
+          label: source.source,
+          status: 'loaded' as const,
+          detail: `${source.percent}% weight - ${source.note}`,
+        })),
+    player: {
+      name: 'Ranking board',
+      sourceCount,
+      hasCurrentSeasonValue: isRedraft ? Boolean(rowCount && sourceCount) : true,
+      hasDynastyValue: !isRedraft ? Boolean(rowCount && sourceCount) : false,
+    },
+    requiresCurrentSeasonEvidence: isRedraft,
+    requiresActiveTeam: false,
+    requiresLiveAvailability: false,
+    confidenceCap: sourceCount ? null : 54,
+    confidenceCapReason: sourceCount ? null : 'Ranking source trace missing',
+    staleSourceCap: 60,
+  });
+}
+
+function buildTradeBrowserEvidenceRead(
+  data: ReportData,
+  baseScore: number
+): AIEvidenceResult {
+  const tradeCount = data.tradeHistory?.length || 0;
+  const tendencyCount = data.tradeTendencies?.length || 0;
+  const profitCount = data.tradeProfitLeaderboard?.length || 0;
+  const managerIntelCount = data.managerRosterIntelligence?.length || 0;
+  const sourceCount = [tradeCount, tendencyCount, profitCount, managerIntelCount]
+    .filter(count => count > 0).length;
+  const isRedraft = isRedraftReportData(data);
+
+  return evaluateAIEvidence({
+    surface: 'trade',
+    action: 'trade',
+    leagueValueMode: isRedraft ? 'redraft' : 'dynasty',
+    leagueContext: getAIEvidenceLeagueContextFromDiagnostics(
+      data.leagueDiagnostics,
+      isRedraft ? 'redraft' : 'dynasty'
+    ),
+    leagueActivity: buildAIEvidenceLeagueActivityContext(data),
+    signalModes: getReportEvidenceModes(data),
+    baseScore,
+    evidence: [
+      tradeCount ? `${tradeCount} completed trades returned.` : null,
+      tendencyCount ? `${tendencyCount} manager trade tendency rows returned.` : null,
+      profitCount ? `${profitCount} trade-profit rows returned.` : null,
+      managerIntelCount ? `${managerIntelCount} manager roster rows returned for fit checks.` : null,
+    ].filter((value): value is string => Boolean(value)),
+    missingEvidence: [
+      !tradeCount ? 'Completed trade ledger missing.' : null,
+      !tendencyCount ? 'Manager trade tendencies missing.' : null,
+      !profitCount ? 'Trade-profit leaderboard missing.' : null,
+      !managerIntelCount ? 'Roster intelligence missing for fit checks.' : null,
+    ].filter((value): value is string => Boolean(value)),
+    sourceTrace: [
+      { label: 'Trade history', status: tradeCount ? 'loaded' : 'missing', detail: `${tradeCount} trades` },
+      { label: 'Trade tendencies', status: tendencyCount ? 'loaded' : 'missing', detail: `${tendencyCount} managers` },
+      { label: 'Trade-profit leaderboard', status: profitCount ? 'loaded' : 'missing', detail: `${profitCount} rows` },
+      { label: 'Roster fit context', status: managerIntelCount ? 'loaded' : 'missing', detail: `${managerIntelCount} manager rows` },
+    ],
+    player: {
+      name: 'Trade browser',
+      sourceCount,
+      hasCurrentSeasonValue: isRedraft ? Boolean(managerIntelCount) : true,
+      hasDynastyValue: !isRedraft ? Boolean(managerIntelCount) : false,
+    },
+    requiresCurrentSeasonEvidence: isRedraft,
+    requiresActiveTeam: false,
+    requiresLiveAvailability: false,
+    confidenceCap: sourceCount <= 1 ? 58 : null,
+    confidenceCapReason: sourceCount <= 1 ? 'Thin trade evidence' : null,
+    staleSourceCap: 60,
+  });
 }
 
 function getModuleConfidence(base: number, evidence: Array<[boolean, number]>): number {
@@ -804,6 +1038,77 @@ function buildOverviewRead(data: ReportData) {
   };
 }
 
+function buildOverviewEvidenceRead(data: ReportData, baseScore: number): AIEvidenceResult {
+  const isRedraft = isRedraftReportData(data);
+  const managerCount = getManagerOptions(data).length;
+  const rosterCount = data.managerRosterIntelligence?.length || 0;
+  const overviewCount = data.leagueOverview?.length || 0;
+  const powerCount = data.powerRankings?.length || 0;
+  const tradeSignalCount =
+    (data.tradeHistory?.length || 0) +
+    (data.tradeTendencies?.length || 0) +
+    (data.tradeProposalSignals?.length || 0);
+  const marketSignalCount =
+    (data.weeklyRisers?.length || 0) +
+    (data.weeklyFallers?.length || 0);
+  const sourceCount = [
+    rosterCount,
+    overviewCount,
+    powerCount,
+    tradeSignalCount,
+    marketSignalCount,
+  ].filter(count => count > 0).length;
+
+  return evaluateAIEvidence({
+    surface: 'overview',
+    action: 'watch',
+    leagueValueMode: isRedraft ? 'redraft' : 'dynasty',
+    leagueContext: getAIEvidenceLeagueContextFromDiagnostics(
+      data.leagueDiagnostics,
+      isRedraft ? 'redraft' : 'dynasty'
+    ),
+    leagueActivity: buildAIEvidenceLeagueActivityContext(data),
+    signalModes: getReportEvidenceModes(data),
+    baseScore,
+    evidence: [
+      managerCount ? `${managerCount} visible managers returned.` : null,
+      rosterCount ? `${rosterCount} roster-intelligence rows returned.` : null,
+      overviewCount ? `${overviewCount} league overview rows returned.` : null,
+      powerCount ? `${powerCount} power-ranking rows returned.` : null,
+      tradeSignalCount ? `${tradeSignalCount} trade signals returned.` : null,
+      marketSignalCount ? `${marketSignalCount} market movement signals returned.` : null,
+    ].filter((value): value is string => Boolean(value)),
+    missingEvidence: [
+      !managerCount ? 'No visible manager rows returned.' : null,
+      !rosterCount ? 'Roster intelligence missing.' : null,
+      !overviewCount ? 'League overview rows missing.' : null,
+      !powerCount ? 'Power rankings missing.' : null,
+      !tradeSignalCount ? 'Trade signal context missing.' : null,
+      !marketSignalCount ? 'Market movement context missing.' : null,
+    ].filter((value): value is string => Boolean(value)),
+    sourceTrace: [
+      { label: 'Visible managers', status: managerCount ? 'loaded' : 'missing', detail: `${managerCount} managers` },
+      { label: 'Roster intelligence', status: rosterCount ? 'loaded' : 'missing', detail: `${rosterCount} rows` },
+      { label: 'League overview', status: overviewCount ? 'loaded' : 'missing', detail: `${overviewCount} rows` },
+      { label: 'Power rankings', status: powerCount ? 'loaded' : 'missing', detail: `${powerCount} rows` },
+      { label: 'Trade signals', status: tradeSignalCount ? 'loaded' : 'missing', detail: `${tradeSignalCount} rows` },
+      { label: 'Market movement', status: marketSignalCount ? 'loaded' : 'missing', detail: `${marketSignalCount} rows` },
+    ],
+    player: {
+      name: 'Overview AI Pulse',
+      sourceCount,
+      hasCurrentSeasonValue: isRedraft ? Boolean(rosterCount || overviewCount) : true,
+      hasDynastyValue: !isRedraft ? Boolean(rosterCount || overviewCount) : false,
+    },
+    requiresCurrentSeasonEvidence: isRedraft,
+    requiresActiveTeam: false,
+    requiresLiveAvailability: false,
+    confidenceCap: sourceCount <= 1 ? 54 : null,
+    confidenceCapReason: sourceCount <= 1 ? 'Thin overview evidence' : null,
+    staleSourceCap: 60,
+  });
+}
+
 export function OverviewAIPulse({
   data,
 }: {
@@ -811,16 +1116,49 @@ export function OverviewAIPulse({
 }) {
   const read = buildOverviewRead(data);
   const confidence = getOverviewConfidence(data);
+  const evidenceRead = buildOverviewEvidenceRead(data, confidence);
+  const mode = isRedraftReportData(data) ? 'redraft' : 'dynasty';
+  const actionQueue = useMemo(() => {
+    try {
+      return buildAutopilotData({
+        reportData: data,
+        mode,
+        fallback: AUTOPILOT_MOCK_DATA[mode],
+      }).actionQueue;
+    } catch (error) {
+      console.error('Overview AI Action Queue failed to build.', error);
+      return AUTOPILOT_MOCK_DATA[mode].actionQueue;
+    }
+  }, [data, mode]);
+
+  if (!evidenceRead.shouldRender) return null;
+
   return (
     <AIReadPanel
       title={read.title}
       subtitle="Narrative guide for the Overview stack; exact metrics stay with their owning tables."
       readType="League Exploit"
-      confidence={confidence}
-      confidenceNote={getAiConfidenceDisplayNote(data)}
-      severity={confidence >= 76 ? 'info' : 'warn'}
-      chips={read.chips}
-      body={read.body}
+      confidence={evidenceRead.finalScore}
+      confidenceNote={evidenceRead.confidenceCapReason ? `Confidence capped by ${evidenceRead.confidenceCapReason}.` : getAiConfidenceDisplayNote(data) || evidenceRead.whyThisFired}
+      evidenceRead={evidenceRead}
+      severity={evidenceRead.label === 'thin' ? 'warn' : evidenceRead.finalScore >= 76 ? 'info' : 'warn'}
+      chips={[getEvidenceChip(evidenceRead), ...read.chips]}
+      body={(
+        <>
+          <p>{read.body}</p>
+          <AIActionQueue
+            items={actionQueue}
+            title="One Best Move"
+            subtitle="The Overview only surfaces the highest ranked AI action."
+            compact
+            className="overview-ai-action-queue"
+            memoryKey={`overview:${mode}:${getManagerOptions(data).join('|') || 'league'}`}
+            memoryContext="Overview AI Pulse"
+            enableOutcomeTracking={false}
+          />
+        </>
+      )}
+      traceItems={getAIEvidenceReceiptItems(evidenceRead)}
       backgroundVariant="league"
       className="overview-ai-pulse"
     />
@@ -971,6 +1309,12 @@ export function MonthlyTeamBlueprint({
           subtitle="Once the current draft is complete, this section can use roster, draft, trade, and value movement data."
           readType="Monthly Blueprint"
           confidence={null}
+          decision={{
+            label: "Do not use yet",
+            detail: "Current-season draft evidence is missing, so the blueprint stays locked instead of inventing a plan.",
+            tone: "stop",
+            status: "Locked",
+          }}
           severity="warn"
           chips={[
             { label: 'Current draft pending', tone: 'warn' },
@@ -1188,6 +1532,12 @@ export function MonthlyTeamBlueprint({
           readType="Monthly Blueprint"
           confidence={monthlyConfidence}
           confidenceNote={getAiConfidenceDisplayNote(data, manager)}
+          decision={{
+            label: "Do this",
+            detail: `Generate ${manager}'s ${monthLabel} blueprint from returned roster, ranking, draft, trade, and movement evidence.`,
+            tone: "go",
+            status: `Ready · ${monthlyConfidence}%`,
+          }}
           severity={monthlyConfidence >= 78 && !hasPartialHistory ? 'good' : hasPartialHistory ? 'warn' : 'info'}
           chips={[
             snapshotStatus?.status === 'stored'
@@ -1630,6 +1980,12 @@ export function MonthlyTeamBlueprint({
               readType="Monthly Blueprint"
               confidence={monthlyConfidence}
               confidenceNote={getAiConfidenceDisplayNote(data, manager)}
+              decision={{
+                label: topPriorities[0] ? "Do this" : "Watch only",
+                detail: topPriorities[0] || "No single priority is strong enough to force from this blueprint.",
+                tone: topPriorities[0] ? "go" : "watch",
+                status: `Blueprint · ${monthlyConfidence}%`,
+              }}
               severity={monthlyConfidence >= 78 && !hasPartialHistory ? 'good' : hasPartialHistory ? 'warn' : 'info'}
               chips={[
                 monthLabel,
@@ -1686,11 +2042,16 @@ export function LeaguePowerRankings({
           const timeline = data.dynastyTimelines?.find((item) => item.manager === row.manager);
           const readiness = Math.round((row.starterStrength + row.rosterValue + row.positionalBalance) / 3);
           const redraftPowerLabel = getRedraftPowerLabel(row);
-          const subtitle = isRedraft ? redraftPowerLabel : row.tier;
+          const dynastyPowerLabel = getManagerProfileLabel(
+            row.tier,
+            row.score
+          ).label;
+          const windowLabel = timeline?.label || dynastyPowerLabel;
+          const subtitle = isRedraft ? redraftPowerLabel : dynastyPowerLabel;
           const chips: AIReadChip[] = [
             `League #${row.rank}`,
             `Value #${overview?.rank_value || '-'}`,
-            isRedraft ? redraftPowerLabel : timeline?.label || row.tier,
+            isRedraft ? redraftPowerLabel : windowLabel,
           ];
 
           return (
@@ -1708,7 +2069,7 @@ export function LeaguePowerRankings({
                   <MetricPill label="Power slot" value={`#${row.rank}`} tone="info" />
                   <MetricPill label="Value slot" value={overview ? `#${overview.rank_value}` : formatCompactValue(row.rosterValue)} tone="info" />
                   <MetricPill label={isRedraft ? 'Season tier' : 'Tier'} value={subtitle} tone="neutral" />
-                  {!isRedraft && <MetricPill label="Window" value={timeline?.label || row.tier} tone="info" />}
+                  {!isRedraft && <MetricPill label="Window" value={windowLabel} tone="info" />}
                   <MetricPill label="Starter strength" value={row.starterStrength} tone={row.starterStrength >= 70 ? 'good' : row.starterStrength <= 45 ? 'warn' : 'info'} />
                   <MetricPill label="Balance score" value={row.positionalBalance} tone={row.positionalBalance >= 70 ? 'good' : row.positionalBalance <= 45 ? 'warn' : 'info'} />
                   {!isRedraft && <MetricPill label="Draft curve" value={row.draftCapital} tone="warn" />}
@@ -1720,6 +2081,16 @@ export function LeaguePowerRankings({
                   title={`${row.manager} power read`}
                   readType={isRedraft ? 'Weekly Power' : 'Contender Path'}
                   confidence={getManagerReadConfidence(data, row.manager)}
+                  decision={{
+                    label: readiness >= 70 ? "Do this" : readiness <= 45 ? "Watch only" : "Use as context",
+                    detail: readiness >= 70
+                      ? "Treat this manager as a priority contender benchmark."
+                      : readiness <= 45
+                        ? "Do not chase this profile without a cleaner roster reason."
+                        : "Useful context, but roster recon should own the actual next move.",
+                    tone: readiness >= 70 ? "go" : "watch",
+                    status: `Power · ${readiness}`,
+                  }}
                   severity={readiness >= 70 ? 'good' : readiness <= 45 ? 'warn' : 'info'}
                   chips={chips}
                   body={`${row.manager} owns league power slot #${row.rank} with a ${row.score} composite score and ${readiness} readiness score. This card stays ranking-only; use roster recon for roster causes and Trade Finder for deal paths.`}
@@ -1727,7 +2098,7 @@ export function LeaguePowerRankings({
                     `Power rank #${row.rank} from composite score ${row.score}.`,
                     `Value slot ${overview ? `#${overview.rank_value}` : formatCompactValue(row.rosterValue)} sets the market-order signal.`,
                     `Readiness score ${readiness} blends starter strength, roster value, and positional balance.`,
-                    isRedraft ? `Season tier: ${redraftPowerLabel}.` : `Window source: ${timeline?.label || row.tier}.`,
+                    isRedraft ? `Season tier: ${redraftPowerLabel}.` : `Window source: ${windowLabel}.`,
                   ]}
                   backgroundVariant="league"
                 />
@@ -1754,6 +2125,8 @@ export function TeamBreakdownRecon({
   const pickPortfolio = data.pickPortfolios?.find((row) => row.manager === manager) || null;
   const tradeTendency = data.tradeTendencies?.find((row) => row.manager === manager) || null;
   const isRedraft = isRedraftReportData(data);
+  const managerReadConfidence = getManagerReadConfidence(data, manager);
+  const ownerEvidenceRead = buildOwnerIntelEvidenceRead(data, manager, managerReadConfidence);
 
   if (!managerOptions.length || !intel) {
     return (
@@ -1874,26 +2247,32 @@ export function TeamBreakdownRecon({
             <span><strong>Insulated assets</strong>{insulatedAssets.map((player) => player.name).join(' · ') || '-'}</span>
           </div>
         </section>
-        <AIReadPanel
-          title={`${manager} suggested next move`}
-          readType={isRedraft ? 'Season Roster Read' : intel.timeline?.toLowerCase().includes('rebuild') ? 'Rebuild Path' : 'Contender Path'}
-          confidence={getManagerReadConfidence(data, manager)}
-          severity={weaknesses.length > 2 ? 'warn' : 'info'}
-          chips={[
-            `Need: ${getNeedPosition(data, manager) || '-'}`,
-            `Surplus: ${getSurplusPosition(data, manager) || '-'}`,
-            isRedraft ? redraftProfile : intel.timeline || intel.identity,
-          ]}
-          body={rosterHealthRead}
-          traceItems={[
-            `Stable base: ${strengths.slice(0, 2).join(' and ') || (isRedraft ? redraftProfile : intel.identity) || 'returned roster identity'}.`,
-            `Roster watch: ${weaknesses.slice(0, 2).join(' and ') || 'no major returned leak'}.`,
-            `Need/surplus lens: ${getNeedPosition(data, manager) || '-'} need, ${getSurplusPosition(data, manager) || '-'} surplus.`,
-            `Health evidence: ${intel.starterAvailability.riskLevel} availability risk and ${fragileAssets.length} fragile asset flag${fragileAssets.length === 1 ? '' : 's'}.`,
-          ]}
-          backgroundVariant="roster"
-          className="team-breakdown-ai"
-        />
+        {ownerEvidenceRead.shouldRender && (
+          <AIReadPanel
+            title={`${manager} suggested next move`}
+            readType={isRedraft ? 'Season Roster Read' : intel.timeline?.toLowerCase().includes('rebuild') ? 'Rebuild Path' : 'Contender Path'}
+            confidence={ownerEvidenceRead.finalScore}
+            confidenceNote={ownerEvidenceRead.confidenceCapReason ? `Confidence capped by ${ownerEvidenceRead.confidenceCapReason}.` : ownerEvidenceRead.whyThisFired}
+            evidenceRead={ownerEvidenceRead}
+            severity={ownerEvidenceRead.label === 'thin' ? 'warn' : weaknesses.length > 2 ? 'warn' : 'info'}
+            chips={[
+              getEvidenceChip(ownerEvidenceRead),
+              `Need: ${getNeedPosition(data, manager) || '-'}`,
+              `Surplus: ${getSurplusPosition(data, manager) || '-'}`,
+              isRedraft ? redraftProfile : intel.timeline || intel.identity,
+            ]}
+            body={rosterHealthRead}
+            traceItems={[
+              `Stable base: ${strengths.slice(0, 2).join(' and ') || (isRedraft ? redraftProfile : intel.identity) || 'returned roster identity'}.`,
+              `Roster watch: ${weaknesses.slice(0, 2).join(' and ') || 'no major returned leak'}.`,
+              `Need/surplus lens: ${getNeedPosition(data, manager) || '-'} need, ${getSurplusPosition(data, manager) || '-'} surplus.`,
+              `Health evidence: ${intel.starterAvailability.riskLevel} availability risk and ${fragileAssets.length} fragile asset flag${fragileAssets.length === 1 ? '' : 's'}.`,
+              ...getAIEvidenceReceiptItems(ownerEvidenceRead),
+            ]}
+            backgroundVariant="roster"
+            className="team-breakdown-ai"
+          />
+        )}
       </div>
     </div>
   );
@@ -2057,7 +2436,7 @@ export function TradePartnerFinder({
             </div>
             <AIReadPanel
               compact
-              title="Trade partner read"
+              title={`${recommendation.manager} trade read`}
               readType="Trade Window"
               confidence={recommendation.confidence}
               severity={recommendation.confidence >= 75 ? 'good' : recommendation.confidence <= 55 ? 'warn' : 'info'}
@@ -2360,7 +2739,7 @@ export function LeagueExploits({
           </div>
           <AIReadPanel
             compact
-            title="Exploit read"
+            title={`${exploit.manager} exploit read`}
             readType="League Exploit"
             confidence={getManagerReadConfidence(data, exploit.manager)}
             severity={exploit.tone}
@@ -2385,27 +2764,39 @@ export function RankingsMarketRead({
 }: {
   data: ReportData;
 }) {
-  const rows = data.rankings?.defaultProfileKey ? data.rankings.profiles?.[data.rankings.defaultProfileKey] || [] : [];
+  const defaultProfileKey = isRedraftReportData(data)
+    ? data.rankings?.defaultRedraftProfileKey || data.rankings?.defaultProfileKey
+    : data.rankings?.defaultProfileKey;
+  const rows = defaultProfileKey ? data.rankings?.profiles?.[defaultProfileKey] || [] : [];
+  const availableRowCount = getRankingProfileRowCount(data, defaultProfileKey);
   const topRiser = [...rows].filter((row) => !row.isPick && !row.isDevy).sort((a, b) => (b.movement || 0) - (a.movement || 0))[0];
   const topFaller = [...rows].filter((row) => !row.isPick && !row.isDevy).sort((a, b) => (a.movement || 0) - (b.movement || 0))[0];
   const ownedCount = rows.filter((row) => row.owner).length;
-  const confidence = getRankingsConfidence(data, rows.length);
+  const confidence = getRankingsConfidence(data, availableRowCount);
+  const evidenceRead = buildRankingsEvidenceRead(data, rows, confidence, availableRowCount);
+
+  if (!evidenceRead.shouldRender) return null;
 
   return (
     <AIReadPanel
       title="Ranking board market signal"
       subtitle="This board uses league-matched values and source metadata when returned by the rankings endpoint."
       readType="Market Signal"
-      confidence={confidence}
-      severity={confidence >= 70 ? 'info' : 'warn'}
+      confidence={evidenceRead.finalScore}
+      confidenceNote={evidenceRead.confidenceCapReason ? `Confidence capped by ${evidenceRead.confidenceCapReason}.` : evidenceRead.whyThisFired}
+      severity={evidenceRead.label === 'thin' ? 'warn' : evidenceRead.finalScore >= 70 ? 'info' : 'warn'}
       chips={[
-        `${rows.length} assets`,
-        `${ownedCount} rostered`,
+        getEvidenceChip(evidenceRead),
+        `${availableRowCount} assets`,
+        rows.length ? `${ownedCount} rostered` : { label: 'On-demand rows', tone: 'info' },
         topRiser ? `Top riser: ${topRiser.name}` : { label: 'No riser data', tone: 'warn' },
       ]}
       body={rows.length
         ? `${topRiser ? `${topRiser.name} is the cleanest watchlist riser on the board.` : 'No ranking riser is available from this payload.'} ${topFaller ? `${topFaller.name} is the biggest discount-window check, but roster context still matters before buying.` : ''}`
-        : 'Rankings were not returned yet, so the market read is intentionally limited.'}
+        : availableRowCount
+          ? `${availableRowCount.toLocaleString()} league-matched assets are indexed. Open a board row for player-specific detail.`
+          : 'Rankings were not returned yet, so the market read is intentionally limited.'}
+      traceItems={getAIEvidenceReceiptItems(evidenceRead)}
       backgroundVariant="market"
       className="rankings-ai-read"
     />
@@ -2422,15 +2813,20 @@ export function TradeBrowserRead({
   const mostActive = [...(data.tradeTendencies || [])].sort((a, b) => b.tradeCount - a.tradeCount)[0];
   const bestProfit = [...(data.tradeProfitLeaderboard || [])].sort((a, b) => b.profit - a.profit)[0];
   const confidence = getTradeHistoryConfidence(data);
+  const evidenceRead = buildTradeBrowserEvidenceRead(data, confidence);
+
+  if (!evidenceRead.shouldRender) return null;
 
   return (
     <AIReadPanel
       title="Trade browser read"
       subtitle="Searchable trade ledger foundation with value-gap context, manager tendency signals, and roster-window reads."
       readType="Trade Window"
-      confidence={confidence}
-      severity={confidence >= 68 ? 'info' : 'warn'}
+      confidence={evidenceRead.finalScore}
+      confidenceNote={evidenceRead.confidenceCapReason ? `Confidence capped by ${evidenceRead.confidenceCapReason}.` : evidenceRead.whyThisFired}
+      severity={evidenceRead.label === 'thin' ? 'warn' : evidenceRead.finalScore >= 68 ? 'info' : 'warn'}
       chips={[
+        getEvidenceChip(evidenceRead),
         `${trades.length} trades`,
         mostActive ? `Most active: ${mostActive.manager}` : { label: 'No tendencies', tone: 'warn' },
         biggestGap ? `Largest gap ${formatCompactValue(Math.abs(biggestGap.point_gap || 0))}` : 'No gaps',
@@ -2438,6 +2834,7 @@ export function TradeBrowserRead({
       body={trades.length
         ? `${bestProfit ? `${bestProfit.manager} has the strongest trade-profit signal.` : 'No trade-profit leader was returned.'} ${biggestGap ? `The largest gap is ${biggestGap.team_a} / ${biggestGap.team_b} on ${biggestGap.date}; open the ledger row for side-by-side context.` : ''}`
         : 'No completed trades were returned. The browser shows an empty state instead of manufacturing trade history.'}
+      traceItems={getAIEvidenceReceiptItems(evidenceRead)}
       backgroundVariant="trade"
       className="trade-browser-ai-read"
     />
@@ -2992,7 +3389,6 @@ export function AssistantFeatureShells({
   const [portfolioSnapshots, setPortfolioSnapshots] = useState<PortfolioSnapshot[]>(() => readPortfolioSnapshots());
   const [portfolioStatus, setPortfolioStatus] = useState<string | null>(null);
   const manager = getFocusedManager(data, managerOptions);
-  const leagueValueMode = normalizeLeagueValueMode(data.leagueDiagnostics?.valueMode || data.leagueValueMode);
   const watchSignals = useMemo(() => buildWatchSignals(data, manager), [data, manager]);
   const rookieSignals = useMemo(() => buildRookieSignals(data), [data]);
   const newsRows = useMemo(() => buildNewsRows(data, manager), [data, manager]);
@@ -3043,50 +3439,6 @@ export function AssistantFeatureShells({
     savedPortfolioLeagueCount: savedPortfolio.leagueCount,
     matchupPreviewAvailable: matchupDataAvailable,
   }), [data, manager, matchupDataAvailable, savedPortfolio.leagueCount, watchPreferences.savedAt, watchPreferences.trackedPlayerIds.length]);
-  const watchConfidence = getModuleConfidence(watchSignals.length ? 44 : 32, [
-    [watchSignals.length > 0, scaledEvidence(watchSignals.length, 8, 22)],
-    [Boolean(data.weeklyRisers?.length), 8],
-    [Boolean(data.weeklyFallers?.length), 8],
-    [Boolean(watchPreferences.savedAt || watchPreferences.trackedPlayerIds.length), 6],
-  ]);
-  const lineupConfidence = getModuleConfidence(counts ? 42 : 30, [
-    [Boolean(counts), 16],
-    [usesSleeperStarterMap, 14],
-    [starterPlayers.length > 0, scaledEvidence(starterPlayers.length, 8, 8)],
-    [benchPressure.length > 0, 5],
-    [Boolean(data.leagueDiagnostics?.starterCalculation), 6],
-  ]);
-  const waiverConfidence = getModuleConfidence(waiverAdds.length ? 40 : 30, [
-    [Boolean(data.waiverIntelligence), 12],
-    [waiverAdds.length > 0, scaledEvidence(waiverAdds.length, 8, 16)],
-    [Boolean(data.recentTransactions?.length), scaledEvidence(data.recentTransactions?.length, 12, 10)],
-    [Boolean(intel?.droppablePlayers?.length), 6],
-    [Boolean(data.positionDepth?.length), 5],
-  ]);
-  const exposureConfidence = getModuleConfidence(portfolio.totalValue ? 40 : 30, [
-    [portfolio.totalValue > 0, 14],
-    [portfolio.topAssets.length > 0, scaledEvidence(portfolio.topAssets.length, 8, 8)],
-    [savedPortfolio.leagueCount > 1, scaledEvidence(savedPortfolio.leagueCount, 4, 16)],
-    [savedPortfolio.overexposedPlayers.length > 0, 6],
-  ]);
-  const rookieConfidence = getModuleConfidence(rookieSignals.length ? 40 : 30, [
-    [rookieSignals.length > 0, scaledEvidence(rookieSignals.length, 10, 18)],
-    [Boolean(data.draftPicks?.length), 10],
-    [Boolean(data.prospectSourceDiagnostics?.status), 8],
-    [Boolean(data.weeklyRisers?.length || data.weeklyFallers?.length), 5],
-  ]);
-  const newsConfidence = getModuleConfidence(newsRows.length ? 38 : 30, [
-    [newsRows.length > 0, scaledEvidence(newsRows.length, 10, 18)],
-    [Boolean(data.playerDetailsById && Object.values(data.playerDetailsById).some((details) => details.latestNews)), 12],
-    [Boolean(data.weeklyRisers?.length || data.weeklyFallers?.length), 5],
-  ]);
-  const matchupConfidence = getModuleConfidence(matchupDataAvailable ? 42 : 28, [
-    [matchupDataAvailable, 20],
-    [Boolean(matchupPreview?.positionEdges?.length), 8],
-    [Boolean(matchupPreview?.mustStarts?.length || matchupPreview?.vulnerableSpots?.length), 8],
-    [usesSleeperStarterMap, 6],
-    [Boolean(data.leagueDiagnostics?.starterCountSummary), 4],
-  ]);
 
   useEffect(() => {
     if (!portfolioSnapshot) return;
@@ -3183,29 +3535,10 @@ export function AssistantFeatureShells({
         ) : (
           <p className="command-module-empty-copy">No returned lineup, waiver, trade, market, draft, or exposure signal is strong enough to queue.</p>
         )}
-        <AIReadPanel
-          title="Next best owner action"
-          readType="League Exploit"
-          confidence={getModuleConfidence(actionQueue.length ? 46 : 30, [
-            [actionQueue.length > 0, scaledEvidence(actionQueue.length, 5, 18)],
-            [Boolean(intel), 10],
-            [Boolean(data.waiverIntelligence), 8],
-            [Boolean(data.tradeTendencies?.length), 8],
-            [Boolean(watchSignals.length), 6],
-            [Boolean(rookieSignals.length), 5],
-          ])}
-          severity={actionQueue[0]?.tone === 'danger' ? 'warn' : actionQueue.length ? 'info' : 'warn'}
-          chips={[
-            actionQueue[0]?.lane || { label: 'No queued move', tone: 'warn' },
-            `${benchPressure.length} lineup flags`,
-            bestWaiver ? 'Waiver target found' : { label: 'No waiver target', tone: 'warn' },
-          ]}
-          body={actionQueue[0]
-            ? `${actionQueue[0].action} is the top queued move for ${manager}. ${actionQueue[0].detail}`
-            : 'The queue stays empty when the report does not return enough evidence for a concrete owner action.'}
-          backgroundVariant="league"
-          compact
-        />
+        <p className="assistant-action-queue-policy">
+          This is the only action read in this section. The modules below are
+          receipts and controls, not separate recommendations.
+        </p>
       </section>
 
       <div className="assistant-shell-grid">
@@ -3262,18 +3595,6 @@ export function AssistantFeatureShells({
           ) : (
             <p className="command-module-empty-copy">No returned player data for this module.</p>
           )}
-          <AIReadPanel
-            title="Market signal read"
-            readType="Market Signal"
-            confidence={watchConfidence}
-            severity={watchSignals.length ? 'info' : 'warn'}
-            chips={[`${data.weeklyRisers?.length || 0} risers`, `${data.weeklyFallers?.length || 0} fallers`, `${watchPreferences.trackedPlayerIds.length} watched`]}
-            body={watchSignals.length
-              ? `${watchSignals[0].name} is the loudest returned movement signal. Alert thresholds and watchlist players are saved locally in this browser; server-side notifications can come later.`
-              : 'No weekly movement payload was returned, so the watch alert module is intentionally quiet.'}
-            backgroundVariant="market"
-            compact
-          />
         </section>
 
         <section className="assistant-feature-card">
@@ -3296,20 +3617,6 @@ export function AssistantFeatureShells({
             value: formatCompactValue(getStarterValue(player)),
             tone: benchPressure.length ? 'warn' : 'good',
           })))}
-          <AIReadPanel
-            title="Starter strength read"
-            readType="Lineup Leak"
-            confidence={lineupConfidence}
-            severity={benchPressure.length ? 'warn' : counts ? 'info' : 'warn'}
-            chips={[counts ? (usesSleeperStarterMap ? 'Sleeper starters' : 'Projected starters') : { label: 'No lineup map', tone: 'warn' }, data.leagueDiagnostics?.starterCalculation ? 'Slot-aware' : 'Current roster only']}
-            body={counts
-              ? (usesSleeperStarterMap
-                ? 'Starter reads use the actual submitted Sleeper starter IDs returned for this roster. Bench pressure compares the best non-starters against that submitted lineup.'
-                : 'No submitted Sleeper starters were returned for this roster, so this module falls back to projected starters from league slots and player values.')
-              : 'No manager lineup map was returned for this report.'}
-            backgroundVariant="lineup"
-            compact
-          />
         </section>
 
         <section className="assistant-feature-card">
@@ -3335,18 +3642,6 @@ export function AssistantFeatureShells({
               tone: 'good',
             };
           }))}
-          <AIReadPanel
-            title="Waiver fit read"
-            readType="Waiver Opportunity"
-            confidence={waiverConfidence}
-            severity={waiverAdds.length ? 'good' : 'warn'}
-            chips={[data.waiverIntelligence ? 'Sleeper waiver data' : { label: 'No waiver payload', tone: 'warn' }, data.waiverIntelligence?.weeklyEcrTargets?.length ? 'Stored matchup trace' : null, leagueValueMode === 'redraft' ? 'Weekly usage lens' : 'Dynasty stash lens'].filter(Boolean) as AIReadChip[]}
-            body={bestWaiver
-              ? `${bestWaiver.name} is the highest-priority available signal from returned trending, value, and rolling matchup data. ${bestWaiver.weeklyEcr?.traceSummary || 'Use the full waiver panel for add/drop context.'}`
-              : 'No available waiver targets were returned, so no add/drop recommendation is shown here.'}
-            backgroundVariant="waiver"
-            compact
-          />
         </section>
 
         <section className="assistant-feature-card">
@@ -3386,24 +3681,6 @@ export function AssistantFeatureShells({
               ))}
             </div>
           ) : null}
-          <AIReadPanel
-            title="Exposure read"
-            readType="Monthly Blueprint"
-            confidence={exposureConfidence}
-            severity={(portfolio.topThreeShare || 0) >= 55 ? 'warn' : portfolio.totalValue ? 'info' : 'warn'}
-            chips={[
-              savedPortfolio.leagueCount > 1 ? `${savedPortfolio.leagueCount} saved leagues` : 'Single-league exposure',
-              `${portfolio.topAssets.length} top assets`,
-              savedPortfolio.overexposedPlayers.length ? `${savedPortfolio.overexposedPlayers.length} repeated assets` : { label: 'No repeated shares yet', tone: 'warn' },
-            ]}
-            body={savedPortfolio.leagueCount > 1
-              ? `${manager}'s current largest position exposure is ${portfolio.positionRows[0]?.position || '-'}. Across saved browser snapshots, ${savedPortfolio.overexposedPlayers[0]?.name || 'no player'} is the highest repeated player-share signal.`
-              : portfolio.totalValue
-                ? `${manager}'s largest position exposure is ${portfolio.positionRows[0]?.position || '-'}. Load and save another league to turn this into a true cross-league shares view.`
-              : 'No roster player pool was returned for portfolio exposure.'}
-            backgroundVariant="blueprint"
-            compact
-          />
         </section>
 
         <section className="assistant-feature-card">
@@ -3421,18 +3698,6 @@ export function AssistantFeatureShells({
             value: row.score,
             tone: row.score >= 75 ? 'good' : row.score <= 42 ? 'warn' : 'info',
           })))}
-          <AIReadPanel
-            title="Degen prospect score"
-            readType="Draft Capital Read"
-            confidence={rookieConfidence}
-            severity={rookieSignals.length ? 'info' : 'warn'}
-            chips={[data.draftPicks?.length ? 'Draft data loaded' : { label: 'No draft picks', tone: 'warn' }, data.prospectSourceDiagnostics?.status || 'Prospect source unknown']}
-            body={rookieSignals.length
-              ? `${rookieSignals[0].name} has the top returned rookie/prospect signal. The score uses draft slot, returned value, value movement, and available prospect ranks only. It does not claim film grades.`
-              : 'No rookie draft or prospect rows were returned for scoring.'}
-            backgroundVariant="draft"
-            compact
-          />
         </section>
 
         <section className="assistant-feature-card">
@@ -3450,18 +3715,6 @@ export function AssistantFeatureShells({
             value: row.title,
             tone: row.isRostered ? 'warn' : 'info',
           })))}
-          <AIReadPanel
-            title="Research read"
-            readType="Player Trend"
-            confidence={newsConfidence}
-            severity={newsRows.length ? 'info' : 'warn'}
-            chips={[`${newsRows.length} news/status flags`, newsRows.length ? 'News payload loaded' : { label: 'No news payload', tone: 'warn' }]}
-            body={newsRows.length
-              ? `${newsRows[0].name} is the first returned research flag. Player detail modals can show the article context when a URL/source is present.`
-              : 'No FantasyPros or Sleeper news/status payload was returned for this report.'}
-            backgroundVariant="market"
-            compact
-          />
         </section>
 
         <section className="assistant-feature-card assistant-feature-card-wide">
@@ -3496,18 +3749,6 @@ export function AssistantFeatureShells({
               </div>
             </div>
           )}
-          <AIReadPanel
-            title="Weekly matchup availability"
-            readType="Lineup Leak"
-            confidence={matchupConfidence}
-            severity={matchupDataAvailable ? 'info' : 'warn'}
-            chips={[matchupDataAvailable ? 'Matchups loaded' : { label: 'Schedule pending', tone: 'warn' }, data.leagueDiagnostics?.starterCountSummary || 'Starter slots loaded']}
-            body={matchupPreview
-              ? (matchupPreview.howToWin || `This matchup preview uses returned ${matchupPreview.source || 'matchup'} data. Position edge rows are shown only when the payload includes them.`)
-              : 'Sleeper starter IDs can be used from roster data, but matchup projections and opponent edge rows are still schedule-week dependent. This module stays honest until that data exists.'}
-            backgroundVariant="lineup"
-            compact
-          />
         </section>
       </div>
     </div>

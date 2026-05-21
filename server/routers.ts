@@ -42,11 +42,11 @@ import {
   type FantasyProsSnapshotContext,
 } from "./fantasyProsSnapshotContext";
 import {
-  loadFantasyProsMatchupCalendarContext,
-  type FantasyProsMatchupCalendarContext,
-  type FantasyProsMatchupCalendarContextRow,
-  type FantasyProsMatchupCalendarSummary,
-} from "./fantasyProsMatchupCalendar";
+  getDraftSharksScheduleProfile,
+  type DraftSharksScheduleContext,
+  type DraftSharksSosProfile,
+  type DraftSharksWeeklySos,
+} from "./draftSharksSchedule";
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import { buildPlayerSituationDeltas } from "./playerSituationDelta";
 import { filterCompletedFuturePickPortfolios } from "../shared/pickPortfolioFilters";
@@ -70,9 +70,11 @@ import {
   normalizeTep,
   type ValueBlendOptions,
 } from "./valueBlend";
-import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, insertLoginAttempt, listActionPlans, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, upsertActionPlan, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertWaiverBidHistory } from "./db";
+import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, insertLoginAttempt, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertActionPlan, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertWaiverBidHistory } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget } from "../shared/types";
+import type { AIPredictionEvent, AIPredictionOutcome, AISourceAgreementRead } from "./aiPredictionCalibration";
+import type { AICounterfactualRead, AIDecisionSnapshot } from "../shared/aiDecisionSnapshots";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
@@ -387,6 +389,106 @@ const waiverBidHistorySchema = z.object({
   createdAt: z.number().finite(),
   updatedAt: z.number().finite().optional(),
 }) satisfies z.ZodType<WaiverBidHistoryRecord>;
+const aiSourceTraceSchema = z.object({
+  label: z.string().min(1).max(240),
+  status: z.enum(["loaded", "stale", "missing", "error", "limited"]).optional(),
+  detail: z.string().max(500).nullable().optional(),
+  ageHours: z.number().finite().nullable().optional(),
+});
+const aiEvidencePenaltySchema = z.object({
+  label: z.string().min(1).max(240),
+  points: z.number().finite(),
+});
+const aiPredictionOutcomeSchema = z.object({
+  status: z.enum(["hit", "miss", "push", "pending", "blocked"]),
+  resolvedAt: z.string().max(80).nullable().optional(),
+  actualValue: z.number().finite().nullable().optional(),
+  baselineValue: z.number().finite().nullable().optional(),
+  note: z.string().max(1000).nullable().optional(),
+}) satisfies z.ZodType<AIPredictionOutcome>;
+const aiSourceAgreementReadSchema = z.any().nullable().optional() as z.ZodType<AISourceAgreementRead | null | undefined>;
+const aiDecisionBaselineSchema = z.object({
+  kind: z.enum([
+    "do-nothing",
+    "replacement",
+    "highest-ranked-available",
+    "current-starter",
+    "market-default",
+    "manager-default",
+    "unknown",
+  ]),
+  label: z.string().min(1).max(180),
+  score: z.number().int().min(0).max(100).nullable(),
+  source: z.string().max(180).nullable().optional(),
+  detail: z.string().max(500).nullable().optional(),
+});
+const aiCounterfactualReadSchema = z.object({
+  status: z.enum([
+    "beats-baseline",
+    "near-baseline",
+    "below-baseline",
+    "missing-baseline",
+    "blocked",
+  ]),
+  baseline: aiDecisionBaselineSchema,
+  edge: z.number().finite().nullable(),
+  confidenceImpact: z.enum(["boost", "neutral", "penalty", "block"]),
+  reason: z.string().min(1).max(500),
+}) satisfies z.ZodType<AICounterfactualRead>;
+const aiDecisionSnapshotSchema = z.object({
+  schemaVersion: z.literal(1),
+  capturedAt: z.string().min(1).max(80),
+  valueMode: z.enum(["dynasty", "redraft", "keeper", "unknown"]).nullable().optional(),
+  surface: z.string().max(64).nullable().optional(),
+  action: z.string().max(64).nullable().optional(),
+  entityName: z.string().max(240).nullable().optional(),
+  entityType: z.string().max(64).nullable().optional(),
+  finalScore: z.number().int().min(0).max(100),
+  label: z.string().min(1).max(64),
+  confidenceCap: z.number().int().min(0).max(100),
+  confidenceCapReason: z.string().max(500).nullable().optional(),
+  facts: z.array(z.object({
+    key: z.string().min(1).max(100),
+    label: z.string().min(1).max(160),
+    value: z.union([z.string().max(500), z.number().finite(), z.boolean()]).nullable(),
+    source: z.string().max(180).nullable().optional(),
+    status: z.enum(["loaded", "missing", "stale", "limited", "blocked"]).optional(),
+    detail: z.string().max(500).nullable().optional(),
+  })).max(24),
+  baseline: aiDecisionBaselineSchema.nullable().optional(),
+  counterfactual: aiCounterfactualReadSchema.nullable().optional(),
+}) satisfies z.ZodType<AIDecisionSnapshot>;
+const aiPredictionEventSchema = z.object({
+  schemaVersion: z.literal(1),
+  eventId: z.string().min(1).max(128),
+  predictionKey: z.string().min(1).max(512),
+  createdAt: z.string().min(1).max(80),
+  surface: z.enum(["autopilot", "waiver", "schedule", "player-detail", "owner-intel", "rankings", "trade", "overview"]),
+  action: z.enum(["pickup", "stash", "stream", "start", "sit", "trade", "hold", "watch", "avoid"]),
+  decision: z.enum(["do", "dont", "watch", "hold", "blocked"]),
+  entityType: z.enum(["player", "team", "manager", "league", "trade", "lineup", "schedule", "unknown"]),
+  entityId: z.string().max(128).nullable().optional(),
+  entityName: z.string().max(240).nullable().optional(),
+  leagueId: z.string().max(64).nullable().optional(),
+  manager: z.string().max(160).nullable().optional(),
+  season: z.string().max(8).nullable().optional(),
+  week: z.number().int().min(1).max(30).nullable().optional(),
+  label: z.enum(["blocked", "thin", "watchlist", "actionable", "priority", "high conviction"]),
+  finalScore: z.number().int().min(0).max(100),
+  confidenceCap: z.number().int().min(0).max(100),
+  confidenceCapReason: z.string().max(500).nullable().optional(),
+  evidence: z.array(z.string().min(1).max(500)).max(12),
+  missingEvidence: z.array(z.string().min(1).max(500)).max(12),
+  hardBlockers: z.array(z.string().min(1).max(500)).max(12),
+  softPenalties: z.array(aiEvidencePenaltySchema).max(12),
+  sourceTrace: z.array(aiSourceTraceSchema).max(12),
+  sourceAgreement: aiSourceAgreementReadSchema,
+  decisionSnapshot: aiDecisionSnapshotSchema.nullable().optional(),
+  counterfactual: aiCounterfactualReadSchema.nullable().optional(),
+  whyThisFired: z.string().min(1).max(1200),
+  outcome: aiPredictionOutcomeSchema,
+  metadata: z.record(z.string(), z.unknown()).optional(),
+}) satisfies z.ZodType<AIPredictionEvent>;
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 let lastRateLimitSweepAt = 0;
 
@@ -877,7 +979,7 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v51';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v52';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v13';
 const LEAGUE_REPORT_CACHE_TTL_MS = getLeagueReportCacheTtlMs();
 const LEAGUE_REPORT_CACHE_TTL_HOURS = getLeagueReportCacheTtlHours();
@@ -2916,12 +3018,6 @@ type WaiverWeeklyEcrIndex = {
   scoring: string | null;
 };
 
-type WaiverMatchupCalendarIndex = {
-  rowsByKey: Map<string, FantasyProsMatchupCalendarContextRow[]>;
-  summariesBySourceKey: Map<string, FantasyProsMatchupCalendarSummary>;
-  season: string | null;
-};
-
 const FANTASYPROS_TEAM_ALIASES: Record<string, string> = {
   ARZ: 'ARI',
   GBP: 'GB',
@@ -3202,106 +3298,78 @@ function buildWaiverWeeklyEcrSignal(
   );
 }
 
-function addMatchupCalendarIndexRow(
-  rowsByKey: Map<string, FantasyProsMatchupCalendarContextRow[]>,
-  key: string | null,
-  row: FantasyProsMatchupCalendarContextRow
-) {
-  if (!key) return;
-  const rows = rowsByKey.get(key) || [];
-  rows.push(row);
-  rowsByKey.set(key, rows);
-}
+const DRAFTSHARKS_SOS_SOURCE_KEY = 'draftsharks-sos-v1';
 
-function buildWaiverMatchupCalendarIndex(
-  context?: FantasyProsMatchupCalendarContext | null,
-  playerReferenceContext?: FantasyProsSnapshotContext | null
-): WaiverMatchupCalendarIndex {
-  const rowsByKey = new Map<string, FantasyProsMatchupCalendarContextRow[]>();
-  const summariesBySourceKey = new Map(
-    (context?.summaries || []).map((summary) => [summary.sourceKey, summary])
+type WaiverMatchupWindowOptions = {
+  currentWeek?: number | null;
+  playoffWeeks?: number[] | null;
+  playoffWeekStart?: number | null;
+};
+
+function isScheduleWindowSignal(
+  signal?: WaiverWeeklyEcrSignal | null
+): signal is WaiverWeeklyEcrSignal {
+  return Boolean(
+    signal &&
+      signal.signalType === 'draftsharks-sos'
   );
-  const emptyIndex = {
-    rowsByKey,
-    summariesBySourceKey,
-    season: context?.season || null,
-  };
-  if (!context?.rowsByPositionWeek) return emptyIndex;
-
-  for (const [positionKey, weeks] of Object.entries(context.rowsByPositionWeek)) {
-    const position = normalizeFantasyProsWaiverPosition(positionKey);
-    if (!position) continue;
-
-    for (const rows of Object.values(weeks || {})) {
-      for (const row of Object.values(rows || {})) {
-        const rowPosition = normalizeFantasyProsWaiverPosition(row.position || position);
-        if (!rowPosition || rowPosition !== position) continue;
-        const team = normalizeWaiverEcrTeam(row.team);
-        const ref = playerReferenceContext?.playersByFantasyProsId?.[row.fantasyProsId];
-
-        addMatchupCalendarIndexRow(rowsByKey, weeklyEcrKey(['fp', row.fantasyProsId]), row);
-        Object.entries(ref?.externalIds || {})
-          .filter(([key]) => /sleeper/i.test(key))
-          .forEach(([, value]) => addMatchupCalendarIndexRow(rowsByKey, weeklyEcrKey(['sleeper', String(value)]), row));
-
-        for (const nameKey of playerNameKeyVariants(row.name || ref?.name || '')) {
-          addMatchupCalendarIndexRow(rowsByKey, weeklyEcrKey(['name', position, team, nameKey]), row);
-          addMatchupCalendarIndexRow(rowsByKey, weeklyEcrKey(['name', position, 'any', nameKey]), row);
-        }
-
-        if (position === 'DST' && team) {
-          addMatchupCalendarIndexRow(rowsByKey, weeklyEcrKey(['team', position, team]), row);
-        }
-      }
-    }
-  }
-
-  return emptyIndex;
 }
 
-function matchupCalendarEndpointKey(row: FantasyProsMatchupCalendarContextRow): string {
-  return `fantasypros-matchup-calendar-${String(row.position || '').toLowerCase()}-week-${row.week}`;
+function draftSharksEndpointKey(position: string | null | undefined, week: number | null | undefined): string {
+  return `draftsharks-sos-${String(position || 'all').toLowerCase()}-week-${week || 'all'}`;
 }
 
-function formatMatchupCalendarWeekCopy(row: Pick<FantasyProsMatchupCalendarContextRow, 'week' | 'opponent' | 'homeAway' | 'matchupStars' | 'opponentRank' | 'isBye'>): string {
-  if (row.isBye) return `W${row.week} BYE`;
+function draftSharksMatchupStars(percent: number): number {
+  if (percent >= 25) return 5;
+  if (percent >= 8) return 4;
+  if (percent <= -25) return 1;
+  if (percent <= -8) return 2;
+  return 3;
+}
+
+function formatDraftSharksPercent(percent: number): string {
+  return `${percent > 0 ? '+' : ''}${Math.round(percent * 10) / 10}%`;
+}
+
+function formatDraftSharksWeekCopy(row: Pick<DraftSharksWeeklySos, 'week' | 'opponent' | 'homeAway' | 'matchupPercent'>): string {
   const site = row.homeAway === 'home' ? 'vs.' : row.homeAway === 'away' ? 'at' : '';
   const opponent = row.opponent ? `${site} ${row.opponent}`.trim() : 'opponent TBD';
-  const stars = typeof row.matchupStars === 'number' ? `${row.matchupStars}-star` : 'unrated';
-  const rank = typeof row.opponentRank === 'number' ? `#${row.opponentRank}` : null;
-  return `W${row.week} ${opponent} ${stars}${rank ? ` (${rank})` : ''}`;
+  return `W${row.week} ${opponent} ${formatDraftSharksPercent(row.matchupPercent)}`;
 }
 
-function getWaiverMatchupTraceEntry(
-  row: FantasyProsMatchupCalendarContextRow,
-  index: WaiverMatchupCalendarIndex
-): WaiverSourceTraceEntry {
-  const summary = index.summariesBySourceKey.get(row.sourceKey);
-  const endpointKey = matchupCalendarEndpointKey(row);
-  const rowCount = summary?.rowCount ?? null;
-  const position = normalizeSeasonLineupPosition(row.position) || row.position || null;
-  const rankCopy = row.positionRank || (row.rank ? `Rank ${row.rank}` : 'ranked');
-  const matchupCopy = formatMatchupCalendarWeekCopy(row);
+function getBestDraftSharksWeek(rows: DraftSharksWeeklySos[]): DraftSharksWeeklySos | null {
+  const playableRows = rows.filter((row) => Number.isFinite(row.matchupPercent));
+  if (!playableRows.length) return null;
+  return playableRows.reduce((best, row) => {
+    if (row.matchupPercent !== best.matchupPercent) return row.matchupPercent > best.matchupPercent ? row : best;
+    return row.week < best.week ? row : best;
+  });
+}
 
+function getDraftSharksSourceTraceEntry(
+  profile: DraftSharksSosProfile,
+  row: DraftSharksWeeklySos
+): WaiverSourceTraceEntry {
+  const endpointKey = draftSharksEndpointKey(profile.position, row.week);
   return {
-    source: 'FantasyPros',
-    sourceKey: row.sourceKey,
+    source: 'DraftSharks',
+    sourceKey: DRAFTSHARKS_SOS_SOURCE_KEY,
     endpointKey,
-    endpointLabel: summary?.source || `FantasyPros ${row.position} matchup calendar`,
-    status: summary?.status || 'loaded',
-    season: index.season || '',
-    scoring: 'PPR',
+    endpointLabel: `DraftSharks ${profile.position} SOS Week ${row.week}`,
+    status: 'loaded',
+    season: '',
+    scoring: 'SOS',
     week: row.week,
-    position,
-    rowCount,
-    fetchedAt: row.fetchedAt || summary?.fetchedAt || null,
-    lastUpdated: summary?.fetchedAt || row.fetchedAt || null,
-    evidence: `${matchupCopy}; ${rankCopy}; ${rowCount === null ? 'row count unavailable' : `${rowCount} rows`}.`,
+    position: profile.position,
+    rowCount: profile.weeklyMatchups.length,
+    fetchedAt: profile.updatedAt || null,
+    lastUpdated: profile.updatedAt || null,
+    evidence: `${formatDraftSharksWeekCopy(row)} SOS; ${profile.weeklyMatchups.length} weekly rows.`,
   };
 }
 
-function buildWaiverMatchupTraceSummary(trace: WaiverSourceTraceEntry[]): string {
-  if (!trace.length) return 'FantasyPros matchup calendar trace unavailable from stored snapshots.';
+function buildDraftSharksTraceSummary(trace: WaiverSourceTraceEntry[]): string {
+  if (!trace.length) return 'DraftSharks SOS trace unavailable from stored snapshots.';
   const weeks = Array.from(new Set(trace.map((entry) => entry.week).filter(Boolean)))
     .sort((a, b) => Number(a) - Number(b))
     .map((week) => `W${week}`)
@@ -3311,162 +3379,84 @@ function buildWaiverMatchupTraceSummary(trace: WaiverSourceTraceEntry[]): string
     .filter((value): value is string => Boolean(value))
     .sort()
     .at(-1) || null;
-  const statusSet = Array.from(new Set(trace.map((entry) => entry.status).filter(Boolean)));
-  const statusCopy = statusSet.length ? statusSet.join(', ') : 'unknown status';
-  return `FantasyPros matchup calendar source trace: ${weeks || 'rolling weeks'} from stored page snapshots (${statusCopy})${latestFetch ? `, latest fetch ${latestFetch}` : ''}.`;
+  return `DraftSharks SOS source trace: ${weeks || 'rolling weeks'} from stored percentage snapshots${latestFetch ? `, latest fetch ${latestFetch}` : ''}.`;
 }
 
-function getWaiverMatchupCalendarRows(
+function buildWaiverDraftSharksSignal(
   player: Pick<TrendingPlayer, 'player_id' | 'name' | 'pos' | 'team'>,
-  index: WaiverMatchupCalendarIndex
-): FantasyProsMatchupCalendarContextRow[] {
-  const position = normalizeFantasyProsWaiverPosition(player.pos);
-  if (!position || !index.rowsByKey.size) return [];
-  const team = normalizeWaiverEcrTeam(player.team);
-  const keys = new Set<string>([
-    weeklyEcrKey(['sleeper', player.player_id]),
-  ]);
-
-  for (const nameKey of playerNameKeyVariants(player.name)) {
-    keys.add(weeklyEcrKey(['name', position, team, nameKey]));
-    if (!team) keys.add(weeklyEcrKey(['name', position, 'any', nameKey]));
-  }
-  if (position === 'DST' && team) keys.add(weeklyEcrKey(['team', position, team]));
-
-  const rows = Array.from(keys).flatMap((key) => index.rowsByKey.get(key) || []);
-  const seen = new Set<string>();
-  return rows
-    .filter((row) => {
-      const rowPosition = normalizeFantasyProsWaiverPosition(row.position || position);
-      if (rowPosition !== position) return false;
-      const rowTeam = normalizeWaiverEcrTeam(row.team);
-      if (team && rowTeam && team !== rowTeam) return false;
-      const key = `${row.fantasyProsId}:${row.week}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .sort((a, b) => Number(a.week || 0) - Number(b.week || 0));
-}
-
-function getBestMatchupCalendarRow(rows: FantasyProsMatchupCalendarContextRow[]): FantasyProsMatchupCalendarContextRow | null {
-  const playableRows = rows.filter((row) => !row.isBye);
-  if (!playableRows.length) return null;
-  return playableRows.reduce((best, row) => {
-    const bestStars = best.matchupStars ?? 0;
-    const rowStars = row.matchupStars ?? 0;
-    if (rowStars !== bestStars) return rowStars > bestStars ? row : best;
-    const bestRank = best.opponentRank ?? Infinity;
-    const rowRank = row.opponentRank ?? Infinity;
-    if (rowRank !== bestRank) return rowRank < bestRank ? row : best;
-    return Number(row.week || 0) < Number(best.week || 0) ? row : best;
-  });
-}
-
-type WaiverMatchupWindowOptions = {
-  currentWeek?: number | null;
-  playoffWeeks?: number[] | null;
-  playoffWeekStart?: number | null;
-};
-
-function buildWaiverMatchupSignalFromRows(
-  player: Pick<TrendingPlayer, 'player_id' | 'name' | 'pos' | 'team'>,
-  rows: FantasyProsMatchupCalendarContextRow[],
-  index: WaiverMatchupCalendarIndex,
-  windowOptions: WaiverMatchupWindowOptions = {}
+  profile: DraftSharksSosProfile | null,
+  windowOptions: WaiverMatchupWindowOptions & { positionRank?: string | null } = {}
 ): WaiverWeeklyEcrSignal | null {
-  if (!rows.length) return null;
-  const weeks = rows
-    .map((row) => {
-      const trace = getWaiverMatchupTraceEntry(row, index);
-      return {
-        week: Number(row.week || 0),
-        rankEcr: row.rank,
-        positionRank: row.positionRank,
-        bestRank: null,
-        worstRank: null,
-        averageRank: row.rank,
-        rankStdDev: null,
-        lastUpdated: row.fetchedAt,
-        sourceKey: trace.sourceKey,
-        endpointKey: trace.endpointKey,
-        fetchedAt: trace.fetchedAt,
-        sourceStatus: trace.status,
-        sourceType: 'matchup-calendar',
-        opponent: row.opponent,
-        homeAway: row.homeAway,
-        opponentRank: row.opponentRank,
-        matchupStars: row.matchupStars,
-        matchupTier: row.matchupTier,
-        matchupText: row.matchupText,
-        isBye: row.isBye,
-      };
-    })
-    .filter((row) => Number.isFinite(row.week) && row.week > 0);
-  if (!weeks.length) return null;
+  const rows = (profile?.weeklyMatchups || [])
+    .filter((row) => Number.isFinite(row.week) && row.week > 0 && Number.isFinite(row.matchupPercent))
+    .sort((a, b) => a.week - b.week);
+  if (!profile || !rows.length) return null;
 
-  const sourceTrace = rows
-    .map((row) => getWaiverMatchupTraceEntry(row, index))
-    .filter((entry) => entry.week && weeks.some((week) => week.week === entry.week));
-  const best = getBestMatchupCalendarRow(rows);
-  const rankedWeeks = weeks.filter((row) => Number.isFinite(row.rankEcr || NaN) && (row.rankEcr || 0) > 0);
-  const averageRankEcr = rankedWeeks.length
-    ? Math.round((rankedWeeks.reduce((total, row) => total + Number(row.rankEcr || 0), 0) / rankedWeeks.length) * 10) / 10
-    : null;
-  const latestUpdated = weeks
-    .map((row) => row.lastUpdated)
-    .filter((value): value is string => Boolean(value))
-    .sort()
-    .at(-1) || null;
-  const easyWeeks = weeks.filter((row) => row.matchupTier === 'easy' || Number(row.matchupStars || 0) >= 4).length;
-  const confidence = Math.min(100, 38 + weeks.length * 9 + easyWeeks * 8 + (latestUpdated ? 8 : 0));
+  const weeks = rows.map((row) => {
+    const trace = getDraftSharksSourceTraceEntry(profile, row);
+    return {
+      week: row.week,
+      rankEcr: null,
+      positionRank: windowOptions.positionRank || null,
+      bestRank: null,
+      worstRank: null,
+      averageRank: null,
+      rankStdDev: null,
+      lastUpdated: profile.updatedAt || null,
+      sourceKey: trace.sourceKey,
+      endpointKey: trace.endpointKey,
+      fetchedAt: trace.fetchedAt,
+      sourceStatus: trace.status,
+      sourceType: 'draftsharks-sos',
+      opponent: row.opponent,
+      homeAway: row.homeAway === 'neutral' ? null : row.homeAway,
+      opponentRank: null,
+      matchupStars: draftSharksMatchupStars(row.matchupPercent),
+      matchupTier: row.matchupTier,
+      matchupText: `${formatDraftSharksPercent(row.matchupPercent)} DraftSharks SOS`,
+      isBye: false,
+    };
+  });
+  const sourceTrace = rows.map((row) => getDraftSharksSourceTraceEntry(profile, row));
   const matchupWindows = buildMatchupWindowSet(weeks, windowOptions);
-  const nextWindowWeeks = new Set(matchupWindows.next3.weeks);
+  const best = getBestDraftSharksWeek(rows);
+  const next3 = matchupWindows.next3;
+  const nextWindowWeeks = new Set(next3.weeks);
   const weekCopy = rows
-    .filter((row) => nextWindowWeeks.has(Number(row.week || 0)))
-    .map(formatMatchupCalendarWeekCopy)
-    .join(', ') || rows.slice(0, 3).map(formatMatchupCalendarWeekCopy).join(', ');
-  const rankCopy = rows[0]?.positionRank || (rows[0]?.rank ? `Rank ${rows[0].rank}` : null);
-  const playoffCopy = matchupWindows.playoffs.playableWeeks
-    ? ` ${matchupWindows.playoffs.summary}`
-    : '';
+    .filter((row) => nextWindowWeeks.has(row.week))
+    .map(formatDraftSharksWeekCopy)
+    .join(', ') || rows.slice(0, 3).map(formatDraftSharksWeekCopy).join(', ');
+  const confidence = Math.max(
+    30,
+    Math.min(
+      94,
+      58 + Math.min(rows.length, 6) * 3 + next3.easyWeeks * 6 - next3.hardWeeks * 8 + (profile.updatedAt ? 6 : 0)
+    )
+  );
 
   return {
-    signalType: 'matchup-calendar',
+    signalType: 'draftsharks-sos',
     playerId: player.player_id,
-    fantasyProsId: rows[0]?.fantasyProsId || null,
+    fantasyProsId: null,
     name: player.name,
-    position: player.pos,
-    team: player.team || rows[0]?.team || null,
-    source: 'FantasyPros',
-    updatedAt: latestUpdated,
+    position: profile.position || player.pos,
+    team: player.team || profile.team || null,
+    source: 'DraftSharks',
+    updatedAt: profile.updatedAt || null,
     weeks,
     bestWeek: best?.week || null,
-    bestRankEcr: rows[0]?.rank || null,
-    bestPositionRank: rows[0]?.positionRank || null,
-    averageRankEcr,
+    bestRankEcr: null,
+    bestPositionRank: windowOptions.positionRank || null,
+    averageRankEcr: null,
     rankDelta: null,
-    bestMatchupStars: best?.matchupStars ?? null,
-    bestOpponentRank: best?.opponentRank ?? null,
+    bestMatchupStars: best ? draftSharksMatchupStars(best.matchupPercent) : null,
+    bestOpponentRank: null,
     matchupWindows,
     confidence,
-    note: `FantasyPros matchup calendar: ${weekCopy}${rankCopy ? `. ${rankCopy}.` : '.'}${playoffCopy}`,
+    note: `DraftSharks SOS: ${weekCopy}. ${next3.summary}`,
     sourceTrace,
-    traceSummary: buildWaiverMatchupTraceSummary(sourceTrace),
+    traceSummary: buildDraftSharksTraceSummary(sourceTrace),
   };
-}
-
-function buildWaiverMatchupSignal(
-  player: Pick<TrendingPlayer, 'player_id' | 'name' | 'pos' | 'team'>,
-  index: WaiverMatchupCalendarIndex,
-  windowOptions: WaiverMatchupWindowOptions = {}
-): WaiverWeeklyEcrSignal | null {
-  return buildWaiverMatchupSignalFromRows(
-    player,
-    getWaiverMatchupCalendarRows(player, index),
-    index,
-    windowOptions
-  );
 }
 
 function getWaiverWeeklyEcrTrustedRank(signal?: WaiverWeeklyEcrSignal | null): string | null {
@@ -3486,7 +3476,7 @@ function getScheduleAdjustedSpecialTeamsValue(input: {
   signal?: WaiverWeeklyEcrSignal | null;
   leagueValueMode: LeagueValueMode;
 }): number {
-  if (!isWaiverSpecialTeamsPosition(input.position) || input.signal?.signalType !== 'matchup-calendar') {
+  if (!isWaiverSpecialTeamsPosition(input.position) || !isScheduleWindowSignal(input.signal)) {
     return input.value;
   }
 
@@ -3534,7 +3524,7 @@ function getWaiverWeeklyEcrSignalScore(
   const playoffScore = signal.matchupWindows?.playoffs?.score
     ? Math.max(0, Math.min(120, signal.matchupWindows.playoffs.score * 1.2))
     : 0;
-  if (waiverPosition && isWaiverSpecialTeamsPosition(waiverPosition) && signal.signalType === 'matchup-calendar') {
+  if (waiverPosition && isWaiverSpecialTeamsPosition(waiverPosition) && isScheduleWindowSignal(signal)) {
     const outlook = getShortTermMatchupOutlook(signal.matchupWindows);
     const shortTermMatchupScore = outlook.score * 8 + easyWeeks * 110 - hardWeeks * 170;
     const shortTermRankScore = rankScore * (outlook.isRoughStart ? 0.28 : 0.48);
@@ -3586,142 +3576,113 @@ const SCHEDULE_EDGE_SOURCE_TARGET_LIMITS: Record<typeof SCHEDULE_EDGE_SOURCE_POS
   DEF: 45,
 };
 
-function buildScheduleEdgeTargetsFromSnapshotContext(
-  context?: FantasyProsSnapshotContext | null
-): WaiverWeeklyEcrTarget[] {
-  if (!context?.weeklyEcrByPositionWeek) return [];
-  const index = buildWaiverWeeklyEcrIndex(context);
+function buildScheduleEdgeTargetsFromDraftSharksContext(input: {
+  draftSharksContext?: DraftSharksScheduleContext | null;
+  players: Record<string, any>;
+  ktcValues: KTCValues;
+  ownerByPlayerId: Record<string, string>;
+  rosterStatusByPlayerId?: Record<string, string>;
+  leagueValueMode: LeagueValueMode;
+  valueProfilesById?: Record<string, PlayerDetails['valueProfile']>;
+  lastSeasonPositionRanks?: Record<string, LastSeasonPlayerRank>;
+  rosterPositions?: string[];
+  currentWeek?: number | null;
+  playoffWeeks?: number[] | null;
+  playoffWeekStart?: number | null;
+}): WaiverWeeklyEcrTarget[] {
+  if (input.draftSharksContext?.status !== 'loaded') return [];
   const targetsByPosition = new Map<string, WaiverWeeklyEcrTarget[]>();
-  const rowsByPlayer = new Map<string, {
-    player: TrendingPlayer;
-    rows: FantasyProsConsensusSnapshotRow[];
-  }>();
 
-  for (const [positionKey, weeks] of Object.entries(context.weeklyEcrByPositionWeek)) {
-    const normalizedPosition = normalizeSeasonLineupPosition(positionKey);
-    if (!normalizedPosition || !SCHEDULE_EDGE_SOURCE_POSITION_ORDER.includes(normalizedPosition as any)) continue;
-
-    for (const rows of Object.values(weeks || {})) {
-      for (const row of Object.values(rows || {})) {
-        const rowPosition = normalizeSeasonLineupPosition(row.position || normalizedPosition);
-        if (!row.fantasyProsId || !row.name || rowPosition !== normalizedPosition) continue;
-
-        const key = `${rowPosition}:${row.fantasyProsId}`;
-        const existing = rowsByPlayer.get(key);
-        if (existing) {
-          existing.rows.push(row);
-          continue;
-        }
-
-        rowsByPlayer.set(key, {
-          player: {
-            player_id: `fantasypros:${row.fantasyProsId}`,
-            name: row.name,
-            pos: rowPosition,
-            team: normalizeWaiverEcrTeam(row.team),
-            owner: 'Available',
-            count: 0,
-            ktcValue: null,
-            currentPositionRank: row.positionRank || null,
-          },
-          rows: [row],
-        });
-      }
+  for (const [playerId, player] of Object.entries(input.players || {})) {
+    if (!isCurrentSeasonLineupPlayer(player)) continue;
+    const position = normalizeSeasonLineupPosition(player?.position);
+    if (!position || !SCHEDULE_EDGE_SOURCE_POSITION_ORDER.includes(position as any)) continue;
+    const waiverPosition = position as WaiverLineupPosition;
+    if (
+      (waiverPosition === 'K' || waiverPosition === 'DEF')
+      && !leagueUsesWaiverSpecialTeamsPosition(input.rosterPositions, waiverPosition)
+    ) {
+      continue;
     }
-  }
 
-  for (const { player, rows } of Array.from(rowsByPlayer.values())) {
-    const signal = buildWaiverWeeklyEcrSignalFromRows(
+    const team = normalizeWaiverEcrTeam(player?.team);
+    const profile = getDraftSharksScheduleProfile(input.draftSharksContext, team, waiverPosition);
+    if (!profile?.weeklyMatchups.length) continue;
+
+    // Matchup calendar ranks are current-season ranks even when the league is dynasty.
+    const scheduleValueMode: LeagueValueMode = 'redraft';
+    const rank = getWaiverCandidateRank(
+      playerId,
+      waiverPosition,
+      input.players,
+      input.ktcValues,
+      scheduleValueMode,
+      input.valueProfilesById,
+      input.lastSeasonPositionRanks
+    );
+    const value = getWaiverCandidateValue(
+      playerId,
+      waiverPosition,
+      input.players,
+      input.ktcValues,
+      scheduleValueMode,
+      input.valueProfilesById,
+      input.lastSeasonPositionRanks
+    );
+    const sourceCount = getWaiverCandidateSourceCount(input.valueProfilesById?.[playerId]) + 1;
+    const omissionReason = getWaiverCandidateOmissionReason({
       player,
-      rows.sort(
-        (a: FantasyProsConsensusSnapshotRow, b: FantasyProsConsensusSnapshotRow) =>
-          Number(a.week || 0) - Number(b.week || 0)
-      ),
-      index
+      position: waiverPosition,
+      value,
+      rank,
+      sourceCount,
+      leagueValueMode: scheduleValueMode,
+    });
+    if (omissionReason) continue;
+
+    const name = getPlayerName(playerId, input.players);
+    const signal = buildWaiverDraftSharksSignal(
+      {
+        player_id: playerId,
+        name,
+        pos: waiverPosition,
+        team,
+      },
+      profile,
+      {
+        currentWeek: input.currentWeek,
+        playoffWeeks: input.playoffWeeks,
+        playoffWeekStart: input.playoffWeekStart,
+        positionRank: rank,
+      }
     );
     if (!signal) continue;
-    const target: WaiverWeeklyEcrTarget = {
-      player: { ...player, weeklyEcr: signal },
+
+    const adjustedValue = getScheduleAdjustedSpecialTeamsValue({
+      position: waiverPosition,
+      value: value || getRankBasedWaiverSeasonValue(rank),
       signal,
-      score: getWaiverWeeklyEcrSignalScore(signal, { leagueValueMode: 'redraft' }),
+      leagueValueMode: scheduleValueMode,
+    });
+    const targetPlayer: TrendingPlayer = {
+      player_id: playerId,
+      name,
+      playerDetails: getPlayerDetails(playerId, player, input.rosterStatusByPlayerId?.[playerId]),
+      currentPositionRank: rank,
+      pos: waiverPosition,
+      team,
+      owner: input.ownerByPlayerId[playerId] || 'Available',
+      count: 0,
+      ktcValue: adjustedValue || value || null,
+      weeklyEcr: signal,
     };
-    const current = targetsByPosition.get(player.pos) || [];
-    current.push(target);
-    targetsByPosition.set(player.pos, current);
-  }
+    const score = getWaiverWeeklyEcrSignalScore(signal, { leagueValueMode: 'redraft' })
+      + Math.min(Number(targetPlayer.ktcValue || 0) / 12, 360);
+    if (score <= 0) continue;
 
-  return SCHEDULE_EDGE_SOURCE_POSITION_ORDER.flatMap((position) =>
-    (targetsByPosition.get(position) || [])
-      .sort((a, b) => b.score - a.score)
-      .slice(0, SCHEDULE_EDGE_SOURCE_TARGET_LIMITS[position])
-  );
-}
-
-function buildScheduleEdgeTargetsFromMatchupContext(
-  context?: FantasyProsMatchupCalendarContext | null,
-  playerReferenceContext?: FantasyProsSnapshotContext | null,
-  windowOptions: WaiverMatchupWindowOptions = {}
-): WaiverWeeklyEcrTarget[] {
-  if (!context?.rowsByPositionWeek) return [];
-  const index = buildWaiverMatchupCalendarIndex(context, playerReferenceContext);
-  const targetsByPosition = new Map<string, WaiverWeeklyEcrTarget[]>();
-  const rowsByPlayer = new Map<string, {
-    player: TrendingPlayer;
-    rows: FantasyProsMatchupCalendarContextRow[];
-  }>();
-
-  for (const [positionKey, weeks] of Object.entries(context.rowsByPositionWeek)) {
-    const normalizedPosition = normalizeSeasonLineupPosition(positionKey);
-    if (!normalizedPosition || !SCHEDULE_EDGE_SOURCE_POSITION_ORDER.includes(normalizedPosition as any)) continue;
-
-    for (const rows of Object.values(weeks || {})) {
-      for (const row of Object.values(rows || {})) {
-        const rowPosition = normalizeSeasonLineupPosition(row.position || normalizedPosition);
-        if (!row.fantasyProsId || !row.name || rowPosition !== normalizedPosition) continue;
-
-        const key = `${rowPosition}:${row.fantasyProsId}`;
-        const existing = rowsByPlayer.get(key);
-        if (existing) {
-          existing.rows.push(row);
-          continue;
-        }
-
-        rowsByPlayer.set(key, {
-          player: {
-            player_id: `fantasypros:${row.fantasyProsId}`,
-            name: row.name,
-            pos: rowPosition,
-            team: normalizeWaiverEcrTeam(row.team),
-            owner: 'Available',
-            count: 0,
-            ktcValue: null,
-            currentPositionRank: row.positionRank || null,
-          },
-          rows: [row],
-        });
-      }
-    }
-  }
-
-  for (const { player, rows } of Array.from(rowsByPlayer.values())) {
-    const signal = buildWaiverMatchupSignalFromRows(
-      player,
-      rows.sort(
-        (a: FantasyProsMatchupCalendarContextRow, b: FantasyProsMatchupCalendarContextRow) =>
-          Number(a.week || 0) - Number(b.week || 0)
-      ),
-      index,
-      windowOptions
-    );
-    if (!signal) continue;
-    const target: WaiverWeeklyEcrTarget = {
-      player: { ...player, weeklyEcr: signal },
-      signal,
-      score: getWaiverWeeklyEcrSignalScore(signal, { leagueValueMode: 'redraft' }),
-    };
-    const current = targetsByPosition.get(player.pos) || [];
-    current.push(target);
-    targetsByPosition.set(player.pos, current);
+    const current = targetsByPosition.get(waiverPosition) || [];
+    current.push({ player: targetPlayer, signal, score });
+    targetsByPosition.set(waiverPosition, current);
   }
 
   return SCHEDULE_EDGE_SOURCE_POSITION_ORDER.flatMap((position) =>
@@ -4167,7 +4128,7 @@ export function buildWaiverIntelligence(
     rosterPositions?: string[];
     lastSeasonPositionRanks?: Record<string, LastSeasonPlayerRank>;
     fantasyProsSnapshotContext?: FantasyProsSnapshotContext | null;
-    fantasyProsMatchupCalendarContext?: FantasyProsMatchupCalendarContext | null;
+    draftSharksScheduleContext?: DraftSharksScheduleContext | null;
     currentWeek?: number | null;
     playoffWeeks?: number[] | null;
     playoffWeekStart?: number | null;
@@ -4177,21 +4138,37 @@ export function buildWaiverIntelligence(
   const rosteredAdds = trendingAdds.filter((player) => player.owner);
   const omittedCandidates: WaiverOmittedCandidate[] = [];
   const weeklyEcrIndex = buildWaiverWeeklyEcrIndex(options.fantasyProsSnapshotContext);
-  const matchupCalendarIndex = buildWaiverMatchupCalendarIndex(
-    options.fantasyProsMatchupCalendarContext,
-    options.fantasyProsSnapshotContext
-  );
   const weeklyEcrSignalByPlayerId = new Map<string, WaiverWeeklyEcrSignal | null>();
   const getWeeklyEcrSignal = (player: Pick<TrendingPlayer, 'player_id' | 'name' | 'pos' | 'team'>) => {
     if (!player.player_id) return null;
     if (!weeklyEcrSignalByPlayerId.has(player.player_id)) {
+      const position = normalizeSeasonLineupPosition(player.pos);
+      const waiverPosition = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(position || '')
+        ? position as WaiverLineupPosition
+        : null;
+      const positionRank = waiverPosition
+        ? getWaiverCandidateRank(
+          player.player_id,
+          waiverPosition,
+          players,
+          ktcValues,
+          leagueValueMode,
+          valueProfilesById,
+          options.lastSeasonPositionRanks
+        )
+        : null;
+      const draftSharksProfile = waiverPosition
+        ? getDraftSharksScheduleProfile(options.draftSharksScheduleContext, player.team, waiverPosition)
+        : null;
       weeklyEcrSignalByPlayerId.set(
         player.player_id,
-        buildWaiverMatchupSignal(player, matchupCalendarIndex, {
+        buildWaiverDraftSharksSignal(player, draftSharksProfile, {
           currentWeek: options.currentWeek,
           playoffWeeks: options.playoffWeeks,
           playoffWeekStart: options.playoffWeekStart,
-        }) || buildWaiverWeeklyEcrSignal(player, weeklyEcrIndex)
+          positionRank,
+        }) ||
+        buildWaiverWeeklyEcrSignal(player, weeklyEcrIndex)
       );
     }
     return weeklyEcrSignalByPlayerId.get(player.player_id) || null;
@@ -4315,7 +4292,7 @@ export function buildWaiverIntelligence(
     const position = normalizeSeasonLineupPosition(player.pos);
     return Boolean(
       isWaiverSpecialTeamsPosition(position) &&
-      player.weeklyEcr?.signalType === 'matchup-calendar' &&
+      isScheduleWindowSignal(player.weeklyEcr) &&
       getShortTermMatchupOutlook(player.weeklyEcr.matchupWindows).isRoughStart
     );
   };
@@ -4559,7 +4536,7 @@ async function buildLiveSleeperActivityPatch(
     const rosterPositions = Array.isArray(leagueInfo.roster_positions) ? leagueInfo.roster_positions : [];
     let ktcValues: KTCValues = {} as KTCValues;
     let fantasyProsSnapshotContext: FantasyProsSnapshotContext | null = null;
-    let fantasyProsMatchupCalendarContext: FantasyProsMatchupCalendarContext | null = null;
+    let draftSharksScheduleContext: DraftSharksScheduleContext | null = null;
 
     try {
       const staticInputs = await loadReportStaticInputs({
@@ -4571,24 +4548,20 @@ async function buildLiveSleeperActivityPatch(
         forceRefresh: false,
       });
       ktcValues = staticInputs.ktcValues;
+      draftSharksScheduleContext = staticInputs.draftSharksScheduleContext;
     } catch (error) {
       console.warn(`Failed to load value snapshots for live Sleeper activity ${leagueId}:`, error);
     }
 
     try {
-      [fantasyProsSnapshotContext, fantasyProsMatchupCalendarContext] = await Promise.all([
-        loadFantasyProsSnapshotContext({
-          season: currentSeason,
-          scoring: 'PPR',
-          currentWeek: currentScheduleWeek,
-          weekWindow: 3,
-        }),
-        loadFantasyProsMatchupCalendarContext({
-          season: currentSeason,
-        }),
-      ]);
+      fantasyProsSnapshotContext = await loadFantasyProsSnapshotContext({
+        season: currentSeason,
+        scoring: 'PPR',
+        currentWeek: currentScheduleWeek,
+        weekWindow: 3,
+      });
     } catch (error) {
-      console.warn(`Failed to load matchup snapshots for live Sleeper activity ${leagueId}:`, error);
+      console.warn(`Failed to load FantasyPros rank snapshots for live Sleeper activity ${leagueId}:`, error);
     }
 
     const valueProfilesById = buildPlayerValueProfileMap(
@@ -4636,32 +4609,33 @@ async function buildLiveSleeperActivityPatch(
       {
         rosterPositions,
         fantasyProsSnapshotContext,
-        fantasyProsMatchupCalendarContext,
+        draftSharksScheduleContext,
         currentWeek: currentScheduleWeek,
         playoffWeeks,
         playoffWeekStart,
       }
     );
-    const matchupScheduleEdgeTargets = buildScheduleEdgeTargetsFromMatchupContext(
-      fantasyProsMatchupCalendarContext,
-      fantasyProsSnapshotContext,
-      {
-        currentWeek: currentScheduleWeek,
-        playoffWeeks,
-        playoffWeekStart,
-      }
-    );
-    const fallbackScheduleEdgeTargets = matchupScheduleEdgeTargets.length
-      ? matchupScheduleEdgeTargets
-      : buildScheduleEdgeTargetsFromSnapshotContext(fantasyProsSnapshotContext);
+    const scheduleEdgeTargets = buildScheduleEdgeTargetsFromDraftSharksContext({
+      draftSharksContext: draftSharksScheduleContext,
+      players: players || {},
+      ktcValues,
+      ownerByPlayerId,
+      rosterStatusByPlayerId,
+      leagueValueMode,
+      valueProfilesById,
+      rosterPositions,
+      currentWeek: currentScheduleWeek,
+      playoffWeeks,
+      playoffWeekStart,
+    });
     const livePatch: Pick<ReportData, 'recentTransactions' | 'trendingAdds' | 'trendingDrops' | 'waiverIntelligence'> & Partial<Pick<ReportData, 'scheduleEdgeTargets'>> = {
       recentTransactions,
       trendingAdds,
       trendingDrops,
       waiverIntelligence,
     };
-    if (fallbackScheduleEdgeTargets.length) {
-      livePatch.scheduleEdgeTargets = fallbackScheduleEdgeTargets;
+    if (scheduleEdgeTargets.length) {
+      livePatch.scheduleEdgeTargets = scheduleEdgeTargets;
     }
     return livePatch;
   } catch (error) {
@@ -5405,6 +5379,50 @@ export const appRouter = router({
         });
 
         return { persisted, item: input.item };
+    }),
+  }),
+
+  aiPredictions: router({
+    upsertMany: protectedProcedure
+      .input(z.object({
+        events: z.array(aiPredictionEventSchema).min(1).max(50),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const userKey = getActionPlanUserKey(ctx.user);
+        const results = await Promise.all(
+          input.events.map(event => upsertAiPredictionEvent({ userKey, event }))
+        );
+
+        return {
+          persisted: results.filter(Boolean).length,
+          accepted: input.events.length,
+        };
+      }),
+    list: protectedProcedure
+      .input(z.object({
+        leagueId: z.string().max(64).optional().nullable(),
+        limit: z.number().int().min(1).max(200).optional(),
+      }).optional())
+      .query(async ({ input, ctx }) => {
+        const events = await listAiPredictionEvents({
+          userKey: getActionPlanUserKey(ctx.user),
+          leagueId: input?.leagueId || null,
+          limit: input?.limit || 100,
+        });
+
+        return { events };
+      }),
+    updateOutcome: protectedProcedure
+      .input(z.object({
+        eventId: z.string().min(1).max(128),
+        outcome: aiPredictionOutcomeSchema,
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const persisted = await updateAiPredictionOutcome({
+          ...input,
+          userKey: getActionPlanUserKey(ctx.user),
+        });
+        return { persisted };
       }),
   }),
 
@@ -6265,17 +6283,12 @@ export const appRouter = router({
 
           const managers = Object.values(rosterUserMap).filter(Boolean) as string[];
           const currentSeason = String(leagueInfo.season || new Date().getFullYear());
-          const [fantasyProsSnapshotContext, fantasyProsMatchupCalendarContext] = await Promise.all([
-            loadFantasyProsSnapshotContext({
-              season: currentSeason,
-              scoring: 'PPR',
-              currentWeek: currentScheduleWeek,
-              weekWindow: 3,
-            }),
-            loadFantasyProsMatchupCalendarContext({
-              season: currentSeason,
-            }),
-          ]);
+          const fantasyProsSnapshotContext = await loadFantasyProsSnapshotContext({
+            season: currentSeason,
+            scoring: 'PPR',
+            currentWeek: currentScheduleWeek,
+            weekWindow: 3,
+          });
           const futurePickInventory = buildFuturePickInventory({
             rosters,
             rosterMap: rosterUserMap,
@@ -6307,7 +6320,17 @@ export const appRouter = router({
                 ...ranking,
                 draftCapital,
                 score,
-                tier: score >= 86 ? 'Juggernaut' : score >= 74 ? 'Contender' : score >= 60 ? 'Playoff Mix' : score >= 45 ? 'Reloading' : 'Rebuild Mode',
+                tier: score >= 96
+                  ? 'Thanos'
+                  : score >= 91
+                    ? 'Heavyweight'
+                    : score >= 86
+                      ? 'Could Be a Threat'
+                      : score >= 81
+                        ? 'Sneaky Problem'
+                        : score >= 70
+                          ? 'Meh'
+                          : 'Free Money',
               };
             })
             .sort((a, b) => b.score - a.score)
@@ -6325,24 +6348,26 @@ export const appRouter = router({
               rosterPositions: currentSeasonData.rosterPositions,
               lastSeasonPositionRanks,
               fantasyProsSnapshotContext,
-              fantasyProsMatchupCalendarContext,
+              draftSharksScheduleContext,
               currentWeek: currentScheduleWeek,
               playoffWeeks,
               playoffWeekStart,
             }
           );
-          const matchupScheduleEdgeTargets = buildScheduleEdgeTargetsFromMatchupContext(
-            fantasyProsMatchupCalendarContext,
-            fantasyProsSnapshotContext,
-            {
-              currentWeek: currentScheduleWeek,
-              playoffWeeks,
-              playoffWeekStart,
-            }
-          );
-          const scheduleEdgeTargets = matchupScheduleEdgeTargets.length
-            ? matchupScheduleEdgeTargets
-            : buildScheduleEdgeTargetsFromSnapshotContext(fantasyProsSnapshotContext);
+          const scheduleEdgeTargets = buildScheduleEdgeTargetsFromDraftSharksContext({
+            draftSharksContext: draftSharksScheduleContext,
+            players,
+            ktcValues,
+            ownerByPlayerId,
+            rosterStatusByPlayerId,
+            leagueValueMode,
+            valueProfilesById: allValueProfilesById,
+            lastSeasonPositionRanks,
+            rosterPositions: currentSeasonData.rosterPositions,
+            currentWeek: currentScheduleWeek,
+            playoffWeeks,
+            playoffWeekStart,
+          });
           const managerIntelByName = new Map((reportData.managerRosterIntelligence || []).map((row) => [row.manager, row]));
           const recentTransactions = buildRecentTransactions(
             allTransactions,
@@ -6508,7 +6533,6 @@ export const appRouter = router({
             { sourceKey: 'ktc-blended-values-v1', rowCount: Object.keys(ktcValues || {}).length },
             { sourceKey: 'fantasypros-news-v1', rowCount: newsSourceCounts.fantasyPros },
             ...fantasyProsSnapshotContext.rowCounts,
-            ...fantasyProsMatchupCalendarContext.rowCounts,
             { sourceKey: 'sportsdataio-news-v1', rowCount: newsSourceCounts.sportsDataIo },
             { sourceKey: 'espn-depth-charts-v1', rowCount: depthChartResult.diagnostics.loadedTeams.length },
             { sourceKey: 'draftsharks-sos-v1', rowCount: Object.keys(draftSharksScheduleContext.profiles || {}).length },

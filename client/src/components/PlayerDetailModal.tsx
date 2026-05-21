@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, type ReactNode } from 'react';
+import { useMemo, useState, useEffect, useId, type ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -6,7 +6,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { DraftPick, PlayerDetails } from '@shared/types';
+import type { DraftPick, PlayerDetails, ReportData } from '@shared/types';
+import {
+  evaluateAIEvidence,
+  getAIEvidenceLeagueContextFromDiagnostics,
+  getAIEvidenceReceiptItems,
+  type AIEvidenceAction,
+  type AIEvidenceMode,
+  type AIEvidenceResult,
+  type AISourceTrace,
+} from '@shared/aiEvidenceEngine';
 import { ExternalLink, TrendingUp, TrendingDown, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { getPositionRankPillClass } from '@/lib/positionRank';
@@ -17,6 +26,7 @@ import { getDraftKind, getDraftKindLabel, getDraftWindowLabel } from '@/lib/draf
 import { getPlayerValueConfidence } from '@/lib/playerValueConfidence';
 import { getPlayerValueFraming, PLAYER_VALUE_LANGUAGE } from '@/lib/playerValueFraming';
 import { loadStaticPlayerValueTimeline } from '@/lib/playerValueHistoryShards';
+import { getVoicedAIConfidenceLabel } from '@/lib/aiVoice';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
@@ -127,6 +137,7 @@ interface PlayerDetailModalProps {
   leagueLogo?: string | null;
   managerAvatars?: Record<string, string | null>;
   playerDetailsById?: Record<string, PlayerDetails>;
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
   showAIRead?: boolean;
 }
 
@@ -218,6 +229,7 @@ export function PlayerDetailModal({
   leagueLogo,
   managerAvatars,
   playerDetailsById,
+  leagueDiagnostics,
   showAIRead = false,
 }: PlayerDetailModalProps) {
   const [focusedPeerPick, setFocusedPeerPick] = useState<PlayerModalData | null>(null);
@@ -258,6 +270,10 @@ export function PlayerDetailModal({
     }
   );
   const queryValueMode = inferPlayerModalValueMode(pick, queryDetails);
+  const reportValueTimeline = queryDetails?.valueTimeline || null;
+  const hasReportValueTimelineForHydration = Boolean(
+    reportValueTimeline?.points?.length && reportValueTimeline.points.length >= 2
+  );
   const dynastyTimelineProfileKey = queryDetails?.valueTimeline?.profileKey || '12_sf_ppr_base';
   const dynastyTimelineSelectedWindow = queryDetails?.valueTimeline?.selectedWindow;
   const { data: dynastyTimelineData, isFetching: isDynastyTimelineFetching } = trpc.players.valueTimeline.useQuery(
@@ -269,7 +285,7 @@ export function PlayerDetailModal({
       selectedWindow: dynastyTimelineSelectedWindow || undefined,
     },
     {
-      enabled: isOpen && queryValueMode !== 'redraft' && Boolean(pick?.playerName) && !queryIsCollegeProspect && Boolean(queryDetails?.valueTimeline),
+      enabled: isOpen && queryValueMode !== 'redraft' && Boolean(pick?.playerName) && !queryIsCollegeProspect && Boolean(queryDetails?.valueTimeline) && !hasReportValueTimelineForHydration,
       staleTime: 1000 * 60 * 30,
       refetchOnWindowFocus: false,
     }
@@ -280,7 +296,7 @@ export function PlayerDetailModal({
       playerName: pick?.playerName || '',
     },
     {
-      enabled: isOpen && queryValueMode === 'redraft' && Boolean(pick?.playerName) && !queryIsCollegeProspect,
+      enabled: isOpen && queryValueMode === 'redraft' && Boolean(pick?.playerName) && !queryIsCollegeProspect && !hasReportValueTimelineForHydration,
       staleTime: 1000 * 60 * 30,
       refetchOnWindowFocus: false,
     }
@@ -540,6 +556,7 @@ export function PlayerDetailModal({
     prospectProfile,
     latestNews,
     redraftTimeline: redraftValueTimeline,
+    leagueDiagnostics,
   }) : null;
   const draftAuditRows = [
     pick.draftDecisionVerdict ? ['Draft Read', pick.draftDecisionVerdict] : null,
@@ -962,9 +979,11 @@ export function PlayerDetailModal({
                 readType={playerAiRead.readType}
                 confidence={playerAiRead.confidence}
                 confidenceNote={playerAiRead.confidenceNote}
+                evidenceRead={playerAiRead.evidenceRead}
                 severity={playerAiRead.severity}
                 chips={playerAiRead.chips}
                 body={playerAiRead.body}
+                traceItems={playerAiRead.traceItems}
                 backgroundVariant={playerAiRead.backgroundVariant}
                 mobileDefaultOpen
                 className="player-modal-ai-read mx-auto max-w-xl"
@@ -1815,6 +1834,36 @@ function buildTimelinePath(points: Array<{ value: number }>, width: number, heig
     .join(' ');
 }
 
+function buildTimelineAreaPath(coordinates: Array<{ x: number; y: number }>, baselineY: number) {
+  if (!coordinates.length) return '';
+  const firstPoint = coordinates[0];
+  const lastPoint = coordinates[coordinates.length - 1];
+  return [
+    `M ${firstPoint.x} ${baselineY}`,
+    ...coordinates.map((point) => `L ${point.x} ${point.y}`),
+    `L ${lastPoint.x} ${baselineY}`,
+    'Z',
+  ].join(' ');
+}
+
+function getVisibleTimelineMarkerIndexes(
+  points: Array<TimelinePoint | null>,
+  selectedIndex: number | null,
+  showSourceAdmin: boolean
+) {
+  const indexes = new Set<number>();
+  if (!points.length) return indexes;
+  const stride = Math.max(1, Math.ceil(points.length / 18));
+  indexes.add(0);
+  indexes.add(points.length - 1);
+  if (selectedIndex !== null) indexes.add(selectedIndex);
+  points.forEach((point, index) => {
+    if (index % stride === 0) indexes.add(index);
+    if (showSourceAdmin && point?.events?.length) indexes.add(index);
+  });
+  return indexes;
+}
+
 function formatTimelineSourceValue(value: number | null | undefined) {
   return value ? formatValueLens(value) : '-';
 }
@@ -2485,9 +2534,9 @@ function PlayerValueTimelineCard({
         </div>
         {lastPoint.events?.length ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {lastPoint.events.map((event) => (
+            {lastPoint.events.map((event, index) => (
               <span
-                key={`${event.type}-${event.label}`}
+                key={`${event.type}-${event.label}-${index}`}
                 className={`player-value-event-chip player-value-event-chip-${event.tone}`}
                 title={event.detail || undefined}
               >
@@ -2546,6 +2595,8 @@ function PlayerValueTimelineDetailDialog({
   showSourceAdmin: boolean;
   isHydrating?: boolean;
 }) {
+  const rawChartGradientId = useId();
+  const chartGradientId = `player-value-chart-area-${rawChartGradientId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const [activeWindowKey, setActiveWindowKey] = useState<TimelineWindowKey>(() => getDefaultTimelineWindowKey(timeline));
   const [chartMode, setChartMode] = useState<'value' | 'rank'>('value');
   useEffect(() => {
@@ -2575,6 +2626,11 @@ function PlayerValueTimelineDetailDialog({
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
   const chartPoints = useMemo(() => buildTimelineCoordinates(chartInputPoints, 520, 178, 18), [chartInputPoints]);
   const chartPath = useMemo(() => buildTimelinePath(chartInputPoints, 520, 178, 18), [chartInputPoints]);
+  const chartAreaPath = useMemo(() => buildTimelineAreaPath(chartPoints, 160), [chartPoints]);
+  const visibleMarkerIndexes = useMemo(
+    () => getVisibleTimelineMarkerIndexes(chartTimelinePoints, selectedPointIndex, showSourceAdmin),
+    [chartTimelinePoints, selectedPointIndex, showSourceAdmin]
+  );
   useEffect(() => {
     setSelectedPointIndex(chartTimelinePoints.length ? chartTimelinePoints.length - 1 : null);
   }, [activeWindowKey, chartTimelinePoints.length, visibleChartMode]);
@@ -2729,6 +2785,13 @@ function PlayerValueTimelineDetailDialog({
                   className="player-value-timeline-chart"
                   preserveAspectRatio="none"
                 >
+                  <defs>
+                    <linearGradient id={chartGradientId} x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor={activeStrokeColor} stopOpacity="0.34" />
+                      <stop offset="62%" stopColor={activeStrokeColor} stopOpacity="0.08" />
+                      <stop offset="100%" stopColor={activeStrokeColor} stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
                   <line x1="18" y1="150" x2="502" y2="150" stroke="rgba(148,163,184,0.24)" strokeWidth="1" />
                   <line x1="18" y1="88" x2="502" y2="88" stroke="rgba(148,163,184,0.12)" strokeWidth="1" />
                   <line x1="18" y1="26" x2="502" y2="26" stroke="rgba(148,163,184,0.16)" strokeWidth="1" />
@@ -2743,21 +2806,23 @@ function PlayerValueTimelineDetailDialog({
                       strokeWidth="1.2"
                     />
                   )}
+                  {chartAreaPath && (
+                    <path d={chartAreaPath} fill={`url(#${chartGradientId})`} className="player-value-chart-area" />
+                  )}
                   <path d={chartPath} fill="none" stroke="rgba(15,23,42,0.9)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
                   <path d={chartPath} fill="none" stroke={activeStrokeColor} strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
                   {chartPoints.map((point, index) => {
                     const timelinePoint = chartTimelinePoints[index];
                     const hasEvents = showSourceAdmin && Boolean(timelinePoint.events?.length);
+                    const showMarker = visibleMarkerIndexes.has(index);
                     return (
                       <g key={`${visibleChartMode}-${timelinePoint.date}-${timelinePoint.value}`}>
                         <circle
                           cx={point.x}
                           cy={point.y}
-                          r={selectedPointIndex === index ? 7.2 : visibleChartMode === 'value' && hasEvents ? 6.2 : index === 0 || index === chartPoints.length - 1 ? 4.8 : 3.4}
-                          fill={selectedPointIndex === index ? '#f8fafc' : visibleChartMode === 'value' && hasEvents ? 'rgba(251, 191, 36, 0.95)' : index === chartPoints.length - 1 ? activeStrokeColor : 'rgba(226,232,240,0.92)'}
-                          stroke={selectedPointIndex === index ? activeStrokeColor : hasEvents ? 'rgba(15,23,42,0.95)' : 'rgba(15,23,42,0.55)'}
-                          strokeWidth={selectedPointIndex === index ? 2.4 : visibleChartMode === 'value' && hasEvents ? 2 : 1}
-                          className="player-value-chart-point"
+                          r="10"
+                          fill="transparent"
+                          className="player-value-chart-point player-value-chart-hit-target"
                           role="button"
                           tabIndex={0}
                           aria-label={`${formatTimelineDate(timelinePoint.date)} value ${formatTimelineExactValue(timelinePoint.value)} rank ${formatTimelineRank(timelinePoint)}`}
@@ -2770,6 +2835,17 @@ function PlayerValueTimelineDetailDialog({
                               setSelectedPointIndex(index);
                             }
                           }}
+                        />
+                        <circle
+                          cx={point.x}
+                          cy={point.y}
+                          r={selectedPointIndex === index ? 7.2 : visibleChartMode === 'value' && hasEvents ? 6.2 : index === 0 || index === chartPoints.length - 1 ? 4.8 : 3.4}
+                          fill={selectedPointIndex === index ? '#f8fafc' : visibleChartMode === 'value' && hasEvents ? 'rgba(251, 191, 36, 0.95)' : index === chartPoints.length - 1 ? activeStrokeColor : 'rgba(226,232,240,0.92)'}
+                          stroke={selectedPointIndex === index ? activeStrokeColor : hasEvents ? 'rgba(15,23,42,0.95)' : 'rgba(15,23,42,0.55)'}
+                          strokeWidth={selectedPointIndex === index ? 2.4 : visibleChartMode === 'value' && hasEvents ? 2 : 1}
+                          className="player-value-chart-marker"
+                          aria-hidden="true"
+                          style={{ opacity: showMarker ? 1 : 0 }}
                         />
                         <title>{`${formatTimelineDate(timelinePoint.date)}: ${formatTimelineExactValue(timelinePoint.value)}${formatTimelineRank(timelinePoint) !== '-' ? ` / ${formatTimelineRank(timelinePoint)}` : ''}`}</title>
                       </g>
@@ -2796,6 +2872,14 @@ function PlayerValueTimelineDetailDialog({
                 <span>{visibleChartMode === 'rank' ? `${rankChartPoints.length} rank points` : `${activeWindow?.pointCount || activePoints.length} chart points`}</span>
                 <span>{formatTimelineDate(visibleChartMode === 'rank' ? lastRankPoint?.date || lastPoint.date : lastPoint.date)}</span>
               </div>
+              {selectedTimelinePoint && (
+                <div className="player-value-selected-point">
+                  <span>{formatTimelineDateWithYear(selectedTimelinePoint.date)}</span>
+                  <strong>{formatTimelineExactValue(selectedTimelinePoint.value)}</strong>
+                  <em>{formatTimelineRank(selectedTimelinePoint)}</em>
+                  <small>{selectedSourceLabel}</small>
+                </div>
+              )}
             </div>
 
             {(timeline.extremes?.high || timeline.extremes?.low) && (
@@ -2914,8 +2998,8 @@ function PlayerValueTimelineDetailDialog({
                   <strong>{eventList.length}</strong>
                 </div>
                 <div className="player-value-event-detail-grid">
-                  {eventList.map((event) => (
-                    <article key={`${event.date}-${event.type}-${event.label}`} className={`player-value-event-detail player-value-event-detail-${event.tone}`}>
+                  {eventList.map((event, index) => (
+                    <article key={`${event.date}-${event.type}-${event.label}-${index}`} className={`player-value-event-detail player-value-event-detail-${event.tone}`}>
                       <div>
                         <span>{formatTimelineDate(event.date)}</span>
                         <strong>{event.label}</strong>
@@ -3305,6 +3389,230 @@ function buildSituationValueEvidence({
   };
 }
 
+function normalizePlayerAiTraceStatus(status?: string | null): AISourceTrace['status'] {
+  const clean = String(status || '').toLowerCase();
+  if (/error|failed|danger/.test(clean)) return 'error';
+  if (/stale/.test(clean)) return 'stale';
+  if (/missing|empty|no rows/.test(clean)) return 'missing';
+  if (/blocked|rate|limit|partial/.test(clean)) return 'limited';
+  if (/loaded|ok|success/.test(clean)) return 'loaded';
+  return 'loaded';
+}
+
+function getPlayerAiTraceAgeHours(value?: string | null): number | null {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(0, Math.round(((Date.now() - parsed) / (1000 * 60 * 60)) * 10) / 10);
+}
+
+function buildPlayerAiSourceTrace(
+  details: PlayerDetails | undefined,
+  valueProfile: PlayerDetails['valueProfile'] | undefined
+): AISourceTrace[] {
+  const sourceRows: AISourceTrace[] = [];
+  (valueProfile?.sources || []).forEach(source => {
+    sourceRows.push({
+      label: source,
+      status: 'loaded',
+      detail: 'Player value source',
+    });
+  });
+  (valueProfile?.fantasyProsSourceTrace || []).forEach(trace => {
+    const updatedAt = trace.fetchedAt || trace.lastUpdated || null;
+    sourceRows.push({
+      label: trace.label || trace.source || 'FantasyPros player source',
+      status: normalizePlayerAiTraceStatus(trace.status),
+      detail: [
+        trace.positionRank || (trace.rank ? `Rank ${trace.rank}` : null),
+        trace.scoring,
+        trace.evidence,
+      ].filter(Boolean).join(' - '),
+      ageHours: getPlayerAiTraceAgeHours(updatedAt),
+    });
+  });
+  if (details?.playerCohort?.calibration) {
+    sourceRows.push({
+      label: 'Player cohort calibration',
+      status: details.playerCohort.calibration.evidenceGrade === 'blocked' ? 'limited' : 'loaded',
+      detail: details.playerCohort.calibration.note,
+    });
+  }
+  if (details?.playerSituationDelta) {
+    sourceRows.push({
+      label: 'Player situation delta',
+      status: details.playerSituationDelta.freshness?.grade === 'stale' ? 'stale' : 'loaded',
+      detail: details.playerSituationDelta.freshness?.note || details.playerSituationDelta.summary,
+    });
+  }
+  if (details?.schedule) {
+    sourceRows.push({
+      label: details.schedule.source || 'Schedule profile',
+      status: 'loaded',
+      detail: formatScheduleSummary(details.schedule) || 'Schedule profile loaded',
+      ageHours: getPlayerAiTraceAgeHours(details.schedule.updatedAt),
+    });
+  }
+  return sourceRows;
+}
+
+function getPlayerAiSignalModes(input: {
+  valueMode: LeagueValueMode;
+  hasCurrentSeasonEvidence: boolean;
+  hasDynastyEvidence: boolean;
+  isCollegeProspect?: boolean;
+}): AIEvidenceMode[] {
+  const modes: AIEvidenceMode[] = [];
+  if (input.valueMode === 'redraft' || input.hasCurrentSeasonEvidence) {
+    modes.push('redraft', 'current');
+  }
+  if (input.valueMode !== 'redraft' || input.hasDynastyEvidence) {
+    modes.push('dynasty');
+  }
+  if (input.isCollegeProspect) modes.push('prospect');
+  return Array.from(new Set(modes));
+}
+
+function getPlayerAiEvidenceAction(input: {
+  readType: string;
+  severity: 'neutral' | 'good' | 'info' | 'warn' | 'danger';
+  valueMode: LeagueValueMode;
+}): AIEvidenceAction {
+  if (/trade|sell/i.test(input.readType)) return 'trade';
+  if (/lineup|start/i.test(input.readType) && input.valueMode === 'redraft') return 'start';
+  if (input.severity === 'warn' || input.severity === 'danger') return 'watch';
+  return 'hold';
+}
+
+function getPlayerEvidenceChip(read: AIEvidenceResult): AIReadChip {
+  const tone =
+    read.label === 'blocked'
+      ? 'danger'
+      : read.label === 'thin'
+        ? 'warn'
+        : read.canAct
+          ? 'good'
+          : 'info';
+  return {
+    label: `${read.label} ${read.finalScore}%`,
+    tone,
+  };
+}
+
+function buildPlayerAiEvidenceRead(input: {
+  playerName: string;
+  position?: string | null;
+  team?: string | null;
+  currentRank?: string | null;
+  currentValue?: number | null;
+  readType: string;
+  severity: 'neutral' | 'good' | 'info' | 'warn' | 'danger';
+  rawConfidence: number;
+  valueMode: LeagueValueMode;
+  valueProfile?: PlayerDetails['valueProfile'];
+  valueFraming: ReturnType<typeof getPlayerValueFraming>;
+  valueConfidence: ReturnType<typeof getPlayerValueConfidence>;
+  details?: PlayerDetails;
+  isCollegeProspect?: boolean;
+  prospectProfile?: PlayerDetails['prospectProfile'];
+  latestNews?: PlayerDetails['latestNews'];
+  redraftHistoryContext?: ReturnType<typeof buildRedraftTimelineReadContext>;
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
+}): AIEvidenceResult {
+  const hasCurrentSeasonEvidence = Boolean(
+    input.valueProfile?.seasonValue ||
+      input.valueProfile?.fantasyProsSeasonValue ||
+      input.valueProfile?.fantasyCalcRedraft ||
+      input.valueProfile?.flockBestBall ||
+      input.redraftHistoryContext ||
+      input.details?.schedule ||
+      input.latestNews ||
+      (input.valueProfile?.sources || []).some(source => /redraft|season|current|fantasypros/i.test(source))
+  );
+  const hasDynastyEvidence = Boolean(
+    input.valueProfile?.dynastyValue ||
+      input.valueProfile?.balancedValue ||
+      input.valueProfile?.marketKtc ||
+      input.valueProfile?.fantasyCalcDynasty ||
+      input.valueProfile?.fantasyProsDynasty ||
+      (input.valueProfile?.sources || []).some(source => /dynasty|ktc|flock|market|process|nerds/i.test(source))
+  );
+  const sourceTrace = buildPlayerAiSourceTrace(input.details, input.valueProfile);
+  const sourceCount = sourceTrace.length;
+  const hasRoleEvidence = Boolean(input.details?.playerCohort || input.details?.playerSituationDelta);
+  const hasValueEvidence = Boolean(input.valueFraming.marketPrice || input.currentValue || input.valueProfile?.sources?.length);
+
+  return evaluateAIEvidence({
+    surface: 'player-detail',
+    action: getPlayerAiEvidenceAction(input),
+    leagueValueMode: input.valueMode === 'redraft' ? 'redraft' : 'dynasty',
+    leagueContext: getAIEvidenceLeagueContextFromDiagnostics(
+      input.leagueDiagnostics,
+      input.valueMode === 'redraft' ? 'redraft' : 'dynasty'
+    ),
+    signalModes: getPlayerAiSignalModes({
+      valueMode: input.valueMode,
+      hasCurrentSeasonEvidence,
+      hasDynastyEvidence,
+      isCollegeProspect: input.isCollegeProspect,
+    }),
+    baseScore: input.rawConfidence,
+    evidence: [
+      input.currentRank && input.currentRank !== '-' ? `${input.currentRank} rank loaded.` : null,
+      input.valueFraming.marketPrice ? `Market price ${formatValueLens(input.valueFraming.marketPrice)}.` : null,
+      input.valueProfile?.sources?.length ? `${input.valueProfile.sources.length} value sources returned.` : null,
+      input.details?.playerCohort?.calibration ? `Cohort evidence ${input.details.playerCohort.calibration.evidenceGrade}.` : null,
+      input.details?.playerCohort?.anomalyFlags?.length
+        ? `Anomaly rules fired: ${input.details.playerCohort.anomalyFlags.map(flag => flag.label).slice(0, 2).join(', ')}.`
+        : null,
+      input.details?.playerSituationDelta ? `Situation context ${input.details.playerSituationDelta.primaryLabel}.` : null,
+      input.details?.schedule ? `Schedule profile: ${formatScheduleSummary(input.details.schedule)}.` : null,
+      input.latestNews?.title ? 'Latest player news attached.' : null,
+      input.prospectProfile ? 'Prospect profile attached.' : null,
+      input.redraftHistoryContext ? 'Redraft value history loaded.' : null,
+    ].filter((value): value is string => Boolean(value)),
+    missingEvidence: [
+      !sourceCount ? 'No player source trace available.' : null,
+      !hasValueEvidence ? 'No market value evidence returned.' : null,
+      !hasRoleEvidence && !input.isCollegeProspect ? 'No cohort or situation-delta context returned.' : null,
+      input.valueMode === 'redraft' && !hasCurrentSeasonEvidence
+        ? 'No current-season redraft evidence returned.'
+        : null,
+      input.valueMode !== 'redraft' && !hasDynastyEvidence && !input.isCollegeProspect
+        ? 'No dynasty market evidence returned.'
+        : null,
+    ].filter((value): value is string => Boolean(value)),
+    sourceTrace,
+    confidenceCap: sourceCount ? null : 58,
+    confidenceCapReason: sourceCount ? null : 'No player source trace',
+    player: {
+      name: input.playerName,
+      position: input.position,
+      team: input.team,
+      value: input.valueFraming.marketPrice || input.currentValue,
+      sourceCount,
+      hasCurrentSeasonValue: hasCurrentSeasonEvidence,
+      hasDynastyValue: hasDynastyEvidence,
+      hasProspectOnlyValue: Boolean(input.isCollegeProspect && !hasCurrentSeasonEvidence && !hasDynastyEvidence),
+    },
+    requiresCurrentSeasonEvidence: input.valueMode === 'redraft',
+    requiresActiveTeam: getPlayerAiEvidenceAction(input) === 'start',
+    requiresLiveAvailability: false,
+    staleSourceCap: 60,
+  });
+}
+
+function buildPlayerAiTraceItems(read: AIEvidenceResult, trace: string[]): string[] {
+  const cleanedTrace = trace
+    .filter(Boolean)
+    .filter((item) => !/^Outcome bucket:/i.test(item));
+  return [
+    read.whyThisFired,
+    ...cleanedTrace,
+    ...getAIEvidenceReceiptItems(read),
+  ];
+}
+
 function buildPlayerAiRead({
   playerName,
   position,
@@ -3318,6 +3626,7 @@ function buildPlayerAiRead({
   prospectProfile,
   latestNews,
   redraftTimeline,
+  leagueDiagnostics,
 }: {
   playerName: string;
   position?: string | null;
@@ -3331,6 +3640,7 @@ function buildPlayerAiRead({
   prospectProfile?: PlayerDetails['prospectProfile'];
   latestNews?: PlayerDetails['latestNews'];
   redraftTimeline?: RedraftValueTimelineData | null;
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
 }) {
   const rankNumber = parseRankNumber(currentRank);
   const age = details?.age;
@@ -3371,16 +3681,40 @@ function buildPlayerAiRead({
   if (isCollegeProspect) {
     const score = prospectProfile?.rating ? `Prospect score ${prospectProfile.rating}` : 'Prospect file';
     const draftCapital = prospectProfile?.projectedRookiePick || prospectProfile?.draftYear || 'No draft slot';
+    const rawConfidence = prospectProfile ? 76 : 48;
+    const evidenceRead = buildPlayerAiEvidenceRead({
+      playerName,
+      position,
+      team: null,
+      currentRank,
+      currentValue,
+      readType: 'Player Trend',
+      severity: prospectProfile ? 'info' : 'warn',
+      rawConfidence,
+      valueMode,
+      valueProfile,
+      valueFraming,
+      valueConfidence,
+      details,
+      isCollegeProspect,
+      prospectProfile,
+      latestNews,
+      redraftHistoryContext,
+      leagueDiagnostics,
+    });
+    if (!evidenceRead.shouldRender) return null;
     return {
       title: `${playerName} prospect read`,
       subtitle: 'Prospect traits are context only unless a returned market value exists.',
       readType: 'Player Trend',
-      confidence: prospectProfile ? 76 : 48,
+      confidence: evidenceRead.finalScore,
+      evidenceRead,
       severity: prospectProfile ? 'info' as const : 'warn' as const,
-      chips: [score, String(draftCapital), prospectProfile?.college || 'College N/A'],
+      chips: [getPlayerEvidenceChip(evidenceRead), score, String(draftCapital), prospectProfile?.college || 'College N/A'],
       body: prospectProfile?.summary
         ? `${prospectProfile.summary} This is a scouting-context read, not a proprietary film grade.`
         : `${playerName} has limited prospect context in this report payload, so the read is intentionally conservative.`,
+      traceItems: buildPlayerAiTraceItems(evidenceRead, details?.playerCohort?.trace || []),
       backgroundVariant: 'draft' as const,
     };
   }
@@ -3414,6 +3748,13 @@ function buildPlayerAiRead({
   }
   if (cohort?.seasonOutcomeReceipt?.displayEligible) {
     chips.push(formatSeasonOutcomeReceiptChip(cohort.seasonOutcomeReceipt));
+  }
+  if (cohort?.anomalyFlags?.length) {
+    const topFlag = cohort.anomalyFlags[0];
+    chips.push({
+      label: topFlag.label,
+      tone: topFlag.tone,
+    });
   }
   if (situationDelta) {
     chips.push(formatSituationDeltaLabel(situationDelta.primaryLabel));
@@ -3589,18 +3930,49 @@ function buildPlayerAiRead({
       : `${body} ${redraftHistoryContext.copy}`;
   }
 
+  const rawConfidence = Math.min(
+    cohort?.confidence ?? 100,
+    situationDelta?.confidence ?? 100,
+    valueProfile
+      ? Math.min(90, valueConfidence.score + 8 + (situationValueEvidence?.confidenceBoost || 0))
+      : Math.min(66, valueConfidence.score + 18 + (situationValueEvidence?.confidenceBoost || 0))
+  );
+  const evidenceRead = buildPlayerAiEvidenceRead({
+    playerName,
+    position,
+    team: details?.team || null,
+    currentRank,
+    currentValue,
+    readType,
+    severity,
+    rawConfidence,
+    valueMode,
+    valueProfile,
+    valueFraming,
+    valueConfidence,
+    details,
+    isCollegeProspect,
+    prospectProfile,
+    latestNews,
+    redraftHistoryContext,
+    leagueDiagnostics,
+  });
+  if (!evidenceRead.shouldRender) return null;
+  const traceItems = buildPlayerAiTraceItems(evidenceRead, [
+    ...(situationDelta?.dynamicSignals || []).map((signal) => `${signal.label}: ${signal.detail}`),
+    ...(situationDelta?.trace || []),
+    ...(cohort?.trace || []),
+  ]);
+
   return {
     title: `${playerName} AI read`,
     subtitle: isRedraft ? 'Current-season and lineup-context lens.' : 'Dynasty market, season profile, age curve, and availability lens.',
     readType,
-    confidence: Math.min(
-      cohort?.confidence ?? 100,
-      situationDelta?.confidence ?? 100,
-      valueProfile
-        ? Math.min(90, valueConfidence.score + 8 + (situationValueEvidence?.confidenceBoost || 0))
-        : Math.min(66, valueConfidence.score + 18 + (situationValueEvidence?.confidenceBoost || 0))
-    ),
+    confidence: evidenceRead.finalScore,
+    evidenceRead,
     confidenceNote: [
+      `Evidence ${evidenceRead.label}.`,
+      evidenceRead.confidenceCapReason ? `Confidence capped by ${evidenceRead.confidenceCapReason}.` : null,
       valueFraming.note,
       redraftHistoryContext?.confidenceNote || null,
       cohort?.calibration?.note || null,
@@ -3609,12 +3981,9 @@ function buildPlayerAiRead({
       situationDelta ? `Situation delta confidence ${situationDelta.confidence}; ${situationDelta.freshness?.note || 'freshness unavailable'} ${situationDelta.missingSignals.length ? `Missing ${situationDelta.missingSignals.slice(0, 2).join(' and ')}.` : 'First-pass inputs present.'}` : null,
     ].filter(Boolean).join(' '),
     severity,
-    chips,
-    body: renderPlayerAiReadBody(body, [
-      ...(situationDelta?.dynamicSignals || []).map((signal) => `${signal.label}: ${signal.detail}`),
-      ...(situationDelta?.trace || []),
-      ...(cohort?.trace || []),
-    ]),
+    chips: [getPlayerEvidenceChip(evidenceRead), ...chips],
+    body,
+    traceItems,
     backgroundVariant: severity === 'warn' ? 'market' as const : 'blueprint' as const,
   };
 }
@@ -3634,10 +4003,10 @@ function formatCohortOutcomeLabel(bucket: NonNullable<PlayerDetails['playerCohor
 
 function formatCohortEvidenceLabel(grade: NonNullable<PlayerDetails['playerCohort']>['calibration']['evidenceGrade']): AIReadChip {
   const labels: Record<typeof grade, { label: string; tone: 'neutral' | 'good' | 'info' | 'warn' | 'danger' }> = {
-    strong: { label: 'Strong evidence', tone: 'good' },
-    usable: { label: 'Usable evidence', tone: 'info' },
-    thin: { label: 'Thin evidence', tone: 'warn' },
-    blocked: { label: 'Blocked evidence', tone: 'danger' },
+    strong: { label: getVoicedAIConfidenceLabel(82), tone: 'good' },
+    usable: { label: getVoicedAIConfidenceLabel(67), tone: 'info' },
+    thin: { label: getVoicedAIConfidenceLabel(48), tone: 'warn' },
+    blocked: { label: 'Blocked receipts', tone: 'danger' },
   };
   return labels[grade] || { label: grade, tone: 'neutral' };
 }

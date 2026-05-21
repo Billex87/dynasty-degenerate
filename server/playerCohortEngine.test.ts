@@ -207,6 +207,127 @@ describe('player cohort engine', () => {
     expect(profiles.late.trace.join(' ')).toContain('Low draft capital usually means opportunity has to be earned quickly');
   });
 
+  it('flags unusual player anomaly cases for cautious AI receipts', () => {
+    const profiles = buildPlayerCohortProfiles({
+      playerDetailsById: {
+        ageRb: player({
+          fullName: 'Old Producer',
+          position: 'RB',
+          age: 29,
+          nflDraftRound: 2,
+          lastSeasonPointsPerGame: 18,
+          lastSeasonGames: 16,
+          valueProfile: {
+            dynastyValue: 3200,
+            marketKtc: 3200,
+            sources: ['KTC', 'FantasyCalc'],
+          },
+        }),
+        lateWr: player({
+          fullName: 'Late Breakout Receiver',
+          position: 'WR',
+          age: 27,
+          nflDraftRound: 6,
+          lastSeasonPointsPerGame: 16,
+          lastSeasonGames: 16,
+          valueProfile: {
+            dynastyValue: 3000,
+            marketKtc: 3000,
+            sources: ['KTC', 'FantasyCalc'],
+          },
+        }),
+        injuryRb: player({
+          fullName: 'Comeback Runner',
+          position: 'RB',
+          age: 25,
+          lastSeasonPointsPerGame: 16,
+          lastSeasonGames: 12,
+          avgGamesMissed: 4,
+          injuryHistory: {
+            season: '2025',
+            reportCount: 8,
+            missedOrLimitedCount: 5,
+            injuryTypes: ['ankle'],
+            note: 'Recurring ankle report signal.',
+          },
+          valueProfile: {
+            dynastyValue: 4200,
+            marketKtc: 4200,
+            sources: ['KTC', 'FantasyCalc'],
+          },
+        }),
+        spikeWr: player({
+          fullName: 'Four Game Spike',
+          position: 'WR',
+          age: 24,
+          lastSeasonPointsPerGame: 21,
+          lastSeasonGames: 4,
+          valueProfile: {
+            dynastyValue: 6200,
+            marketKtc: 6200,
+            sources: ['KTC', 'FantasyCalc'],
+          },
+        }),
+        roleWr: player({
+          fullName: 'Vacated Role Receiver',
+          position: 'WR',
+          age: 23,
+          nflDraftRound: 2,
+          lastSeasonPointsPerGame: 9,
+          lastSeasonGames: 16,
+          valueProfile: {
+            dynastyValue: 3300,
+            marketKtc: 3300,
+            sources: ['KTC', 'FantasyCalc'],
+          },
+          rosterRoom: {
+            source: 'nflverse rosters/weekly rosters/depth charts/trades',
+            season: '2026',
+            previousSeason: '2025',
+            team: 'KC',
+            position: 'WR',
+            currentCount: 5,
+            previousCount: 6,
+            netChange: -1,
+            additions: [],
+            losses: [],
+            rookieAdditions: [],
+            premiumAdditions: [],
+            depthChartTop: [{ name: 'Vacated Role Receiver', gsisId: '00-role', rank: 1, slot: 'WR1' }],
+            opportunityDelta: {
+              vacatedTargets: 165,
+              vacatedCarries: 2,
+              vacatedReceptions: 102,
+              vacatedFantasyPointsPpr: 275,
+              addedPriorTargets: 18,
+              addedPriorCarries: 0,
+              addedPriorReceptions: 10,
+              addedPriorFantasyPointsPpr: 42,
+              vacatedImpactScore: 88,
+              addedThreatScore: 10,
+              netOpportunityScore: 78,
+              qualitySignal: 'major-opening',
+              topVacatedPlayer: 'Departed Alpha',
+              topAddedThreat: 'Depth Signing',
+              note: 'KC WR net opportunity major-opening from Departed Alpha leaving 165 targets.',
+            },
+            competitionLevel: 'thin',
+            vacatedOpportunitySignal: 'opening',
+            note: 'KC WR room has a major opening.',
+          },
+        }),
+      },
+    });
+
+    expect(profiles.ageRb.anomalyFlags?.map(flag => flag.key)).toContain('age-curve-outlier');
+    expect(profiles.lateWr.anomalyFlags?.map(flag => flag.key)).toContain('late-breakout');
+    expect(profiles.injuryRb.anomalyFlags?.map(flag => flag.key)).toContain('injury-comeback');
+    expect(profiles.spikeWr.anomalyFlags?.map(flag => flag.key)).toContain('small-sample-spike');
+    expect(profiles.roleWr.anomalyFlags?.map(flag => flag.key)).toContain('role-driven-jump');
+    expect(profiles.spikeWr.calibration.cautionFlags).toContain('small-sample spike');
+    expect(profiles.roleWr.trace.join(' ')).toContain('Anomaly rules: Role-driven jump');
+  });
+
   it('flags JSN-style top returning receivers when vacated alpha volume creates a promotion window', () => {
     const profiles = buildPlayerCohortProfiles({
       playerDetailsById: {

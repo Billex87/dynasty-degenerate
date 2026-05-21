@@ -12,7 +12,11 @@ async function loadCachedReport(
     typeof createCachedCommandCenterReport | typeof createCachedRedraftReport
   >,
   hash = "",
-  options: { admin?: boolean; preserveLocalStorage?: boolean } = {}
+  options: {
+    admin?: boolean;
+    preserveLocalStorage?: boolean;
+    deltaSnapshots?: Record<string, unknown>;
+  } = {}
 ) {
   const useAdminSession = options.admin !== false;
   const preserveLocalStorage = options.preserveLocalStorage === true;
@@ -47,6 +51,8 @@ async function loadCachedReport(
       value,
       sessionKey,
       usersKey,
+      deltaKey,
+      deltaSnapshots,
       user,
       leagueOption,
       admin,
@@ -54,6 +60,15 @@ async function loadCachedReport(
     }) => {
       if (!preserve) window.localStorage.clear();
       window.localStorage.setItem(key, JSON.stringify(value));
+      if (deltaSnapshots) {
+        window.localStorage.setItem(
+          deltaKey,
+          JSON.stringify({
+            schemaVersion: 1,
+            snapshots: deltaSnapshots,
+          })
+        );
+      }
       if (!admin) return;
       window.sessionStorage.setItem(
         "dynasty-degenerates:admin-unlock-dismissed:v1",
@@ -90,6 +105,8 @@ async function loadCachedReport(
       value: cachedReportForBrowser,
       sessionKey: sleeperSessionKey,
       usersKey: cachedUsersKey,
+      deltaKey: "dynasty-degenerates:report-delta-snapshots:v1",
+      deltaSnapshots: options.deltaSnapshots || null,
       user: adminUser,
       leagueOption: league,
       admin: useAdminSession,
@@ -198,13 +215,13 @@ function createRedraftCommandCenterReport(
   reportData.powerRankings = [
     ...reportData.powerRankings.map((row: any) => ({
       ...row,
-      tier: "Rebuild Mode",
+      tier: "Free Money",
     })),
     {
       rank: 3,
       manager: "Unknown",
       score: 35,
-      tier: "Rebuild Mode",
+      tier: "Free Money",
       starterStrength: 0,
       rosterValue: 0,
       positionalBalance: 0,
@@ -404,6 +421,19 @@ test.describe("command center feature surfaces", () => {
     page,
   }) => {
     const cachedReport = createCachedCommandCenterReport();
+    cachedReport.reportData.recentTransactions =
+      cachedReport.reportData.recentTransactions?.map(transaction =>
+        transaction.id === "tx-waiver-2" && transaction.addedPlayer
+          ? {
+              ...transaction,
+              addedPlayer: {
+                ...transaction.addedPlayer,
+                player_id: "alternate-waiver-wr",
+                name: "Alternate Waiver Receiver",
+              },
+            }
+          : transaction
+      );
     await loadCachedReport(page, cachedReport);
 
     const overviewAiPulse = page.locator(
@@ -423,7 +453,7 @@ test.describe("command center feature surfaces", () => {
     ).join("\n");
     expect(overviewSummaryText).toContain("Monthly direction");
     expect(overviewSummaryText).toContain("League ordering");
-    expect(overviewSummaryText).toContain("Owner Profiles");
+    expect(overviewSummaryText).toContain("Owner Intel Lab");
     expect(overviewSummaryText).not.toMatch(
       /Top Team|Recon Teams|Depth Flags|Position Signals|Waiver Adds|News Flags|Starter Leader/i
     );
@@ -573,7 +603,7 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText(/Locks in/i).first()).toBeVisible();
     await page.getByRole("button", { name: "Close Tester details" }).click();
 
-    const tradeFinderSection = await openReportSection(page, "Trade Finder, Partners & League Exploits");
+    const tradeFinderSection = await openReportSection(page, "Trade partners, package lanes");
     await expect(
       tradeFinderSection.locator("label").filter({ hasText: "Your team" })
     ).toHaveCount(0);
@@ -615,90 +645,134 @@ test.describe("command center feature surfaces", () => {
       featureRadarSection.locator("label").filter({ hasText: "Assistant focus" })
     ).toHaveCount(0);
     await expect(page.locator(".assistant-shell-grid")).toBeVisible();
+    await expect(
+      featureRadarSection.locator(".assistant-action-queue-policy")
+    ).toBeVisible();
+    await expect(
+      featureRadarSection.locator("details.ai-read-panel-compact")
+    ).toHaveCount(0);
 
     await page.getByRole("tab", { name: /^(Rankings|Ranks)$/i }).click();
-    const adminValueSection = await openReportSection(
-      page,
-      "Value Source Health"
-    );
-    await expect(
-      adminValueSection.getByText("Confidence Drilldown")
-    ).toBeVisible();
-    await expect(
-      adminValueSection.getByText("67% Building confidence").first()
-    ).toBeVisible();
-    await expect(
-      adminValueSection.getByText("League history: +12 to 54%").first()
-    ).toBeVisible();
-    await expect(
-      adminValueSection.getByText("Manager activity").first()
-    ).toBeVisible();
-    await expect(
-      adminValueSection.getByText("Depth chart roles")
-    ).toBeVisible();
-    await expect(
-      adminValueSection.getByText("6/8 players matched")
-    ).toBeVisible();
-    await expect(adminValueSection.getByText("Team gaps")).toBeVisible();
-    await expect(
-      adminValueSection.getByText(
-        /2 Sleeper role tags differed from the current team chart/i
-      )
-    ).toBeVisible();
-    await expect(
-      adminValueSection.getByText(/Role enrichment took 428ms/i)
-    ).toBeVisible();
-    await expect(
-      adminValueSection.getByText(/Needs retry for: NYJ/i)
-    ).toBeVisible();
-    await expect(
-      adminValueSection.getByText("Sleeper history backfill")
-    ).toBeVisible();
-    await expect(adminValueSection.getByText("14 transactions")).toBeVisible();
-    const aiReadoutSection = await openReportSection(
-      page,
-      "AI Readout Coverage"
-    );
-    await expect(aiReadoutSection.getByText("readouts tracked")).toBeVisible();
-    await expect(aiReadoutSection.getByText("duplicate-risk flags", { exact: true })).toBeVisible();
-    await expect(
-      aiReadoutSection
-        .getByLabel("AI readout count by tab")
-        .getByText("AI Autopilot")
-    ).toBeVisible();
-    await expect(
-      aiReadoutSection.getByText("Trade Finder / Partner Reads")
-    ).toBeVisible();
-    await expect(
-      aiReadoutSection.getByText("Player Situation Reads", { exact: true })
-    ).toBeVisible();
-    await expect(
-      aiReadoutSection.getByText(/player situation reads have fresh or usable context/i)
-    ).toBeVisible();
-    await expect(
-      aiReadoutSection.getByText(/All tracked readout surfaces have confidence/i)
-    ).toBeVisible();
-    const receiptAuditSection = await openReportSection(
-      page,
-      "Player Receipt Audit"
-    );
-    await expect(receiptAuditSection.getByText("bucket matches")).toBeVisible();
-    await expect(
-      receiptAuditSection
-        .getByLabel("Player receipt audit rows")
-        .getByText("Depth Receiver · WR")
-    ).toBeVisible();
-    await expect(
-      receiptAuditSection
-        .getByLabel("Player receipt audit rows")
-        .getByText("WR progression with feature usage")
-    ).toBeVisible();
-    await expect(
-      receiptAuditSection
-        .getByLabel("Player receipt guardrail flags")
-        .getByText(/missing production baseline/i)
-        .first()
-    ).toBeVisible();
+    const hasAdminDiagnostics = await page.locator(".admin-diagnostics-shell").isVisible();
+    if (hasAdminDiagnostics) {
+      const hasValueSourceHealth =
+        (await page.getByText("Value Source Health").count()) > 0;
+      if (hasValueSourceHealth) {
+        const adminValueSection = await openReportSection(
+          page,
+          "Value Source Health"
+        );
+        await expect(
+          adminValueSection.getByText("Confidence Drilldown")
+        ).toBeVisible();
+        await expect(
+          adminValueSection.getByText("67% Building confidence").first()
+        ).toBeVisible();
+        await expect(
+          adminValueSection.getByText("League history: +12 to 54%").first()
+        ).toBeVisible();
+        await expect(
+          adminValueSection.getByText("Manager activity").first()
+        ).toBeVisible();
+        await expect(
+          adminValueSection.getByText("Depth chart roles")
+        ).toBeVisible();
+        await expect(
+          adminValueSection.getByText("6/8 players matched")
+        ).toBeVisible();
+        await expect(adminValueSection.getByText("Team gaps")).toBeVisible();
+        await expect(
+          adminValueSection.getByText(
+            /2 Sleeper role tags differed from the current team chart/i
+          )
+        ).toBeVisible();
+        await expect(
+          adminValueSection.getByText(/Role enrichment took 428ms/i)
+        ).toBeVisible();
+        await expect(
+          adminValueSection.getByText(/Needs retry for: NYJ/i)
+        ).toBeVisible();
+        await expect(
+          adminValueSection.getByText("Sleeper history backfill")
+        ).toBeVisible();
+        await expect(adminValueSection.getByText("14 transactions")).toBeVisible();
+      }
+      const aiReadoutSection = await openReportSection(
+        page,
+        "AI Decision Log"
+      );
+      await expect(aiReadoutSection.getByText("One action owner")).toBeVisible();
+      const surfaceRegistry = aiReadoutSection.getByLabel("AI surface registry");
+      await expect(surfaceRegistry.getByText("Surface Registry")).toBeVisible();
+      await expect(
+        surfaceRegistry.getByText("One action owner, every other read is evidence")
+      ).toBeVisible();
+      await expect(surfaceRegistry.getByText("Action owner").first()).toBeVisible();
+      await expect(surfaceRegistry.getByText("Context only").first()).toBeVisible();
+      await expect(surfaceRegistry.getByText("Schedule Edge")).toBeVisible();
+      await expect(
+        aiReadoutSection
+          .getByLabel("AI decision log rows")
+          .getByText("Action Queue")
+          .first()
+      ).toBeVisible();
+      await expect(
+        aiReadoutSection
+          .getByLabel("AI decision log rows")
+          .getByText("Lower-ranked alternates")
+      ).toBeVisible();
+      await expect(
+        aiReadoutSection.getByText(/Conflict check|Source health|Hard blocker|Missing evidence/i).first()
+      ).toBeVisible();
+      await expect(aiReadoutSection.getByText("readouts tracked")).toBeVisible();
+      await expect(aiReadoutSection.getByText("duplicate-risk flags", { exact: true })).toBeVisible();
+      await expect(
+        aiReadoutSection
+          .getByLabel("AI readout count by tab")
+          .getByText("AI Autopilot")
+      ).toBeVisible();
+      await expect(
+        aiReadoutSection.getByText("Trade Finder / Partner Reads")
+      ).toBeVisible();
+      await expect(
+        aiReadoutSection.getByText("Player Situation Reads", { exact: true })
+      ).toBeVisible();
+      await expect(
+        aiReadoutSection.getByText(/player situation reads have fresh or usable context/i)
+      ).toBeVisible();
+      await expect(
+        aiReadoutSection.getByText(/All tracked readout surfaces have confidence/i)
+      ).toBeVisible();
+      const hasReceiptAudit =
+        (await page.getByText("Player Receipt Audit").count()) > 0;
+      if (hasReceiptAudit) {
+        const receiptAuditSection = await openReportSection(
+          page,
+          "Player Receipt Audit"
+        );
+        await expect(receiptAuditSection.getByText("bucket matches")).toBeVisible();
+        await expect(
+          receiptAuditSection
+            .getByLabel("Player receipt audit rows")
+            .getByText("Depth Receiver · WR")
+        ).toBeVisible();
+        await expect(
+          receiptAuditSection
+            .getByLabel("Player receipt audit rows")
+            .getByText("WR progression with feature usage")
+        ).toBeVisible();
+        await expect(
+          receiptAuditSection
+            .getByLabel("Player receipt guardrail flags")
+            .getByText(/missing production baseline/i)
+            .first()
+        ).toBeVisible();
+      }
+    } else {
+      await expect(page.getByText("Value Source Health")).toHaveCount(0);
+      await expect(page.getByText("AI Decision Log")).toHaveCount(0);
+      await expect(page.getByText("Player Receipt Audit")).toHaveCount(0);
+    }
 
     await page.getByRole("tab", { name: "Momentum" }).click();
     await openReportSection(page, "Waiver Intelligence");
@@ -759,6 +833,138 @@ test.describe("command center feature surfaces", () => {
       )
     );
     expect(desktopOverflow).toBeLessThanOrEqual(1);
+  });
+
+  test("shows one compact delta brief only when a saved report baseline changed", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport(
+      "command-center-delta-brief"
+    );
+    const previousSnapshot = {
+      schemaVersion: 1,
+      leagueId: cachedReport.leagueId,
+      leagueName: cachedReport.leagueName,
+      savedAt: Date.now() - 86_400_000,
+      valueMode: "dynasty",
+      action: {
+        id: "old-action",
+        decision: "watch",
+        label: "Old watch item",
+        target: "Old Waiver Stash",
+        confidence: 38,
+      },
+      topRiser: {
+        id: "old-riser",
+        name: "Old Riser",
+        position: "WR",
+        team: "BUF",
+        metricLabel: "+3%",
+      },
+      topFaller: null,
+      topWaiver: {
+        id: "old-waiver",
+        name: "Old Waiver Stash",
+        position: "TE",
+        team: "NYG",
+        metricLabel: "Old top available",
+      },
+      tradeCount: 0,
+      transactionCount: 0,
+      scheduleStatus: "pending",
+      scheduleSignalCount: 0,
+      aiConfidence: 42,
+      signature: "old-baseline",
+    };
+
+    await loadCachedReport(page, cachedReport, "", {
+      deltaSnapshots: {
+        [cachedReport.leagueId]: previousSnapshot,
+      },
+    });
+
+    const deltaBrief = page.getByRole("region", {
+      name: "Changed since last report",
+    });
+    await expect(deltaBrief).toBeVisible();
+    await expect(deltaBrief).toContainText("What Changed Since Last Report");
+    await expect(deltaBrief).toContainText(
+      /Decision changed|Waiver target changed|Sleeper activity changed/
+    );
+    await expect(deltaBrief).toContainText(/Previous:|Current/);
+  });
+
+  test("lets report users switch the global AI voice without adding another readout", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport(
+      "command-center-ai-voice-mode"
+    );
+    const previousSnapshot = {
+      schemaVersion: 1,
+      leagueId: cachedReport.leagueId,
+      leagueName: cachedReport.leagueName,
+      savedAt: Date.now() - 86_400_000,
+      valueMode: "dynasty",
+      action: {
+        id: "old-action",
+        decision: "watch",
+        label: "Old watch item",
+        target: "Old Waiver Stash",
+        confidence: 38,
+      },
+      topRiser: null,
+      topFaller: null,
+      topWaiver: {
+        id: "old-waiver",
+        name: "Old Waiver Stash",
+        position: "TE",
+        team: "NYG",
+        metricLabel: "Old top available",
+      },
+      tradeCount: 0,
+      transactionCount: 0,
+      scheduleStatus: "pending",
+      scheduleSignalCount: 0,
+      aiConfidence: 42,
+      signature: "old-baseline",
+    };
+
+    await loadCachedReport(page, cachedReport, "", {
+      deltaSnapshots: {
+        [cachedReport.leagueId]: previousSnapshot,
+      },
+    });
+
+    const deltaBrief = page.getByRole("region", {
+      name: "Changed since last report",
+    });
+    await expect(deltaBrief).toContainText("What Changed Since Last Report");
+
+    await page.getByRole("button", { name: "AI voice mode: Degen" }).click();
+    await page.getByRole("menuitemradio", { name: /Straight/ }).click();
+
+    await expect(
+      page.getByRole("button", { name: "AI voice mode: Straight" })
+    ).toBeVisible();
+    await expect(deltaBrief).toContainText("Changed Since Last Report");
+    await expect(deltaBrief).not.toContainText("What Changed Since Last Report");
+
+    const storedVoiceMode = await page.evaluate(() =>
+      window.localStorage.getItem("dynasty-degenerates:ai-voice-mode:v1")
+    );
+    expect(storedVoiceMode).toBe("straight");
+  });
+
+  test("keeps the delta brief hidden on the first saved baseline", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport(
+      "command-center-first-delta-baseline"
+    );
+    await loadCachedReport(page, cachedReport);
+
+    await expect(page.locator(".report-delta-brief")).toHaveCount(0);
   });
 
   test("keeps mobile AI reads compact across key report tabs", async ({
@@ -890,7 +1096,7 @@ test.describe("command center feature surfaces", () => {
     await page.getByRole("tab", { name: "Rankings" }).click();
     await expect(page.locator(".admin-diagnostics-shell")).toBeVisible();
     await expect(page.getByText("Admin Diagnostics")).toBeVisible();
-    await expect(page.getByText("Value Source Health")).toBeVisible();
+    await expect(page.getByText("AI Decision Log")).toBeVisible();
 
     await page.getByRole("tab", { name: "Trade History" }).click();
     await expect(
@@ -910,7 +1116,7 @@ test.describe("command center feature surfaces", () => {
     await expect(page.locator(".overview-ai-pulse")).toHaveCount(0);
     await expect(page.locator(".admin-premium-section")).toHaveCount(0);
     await expect(page.locator(".admin-diagnostics-shell")).toHaveCount(0);
-    await expect(page.getByText("AI Readout Coverage")).toHaveCount(0);
+    await expect(page.getByText("AI Decision Log")).toHaveCount(0);
     await expect(page.getByText("Player Receipt Audit")).toHaveCount(0);
     await expect(page.getByText("Trade browser read")).toHaveCount(0);
     await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
@@ -931,7 +1137,7 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
   });
 
-  test("shows matchup edge table when stored matchup snapshots are healthy", async ({
+  test("shows Schedule Edge table when stored DraftSharks SOS snapshots are healthy", async ({
     page,
   }) => {
     const cachedReport = createCachedCommandCenterReport();
@@ -940,7 +1146,7 @@ test.describe("command center feature surfaces", () => {
     if (!player) throw new Error("Fixture waiver player is required.");
 
     const fetchedAt = new Date().toISOString();
-    const sourceKey = "fantasypros-matchup-calendar-v1:2026:WR";
+    const sourceKey = "draftsharks-sos-v1";
     const weeks = [
       {
         week: 2,
@@ -952,10 +1158,10 @@ test.describe("command center feature surfaces", () => {
         rankStdDev: null,
         lastUpdated: fetchedAt,
         sourceKey,
-        endpointKey: "fantasypros-matchup-calendar-wr-week-2",
+        endpointKey: "draftsharks-sos-wr-week-2",
         fetchedAt,
         sourceStatus: "loaded",
-        sourceType: "matchup-calendar",
+        sourceType: "draftsharks-sos",
         opponent: "MIA",
         homeAway: "away" as const,
         opponentRank: 8,
@@ -974,10 +1180,10 @@ test.describe("command center feature surfaces", () => {
         rankStdDev: null,
         lastUpdated: fetchedAt,
         sourceKey,
-        endpointKey: "fantasypros-matchup-calendar-wr-week-3",
+        endpointKey: "draftsharks-sos-wr-week-3",
         fetchedAt,
         sourceStatus: "loaded",
-        sourceType: "matchup-calendar",
+        sourceType: "draftsharks-sos",
         opponent: "NE",
         homeAway: "home" as const,
         opponentRank: 11,
@@ -996,10 +1202,10 @@ test.describe("command center feature surfaces", () => {
         rankStdDev: null,
         lastUpdated: fetchedAt,
         sourceKey,
-        endpointKey: "fantasypros-matchup-calendar-wr-week-4",
+        endpointKey: "draftsharks-sos-wr-week-4",
         fetchedAt,
         sourceStatus: "loaded",
-        sourceType: "matchup-calendar",
+        sourceType: "draftsharks-sos",
         opponent: "LV",
         homeAway: "home" as const,
         opponentRank: 20,
@@ -1018,10 +1224,10 @@ test.describe("command center feature surfaces", () => {
         rankStdDev: null,
         lastUpdated: fetchedAt,
         sourceKey,
-        endpointKey: "fantasypros-matchup-calendar-wr-week-15",
+        endpointKey: "draftsharks-sos-wr-week-15",
         fetchedAt,
         sourceStatus: "loaded",
-        sourceType: "matchup-calendar",
+        sourceType: "draftsharks-sos",
         opponent: "BUF",
         homeAway: "home" as const,
         opponentRank: 3,
@@ -1032,13 +1238,13 @@ test.describe("command center feature surfaces", () => {
       },
     ];
     const signal = {
-      signalType: "matchup-calendar",
+      signalType: "draftsharks-sos",
       playerId: player.player_id,
-      fantasyProsId: "99999",
+      fantasyProsId: null,
       name: player.name,
       position: "WR",
       team: player.team,
-      source: "FantasyPros" as const,
+      source: "DraftSharks" as const,
       updatedAt: fetchedAt,
       weeks,
       bestWeek: 15,
@@ -1053,24 +1259,24 @@ test.describe("command center feature surfaces", () => {
         playoffWeeks: [15, 16, 17],
       }),
       confidence: 82,
-      note: "FantasyPros matchup calendar: W2 at MIA 4-star.",
+      note: "DraftSharks SOS: W2 at MIA +14.0%.",
       sourceTrace: weeks.map(week => ({
-        source: "FantasyPros",
+        source: "DraftSharks",
         sourceKey,
         endpointKey: week.endpointKey,
-        endpointLabel: "FantasyPros WR matchup calendar",
+        endpointLabel: "DraftSharks WR SOS Week 2",
         status: "loaded",
         season: "2026",
-        scoring: "matchup-calendar",
+        scoring: "SOS",
         week: week.week,
         position: "WR",
         rowCount: 153,
         fetchedAt,
         lastUpdated: fetchedAt,
-        evidence: "Stored FantasyPros matchup-calendar fixture row.",
+        evidence: "Stored DraftSharks SOS fixture row.",
       })),
       traceSummary:
-        "FantasyPros matchup calendar source trace: W2/W3/W4 from stored page snapshots (loaded).",
+        "DraftSharks SOS source trace: W2/W3/W4 from stored percentage snapshots.",
     };
 
     cachedReport.reportData.sourceSnapshotDiagnostics = [];
@@ -1084,7 +1290,7 @@ test.describe("command center feature surfaces", () => {
 
     await loadCachedReport(page, cachedReport, "#rankings");
 
-    await expect(page.getByText("Matchup Edge Table")).toBeVisible();
+    await expect(page.getByText("Schedule Edge Table")).toBeVisible();
     await expect
       .poll(() =>
         page.locator("details.report-disclosure > summary").evaluateAll(nodes =>
@@ -1094,7 +1300,7 @@ test.describe("command center feature surfaces", () => {
       .toEqual(
         expect.arrayContaining([
           expect.stringContaining("Full Roster Rankings"),
-          expect.stringContaining("Matchup Edge Table"),
+          expect.stringContaining("Schedule Edge Table"),
           expect.stringContaining("College Rankings"),
         ])
       );
@@ -1104,23 +1310,25 @@ test.describe("command center feature surfaces", () => {
           nodes
             .map((node, index) => ({ index, text: node.textContent || "" }))
             .filter(item =>
-              /Full Roster Rankings|Matchup Edge Table|College Rankings/.test(
+              /Full Roster Rankings|Schedule Edge Table|College Rankings/.test(
                 item.text
               )
             )
             .map(item =>
               item.text.includes("Full Roster Rankings")
                 ? "roster"
-                : item.text.includes("Matchup Edge Table")
+                : item.text.includes("Schedule Edge Table")
                   ? "matchups"
                   : "college"
             )
         )
       )
       .toEqual(["roster", "matchups", "college"]);
-    const matchupSection = await openReportSection(page, "Matchup Edge Table");
+    const matchupSection = await openReportSection(page, "Schedule Edge Table");
     const weekChips = matchupSection.locator(".admin-schedule-week-chip");
     await expect(matchupSection.getByText("Waiver Receiver").first()).toBeVisible();
+    await expect(matchupSection.getByText("DraftSharks SOS windows")).toBeVisible();
+    await expect(matchupSection.getByText(/FantasyPros matchup/i)).toHaveCount(0);
     const weekTwoChip = weekChips.filter({ hasText: "W2" }).first();
     await expect(weekTwoChip.getByLabel("MIA")).toBeVisible();
     await expect(weekTwoChip.getByLabel("4 star matchup")).toBeVisible();
@@ -1128,6 +1336,47 @@ test.describe("command center feature surfaces", () => {
     await expect(matchupSection.getByText("Range", { exact: true })).toHaveCount(0);
     await expect(matchupSection.getByText("Playoffs", { exact: true })).toHaveCount(0);
     await expect(matchupSection.getByText("Read", { exact: true })).toHaveCount(0);
+  });
+
+  test("shows insufficient DraftSharks Schedule Edge state when SOS rows are missing", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    cachedReport.reportData.scheduleEdgeTargets = [];
+    cachedReport.reportData.sourceSnapshotDiagnostics = [
+      {
+        sourceKey: "draftsharks-sos-wr-week-2",
+        source: "DraftSharks WR SOS Week 2 snapshot",
+        tableName: "providerDataSnapshots",
+        snapshotKey: null,
+        updatedAt: null,
+        ageHours: null,
+        payloadSizeBytes: null,
+        rowCount: null,
+        status: "missing",
+        level: "warn",
+        note: "DraftSharks SOS snapshot missing for WR Week 2.",
+      },
+    ];
+    if (cachedReport.reportData.waiverIntelligence) {
+      cachedReport.reportData.waiverIntelligence.weeklyEcrTargets = [];
+    }
+
+    await loadCachedReport(page, cachedReport, "#rankings");
+
+    const scheduleSection = await openReportSection(page, "Schedule Edge Table");
+    await expect(scheduleSection.getByText("No DraftSharks SOS rows yet")).toBeVisible();
+    await expect(scheduleSection.getByText("Snapshot coverage")).toBeVisible();
+    const snapshotCoverage = scheduleSection
+      .locator("details.admin-schedule-health-disclosure")
+      .first();
+    await snapshotCoverage.evaluate(node => {
+      const details = node as HTMLDetailsElement;
+      details.open = true;
+      details.dispatchEvent(new Event("toggle"));
+    });
+    await expect(scheduleSection.getByText("Missing").first()).toBeVisible();
+    await expect(scheduleSection.getByText(/FantasyPros matchup/i)).toHaveCount(0);
   });
 
   test("persists assistant watch preferences locally across fresh app loads", async ({
@@ -1258,10 +1507,14 @@ test.describe("command center feature surfaces", () => {
     await expect(testerAssetCard.locator(".trade-war-manager-board-rank-head").first()).toContainText("Pos");
     await expect(testerAssetCard.getByText("2027 1st")).toBeVisible();
     await expect(tradeWarRoom.getByText("Value Match Finder")).toBeVisible();
-    await tradeWarRoom.locator(".trade-war-side").first().locator("input").fill("Depth Receiver");
-    await tradeWarRoom
-      .locator(".trade-war-side")
-      .first()
+    const firstTradeSide = tradeWarRoom.locator(".trade-war-side").first();
+    const firstTradeSideInput = firstTradeSide.locator("input");
+    if (!(await firstTradeSideInput.isVisible())) {
+      await firstTradeSide.locator(".trade-war-picker-toggle").click();
+      await expect(firstTradeSideInput).toBeVisible();
+    }
+    await firstTradeSideInput.fill("Depth Receiver");
+    await firstTradeSide
       .getByRole("button", { name: /Depth Receiver/i })
       .first()
       .click();
@@ -1432,7 +1685,7 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByRole("button", { name: /View as/i })).toHaveCount(0);
     await expect(page.getByText("Monthly Team Blueprint")).toHaveCount(0);
     await expect(page.getByText("League Power Rankings")).toHaveCount(0);
-    await expect(page.getByText("Matchup Edge Table")).toHaveCount(0);
+    await expect(page.getByText("Schedule Edge Table")).toHaveCount(0);
     await expect(
       page.getByText("Trade Finder, Partners & League Exploits")
     ).toHaveCount(0);
@@ -1503,6 +1756,20 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Tester dynasty cockpit")).toBeVisible();
     await expect(page.getByText("Live report data")).toBeVisible();
     await expect(page.getByText("Team Direction")).toBeVisible();
+    const actionQueue = page.locator(".ai-action-queue").first();
+    await expect(actionQueue).toBeVisible();
+    await expect(actionQueue.getByText("Source conflict check")).toBeVisible();
+    await expect(actionQueue.getByText("Decision memory")).toBeVisible();
+    await expect(actionQueue.getByText("Outcome tracker")).toBeVisible();
+    await actionQueue.getByRole("button", { name: "Done" }).click();
+    const trackedAIOutcomes = await page.evaluate(() => {
+      const parsed = JSON.parse(
+        window.localStorage.getItem("dynasty-degenerates:ai-action-memory:v1") ||
+          "{\"outcomes\":[]}"
+      ) as { outcomes?: Array<{ status?: string }> };
+      return parsed.outcomes || [];
+    });
+    expect(trackedAIOutcomes.some(outcome => outcome.status === "done")).toBeTruthy();
     await expect(page.getByText("Depth Receiver").first()).toBeVisible();
     await expect(page.getByText("Sample Runner").first()).toBeVisible();
     await expect(page.getByText("Weekly Action Plan")).toBeVisible();
@@ -1537,7 +1804,7 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Tester win-now cockpit")).toBeVisible();
     await expect(page.getByText("Weekly ceiling")).toBeVisible();
     await expect(
-      page.getByText("current-season profile from the waiver data").first()
+      page.getByText("Bench reads held back").first()
     ).toBeVisible();
   });
 

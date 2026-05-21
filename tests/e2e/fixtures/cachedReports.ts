@@ -1,5 +1,5 @@
 export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v25';
-export const REPORT_CACHE_DATA_VERSION = 'manager-identity-alias-v1';
+export const REPORT_CACHE_DATA_VERSION = 'draftsharks-sos-only-v1';
 
 function normalizeFixtureLeagueId(leagueId: string) {
   if (/^\d{8,24}$/.test(leagueId)) return leagueId;
@@ -870,8 +870,8 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
         { manager: 'Rival', tradeCount: 1, wins: 1, winPct: 100, profit: 800, avgGap: 800, favoritePartner: 'Tester', overpaysForPicks: false, overpaysForVeterans: false },
       ],
       powerRankings: [
-        { rank: 1, manager: 'Tester', score: 84, tier: 'Contender', starterStrength: 88, rosterValue: 91, positionalBalance: 74, draftCapital: 58, youthScore: 72, tradeEfficiency: 80 },
-        { rank: 2, manager: 'Rival', score: 70, tier: 'Reloading', starterStrength: 68, rosterValue: 82, positionalBalance: 56, draftCapital: 92, youthScore: 84, tradeEfficiency: 60 },
+        { rank: 1, manager: 'Tester', score: 84, tier: 'Heavyweight', starterStrength: 88, rosterValue: 91, positionalBalance: 74, draftCapital: 58, youthScore: 72, tradeEfficiency: 80 },
+        { rank: 2, manager: 'Rival', score: 70, tier: 'Meh', starterStrength: 68, rosterValue: 82, positionalBalance: 56, draftCapital: 92, youthScore: 84, tradeEfficiency: 60 },
       ],
       dynastyTimelines: [{ manager: 'Tester', contenderScore: 88, outlook2027: 78, agingRisk: 28, rebuildScore: 20, label: 'Contend' }],
       pickPortfolios: [

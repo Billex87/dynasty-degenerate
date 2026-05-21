@@ -18,6 +18,11 @@ type PremiumFxLayerProps = {
 };
 
 type ThreeModule = typeof import('three');
+type BrowserIdleHandle = number;
+type WindowWithIdleCallback = Window & {
+  requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => BrowserIdleHandle;
+  cancelIdleCallback?: (handle: BrowserIdleHandle) => void;
+};
 
 function shouldDisableFx() {
   if (typeof window === 'undefined') return true;
@@ -375,8 +380,10 @@ export function PremiumFxLayer({ variant, className = '', intensity = 'medium' }
     let handleResize: (() => void) | null = null;
     let renderer: import('three').WebGLRenderer | null = null;
     let scene: import('three').Scene | null = null;
+    let idleHandle: BrowserIdleHandle | null = null;
 
-    void import('three').then((THREE) => {
+    const startFx = () => {
+      void import('three').then((THREE) => {
       if (disposed) return;
 
       const config = getVariantConfig(variant);
@@ -530,9 +537,24 @@ export function PremiumFxLayer({ variant, className = '', intensity = 'medium' }
 
       return undefined;
     });
+    };
+
+    const idleWindow = window as unknown as WindowWithIdleCallback;
+    if (idleWindow.requestIdleCallback) {
+      idleHandle = idleWindow.requestIdleCallback(startFx, { timeout: 2600 });
+    } else {
+      idleHandle = window.setTimeout(startFx, 1200) as unknown as BrowserIdleHandle;
+    }
 
     return () => {
       disposed = true;
+      if (idleHandle) {
+        if (idleWindow.cancelIdleCallback) {
+          idleWindow.cancelIdleCallback(idleHandle);
+        } else {
+          window.clearTimeout(idleHandle);
+        }
+      }
       if (frameId) window.cancelAnimationFrame(frameId);
       resizeObserver?.disconnect();
       if (handleResize) window.removeEventListener('resize', handleResize);

@@ -3,6 +3,8 @@ import { filterCompletedFuturePickPortfolios } from "@shared/pickPortfolioFilter
 import type { ManagerIntelPlayer, PickPortfolio } from "@shared/types";
 import {
   buildTradeWarPackageIdeas,
+  getTradeWarAssetValue,
+  getTradeWarSearchResults,
   buildTradeWarValueMatchIdeas,
 } from "./TradeWarRoom";
 
@@ -10,6 +12,7 @@ type TradeWarAssetForTest = ManagerIntelPlayer & {
   manager: string;
   assetState: "roster" | "bench" | "taxi" | "reserve" | "pick";
   assetKind?: "player" | "pick";
+  pickRound?: number;
 };
 
 function asset(
@@ -78,6 +81,24 @@ describe("buildTradeWarPackageIdeas", () => {
 });
 
 describe("buildTradeWarValueMatchIdeas", () => {
+  it("uses the pick portfolio value before falling back to the round scale", () => {
+    const valuedFirst = asset("pick-a", "2027 Round 1", "Bill", 8100, {
+      pos: "PICK",
+      assetState: "pick",
+      assetKind: "pick",
+      pickRound: 1,
+    });
+    const fallbackFirst = asset("pick-b", "2027 Round 1", "Bill", 0, {
+      pos: "PICK",
+      assetState: "pick",
+      assetKind: "pick",
+      pickRound: 1,
+    });
+
+    expect(getTradeWarAssetValue(valuedFirst, "dynasty")).toBe(8100);
+    expect(getTradeWarAssetValue(fallbackFirst, "dynasty")).toBe(4500);
+  });
+
   it("suggests the closest single player or pick from the trade partner", () => {
     const target = asset("a1", "Depth Receiver", "Bill", 3000);
     const closePick = asset("pick-b", "2026 1st", "Rival", 2950, {
@@ -150,6 +171,35 @@ describe("buildTradeWarValueMatchIdeas", () => {
     });
 
     expect(ideas[0].assets.map(row => row.player_id)).toEqual(["b2"]);
+  });
+});
+
+describe("getTradeWarSearchResults", () => {
+  it("lets typed searches find players outside the current side manager", () => {
+    const currentSidePlayer = asset("a1", "Current WR", "Beaston", 5000);
+    const outsideRosterPlayer = asset(
+      "c1",
+      "Garrett Wilson",
+      "PurpleHaze",
+      6200
+    );
+    const opposingRosterPlayer = asset(
+      "b1",
+      "Garrett Wilson",
+      "GreenMachine",
+      6100
+    );
+
+    const results = getTradeWarSearchResults({
+      query: "garrett",
+      sideManager: "Beaston",
+      otherManager: "GreenMachine",
+      allAssets: [currentSidePlayer, outsideRosterPlayer, opposingRosterPlayer],
+      selectedAllIds: new Set([currentSidePlayer.player_id]),
+      mode: "dynasty",
+    });
+
+    expect(results.map(row => row.player_id)).toEqual(["c1"]);
   });
 });
 

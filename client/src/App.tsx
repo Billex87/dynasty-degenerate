@@ -10,6 +10,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 
 const ReportComponentShowcase = lazy(() => import("./pages/ReportComponentShowcase"));
+const LoaderKitPreview = lazy(() => import("./pages/LoaderKitPreview"));
 const LOCAL_TELEMETRY_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
 function shouldRenderVercelTelemetry() {
@@ -25,6 +26,11 @@ function Router() {
       <Route path={"/components"}>
         <Suspense fallback={<div className="min-h-screen bg-slate-950 text-slate-100" />}>
           <ReportComponentShowcase />
+        </Suspense>
+      </Route>
+      <Route path={"/loader-kit-preview"}>
+        <Suspense fallback={<div className="min-h-screen bg-slate-950 text-slate-100" />}>
+          <LoaderKitPreview />
         </Suspense>
       </Route>
       <Route path={"/404"} component={NotFound} />

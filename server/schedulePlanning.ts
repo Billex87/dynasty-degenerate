@@ -3,6 +3,7 @@ import { isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from './pl
 import type { KTCValues } from './reportGenerator';
 import { getDraftSharksScheduleProfile } from './draftSharksSchedule';
 import type { DraftSharksScheduleContext } from './draftSharksSchedule';
+import { normalizeNflTeamCode } from './nflTeamCodes';
 import type { MatchupPreview, PlayerScheduleProfile, SchedulePlanningSummary } from '../shared/types';
 
 type SchedulePosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
@@ -74,20 +75,8 @@ const NFL_2026_BYE_WEEK_BY_TEAM: Record<string, number> = {
   WAS: 7,
 };
 
-const TEAM_ALIASES: Record<string, string> = {
-  ARZ: 'ARI',
-  JAC: 'JAX',
-  LA: 'LAR',
-  OAK: 'LV',
-  SD: 'LAC',
-  STL: 'LAR',
-  WSH: 'WAS',
-};
-
 function normalizeTeam(team?: string | null): string | null {
-  const normalized = String(team || '').trim().toUpperCase();
-  if (!normalized || normalized === 'FA') return null;
-  return TEAM_ALIASES[normalized] || normalized;
+  return normalizeNflTeamCode(team);
 }
 
 function normalizePlayerId(value: string | number | null | undefined): string | null {

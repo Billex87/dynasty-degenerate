@@ -13,6 +13,16 @@ import type {
   WaiverWeeklyEcrWeek,
 } from "@shared/types";
 import { getShortTermMatchupOutlook } from "@shared/matchupWindows";
+import {
+  evaluateAIEvidence,
+  getAIEvidenceLeagueContextFromDiagnostics,
+  getAIEvidenceReceiptItems,
+  type AIEvidenceLeagueActivityContext,
+  type AIEvidenceMode,
+  type AIEvidenceResult,
+  type AISourceTrace,
+} from "@shared/aiEvidenceEngine";
+import { buildAIEvidenceLeagueActivityContext } from "@shared/leagueActivityContext";
 import { trpc } from "@/lib/trpc";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
 import { TeamLogoPill } from "../TeamLogoPill";
@@ -25,6 +35,7 @@ import {
 import { getPositionRankClass } from "@/lib/positionRank";
 import { getTeamTileStyle } from "@/lib/teamTileStyle";
 import { getBalancedGridStyle } from "@/lib/balancedGrid";
+import { getVoicedAIActionLabel } from "@/lib/aiVoice";
 import {
   buildPlayerModalData,
   formatCompactValue,
@@ -36,11 +47,17 @@ import {
 type OwnerIntelRow = NonNullable<ReportData["managerRosterIntelligence"]>[number];
 type CountPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 const COUNT_POSITIONS: CountPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
-const AI_RECOMMENDATION_BANNER_LABEL = "AI PICKUP SIGNAL";
+const AI_RECOMMENDATION_BANNER_LABEL = "AI PICKUP RECEIPTS";
 const AI_NEURAL_SURFACE_CLASS = "ai-neural-surface";
 
 function getAiNeuralSurfaceClass(theme = "neutral", extraClassName = "") {
-  return [AI_NEURAL_SURFACE_CLASS, `${AI_NEURAL_SURFACE_CLASS}-${theme}`, extraClassName]
+  return [
+    "ai-surface-r3f",
+    "ai-neural-surface-tron",
+    AI_NEURAL_SURFACE_CLASS,
+    `${AI_NEURAL_SURFACE_CLASS}-${theme}`,
+    extraClassName,
+  ]
     .filter(Boolean)
     .join(" ");
 }
@@ -474,6 +491,7 @@ type WaiverRecommendation = {
   player: TrendingPlayer;
   score: number;
   reason: string;
+  evidenceRead: AIEvidenceResult;
   label: string;
   targetPosition: WaiverPosition | null;
   bidRangeLabel: string;
@@ -509,8 +527,8 @@ type WaiverRecommendationContext = {
 
 const WAIVER_POSITIONS: WaiverPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
 const WAIVER_SPECIAL_TEAMS_POSITIONS = ["K", "DEF"] as const;
-const WAIVER_RECOMMENDATION_LIMIT = 4;
-const WAIVER_RECOMMENDATION_MINIMUM = 2;
+const WAIVER_RECOMMENDATION_LIMIT = 2;
+const WAIVER_RECOMMENDATION_MINIMUM = 1;
 export const VALUE_BLEND_HISTORY_START_LABEL = "May 7, 2026";
 export const FIRST_FULL_BLEND_WEEK_LABEL = "May 12, 2026 after the 6 PM scrape";
 
@@ -776,6 +794,15 @@ function getWaiverWeeklyEcrSignal(
   );
 }
 
+function isWaiverScheduleWindowSignal(
+  signal?: WaiverWeeklyEcrSignal | null
+): signal is WaiverWeeklyEcrSignal {
+  return Boolean(
+    signal &&
+      signal.signalType === "draftsharks-sos"
+  );
+}
+
 function normalizeWaiverDefenseLookup(value?: string | null): string {
   return String(value || "")
     .trim()
@@ -890,30 +917,31 @@ function formatWaiverWeeklyEcrWindow(
     ? signal.weeks.filter(week => windowWeeks.includes(week.week))
     : signal.weeks.slice(0, 3);
 
-  return rows
+  const formattedRows = rows
     .map(week => {
       if (week.isBye) return `W${week.week} BYE`;
       if (week.opponent || week.matchupStars || week.opponentRank) {
         const site =
           week.homeAway === "home"
-            ? "vs."
+            ? "vs"
             : week.homeAway === "away"
-              ? "at"
+              ? "@"
               : "";
         const opponent = week.opponent
           ? `${site} ${week.opponent}`.trim()
           : "opponent TBD";
         const stars =
           typeof week.matchupStars === "number"
-            ? `${week.matchupStars}-star`
-            : "unrated";
+            ? `${week.matchupStars}*`
+            : null;
         const rank =
           typeof week.opponentRank === "number" ? `#${week.opponentRank}` : null;
-        return `W${week.week} ${opponent} ${stars}${rank ? ` (${rank})` : ""}`;
+        return `W${week.week} ${[opponent, stars, rank].filter(Boolean).join(" ")}`;
       }
       return `W${week.week} ${week.positionRank || (week.rankEcr ? `Rank ${week.rankEcr}` : "ranked")}`;
-    })
-    .join(" / ");
+    });
+
+  return formattedRows.length ? `Next 3: ${formattedRows.join(" / ")}` : null;
 }
 
 function formatWaiverWeeklyEcrReason(
@@ -931,8 +959,8 @@ function formatWaiverWeeklyEcrReason(
         ? `improved ${signal.rankDelta} spots`
         : `slipped ${Math.abs(signal.rankDelta)} spots`
       : null;
-  const label = signal.signalType === "matchup-calendar"
-    ? "FantasyPros next-3 matchup window"
+  const label = signal.source === "DraftSharks" || signal.signalType === "draftsharks-sos"
+    ? "DraftSharks next-3 SOS window"
     : "FantasyPros next-3 rank window";
   return [bestRank ? `${label}: ${bestRank}` : null, window, playoffSummary, movement]
     .filter(Boolean)
@@ -947,9 +975,9 @@ function getWaiverWeeklyEcrRecommendationScore(
   if (!signal || !position) return 0;
   const rankLimit = WAIVER_WEEKLY_ECR_RANK_LIMITS[position];
   const bestRank = getWaiverWeeklyEcrRankNumber(signal) || signal.bestRankEcr || null;
-  if (!bestRank || bestRank > rankLimit) return 0;
-  const rankScore = Math.max(0, 860 - (bestRank / rankLimit) * 520);
-  if (isNonDynastyWaiverPosition(position) && signal.signalType === "matchup-calendar") {
+  if ((!bestRank || bestRank > rankLimit) && !isWaiverScheduleWindowSignal(signal)) return 0;
+  const rankScore = bestRank ? Math.max(0, 860 - (bestRank / rankLimit) * 520) : 0;
+  if (isNonDynastyWaiverPosition(position) && isWaiverScheduleWindowSignal(signal)) {
     const outlook = getShortTermMatchupOutlook(signal.matchupWindows);
     const next3 = signal.matchupWindows?.next3;
     const easyWeeks = next3?.easyWeeks ?? 0;
@@ -976,7 +1004,7 @@ function hasRoughSpecialTeamsMatchupStart(
   signal?: WaiverWeeklyEcrSignal | null
 ): boolean {
   return Boolean(
-    signal?.signalType === "matchup-calendar" &&
+    isWaiverScheduleWindowSignal(signal) &&
       getShortTermMatchupOutlook(signal.matchupWindows).isRoughStart
   );
 }
@@ -2045,7 +2073,246 @@ function getWaiverDropRead({
   };
 }
 
-function buildWaiverRecommendationContext({
+function getWaiverEvidenceSourceCount(
+  details?: PlayerDetails | null,
+  weeklyEcrSignal?: WaiverWeeklyEcrSignal | null
+): number {
+  const valueSources = details?.valueProfile?.sources || [];
+  const uniqueSources = new Set(valueSources.filter(Boolean));
+  if (weeklyEcrSignal) {
+    uniqueSources.add(
+      weeklyEcrSignal.source === "DraftSharks"
+        ? "DraftSharks SOS snapshot"
+        : "FantasyPros rank snapshot"
+    );
+  }
+  return uniqueSources.size;
+}
+
+function getLatestWaiverAvailabilityBlocker(
+  player: TrendingPlayer,
+  recentTransactions?: ReportData["recentTransactions"]
+): string | null {
+  const playerId = player.player_id;
+  if (!playerId || !recentTransactions?.length) return null;
+  const sorted = [...recentTransactions].sort((a, b) => {
+    const aDate = Date.parse(a.date);
+    const bDate = Date.parse(b.date);
+    return (Number.isFinite(aDate) ? aDate : 0) - (Number.isFinite(bDate) ? bDate : 0);
+  });
+  let latestAction: { type: "added" | "dropped"; manager: string | null } | null = null;
+  for (const transaction of sorted) {
+    if (transaction.addedPlayer?.player_id === playerId) {
+      latestAction = {
+        type: "added",
+        manager: transaction.manager || null,
+      };
+    }
+    if (transaction.droppedPlayer?.player_id === playerId) {
+      latestAction = {
+        type: "dropped",
+        manager: transaction.manager || null,
+      };
+    }
+  }
+  if (!latestAction) return null;
+  return latestAction.type === "added"
+    ? latestAction.manager || "another manager"
+    : null;
+}
+
+function normalizeAiSourceTraceStatus(
+  status?: string | null
+): AISourceTrace["status"] {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "loaded") return "loaded";
+  if (normalized === "stale") return "stale";
+  if (normalized === "missing") return "missing";
+  if (normalized === "error") return "error";
+  if (normalized) return "limited";
+  return undefined;
+}
+
+function getWaiverEvidenceSourceTrace({
+  details,
+  weeklyEcrSignal,
+  bidEvidenceLabel,
+}: {
+  details?: PlayerDetails | null;
+  weeklyEcrSignal?: WaiverWeeklyEcrSignal | null;
+  bidEvidenceLabel?: string | null;
+}): Array<string | AISourceTrace> {
+  const traces: Array<string | AISourceTrace> = [];
+  const valueSources = details?.valueProfile?.sources || [];
+  if (valueSources.length) {
+    traces.push(`${valueSources.length} value source${valueSources.length === 1 ? "" : "s"}: ${valueSources.slice(0, 3).join(", ")}`);
+  }
+  if (bidEvidenceLabel) traces.push(`Bid model: ${bidEvidenceLabel}`);
+  if (weeklyEcrSignal?.traceSummary) {
+    const traceLabel =
+      weeklyEcrSignal.source === "DraftSharks" ||
+      weeklyEcrSignal.signalType === "draftsharks-sos"
+        ? "DraftSharks SOS trace"
+        : "FantasyPros rank trace";
+    traces.push({
+      label: traceLabel,
+      status: "loaded",
+      detail: weeklyEcrSignal.traceSummary,
+    });
+  }
+  weeklyEcrSignal?.sourceTrace?.slice(0, 3).forEach(trace => {
+    traces.push({
+      label: trace.endpointLabel || trace.source || "Stored schedule source",
+      status: normalizeAiSourceTraceStatus(trace.status),
+      detail: [
+        trace.week ? `W${trace.week}` : null,
+        trace.rowCount ? `${trace.rowCount} rows` : null,
+        trace.evidence,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    });
+  });
+  return traces;
+}
+
+function buildWaiverEvidenceRead({
+  player,
+  details,
+  score,
+  targetPosition,
+  needWeight,
+  openRosterSpots,
+  dynastyValue,
+  seasonValue,
+  dynastyRank,
+  seasonRank,
+  weeklyEcrSignal,
+  competitionRead,
+  bidEvidenceLabel,
+  dropCandidate,
+  dropReason,
+  recentTransactions,
+  leagueDiagnostics,
+  leagueActivity,
+  leagueValueMode,
+}: {
+  player: TrendingPlayer;
+  details?: PlayerDetails | null;
+  score: number;
+  targetPosition: WaiverPosition | null;
+  needWeight: number;
+  openRosterSpots: number;
+  dynastyValue: number;
+  seasonValue: number;
+  dynastyRank?: string | null;
+  seasonRank?: string | null;
+  weeklyEcrSignal?: WaiverWeeklyEcrSignal | null;
+  competitionRead?: WaiverCompetitionRead | null;
+  bidEvidenceLabel?: string | null;
+  dropCandidate?: ManagerIntelPlayer | null;
+  dropReason?: string | null;
+  recentTransactions?: ReportData["recentTransactions"];
+  leagueDiagnostics?: ReportData["leagueDiagnostics"];
+  leagueActivity?: AIEvidenceLeagueActivityContext | null;
+  leagueValueMode: LeagueValueMode;
+}): AIEvidenceResult {
+  const isRedraft = leagueValueMode === "redraft";
+  const position = isWaiverPosition(player.pos) ? player.pos : targetPosition;
+  const value = isRedraft ? seasonValue || dynastyValue : dynastyValue || seasonValue;
+  const rank = isRedraft ? seasonRank || dynastyRank : dynastyRank || seasonRank;
+  const sourceCount = getWaiverEvidenceSourceCount(details, weeklyEcrSignal);
+  const weeklyRead = formatWaiverWeeklyEcrReason(weeklyEcrSignal);
+  const matchupOutlook =
+    isWaiverScheduleWindowSignal(weeklyEcrSignal)
+      ? getShortTermMatchupOutlook(weeklyEcrSignal.matchupWindows)
+      : null;
+  const recentlyAddedBy = getLatestWaiverAvailabilityBlocker(
+    player,
+    recentTransactions
+  );
+  const hasCurrentSeasonValue = seasonValue > 0 || Boolean(weeklyEcrSignal);
+  const hasDynastyValue = dynastyValue > 0;
+  const hasProspectOnlyValue = Boolean(
+    details?.prospectProfile &&
+      !hasCurrentSeasonValue &&
+      !hasDynastyValue
+  );
+  const signalModes: AIEvidenceMode[] = [
+    isRedraft && hasCurrentSeasonValue ? "redraft" : null,
+    hasCurrentSeasonValue ? "current" : null,
+    !isRedraft && hasDynastyValue ? "dynasty" : null,
+    weeklyEcrSignal ? "schedule" : null,
+    player.count ? "market" : null,
+    details?.prospectProfile ? "prospect" : null,
+  ].filter((item): item is AIEvidenceMode => Boolean(item));
+
+  return evaluateAIEvidence({
+    surface: "waiver",
+    action: position === "K" || position === "DEF" ? "stream" : "pickup",
+    leagueValueMode,
+    leagueContext: getAIEvidenceLeagueContextFromDiagnostics(
+      leagueDiagnostics,
+      leagueValueMode
+    ),
+    leagueActivity,
+    baseScore: Math.min(100, score / 38),
+    evidence: [
+      needWeight > 0 && position
+        ? `${position} matches the roster need profile.`
+        : null,
+      rank ? `${rank} rank is attached to this recommendation.` : null,
+      value > 0 ? `${formatCompactValue(value)} ${isRedraft ? "season" : "market"} value is attached.` : null,
+      player.count ? `${formatCompactValue(player.count)} trend signal from add/drop activity.` : null,
+      weeklyRead,
+      competitionRead?.reason,
+      dropCandidate
+        ? `${dropCandidate.name} is the suggested drop path.`
+        : openRosterSpots > 0
+          ? "Active roster space is available."
+          : null,
+      dropReason,
+    ].filter((item): item is string => Boolean(item)),
+    missingEvidence: [
+      rank ? null : "No trusted positional rank is attached.",
+      sourceCount ? null : "No value source count is attached.",
+      position === "K" || position === "DEF"
+        ? weeklyEcrSignal
+          ? null
+          : "No short-window schedule source is attached."
+        : null,
+    ].filter((item): item is string => Boolean(item)),
+    sourceTrace: getWaiverEvidenceSourceTrace({
+      details,
+      weeklyEcrSignal,
+      bidEvidenceLabel,
+    }),
+    signalModes,
+    player: {
+      name: player.name,
+      position: position || player.pos,
+      team: details?.team || player.team,
+      owner: player.owner,
+      rosterStatus: details?.rosterStatus || details?.displayStatus || null,
+      recentlyAddedBy,
+      value,
+      sourceCount,
+      hasCurrentSeasonValue,
+      hasDynastyValue,
+      hasProspectOnlyValue,
+    },
+    schedule: {
+      hasScheduleData: Boolean(weeklyEcrSignal?.matchupWindows || weeklyEcrSignal?.weeks?.length),
+      isRoughStart: Boolean(matchupOutlook?.isRoughStart),
+      isStrongStart: Boolean(matchupOutlook?.isStrongStart),
+      missingReason: "No stored matchup window is attached to this streamer read.",
+    },
+    confidenceCap: 94,
+    confidenceCapReason: null,
+  });
+}
+
+export function buildWaiverRecommendationContext({
   data,
   leagueId,
   viewerManager,
@@ -2149,14 +2416,14 @@ function buildWaiverRecommendationContext({
         ? getWaiverDynastyValue(player, playerDetailsById)
         : 0;
       const seasonValue = getWaiverSeasonValue(player, playerDetailsById);
-      const dynastyRankNumber = isDynastyLeague
-        ? parsePositionRankValue(
-            getWaiverDynastyRank(player, playerDetailsById)
-          )
+      const dynastyRank = isDynastyLeague
+        ? getWaiverDynastyRank(player, playerDetailsById)
         : null;
-      const seasonRankNumber = parsePositionRankValue(
-        getWaiverSeasonRank(player, playerDetailsById)
-      );
+      const seasonRank = getWaiverSeasonRank(player, playerDetailsById);
+      const dynastyRankNumber = isDynastyLeague
+        ? parsePositionRankValue(dynastyRank)
+        : null;
+      const seasonRankNumber = parsePositionRankValue(seasonRank);
       const age = details?.age ?? null;
       const rookieYear = Number(details?.rookieYear || 0);
       const currentYear = new Date().getFullYear();
@@ -2212,7 +2479,7 @@ function buildWaiverRecommendationContext({
         leagueValueMode
       );
       const matchupOutlook =
-        weeklyEcrSignal?.signalType === "matchup-calendar"
+        isWaiverScheduleWindowSignal(weeklyEcrSignal)
           ? getShortTermMatchupOutlook(weeklyEcrSignal.matchupWindows)
           : null;
       const matchupGuardScore = matchupOutlook?.isRoughStart
@@ -2267,10 +2534,50 @@ function buildWaiverRecommendationContext({
         ),
         leagueValueMode,
       });
+      const reason = buildWaiverRecommendationReason({
+        player,
+        playerDetailsById,
+        targetPosition: pos,
+        needWeight,
+        openRosterSpots,
+        specialTeamsUpgradeReason: isSpecialTeamsUpgrade
+          ? specialTeamsUpgrade?.reason
+          : defensePairingAdd && defensePairingPlan
+            ? defensePairingPlan.title
+            : null,
+        weeklyEcrSignal,
+        leagueValueMode,
+      });
+      const evidenceRead = buildWaiverEvidenceRead({
+        player,
+        details,
+        score,
+        targetPosition: pos,
+        needWeight,
+        openRosterSpots,
+        dynastyValue,
+        seasonValue,
+        dynastyRank,
+        seasonRank,
+        weeklyEcrSignal,
+        competitionRead,
+        bidEvidenceLabel: bidRead.bidEvidenceLabel,
+        dropCandidate: dropRead.dropCandidate,
+        dropReason: dropRead.dropReason,
+        recentTransactions,
+        leagueDiagnostics,
+        leagueActivity: buildAIEvidenceLeagueActivityContext({
+          leagueDiagnostics,
+          recentTransactions,
+          waiverIntelligence: data,
+        }),
+        leagueValueMode,
+      });
 
       return {
         player,
         score,
+        evidenceRead,
         label: getWaiverRecommendationLabel(
           player,
           playerDetailsById,
@@ -2281,23 +2588,10 @@ function buildWaiverRecommendationContext({
         ...bidRead,
         ...dropRead,
         weeklyEcrSignal,
-        reason: buildWaiverRecommendationReason({
-          player,
-          playerDetailsById,
-          targetPosition: pos,
-          needWeight,
-          openRosterSpots,
-          specialTeamsUpgradeReason: isSpecialTeamsUpgrade
-            ? specialTeamsUpgrade?.reason
-            : defensePairingAdd && defensePairingPlan
-              ? defensePairingPlan.title
-            : null,
-          weeklyEcrSignal,
-          leagueValueMode,
-        }),
+        reason,
       };
     })
-    .filter(item => item.score > 0)
+    .filter(item => item.score > 0 && item.evidenceRead.shouldRender && item.evidenceRead.label !== "thin")
     .sort((a, b) => b.score - a.score)
     .slice(0, recommendationLimit);
 
@@ -2329,11 +2623,15 @@ function buildWaiverRecommendationContext({
       const competitionCopy = recommendation.competitionRead
         ? `${recommendation.competitionRead.manager} is the top competing-claim risk`
         : "no strong competing-claim risk returned";
-      return `${recommendation.player.name}: ${recommendation.reason} (${bidCopy}; ${competitionCopy})`;
+      const decisionLabel = getVoicedAIActionLabel(
+        recommendation.evidenceRead.canAct ? "Do this" : "Watch only",
+        recommendation.evidenceRead.canAct ? "do" : "watch"
+      );
+      return `${recommendation.player.name}: ${decisionLabel} - ${recommendation.reason} (${recommendation.evidenceRead.label}; ${bidCopy}; ${competitionCopy})`;
     })
     .join(" Next: ");
   const summary = recommendations.length
-    ? `${openSpotCopy}${irSpotCopy} Signal read: ${featuredRecommendationCopy}. ${targetCopy}`
+    ? `${openSpotCopy}${irSpotCopy} Pickup receipts: ${featuredRecommendationCopy}. ${targetCopy}`
     : null;
 
   return {
@@ -2588,8 +2886,11 @@ export default function WaiverIntelligencePanel({
       {aiTargetCards.length > 0 && (
         <div className="waiver-ai-target-strip">
           <div className="waiver-ai-target-strip-head">
-            <span>AI Targets</span>
-            <strong>{aiTargetCards.length} dynasty read{aiTargetCards.length === 1 ? "" : "s"}</strong>
+            <span>Waiver Decision</span>
+            <strong>
+              {aiTargetCards.length} {isRedraft ? "redraft" : "dynasty"} read
+              {aiTargetCards.length === 1 ? "" : "s"}
+            </strong>
           </div>
           <div className="waiver-ai-target-row">
             {aiTargetCards.map(recommendation => {
@@ -2613,6 +2914,9 @@ export default function WaiverIntelligencePanel({
               );
               const submittedPlan = storedActionPlans.some(
                 plan => plan.id === waiverPlanId && plan.kind === "waiver"
+              );
+              const receiptItems = getAIEvidenceReceiptItems(
+                recommendation.evidenceRead
               );
 
               return (
@@ -2654,11 +2958,22 @@ export default function WaiverIntelligencePanel({
                     />
                   </button>
                   <div className="waiver-ai-target-read">
+                    <div className="waiver-ai-target-verdict">
+                      <span className={`waiver-ai-evidence-label waiver-ai-evidence-label-${recommendation.evidenceRead.label.replace(/\s+/g, "-")}`}>
+                        {recommendation.evidenceRead.label}
+                      </span>
+                      <strong>
+                        {recommendation.evidenceRead.canAct
+                          ? "Do this"
+                          : "Don't add yet"}
+                      </strong>
+                    </div>
                     <p>{recommendation.reason}</p>
                     <div className="waiver-ai-target-facts">
                       <span>
-                        <em>Bid</em>
+                        <em>League bid range</em>
                         <strong>{recommendation.bidRangeLabel}</strong>
+                        <small>{recommendation.bidEvidenceLabel}</small>
                       </span>
                       <span>
                         <em>{recommendation.claimPriority}</em>
@@ -2687,6 +3002,10 @@ export default function WaiverIntelligencePanel({
                             ? `${recommendation.competitionRead.manager}: ${recommendation.competitionRead.bidHint}`
                             : "Likely quiet"}
                         </strong>
+                        <small>
+                          {recommendation.competitionRead?.reason ||
+                            "No strong competing-claim signal returned."}
+                        </small>
                       </span>
                       {weeklyEcrSignal && (
                         <span>
@@ -2697,6 +3016,16 @@ export default function WaiverIntelligencePanel({
                         </span>
                       )}
                     </div>
+                    {receiptItems.length > 0 && (
+                      <details className="waiver-ai-evidence-receipts">
+                        <summary>Receipts</summary>
+                        <ul>
+                          {receiptItems.slice(0, 6).map(item => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
                     <button
                       type="button"
                       className="waiver-intel-submit-plan waiver-ai-target-save"
@@ -2707,7 +3036,9 @@ export default function WaiverIntelligencePanel({
                             leagueId,
                             manager: viewerManager,
                             recommendation,
-                            status: "submitted",
+                            status: recommendation.evidenceRead.canAct
+                              ? "submitted"
+                              : "tracked",
                           })
                         );
                         const bidHistoryItem = createWaiverBidHistoryItem({
@@ -2719,10 +3050,14 @@ export default function WaiverIntelligencePanel({
                           persistStoredWaiverBidHistory(bidHistoryItem);
                       }}
                     >
-                      {submittedPlan ? "Plan saved" : "Save plan"}
+                      {submittedPlan
+                        ? "Plan saved"
+                        : recommendation.evidenceRead.canAct
+                          ? "Save plan"
+                          : "Track only"}
                       <span>
-                        {recommendation.bidConfidencePct}% bid /{" "}
-                        {recommendation.dropConfidencePct}% drop
+                        {recommendation.evidenceRead.finalScore}% evidence /{" "}
+                        {recommendation.bidConfidencePct}% bid
                       </span>
                     </button>
                   </div>
@@ -2853,6 +3188,7 @@ export default function WaiverIntelligencePanel({
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
         playerDetailsById={playerDetailsById}
+        leagueDiagnostics={leagueDiagnostics}
       />
     </div>
   );

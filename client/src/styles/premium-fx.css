@@ -315,6 +315,27 @@
   width: 1.28rem;
   height: 0.78rem;
   border-color: rgba(255, 247, 237, 0.62);
+  background:
+    linear-gradient(
+      90deg,
+      transparent 10%,
+      rgba(255, 247, 237, 0.74) 11%,
+      rgba(255, 247, 237, 0.74) 14%,
+      transparent 15%,
+      transparent 85%,
+      rgba(255, 247, 237, 0.74) 86%,
+      rgba(255, 247, 237, 0.74) 89%,
+      transparent 90%
+    ),
+    linear-gradient(
+      90deg,
+      transparent 43%,
+      rgba(255, 247, 237, 0.9) 44%,
+      rgba(255, 247, 237, 0.9) 56%,
+      transparent 57%
+    ),
+    radial-gradient(circle at 32% 34%, rgba(251, 191, 36, 0.5), transparent 34%),
+    linear-gradient(135deg, #6f341a, #c96a2a 48%, #3b1b0f 88%);
   box-shadow:
     0 0 0.2rem rgba(255, 247, 237, 0.44) inset,
     0 0 0.95rem rgba(251, 146, 60, 0.62),

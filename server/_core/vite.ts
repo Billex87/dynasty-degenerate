@@ -60,6 +60,19 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
+  app.use((req, res, next) => {
+    const requestedStaticAsset =
+      req.path.startsWith("/assets/") ||
+      /\.(?:css|js|mjs|map|json|png|jpe?g|gif|svg|webp|ico|txt|woff2?)$/i.test(req.path);
+
+    if (requestedStaticAsset) {
+      res.status(404).end();
+      return;
+    }
+
+    next();
+  });
+
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));

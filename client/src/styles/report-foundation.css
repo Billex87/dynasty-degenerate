@@ -69,7 +69,7 @@
 
 .report-intro-gradient-title {
   display: block;
-  background: linear-gradient(90deg, #fb923c, #fbbf24, #fb923c);
+  background: var(--dd-orange-title-gradient, linear-gradient(90deg, #c2410c 0%, #fb923c 22%, #fdba74 52%, #fb923c 78%, #c2410c 100%));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -1001,7 +1001,7 @@
 
 .admin-schedule-edge-table {
   width: 100%;
-  min-width: 56rem;
+  min-width: 64rem;
   border-collapse: separate;
   border-spacing: 0 0.48rem;
 }
@@ -1100,6 +1100,34 @@
   gap: 0.08rem;
 }
 
+.admin-schedule-player-rankline {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.admin-schedule-player-rank-pill {
+  min-width: 2.1rem;
+  justify-content: center;
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.14);
+  padding: 0.14rem 0.42rem;
+  color: #e0f2fe;
+  font-size: 0.64rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.admin-schedule-player-rank-source,
+.admin-schedule-rank-source {
+  color: #67e8f9;
+  font-size: 0.58rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .admin-schedule-player-logo.team-logo-pill,
 .admin-schedule-opponent-logo.team-logo-pill {
   width: 1.72rem;
@@ -1170,6 +1198,71 @@
 
 .admin-schedule-edge-weeks-cell {
   min-width: 20rem;
+}
+
+.admin-schedule-decision-cell {
+  min-width: 11rem;
+}
+
+.admin-schedule-edge-table .admin-schedule-evidence-label {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.34rem;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.76);
+  padding: 0.22rem 0.44rem;
+  color: #cbd5e1;
+  font-size: 0.58rem;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.admin-schedule-edge-table .admin-schedule-evidence-label-actionable,
+.admin-schedule-edge-table .admin-schedule-evidence-label-priority,
+.admin-schedule-edge-table .admin-schedule-evidence-label-high-conviction {
+  border-color: rgba(52, 211, 153, 0.28);
+  color: #bbf7d0;
+}
+
+.admin-schedule-edge-table .admin-schedule-evidence-label-watchlist {
+  border-color: rgba(34, 211, 238, 0.24);
+  color: #cffafe;
+}
+
+.admin-schedule-edge-table .admin-schedule-evidence-label-blocked,
+.admin-schedule-edge-table .admin-schedule-evidence-label-thin {
+  border-color: rgba(251, 191, 36, 0.28);
+  color: #fde68a;
+}
+
+.admin-schedule-evidence-receipts {
+  margin-top: 0.42rem;
+}
+
+.admin-schedule-evidence-receipts summary {
+  color: #67e8f9;
+  cursor: pointer;
+  font-size: 0.6rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.admin-schedule-evidence-receipts ul {
+  display: grid;
+  gap: 0.26rem;
+  margin: 0.42rem 0 0;
+  padding-left: 1rem;
+}
+
+.admin-schedule-evidence-receipts li {
+  color: #cbd5e1;
+  font-size: 0.64rem;
+  font-weight: 760;
+  line-height: 1.32;
 }
 
 .admin-schedule-week-chip-list {
@@ -1325,7 +1418,7 @@
   }
 
   .admin-schedule-edge-table {
-    min-width: 52rem;
+    min-width: 60rem;
   }
 }
 
@@ -1542,6 +1635,362 @@
   text-align: center;
 }
 
+.admin-ai-surface-registry {
+  display: grid;
+  gap: 0.72rem;
+  border-top: 1px solid rgba(34, 211, 238, 0.14);
+  padding-top: 0.76rem;
+}
+
+.admin-ai-surface-registry-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 24rem);
+  gap: 0.72rem;
+  align-items: start;
+}
+
+.admin-ai-surface-registry-head > div:first-child {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.admin-ai-surface-registry-head span,
+.admin-ai-surface-registry-row-head span {
+  color: #67e8f9;
+  font-size: 0.56rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.admin-ai-surface-registry-head strong {
+  color: #fff7ed;
+  font-size: 1rem;
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+.admin-ai-surface-registry-head p,
+.admin-ai-surface-registry-body p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.74rem;
+  font-weight: 780;
+  line-height: 1.38;
+}
+
+.admin-ai-surface-registry-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.44rem;
+}
+
+.admin-ai-surface-registry-metrics span {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0.76rem;
+  background: rgba(2, 6, 23, 0.5);
+  padding: 0.54rem 0.42rem;
+  text-align: center;
+}
+
+.admin-ai-surface-registry-metrics strong {
+  color: #67e8f9;
+  font-size: 1.06rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.admin-ai-surface-registry-metrics em {
+  color: #cbd5e1;
+  font-size: 0.54rem;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.12;
+  text-transform: uppercase;
+}
+
+.admin-ai-surface-registry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 0.62rem;
+}
+
+.admin-ai-surface-registry-row {
+  display: grid;
+  gap: 0.56rem;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0.82rem;
+  background: rgba(2, 6, 23, 0.54);
+  padding: 0.72rem;
+}
+
+.admin-ai-surface-registry-row-action-owner {
+  border-color: rgba(52, 211, 153, 0.3);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(52, 211, 153, 0.1), transparent 34%),
+    rgba(2, 6, 23, 0.58);
+}
+
+.admin-ai-surface-registry-row-hidden {
+  border-color: rgba(251, 191, 36, 0.24);
+}
+
+.admin-ai-surface-registry-row-merge {
+  border-color: rgba(251, 113, 133, 0.32);
+}
+
+.admin-ai-surface-registry-row-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.24rem 0.5rem;
+  align-items: start;
+}
+
+.admin-ai-surface-registry-row-head span {
+  grid-column: 1 / -1;
+}
+
+.admin-ai-surface-registry-row-head strong {
+  min-width: 0;
+  color: #f8fafc;
+  font-size: 0.86rem;
+  font-weight: 950;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.admin-ai-surface-registry-row-head em {
+  justify-self: end;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.28);
+  padding: 0.24rem 0.46rem;
+  color: #cffafe;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.admin-ai-surface-registry-body {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.admin-ai-surface-registry-receipts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.34rem;
+  min-width: 0;
+}
+
+.admin-ai-surface-registry-receipts span {
+  display: inline-flex;
+  max-width: 100%;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  padding: 0.22rem 0.46rem;
+  color: #dbeafe;
+  font-size: 0.61rem;
+  font-weight: 880;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.admin-ai-decision-log {
+  display: grid;
+  gap: 0.72rem;
+  border-top: 1px solid rgba(34, 211, 238, 0.14);
+  padding-top: 0.76rem;
+}
+
+.admin-ai-decision-log-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 24rem);
+  gap: 0.72rem;
+  align-items: start;
+}
+
+.admin-ai-decision-log-head > div:first-child {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.admin-ai-decision-log-head span,
+.admin-ai-decision-log-row-head span,
+.admin-ai-decision-log-lists span {
+  color: #67e8f9;
+  font-size: 0.56rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.admin-ai-decision-log-head strong {
+  color: #fff7ed;
+  font-size: 1rem;
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+.admin-ai-decision-log-head p,
+.admin-ai-decision-log-row p,
+.admin-ai-decision-log-lists p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.74rem;
+  font-weight: 780;
+  line-height: 1.38;
+}
+
+.admin-ai-decision-log-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.44rem;
+}
+
+.admin-ai-decision-log-metrics span {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0.76rem;
+  background: rgba(2, 6, 23, 0.5);
+  padding: 0.54rem 0.42rem;
+  text-align: center;
+}
+
+.admin-ai-decision-log-metrics strong {
+  color: #67e8f9;
+  font-size: 1.06rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.admin-ai-decision-log-metrics em {
+  color: #cbd5e1;
+  font-size: 0.54rem;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.12;
+  text-transform: uppercase;
+}
+
+.admin-ai-decision-log-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 0.62rem;
+}
+
+.admin-ai-decision-log-row {
+  display: grid;
+  gap: 0.56rem;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0.82rem;
+  background: rgba(2, 6, 23, 0.54);
+  padding: 0.72rem;
+}
+
+.admin-ai-decision-log-row-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.24rem 0.5rem;
+  align-items: start;
+}
+
+.admin-ai-decision-log-row-head span {
+  grid-column: 1 / -1;
+}
+
+.admin-ai-decision-log-row-head strong {
+  min-width: 0;
+  color: #f8fafc;
+  font-size: 0.86rem;
+  font-weight: 950;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.admin-ai-decision-log-row-head em {
+  justify-self: end;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.28);
+  padding: 0.24rem 0.46rem;
+  color: #cffafe;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.admin-ai-decision-log-receipts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.34rem;
+  min-width: 0;
+}
+
+.admin-ai-decision-log-receipts span {
+  display: inline-flex;
+  max-width: 100%;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  padding: 0.22rem 0.46rem;
+  color: #dbeafe;
+  font-size: 0.61rem;
+  font-weight: 880;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.admin-ai-decision-log-lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 0.45rem;
+}
+
+.admin-ai-decision-log-lists div {
+  display: grid;
+  gap: 0.26rem;
+  min-width: 0;
+  border-left: 2px solid rgba(34, 211, 238, 0.18);
+  padding-left: 0.52rem;
+}
+
+@media (max-width: 640px) {
+  .admin-ai-surface-registry-head,
+  .admin-ai-surface-registry-row-head,
+  .admin-ai-decision-log-head,
+  .admin-ai-decision-log-row-head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-ai-surface-registry-metrics,
+  .admin-ai-decision-log-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-ai-surface-registry-row-head em,
+  .admin-ai-decision-log-row-head em {
+    justify-self: start;
+    white-space: normal;
+  }
+}
+
 .admin-traffic-panel {
   width: min(100%, 62rem);
   margin-inline: auto;
@@ -1735,6 +2184,22 @@
 
 .admin-traffic-row-warn {
   border-color: rgba(251, 191, 36, 0.2);
+}
+
+.admin-traffic-row-good,
+.admin-traffic-row-success {
+  border-color: rgba(52, 211, 153, 0.18);
+}
+
+.admin-traffic-row-info {
+  border-color: rgba(34, 211, 238, 0.18);
+}
+
+.admin-ai-calibration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
 }
 
 .admin-traffic-row strong,
@@ -2437,6 +2902,7 @@
   --chart-4: var(--color-blue-700);
   --chart-5: var(--color-blue-800);
   --radius: 0.65rem;
+  --dd-orange-title-gradient: linear-gradient(90deg, #c2410c 0%, #fb923c 22%, #fdba74 52%, #fb923c 78%, #c2410c 100%);
   --background: oklch(1 0 0);
   --foreground: oklch(0.235 0.015 65);
   --card: oklch(1 0 0);
@@ -2648,7 +3114,7 @@
   }
 
   .home-header-tagline {
-    background: linear-gradient(90deg, #fb923c 0%, #fdba74 45%, #fde68a 100%);
+    background: var(--dd-orange-title-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -2673,7 +3139,7 @@
 
   .home-header-slogan {
     margin: 0;
-    background: linear-gradient(90deg, #fb923c 0%, #fdba74 100%);
+    background: var(--dd-orange-title-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -2851,7 +3317,7 @@
   }
 
   .home-header-title {
-    background: linear-gradient(90deg, #fb923c 0%, #fdba74 45%, #fde68a 100%);
+    background: var(--dd-orange-title-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -3329,6 +3795,32 @@
     color: #fff7ed;
   }
 
+  .report-footer .report-ai-voice-trigger {
+    border-color: rgba(34, 211, 238, 0.34) !important;
+    background:
+      radial-gradient(circle at 12% 18%, rgba(34, 211, 238, 0.18), transparent 34%),
+      radial-gradient(circle at 88% 14%, rgba(249, 115, 22, 0.22), transparent 38%),
+      rgba(2, 6, 23, 0.72) !important;
+    box-shadow:
+      0 0 0 1px rgba(34, 211, 238, 0.08),
+      0 16px 34px rgba(8, 47, 73, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .report-footer .report-ai-voice-trigger svg {
+    color: #67e8f9;
+    filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.36));
+  }
+
+  .report-footer .report-ai-voice-trigger:hover,
+  .report-footer .report-ai-voice-trigger:focus-visible {
+    border-color: rgba(34, 211, 238, 0.55) !important;
+    background:
+      radial-gradient(circle at 12% 18%, rgba(34, 211, 238, 0.25), transparent 34%),
+      radial-gradient(circle at 88% 14%, rgba(249, 115, 22, 0.28), transparent 38%),
+      rgba(15, 23, 42, 0.82) !important;
+  }
+
   .feedback-dialog {
     display: grid;
     width: min(calc(100vw - 2rem), 30rem) !important;
@@ -3352,7 +3844,7 @@
   }
 
   .feedback-dialog-title {
-    background: linear-gradient(90deg, #fb923c, #fdba74);
+    background: var(--dd-orange-title-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -4167,7 +4659,7 @@
 
   .loading-gradient-text,
   .loading-title-league {
-    background: linear-gradient(90deg, #fb923c 0%, #fdba74 52%, #fde047 100%);
+    background: var(--dd-orange-title-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -5377,7 +5869,7 @@
   }
 
   .report-header-action-label {
-    background: linear-gradient(90deg, #fb923c, #fdba74, #fb923c);
+    background: var(--dd-orange-title-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -5391,7 +5883,7 @@
   }
 
   .report-header-action:hover .report-header-action-label {
-    background: linear-gradient(90deg, #fdba74, #fff7ed, #fb923c);
+    background: var(--dd-orange-title-gradient);
     -webkit-background-clip: text;
     background-clip: text;
   }
@@ -6662,10 +7154,38 @@
     color: #86efac;
   }
 
+  .command-depth-subtitle-dynasty {
+    border-color: rgba(250, 204, 21, 0.42);
+    background: rgba(113, 63, 18, 0.38);
+    color: #fde68a;
+  }
+
+  .command-depth-subtitle-contender {
+    border-color: rgba(52, 211, 153, 0.36);
+    background: rgba(6, 78, 59, 0.4);
+    color: #86efac;
+  }
+
+  .command-depth-subtitle-contender-gold {
+    border-color: rgba(52, 211, 153, 0.44);
+    background: rgba(6, 78, 59, 0.42);
+    color: #facc15;
+    text-shadow: 0 0 12px rgba(250, 204, 21, 0.34);
+  }
+
+  .command-depth-subtitle-rebuilder {
+    border-color: rgba(168, 85, 247, 0.44);
+    background: rgba(88, 28, 135, 0.38);
+    color: #f0abfc;
+  }
+
   .command-depth-subtitle-elite {
-    border-color: rgba(132, 204, 22, 0.36);
-    background: rgba(63, 98, 18, 0.4);
-    color: #bef264;
+    border-color: rgba(168, 85, 247, 0.46);
+    background:
+      radial-gradient(circle at 18% 0%, rgba(250, 204, 21, 0.22), transparent 58%),
+      rgba(76, 29, 149, 0.44);
+    color: #facc15;
+    text-shadow: 0 0 14px rgba(250, 204, 21, 0.38);
   }
 
   .command-depth-subtitle-warn {
@@ -7803,10 +8323,38 @@
     color: #86efac;
   }
 
+  .manager-command-team-type-dynasty {
+    border-color: rgba(250, 204, 21, 0.42);
+    background: rgba(113, 63, 18, 0.38);
+    color: #fde68a;
+  }
+
+  .manager-command-team-type-contender {
+    border-color: rgba(52, 211, 153, 0.36);
+    background: rgba(6, 78, 59, 0.4);
+    color: #86efac;
+  }
+
+  .manager-command-team-type-contender-gold {
+    border-color: rgba(52, 211, 153, 0.44);
+    background: rgba(6, 78, 59, 0.42);
+    color: #facc15;
+    text-shadow: 0 0 12px rgba(250, 204, 21, 0.34);
+  }
+
+  .manager-command-team-type-rebuilder {
+    border-color: rgba(168, 85, 247, 0.44);
+    background: rgba(88, 28, 135, 0.38);
+    color: #f0abfc;
+  }
+
   .manager-command-team-type-elite {
-    border-color: rgba(132, 204, 22, 0.36);
-    background: rgba(63, 98, 18, 0.42);
-    color: #bef264;
+    border-color: rgba(168, 85, 247, 0.5);
+    background:
+      radial-gradient(circle at 18% 0%, rgba(250, 204, 21, 0.24), transparent 58%),
+      rgba(76, 29, 149, 0.46);
+    color: #facc15;
+    text-shadow: 0 0 14px rgba(250, 204, 21, 0.38);
   }
 
   .manager-command-team-type-warn {
@@ -10146,6 +10694,10 @@
     overflow: visible;
   }
 
+  .player-value-chart-area {
+    pointer-events: none;
+  }
+
   .player-value-chart-point {
     cursor: pointer;
     outline: none;
@@ -10154,6 +10706,17 @@
   .player-value-chart-point:focus-visible {
     stroke: rgba(103, 232, 249, 0.9);
     stroke-width: 3;
+  }
+
+  .player-value-chart-hit-target {
+    pointer-events: all;
+  }
+
+  .player-value-chart-marker {
+    pointer-events: none;
+    transition:
+      opacity 140ms ease,
+      r 140ms ease;
   }
 
   .player-value-timeline-chart-footer {
@@ -11997,6 +12560,52 @@
     gap: 0.56rem;
   }
 
+  .waiver-ai-target-verdict {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .waiver-ai-target-verdict strong {
+    color: #f8fafc;
+    font-size: 0.68rem;
+    font-weight: 950;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .waiver-ai-evidence-label {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.68);
+    padding: 0.24rem 0.46rem;
+    color: #bfdbfe;
+    font-size: 0.55rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .waiver-ai-evidence-label-actionable,
+  .waiver-ai-evidence-label-priority,
+  .waiver-ai-evidence-label-high-conviction {
+    border-color: rgba(52, 211, 153, 0.34);
+    background: rgba(6, 78, 59, 0.36);
+    color: #bbf7d0;
+  }
+
+  .waiver-ai-evidence-label-watchlist {
+    border-color: rgba(251, 191, 36, 0.34);
+    background: rgba(120, 53, 15, 0.32);
+    color: #fde68a;
+  }
+
   .waiver-ai-target-read p {
     display: -webkit-box;
     margin: 0;
@@ -12043,6 +12652,49 @@
     font-weight: 950;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .waiver-ai-target-facts small {
+    display: -webkit-box;
+    min-width: 0;
+    overflow: hidden;
+    color: #cbd5e1;
+    font-size: 0.58rem;
+    font-weight: 750;
+    line-height: 1.25;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .waiver-ai-evidence-receipts {
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 0.68rem;
+    background: rgba(2, 6, 23, 0.38);
+    padding: 0.42rem 0.5rem;
+  }
+
+  .waiver-ai-evidence-receipts summary {
+    cursor: pointer;
+    color: #67e8f9;
+    font-size: 0.58rem;
+    font-weight: 950;
+    letter-spacing: 0.1em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .waiver-ai-evidence-receipts ul {
+    display: grid;
+    gap: 0.28rem;
+    margin: 0.42rem 0 0;
+    padding-left: 1rem;
+  }
+
+  .waiver-ai-evidence-receipts li {
+    color: #cbd5e1;
+    font-size: 0.65rem;
+    font-weight: 750;
+    line-height: 1.3;
   }
 
   .waiver-ai-target-save {

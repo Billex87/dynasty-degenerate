@@ -15,10 +15,12 @@ describe('buildAutopilotData', () => {
     expect(data.dataStatus).toBeUndefined();
     expect(data.headline).toBe('Long-range roster command');
     expect(data.waivers[0]?.player).toBe('Blake Corum');
+    expect(data.actionQueue[0]?.label).toBe('Do this now');
   });
 
   it('builds a dynasty cockpit from live report data', () => {
     const reportData = createCachedCommandCenterReport().reportData;
+    reportData.recentTransactions = [];
 
     const data = buildAutopilotData({
       reportData,
@@ -38,6 +40,16 @@ describe('buildAutopilotData', () => {
     expect(data.lineup[0]?.player).toBe('Sample Quarterback');
     expect(data.waivers[0]?.player).toBe('Waiver Receiver');
     expect(data.trades.some((recommendation) => recommendation.player === 'Sample Runner')).toBe(true);
+    expect(data.actionQueue[0]).toMatchObject({
+      decision: 'do',
+      label: 'Do this now',
+    });
+    expect(data.actionQueue[0]?.changeTriggers.length).toBeGreaterThan(0);
+    expect(data.actionQueue[0]?.changeTriggers.join(' ')).toMatch(/blocker|confidence|partner|ownership|threshold|trade|pickup|lineup/i);
+    expect(data.actionQueue.filter((item) => item.decision === 'do')).toHaveLength(1);
+    expect(data.actionQueue.map((item) => item.source)).toEqual(
+      expect.arrayContaining(['lineup', 'trade']),
+    );
     expect(data.weeklyPlan?.starterToReview?.player).toBe('Sample Tight End');
     expect(data.weeklyPlan?.options.map((option) => option.player)).toEqual(['Replacement Tight End']);
     expect(data.weeklyPlan?.options.map((option) => option.player)).not.toEqual(expect.arrayContaining(['Sample Quarterback', 'Sample Receiver']));
@@ -80,8 +92,34 @@ describe('buildAutopilotData', () => {
     expect(JSON.stringify(data.waivers)).not.toContain('Dallen Bentley');
   });
 
+  it('does not promote stale available waiver players already added in transactions', () => {
+    const reportData = createCachedCommandCenterReport().reportData;
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    expect(JSON.stringify(data.waivers)).not.toContain('Waiver Receiver');
+    expect(JSON.stringify(data.waivers)).not.toContain('Blake Corum');
+    expect(JSON.stringify(data.actionQueue)).not.toContain('Waiver Receiver');
+    expect(JSON.stringify(data.actionQueue)).not.toContain('Blake Corum');
+  });
+
   it('downranks D/ST waiver targets with rough early matchup windows', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.leagueDiagnostics = {
+      ...reportData.leagueDiagnostics!,
+      starterSlots: [
+        ...(reportData.leagueDiagnostics?.starterSlots || []),
+        'DEF',
+      ],
+      rosterSlots: [
+        ...(reportData.leagueDiagnostics?.rosterSlots || []),
+        'DEF',
+      ],
+    };
     const makeDefense = (
       player_id: string,
       name: string,
@@ -117,13 +155,13 @@ describe('buildAutopilotData', () => {
         currentPositionRank: rank,
       };
       const signal: WaiverWeeklyEcrSignal = {
-        signalType: 'matchup-calendar',
+        signalType: 'draftsharks-sos',
         playerId: player_id,
-        fantasyProsId: player_id,
+        fantasyProsId: null,
         name,
         position: 'DEF',
         team,
-        source: 'FantasyPros',
+        source: 'DraftSharks',
         updatedAt: '2026-09-08T18:00:00.000Z',
         weeks,
         bestWeek: 1,
@@ -171,11 +209,15 @@ describe('buildAutopilotData', () => {
     });
 
     expect(data.waivers[0]?.player).toBe('Streaming Defense');
-    expect(JSON.stringify(data.waivers)).toContain('Rough matchup guard');
+    expect(JSON.stringify(data.waivers)).not.toContain('Los Angeles Rams');
+    expect(data.actionQueue[0]?.target).toBe('Streaming Defense');
+    expect(data.actionQueue[0]?.changeTriggers.join(' ')).toContain('DraftSharks');
+    expect(JSON.stringify(data.actionQueue)).not.toContain('Los Angeles Rams');
   });
 
   it('switches the recommendation lens for redraft mode', () => {
     const reportData = createCachedCommandCenterReport().reportData;
+    reportData.recentTransactions = [];
 
     const data = buildAutopilotData({
       reportData,
@@ -190,7 +232,8 @@ describe('buildAutopilotData', () => {
       'Floor safety',
       'Bench utility',
     ]);
-    expect(data.waivers[0]?.summary).toContain('current-season profile');
+    expect(data.waivers[0]?.summary).toContain('current-season waiver case');
+    expect(data.waivers[0]?.summary).not.toContain('stash');
     expect(data.trades.some((recommendation) => recommendation.summary.includes('weekly starter'))).toBe(true);
   });
 
@@ -349,6 +392,11 @@ describe('buildAutopilotData', () => {
     expect(data.waivers.every((recommendation) => recommendation.confidence <= cap)).toBe(true);
     expect(data.trades.every((recommendation) => recommendation.confidence <= cap)).toBe(true);
     expect(data.projections.every((projection) => projection.confidence <= cap)).toBe(true);
+    expect(data.actionQueue[0]).toMatchObject({
+      decision: 'hold',
+      label: 'No move is best',
+    });
+    expect(data.actionQueue[0]?.changeTriggers.join(' ')).toContain('clear the action threshold');
     expect(data.systemRead[0]).toMatchObject({
       label: 'League AI confidence',
       value: 34,

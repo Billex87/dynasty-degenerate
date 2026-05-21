@@ -1,4 +1,4 @@
-import { useId, type CSSProperties, type ReactNode } from 'react';
+import { useId, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   BarChart3,
   Box,
@@ -12,7 +12,13 @@ import {
   Users,
 } from 'lucide-react';
 import { AITronSurface, type AITronDensity, type AITronTheme } from '@/components/AITronSurface';
+import { buildAIReadDecision, type AIReadDecision } from '@/lib/aiReadDecision';
+import {
+  getVoicedAIConfidenceLabel,
+  getVoicedAIReadDecision,
+} from '@/lib/aiVoice';
 import { cn } from '@/lib/utils';
+import type { AIEvidenceResult } from '@shared/aiEvidenceEngine';
 
 export type AIReadSeverity = 'neutral' | 'good' | 'info' | 'warn' | 'danger';
 export type AIReadBackgroundVariant =
@@ -45,6 +51,9 @@ export interface AIReadPanelProps {
   readType?: string;
   confidence?: number | null;
   confidenceNote?: string | null;
+  decision?: string | AIReadDecision | null;
+  evidenceRead?: AIEvidenceResult | null;
+  hideDecision?: boolean;
   traceLabel?: string;
   traceItems?: string[];
   severity?: AIReadSeverity;
@@ -53,6 +62,7 @@ export interface AIReadPanelProps {
   actions?: AIReadAction[];
   compact?: boolean;
   mobileDefaultOpen?: boolean;
+  quietMode?: boolean;
   backgroundVariant?: AIReadBackgroundVariant;
   className?: string;
 }
@@ -63,47 +73,108 @@ function normalizeConfidence(value?: number | null) {
 }
 
 function getConfidenceLabel(value: number): string {
-  if (value >= 78) return 'Strong evidence';
-  if (value >= 62) return 'Building evidence';
-  if (value >= 46) return 'Thin evidence';
-  return 'Low evidence';
+  return getVoicedAIConfidenceLabel(value);
 }
 
 function getDefaultConfidenceNote(value: number): string {
-  if (value >= 78) return 'Strong signal mix, but still dependent on fresh league and source data.';
-  if (value >= 62) return 'Usable read with some source or league-memory gaps.';
-  if (value >= 46) return 'Treat this as directional until more league/source evidence lands.';
-  return 'Low-confidence read; verify before acting on it.';
+  if (value >= 78) return 'Strong source mix.';
+  if (value >= 62) return 'Usable source mix.';
+  if (value >= 46) return 'Directional read.';
+  return 'Verify before acting.';
 }
 
-function renderChip(chip: AIReadChip) {
+function renderChip(chip: AIReadChip, index: number) {
   const label = typeof chip === 'string' ? chip : chip.label;
   const tone = typeof chip === 'string' ? 'neutral' : chip.tone || 'neutral';
 
   return (
-    <span key={label} className={cn('ai-read-chip', `ai-read-chip-${tone}`)}>
+    <span key={`${label}-${tone}-${index}`} className={cn('ai-read-chip', `ai-read-chip-${tone}`)}>
       {label}
     </span>
   );
 }
 
-function getMobileTakeawayText({
-  body,
-  subtitle,
-  confidenceNote,
+function getVisibleTraceItems(traceItems?: string[]) {
+  return (traceItems || [])
+    .map(item => item.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function getVisibleDecisionForPanel({
+  props,
+  severity,
+  visibleTraceItems,
 }: {
-  body: ReactNode;
-  subtitle?: string;
-  confidenceNote?: string | null;
-}) {
-  const source =
-    typeof body === 'string'
-      ? body
-      : subtitle || confidenceNote || '';
-  const normalized = source.replace(/\s+/g, ' ').trim();
-  if (!normalized) return null;
-  if (normalized.length <= 142) return normalized;
-  return `${normalized.slice(0, 139).trim()}...`;
+  props: AIReadPanelProps;
+  severity: AIReadSeverity;
+  visibleTraceItems: string[];
+}): AIReadDecision | null {
+  if (props.hideDecision) return null;
+  const normalizedConfidence = normalizeConfidence(props.confidence);
+  const displayedConfidenceNote =
+    normalizedConfidence === null ? null : props.confidenceNote || getDefaultConfidenceNote(normalizedConfidence);
+
+  return buildAIReadDecision({
+    decision: props.decision,
+    evidenceRead: props.evidenceRead,
+    confidence: normalizedConfidence,
+    confidenceNote: displayedConfidenceNote,
+    severity,
+    hasEnabledAction: Boolean(props.actions?.some(action => action.onClick && !action.disabled)),
+    hasEvidenceHints: Boolean(visibleTraceItems.length || props.chips?.length),
+  });
+}
+
+function hasUsefulQuietEvidence({
+  props,
+  visibleTraceItems,
+}: {
+  props: AIReadPanelProps;
+  visibleTraceItems: string[];
+}): boolean {
+  const evidence = props.evidenceRead;
+  const hasWarnChip = Boolean(props.chips?.some(chip => typeof chip !== 'string' && (chip.tone === 'warn' || chip.tone === 'danger')));
+  const hasBadTrace = Boolean(evidence?.sourceTrace?.some(trace =>
+    trace.status === 'missing' ||
+    trace.status === 'stale' ||
+    trace.status === 'error' ||
+    trace.status === 'limited'
+  ));
+
+  return Boolean(
+    visibleTraceItems.length ||
+      evidence?.hardBlockers?.length ||
+      evidence?.missingEvidence?.length ||
+      evidence?.confidenceCapReason ||
+      hasBadTrace ||
+      hasWarnChip ||
+      props.actions?.some(action => action.onClick && !action.disabled)
+  );
+}
+
+function shouldRenderAIReadPanel({
+  props,
+  severity,
+}: {
+  props: AIReadPanelProps;
+  severity: AIReadSeverity;
+}): boolean {
+  if (props.quietMode === false) return true;
+
+  const visibleTraceItems = getVisibleTraceItems(props.traceItems);
+  const decision = getVisibleDecisionForPanel({ props, severity, visibleTraceItems });
+  const label = decision?.label.toLowerCase() || '';
+  const isBinaryDecision =
+    label.includes('do this') ||
+    label.includes('do not') ||
+    label.includes('insufficient') ||
+    label.includes('no move') ||
+    label.includes('blocked');
+  if (isBinaryDecision) return true;
+
+  if (decision?.tone === 'go' || decision?.tone === 'stop' || decision?.tone === 'thin') return true;
+  return hasUsefulQuietEvidence({ props, visibleTraceItems });
 }
 
 function getAITronTheme(variant: AIReadBackgroundVariant, severity: AIReadSeverity): AITronTheme {
@@ -269,6 +340,9 @@ function AIReadPanelContent({
   readType,
   confidence,
   confidenceNote,
+  decision,
+  evidenceRead,
+  hideDecision = false,
   traceLabel = 'Why this fired',
   traceItems,
   severity = 'info',
@@ -280,10 +354,31 @@ function AIReadPanelContent({
   const normalizedConfidence = normalizeConfidence(confidence);
   const displayedConfidenceNote =
     normalizedConfidence === null ? null : confidenceNote || getDefaultConfidenceNote(normalizedConfidence);
-  const visibleTraceItems = (traceItems || [])
-    .map(item => item.replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-    .slice(0, 4);
+  const visibleTraceItems = getVisibleTraceItems(traceItems);
+  const visibleDecision = getVisibleDecisionForPanel({
+    props: {
+      title,
+      subtitle,
+      readType,
+      confidence,
+      confidenceNote,
+      decision,
+      evidenceRead,
+      hideDecision,
+      traceLabel,
+      traceItems,
+      severity,
+      chips,
+      body,
+      actions,
+      backgroundVariant,
+    },
+    severity,
+    visibleTraceItems,
+  });
+  const voicedDecision = visibleDecision
+    ? getVoicedAIReadDecision(visibleDecision)
+    : null;
 
   const ReadIcon = getAIReadIcon(title, backgroundVariant);
 
@@ -308,30 +403,34 @@ function AIReadPanelContent({
         </div>
 
         {normalizedConfidence !== null && (
-          <div className="ai-read-confidence" aria-label={`AI confidence ${normalizedConfidence}%`}>
+          <div
+            className="ai-read-confidence"
+            aria-label={`AI confidence ${normalizedConfidence}%`}
+            title={displayedConfidenceNote || undefined}
+          >
             <span>{getConfidenceLabel(normalizedConfidence)}</span>
             <strong>{normalizedConfidence}%</strong>
             <em>
               <i style={{ width: `${normalizedConfidence}%` }} />
             </em>
-            {displayedConfidenceNote && <small>{displayedConfidenceNote}</small>}
           </div>
         )}
       </div>
+
+      {voicedDecision && (
+        <div className={cn('ai-read-decision', `ai-read-decision-${voicedDecision.tone || 'watch'}`)}>
+          <span>{voicedDecision.status || 'Decision'}</span>
+          <strong>{voicedDecision.label}</strong>
+          {voicedDecision.detail && <em>{voicedDecision.detail}</em>}
+        </div>
+      )}
 
       {chips?.length ? <div className="ai-read-chip-row">{chips.map(renderChip)}</div> : null}
 
       <div className="ai-read-body">{typeof body === 'string' ? <p>{body}</p> : body}</div>
 
       {visibleTraceItems.length ? (
-        <div className="ai-read-trace">
-          <strong className="ai-read-trace-kicker">{traceLabel}</strong>
-          <ul className="ai-read-trace-list">
-            {visibleTraceItems.map(item => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
+        <AIReadTrace label={traceLabel} items={visibleTraceItems} />
       ) : null}
 
       {actions?.length ? (
@@ -349,6 +448,35 @@ function AIReadPanelContent({
         </div>
       ) : null}
     </>
+  );
+}
+
+function AIReadTrace({
+  label,
+  items,
+}: {
+  label: string;
+  items: string[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <details
+      className="ai-read-trace"
+      open={isOpen}
+      onToggle={event => setIsOpen(event.currentTarget.open)}
+    >
+      <summary className="ai-read-trace-kicker">
+        {label} <span>{items.length} receipts</span>
+      </summary>
+      {isOpen && (
+        <ul className="ai-read-trace-list">
+          {items.map(item => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      )}
+    </details>
   );
 }
 
@@ -530,14 +658,12 @@ export function AIReadPanel({
   className,
   ...props
 }: AIReadPanelProps) {
+  if (!shouldRenderAIReadPanel({ props: { ...props, compact, backgroundVariant, severity, className }, severity })) {
+    return null;
+  }
+
   const tronTheme = getAITronTheme(backgroundVariant, severity);
   const tronDensity: AITronDensity = compact ? 'small' : 'medium';
-  const mobileTakeaway = getMobileTakeawayText({
-    body: props.body,
-    subtitle: props.subtitle,
-    confidenceNote: props.confidenceNote,
-  });
-  const normalizedConfidence = normalizeConfidence(props.confidence);
   const primaryChrome =
     backgroundVariant === 'roster' ||
     backgroundVariant === 'market' ||
@@ -575,53 +701,10 @@ export function AIReadPanel({
   }
 
   return (
-    <>
-      <article className={cn(rootClassName, 'ai-read-panel-desktop')}>
-        <AIReadChrome primary={primaryChrome} routeKey={circuitKey} />
-        <AITronSurface theme={tronTheme} density={tronDensity} routeKey={circuitKey} />
-        <AIReadPanelContent {...props} severity={severity} backgroundVariant={backgroundVariant} />
-      </article>
-
-      <details className={cn(rootClassName, 'ai-read-panel-mobile', 'ai-read-panel-mobile-compact')} open={props.mobileDefaultOpen}>
-        <AIReadChrome primary={primaryChrome} routeKey={circuitKey} />
-        <AITronSurface theme={tronTheme} density="small" routeKey={circuitKey} />
-
-        <summary className="ai-read-mobile-summary">
-          <span className="ai-read-mobile-summary-main">
-            <span className="ai-read-mobile-title-row">
-              <span className="ai-read-title-icon" aria-hidden="true">
-                <BrainCircuit className="h-4 w-4" />
-              </span>
-              <span className="ai-read-mobile-title">{props.title}</span>
-            </span>
-
-            <span className="ai-read-mobile-meta">
-              {props.readType && (
-                <span className={cn('ai-read-type', `ai-read-type-${severity}`)}>
-                  {props.readType}
-                </span>
-              )}
-              {normalizedConfidence !== null && (
-                <span className="ai-read-mobile-confidence">
-                  {normalizedConfidence}% confidence
-                </span>
-              )}
-            </span>
-
-            {mobileTakeaway && (
-              <span className="ai-read-mobile-takeaway">{mobileTakeaway}</span>
-            )}
-          </span>
-
-          <span className="ai-read-mobile-toggle" aria-hidden="true">
-            Read more
-          </span>
-        </summary>
-
-        <div className="ai-read-mobile-expanded">
-          <AIReadPanelContent {...props} severity={severity} backgroundVariant={backgroundVariant} />
-        </div>
-      </details>
-    </>
+    <article className={cn(rootClassName, 'ai-read-panel-desktop', 'ai-read-panel-responsive')}>
+      <AIReadChrome primary={primaryChrome} routeKey={circuitKey} />
+      <AITronSurface theme={tronTheme} density={tronDensity} routeKey={circuitKey} />
+      <AIReadPanelContent {...props} severity={severity} backgroundVariant={backgroundVariant} />
+    </article>
   );
 }

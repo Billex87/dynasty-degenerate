@@ -1,0 +1,729 @@
+export type AIEvidenceSurface =
+  | "autopilot"
+  | "waiver"
+  | "schedule"
+  | "player-detail"
+  | "owner-intel"
+  | "rankings"
+  | "trade"
+  | "overview";
+
+export type AIEvidenceAction =
+  | "pickup"
+  | "stash"
+  | "stream"
+  | "start"
+  | "sit"
+  | "trade"
+  | "hold"
+  | "watch"
+  | "avoid";
+
+export type AIEvidenceMode = "dynasty" | "redraft" | "current" | "schedule" | "market" | "prospect";
+
+export type AIEvidenceQbFormat = "one_qb" | "superflex" | "two_qb" | "unknown";
+export type AIEvidenceLeagueValueMode = "dynasty" | "redraft" | "keeper";
+export type AIEvidenceLeagueTempo = "unknown" | "quiet" | "balanced" | "active" | "hyperactive";
+
+export type AIEvidenceLeagueContext = {
+  valueMode?: AIEvidenceLeagueValueMode | null;
+  teamCount?: number | null;
+  qbFormat?: AIEvidenceQbFormat | null;
+  receptionScoring?: number | null;
+  tightEndPremium?: number | null;
+  passingTdPoints?: number | null;
+  rosterSlots?: string[];
+  starterSlots?: string[];
+  scoringSummary?: string | null;
+  formatLabel?: string | null;
+};
+
+export type AIEvidenceLeagueActivityContext = {
+  tradeTempo?: AIEvidenceLeagueTempo | null;
+  waiverTempo?: AIEvidenceLeagueTempo | null;
+  tradeSignalCount?: number | null;
+  waiverSignalCount?: number | null;
+  transactionSignalCount?: number | null;
+  sampleSize?: number | null;
+  evidenceLabel?: string | null;
+};
+
+export type AIEvidenceLeagueDiagnosticsLike = {
+  teamCount?: number | null;
+  valueMode?: AIEvidenceLeagueValueMode | null;
+  qbFormat?: AIEvidenceQbFormat | null;
+  receptionScoring?: number | null;
+  tightEndPremium?: number | null;
+  passingTdPoints?: number | null;
+  rosterSlots?: string[] | null;
+  starterSlots?: string[] | null;
+  scoringSummary?: string | null;
+};
+
+export type AIConfidenceLabel =
+  | "blocked"
+  | "thin"
+  | "watchlist"
+  | "actionable"
+  | "priority"
+  | "high conviction";
+
+export type AISourceTrace = {
+  label: string;
+  status?: "loaded" | "stale" | "missing" | "error" | "limited";
+  detail?: string | null;
+  ageHours?: number | null;
+};
+
+export type AIEvidencePenalty = {
+  label: string;
+  points: number;
+};
+
+export type AIEvidencePlayerContext = {
+  name?: string | null;
+  position?: string | null;
+  team?: string | null;
+  owner?: string | null;
+  rosterStatus?: string | null;
+  recentlyAddedBy?: string | null;
+  value?: number | null;
+  sourceCount?: number | null;
+  hasCurrentSeasonValue?: boolean;
+  hasDynastyValue?: boolean;
+  hasProspectOnlyValue?: boolean;
+};
+
+export type AIEvidenceScheduleContext = {
+  hasScheduleData?: boolean;
+  isRoughStart?: boolean;
+  isStrongStart?: boolean;
+  missingReason?: string | null;
+};
+
+export type AIEvidenceInput = {
+  surface: AIEvidenceSurface;
+  action: AIEvidenceAction;
+  leagueValueMode?: "dynasty" | "redraft";
+  baseScore?: number | null;
+  evidence?: string[];
+  missingEvidence?: string[];
+  sourceTrace?: Array<string | AISourceTrace>;
+  signalModes?: AIEvidenceMode[];
+  leagueContext?: AIEvidenceLeagueContext | null;
+  leagueActivity?: AIEvidenceLeagueActivityContext | null;
+  confidenceCap?: number | null;
+  confidenceCapReason?: string | null;
+  player?: AIEvidencePlayerContext;
+  schedule?: AIEvidenceScheduleContext;
+  requiresActiveTeam?: boolean;
+  requiresLiveAvailability?: boolean;
+  requiresCurrentSeasonEvidence?: boolean;
+  lowValueThreshold?: number;
+  staleSourceCap?: number;
+};
+
+export type AIEvidenceResult = {
+  evidence: string[];
+  missingEvidence: string[];
+  hardBlockers: string[];
+  softPenalties: AIEvidencePenalty[];
+  confidenceCap: number;
+  confidenceCapReason: string | null;
+  sourceTrace: AISourceTrace[];
+  rawScore: number;
+  finalScore: number;
+  label: AIConfidenceLabel;
+  shouldRender: boolean;
+  canAct: boolean;
+  whyThisFired: string;
+};
+
+const STRONG_LABEL_MINIMUMS: Array<[AIConfidenceLabel, number]> = [
+  ["high conviction", 84],
+  ["priority", 72],
+  ["actionable", 58],
+  ["watchlist", 42],
+  ["thin", 0],
+];
+
+function clampPercent(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function cleanText(value: string | null | undefined): string | null {
+  const clean = String(value || "").replace(/\s+/g, " ").trim();
+  return clean || null;
+}
+
+function uniqueTexts(values: Array<string | null | undefined>, limit = 8): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  values.forEach(value => {
+    const clean = cleanText(value);
+    if (!clean) return;
+    const key = clean.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(clean);
+  });
+  return result.slice(0, limit);
+}
+
+function normalizeTeam(value?: string | null): string {
+  return String(value || "").trim().toUpperCase();
+}
+
+function isNoActiveTeam(team?: string | null): boolean {
+  const normalized = normalizeTeam(team);
+  return !normalized || normalized === "FA" || normalized === "N/A" || normalized === "NONE";
+}
+
+function normalizeSourceTrace(sourceTrace?: Array<string | AISourceTrace>): AISourceTrace[] {
+  const seen = new Set<string>();
+  const result: AISourceTrace[] = [];
+  (sourceTrace || []).forEach(item => {
+    const trace: AISourceTrace =
+      typeof item === "string"
+        ? { label: item }
+        : { ...item, label: cleanText(item.label) || "Source trace" };
+    const key = `${trace.label}|${trace.status || ""}|${trace.detail || ""}`.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(trace);
+  });
+  return result.slice(0, 8);
+}
+
+function normalizeSlot(slot?: string | null): string {
+  const normalized = String(slot || "").toUpperCase().replace(/[^A-Z_]/g, "");
+  if (normalized === "DST" || normalized === "D" || normalized === "DEFENSE") return "DEF";
+  if (normalized === "PK") return "K";
+  if (normalized === "OP") return "SUPER_FLEX";
+  return normalized;
+}
+
+function normalizeQbFormat(value?: string | null): AIEvidenceQbFormat {
+  const normalized = String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  if (normalized === "sf" || normalized === "sflex" || normalized === "superflex" || normalized === "super_flex") {
+    return "superflex";
+  }
+  if (normalized === "2qb" || normalized === "two_qb" || normalized === "twoqb") return "two_qb";
+  if (normalized === "1qb" || normalized === "one_qb" || normalized === "oneqb") return "one_qb";
+  return "unknown";
+}
+
+function inferQbFormat(rosterSlots: string[], starterSlots: string[]): AIEvidenceQbFormat {
+  const slots = (starterSlots.length ? starterSlots : rosterSlots).map(normalizeSlot);
+  if (slots.some(slot => slot === "SUPER_FLEX")) return "superflex";
+  if (slots.filter(slot => slot === "QB").length >= 2) return "two_qb";
+  if (slots.length) return "one_qb";
+  return "unknown";
+}
+
+function safeNumeric(value: unknown): number | null {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function getPassingTdPointsFromSummary(summary?: string | null): number | null {
+  const match = String(summary || "").match(/(\d+(?:\.\d+)?)\s*-?\s*point passing TD/i);
+  if (!match) return null;
+  return safeNumeric(match[1]);
+}
+
+function getLeagueContextScoringLabel(context: AIEvidenceLeagueContext): string {
+  const scoring = cleanText(context.scoringSummary);
+  if (scoring) return scoring;
+
+  const reception = safeNumeric(context.receptionScoring);
+  const ppr =
+    reception === 1
+      ? "PPR"
+      : reception === 0.5
+        ? "Half-PPR"
+        : reception === 0
+          ? "Standard"
+          : reception !== null
+            ? `${reception} PPR`
+            : null;
+  const tep = safeNumeric(context.tightEndPremium);
+  const passTd = safeNumeric(context.passingTdPoints);
+  return [
+    ppr,
+    tep && tep > 0 ? `TE +${tep}/rec` : null,
+    passTd && passTd > 0 ? `${passTd}-point passing TD` : null,
+  ].filter(Boolean).join(", ");
+}
+
+function normalizeLeagueContext(input: AIEvidenceInput): AIEvidenceLeagueContext {
+  const provided = input.leagueContext || {};
+  const rosterSlots = (provided.rosterSlots || []).map(normalizeSlot).filter(Boolean);
+  const starterSlots = (provided.starterSlots || []).map(normalizeSlot).filter(Boolean);
+  const qbFormat = normalizeQbFormat(provided.qbFormat) !== "unknown"
+    ? normalizeQbFormat(provided.qbFormat)
+    : inferQbFormat(rosterSlots, starterSlots);
+  const scoringSummary = cleanText(provided.scoringSummary);
+
+  return {
+    valueMode: provided.valueMode || input.leagueValueMode || null,
+    teamCount: safeNumeric(provided.teamCount),
+    qbFormat,
+    receptionScoring: safeNumeric(provided.receptionScoring),
+    tightEndPremium: safeNumeric(provided.tightEndPremium),
+    passingTdPoints:
+      safeNumeric(provided.passingTdPoints) ??
+      getPassingTdPointsFromSummary(scoringSummary),
+    rosterSlots,
+    starterSlots,
+    scoringSummary,
+    formatLabel: cleanText(provided.formatLabel),
+  };
+}
+
+function hasKnownStarterSlots(context: AIEvidenceLeagueContext): boolean {
+  return Boolean(context.starterSlots?.length || context.rosterSlots?.length);
+}
+
+function leagueStartsPosition(context: AIEvidenceLeagueContext, position: string): boolean {
+  const starterSlots = context.starterSlots?.length ? context.starterSlots : context.rosterSlots || [];
+  if (!starterSlots.length) return true;
+  const normalizedPosition = normalizeSlot(position);
+  return starterSlots.some(slot => {
+    if (slot === normalizedPosition) return true;
+    if (normalizedPosition === "QB" && slot === "SUPER_FLEX") return true;
+    if ((normalizedPosition === "RB" || normalizedPosition === "WR" || normalizedPosition === "TE") && (slot === "FLEX" || slot === "SUPER_FLEX")) return true;
+    if ((normalizedPosition === "WR" || normalizedPosition === "TE") && slot === "WRRB_FLEX") return true;
+    if ((normalizedPosition === "RB" || normalizedPosition === "WR") && slot === "REC_FLEX") return true;
+    return false;
+  });
+}
+
+function formatQbFormatLabel(format?: AIEvidenceQbFormat | null): string | null {
+  if (format === "superflex") return "Superflex";
+  if (format === "two_qb") return "2QB";
+  if (format === "one_qb") return "1QB";
+  return null;
+}
+
+function getLeagueContextTrace(context: AIEvidenceLeagueContext): AISourceTrace | null {
+  const details = [
+    context.teamCount ? `${context.teamCount}-team` : null,
+    formatQbFormatLabel(context.qbFormat),
+    getLeagueContextScoringLabel(context),
+  ].filter(Boolean);
+  if (!details.length && !context.formatLabel) return null;
+  return {
+    label: "League format context",
+    status: "loaded",
+    detail: context.formatLabel || details.join(" "),
+  };
+}
+
+function normalizeLeagueTempo(value?: string | null): AIEvidenceLeagueTempo {
+  if (value === "quiet" || value === "balanced" || value === "active" || value === "hyperactive") {
+    return value;
+  }
+  return "unknown";
+}
+
+function getLeagueActivityTrace(activity?: AIEvidenceLeagueActivityContext | null): AISourceTrace | null {
+  if (!activity) return null;
+  const tradeTempo = normalizeLeagueTempo(activity.tradeTempo);
+  const waiverTempo = normalizeLeagueTempo(activity.waiverTempo);
+  const hasSignal = Boolean(
+    tradeTempo !== "unknown" ||
+    waiverTempo !== "unknown" ||
+    activity.tradeSignalCount ||
+    activity.waiverSignalCount ||
+    activity.transactionSignalCount
+  );
+  if (!hasSignal) return null;
+
+  const detail = cleanText(activity.evidenceLabel) || [
+    tradeTempo !== "unknown" ? `${tradeTempo} trade market` : null,
+    waiverTempo !== "unknown" ? `${waiverTempo} waiver market` : null,
+    activity.tradeSignalCount ? `${activity.tradeSignalCount} trade signals` : null,
+    activity.waiverSignalCount ? `${activity.waiverSignalCount} waiver signals` : null,
+  ].filter(Boolean).join(", ");
+
+  return {
+    label: "League activity profile",
+    status: (activity.sampleSize || 0) > 0 ? "loaded" : "limited",
+    detail,
+  };
+}
+
+export function getAIEvidenceLeagueContextFromDiagnostics(
+  diagnostics?: AIEvidenceLeagueDiagnosticsLike | null,
+  fallbackValueMode?: AIEvidenceLeagueValueMode | null
+): AIEvidenceLeagueContext {
+  const rosterSlots = diagnostics?.rosterSlots || [];
+  const starterSlots = diagnostics?.starterSlots || [];
+  const inferredQbFormat = inferQbFormat(rosterSlots, starterSlots);
+  const scoringSummary = diagnostics?.scoringSummary || null;
+
+  return {
+    valueMode: diagnostics?.valueMode || fallbackValueMode || null,
+    teamCount: diagnostics?.teamCount ?? null,
+    qbFormat: diagnostics?.qbFormat || inferredQbFormat,
+    receptionScoring: diagnostics?.receptionScoring ?? null,
+    tightEndPremium: diagnostics?.tightEndPremium ?? null,
+    passingTdPoints:
+      diagnostics?.passingTdPoints ??
+      getPassingTdPointsFromSummary(scoringSummary),
+    rosterSlots,
+    starterSlots,
+    scoringSummary,
+    formatLabel: [
+      diagnostics?.teamCount ? `${diagnostics.teamCount}-team` : null,
+      formatQbFormatLabel(diagnostics?.qbFormat || inferredQbFormat),
+      scoringSummary,
+    ].filter(Boolean).join(" "),
+  };
+}
+
+function getLeagueContextLowValueThreshold(input: AIEvidenceInput, context: AIEvidenceLeagueContext, position: string): number {
+  let threshold = input.leagueValueMode === "redraft" ? 900 : 1200;
+  const teamCount = context.teamCount || null;
+  if (teamCount && teamCount <= 10) threshold += 250;
+  if (teamCount && teamCount >= 14) threshold -= 250;
+
+  if (position === "QB") {
+    if (context.qbFormat === "superflex" || context.qbFormat === "two_qb") {
+      threshold -= 450;
+    } else if (context.qbFormat === "one_qb") {
+      threshold += 450;
+    }
+  }
+
+  if (position === "TE" && (context.tightEndPremium || 0) > 0) {
+    threshold -= Math.min(350, Math.round((context.tightEndPremium || 0) * 300));
+  }
+
+  if ((position === "WR" || position === "TE") && context.receptionScoring === 0) {
+    threshold += 150;
+  }
+
+  return Math.max(300, threshold);
+}
+
+function applyLeagueContextModifiers(input: AIEvidenceInput, context: AIEvidenceLeagueContext, position: string, isPickupLike: boolean): {
+  evidence: string[];
+  penalties: AIEvidencePenalty[];
+} {
+  const evidence: string[] = [];
+  const penalties: AIEvidencePenalty[] = [];
+  const actionCanBeFormatSensitive =
+    isPickupLike ||
+    input.action === "start" ||
+    input.action === "trade" ||
+    input.action === "hold";
+
+  if (position === "QB" && actionCanBeFormatSensitive) {
+    if (context.qbFormat === "superflex" || context.qbFormat === "two_qb") {
+      evidence.push(`${formatQbFormatLabel(context.qbFormat)} format raises QB scarcity.`);
+    } else if (context.qbFormat === "one_qb" && isPickupLike) {
+      penalties.push({
+        label: "1QB format prevents fringe QB pickup advice from inflating",
+        points: 8,
+      });
+    }
+  }
+
+  if (position === "TE" && actionCanBeFormatSensitive && (context.tightEndPremium || 0) > 0) {
+    evidence.push(`TE premium scoring adds +${context.tightEndPremium}/rec context.`);
+  }
+
+  if ((position === "K" || position === "DEF") && isPickupLike && hasKnownStarterSlots(context) && !leagueStartsPosition(context, position)) {
+    penalties.push({
+      label: `This league does not start ${position}, so pickup advice is capped`,
+      points: 30,
+    });
+  }
+
+  if ((position === "WR" || position === "TE") && context.receptionScoring === 0 && actionCanBeFormatSensitive) {
+    penalties.push({
+      label: "Standard scoring reduces reception-only signal confidence",
+      points: 4,
+    });
+  }
+
+  return { evidence, penalties };
+}
+
+function applyLeagueActivityModifiers(input: AIEvidenceInput, activity: AIEvidenceLeagueActivityContext | null | undefined, isPickupLike: boolean): {
+  evidence: string[];
+  penalties: AIEvidencePenalty[];
+  confidenceCap?: { value: number; reason: string } | null;
+} {
+  const tradeTempo = normalizeLeagueTempo(activity?.tradeTempo);
+  const waiverTempo = normalizeLeagueTempo(activity?.waiverTempo);
+  const tradeSignals = Number(activity?.tradeSignalCount || 0);
+  const waiverSignals = Number(activity?.waiverSignalCount || 0);
+  const sampleSize = Number(activity?.sampleSize || 0);
+  const evidence: string[] = [];
+  const penalties: AIEvidencePenalty[] = [];
+  let confidenceCap: { value: number; reason: string } | null = null;
+
+  if (input.action === "trade") {
+    if (tradeTempo === "active" || tradeTempo === "hyperactive") {
+      evidence.push(`${tradeTempo === "hyperactive" ? "Very active" : "Active"} league trade market supports trade-action confidence.`);
+    } else if (tradeTempo === "quiet") {
+      penalties.push({
+        label: "Quiet league trade market lowers trade-action confidence",
+        points: 8,
+      });
+      confidenceCap = { value: 72, reason: "Quiet league trade market" };
+    } else if (sampleSize > 0 && tradeSignals <= 1) {
+      penalties.push({
+        label: "Thin league trade history limits trade-action confidence",
+        points: 5,
+      });
+      confidenceCap = { value: 76, reason: "Thin league trade history" };
+    }
+  }
+
+  if (isPickupLike) {
+    if (waiverTempo === "active" || waiverTempo === "hyperactive") {
+      evidence.push(`${waiverTempo === "hyperactive" ? "Very fast" : "Active"} waiver market raises urgency for available-player reads.`);
+    } else if (waiverTempo === "quiet" && waiverSignals > 0) {
+      penalties.push({
+        label: "Quiet waiver market lowers urgency for pickup advice",
+        points: 4,
+      });
+    }
+  }
+
+  return { evidence, penalties, confidenceCap };
+}
+
+function applyCap(
+  currentCap: number,
+  currentReason: string | null,
+  nextCap: number,
+  nextReason: string
+): { cap: number; reason: string | null } {
+  if (nextCap >= currentCap) return { cap: currentCap, reason: currentReason };
+  return { cap: clampPercent(nextCap), reason: nextReason };
+}
+
+function getLabel(score: number, blockers: string[], evidenceCount: number): AIConfidenceLabel {
+  if (blockers.length) return "blocked";
+  if (evidenceCount <= 0) return "thin";
+  const found = STRONG_LABEL_MINIMUMS.find(([, minimum]) => score >= minimum);
+  return found?.[0] || "thin";
+}
+
+function getWhyThisFired(result: {
+  label: AIConfidenceLabel;
+  evidence: string[];
+  missingEvidence: string[];
+  hardBlockers: string[];
+  softPenalties: AIEvidencePenalty[];
+}): string {
+  if (result.hardBlockers.length) {
+    return `Blocked: ${result.hardBlockers.slice(0, 2).join(" ")}`;
+  }
+
+  if (!result.evidence.length) {
+    const missing = result.missingEvidence.slice(0, 2).join(" ");
+    return missing
+      ? `Insufficient evidence: ${missing}`
+      : "Insufficient evidence: no usable signal was supplied.";
+  }
+
+  const evidence = result.evidence.slice(0, 3).join(" ");
+  const penalty = result.softPenalties[0]?.label;
+  return penalty ? `${evidence} Guardrail: ${penalty}.` : evidence;
+}
+
+export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
+  const evidence = uniqueTexts(input.evidence || []);
+  const missingEvidence = uniqueTexts(input.missingEvidence || []);
+  const hardBlockers: string[] = [];
+  const softPenalties: AIEvidencePenalty[] = [];
+  const leagueContext = normalizeLeagueContext(input);
+  const leagueContextTrace = getLeagueContextTrace(leagueContext);
+  const leagueActivityTrace = getLeagueActivityTrace(input.leagueActivity);
+  const sourceTrace = normalizeSourceTrace([
+    ...(leagueContextTrace ? [leagueContextTrace] : []),
+    ...(leagueActivityTrace ? [leagueActivityTrace] : []),
+    ...(input.sourceTrace || []),
+  ]);
+  const player = input.player || {};
+  const schedule = input.schedule || {};
+  const position = String(player.position || "").toUpperCase();
+  const isPickupLike =
+    input.action === "pickup" ||
+    input.action === "stash" ||
+    input.action === "stream";
+  const needsActiveTeam = input.requiresActiveTeam ?? isPickupLike;
+  const needsLiveAvailability = input.requiresLiveAvailability ?? isPickupLike;
+  const sourceCount = Number(player.sourceCount || 0);
+  const value = Number(player.value || 0);
+  let confidenceCap = clampPercent(input.confidenceCap ?? 100);
+  let confidenceCapReason = cleanText(input.confidenceCapReason);
+  const leagueModifiers = applyLeagueContextModifiers(input, leagueContext, position, isPickupLike);
+  leagueModifiers.evidence.forEach(item => evidence.push(item));
+  leagueModifiers.penalties.forEach(item => softPenalties.push(item));
+  const leagueActivityModifiers = applyLeagueActivityModifiers(input, input.leagueActivity, isPickupLike);
+  leagueActivityModifiers.evidence.forEach(item => evidence.push(item));
+  leagueActivityModifiers.penalties.forEach(item => softPenalties.push(item));
+  if (leagueActivityModifiers.confidenceCap) {
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      leagueActivityModifiers.confidenceCap.value,
+      leagueActivityModifiers.confidenceCap.reason
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
+  }
+
+  if (needsLiveAvailability && player.owner) {
+    hardBlockers.push(`Roster ownership says ${player.name || "this player"} is already on ${player.owner}.`);
+  }
+
+  if (needsLiveAvailability && player.recentlyAddedBy) {
+    hardBlockers.push(`Recent transactions already show ${player.name || "this player"} added by ${player.recentlyAddedBy}.`);
+  }
+
+  if (needsActiveTeam && position !== "DEF" && isNoActiveTeam(player.team)) {
+    hardBlockers.push(`No active NFL team is attached to ${player.name || "this player"}.`);
+  }
+
+  if ((position === "K" || position === "DEF") && isPickupLike && hasKnownStarterSlots(leagueContext) && !leagueStartsPosition(leagueContext, position)) {
+    hardBlockers.push(`League format does not start ${position}, so pickup advice is blocked.`);
+  }
+
+  if (isPickupLike && player.hasProspectOnlyValue) {
+    hardBlockers.push("Prospect-only value cannot power active-roster waiver advice.");
+  }
+
+  const signalModes = new Set(input.signalModes || []);
+  const hasCurrentSignal =
+    signalModes.has("redraft") ||
+    signalModes.has("current") ||
+    signalModes.has("schedule") ||
+    Boolean(player.hasCurrentSeasonValue);
+  if (
+    input.leagueValueMode === "redraft" &&
+    (input.requiresCurrentSeasonEvidence ?? isPickupLike) &&
+    !hasCurrentSignal
+  ) {
+    hardBlockers.push("Redraft read has no current-season evidence.");
+  }
+
+  const lowValueThreshold = input.lowValueThreshold ?? getLeagueContextLowValueThreshold(input, leagueContext, position);
+  const hasScheduleEvidence = Boolean(schedule.hasScheduleData || signalModes.has("schedule"));
+  if (isPickupLike && sourceCount <= 1 && value > 0 && value < lowValueThreshold && !hasScheduleEvidence) {
+    hardBlockers.push("Low source count plus low value cannot become a best-available recommendation.");
+  }
+
+  if (!evidence.length) {
+    hardBlockers.push("No positive evidence was supplied.");
+  }
+
+  if ((position === "K" || position === "DEF" || input.action === "stream") && !schedule.hasScheduleData) {
+    missingEvidence.push(schedule.missingReason || "Missing schedule data caps streamer, kicker, and D/ST confidence.");
+    softPenalties.push({
+      label: "Missing schedule data caps streamer/K/DST confidence",
+      points: 18,
+    });
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      56,
+      "Missing schedule data"
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
+  }
+
+  if ((position === "K" || position === "DEF" || input.action === "stream") && schedule.isRoughStart) {
+    softPenalties.push({
+      label: "Rough early K/DST schedule strongly penalizes pickup advice",
+      points: 42,
+    });
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      52,
+      "Rough early schedule"
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
+  } else if (schedule.isStrongStart) {
+    evidence.push("Short-term schedule window supports the action.");
+  }
+
+  const staleTrace = sourceTrace.find(trace => {
+    if (trace.status === "stale" || trace.status === "error") return true;
+    return Number(trace.ageHours || 0) >= 168;
+  });
+  if (staleTrace) {
+    softPenalties.push({
+      label: `${staleTrace.label} is stale or unhealthy`,
+      points: staleTrace.status === "error" ? 24 : 16,
+    });
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      input.staleSourceCap ?? (staleTrace.status === "error" ? 48 : 64),
+      `${staleTrace.label} source freshness`
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
+  }
+
+  const rawScore = clampPercent(input.baseScore ?? 0);
+  const penaltyPoints = softPenalties.reduce((sum, penalty) => sum + penalty.points, 0);
+  const evidenceBonus = Math.min(12, evidence.length * 3);
+  const missingPenalty = Math.min(18, missingEvidence.length * 4);
+  const uncappedScore = hardBlockers.length
+    ? 0
+    : rawScore + evidenceBonus - penaltyPoints - missingPenalty;
+  const finalScore = clampPercent(Math.min(confidenceCap, uncappedScore));
+  const label = getLabel(finalScore, hardBlockers, evidence.length);
+  const shouldRender = label !== "blocked" && evidence.length > 0;
+  const canAct = label === "actionable" || label === "priority" || label === "high conviction";
+  const result = {
+    evidence,
+    missingEvidence,
+    hardBlockers: uniqueTexts(hardBlockers),
+    softPenalties,
+    confidenceCap,
+    confidenceCapReason,
+    sourceTrace,
+    rawScore,
+    finalScore,
+    label,
+    shouldRender,
+    canAct,
+    whyThisFired: "",
+  };
+  result.whyThisFired = getWhyThisFired(result);
+  return result;
+}
+
+export function getAIEvidenceReceiptItems(result: AIEvidenceResult): string[] {
+  return uniqueTexts([
+    ...result.evidence,
+    ...result.hardBlockers.map(item => `Blocked: ${item}`),
+    ...result.softPenalties.map(item => `Guardrail: ${item.label}`),
+    ...result.missingEvidence.map(item => `Missing: ${item}`),
+    result.confidenceCapReason
+      ? `Confidence cap: ${result.confidenceCap}% from ${result.confidenceCapReason}`
+      : null,
+    ...result.sourceTrace.map(trace =>
+      [
+        trace.label,
+        trace.status ? `(${trace.status})` : null,
+        trace.detail,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    ),
+  ]);
+}

@@ -24,6 +24,7 @@ function makePlayer(
   return {
     player_id: overrides.player_id,
     name: overrides.name,
+    playerDetails: overrides.playerDetails,
     pos: overrides.pos || "WR",
     team: overrides.team ?? "BUF",
     count: overrides.count ?? 0,
@@ -38,10 +39,10 @@ function makeTrace(
   overrides: Partial<WaiverSourceTraceEntry> = {}
 ): WaiverSourceTraceEntry {
   return {
-    source: "FantasyPros",
-    sourceKey: overrides.sourceKey || "fantasypros-endpoint-v1:2026:PPR:test",
-    endpointKey: overrides.endpointKey || "fantasypros-weekly-rank-test",
-    endpointLabel: overrides.endpointLabel || "Weekly rank test",
+    source: overrides.source || "DraftSharks",
+    sourceKey: overrides.sourceKey || "draftsharks-sos-v1",
+    endpointKey: overrides.endpointKey || "draftsharks-sos-wr-week-2",
+    endpointLabel: overrides.endpointLabel || "DraftSharks WR SOS Week 2",
     status: overrides.status || "loaded",
     season: overrides.season || "2026",
     scoring: overrides.scoring || "PPR",
@@ -70,13 +71,13 @@ function makeSignal(
     : `${position}${bestRankEcr}`;
 
   return {
-    signalType: overrides.signalType,
+    signalType: overrides.signalType || "draftsharks-sos",
     playerId,
     fantasyProsId: overrides.fantasyProsId ?? null,
     name,
     position,
     team: overrides.team ?? "BUF",
-    source: "FantasyPros",
+    source: overrides.source || "DraftSharks",
     updatedAt: overrides.updatedAt ?? "2026-09-08T18:00:00.000Z",
     weeks:
       overrides.weeks ||
@@ -181,10 +182,75 @@ describe("schedule edge rows", () => {
 
     expect(row.position).toBe("DEF");
     expect(row.bestRank).toBe("Rank 3");
+    expect(row.seasonRank).toBeNull();
+    expect(row.seasonRankNumber).toBe(3);
     expect(row.window).toContain("W2 Rank 3");
     expect(row.window).not.toContain("ECR");
     expect(row.action).toBe("Streamer target");
     expect(row.sourceTone).toBe("good");
+  });
+
+  it("uses current-season redraft rank for matchup calendar rows in dynasty reports", () => {
+    const seasonRankedSignal = makeSignal({
+      playerId: "season-rank-receiver",
+      name: "Season Rank Receiver",
+      position: "WR",
+      bestPositionRank: "WR64",
+      bestRankEcr: 64,
+    });
+    const dynastyRankedSignal = makeSignal({
+      playerId: "dynasty-rank-receiver",
+      name: "Dynasty Rank Receiver",
+      position: "WR",
+      bestPositionRank: "WR14",
+      bestRankEcr: 14,
+    });
+    const report = makeReportWithScheduleTargets([
+      {
+        player: makePlayer({
+          player_id: "season-rank-receiver",
+          name: "Season Rank Receiver",
+          pos: "WR",
+          currentPositionRank: "WR90",
+          playerDetails: {
+            valueProfile: {
+              dynastyPositionRank: "WR90",
+              seasonPositionRank: "WR8",
+            },
+          } as TrendingPlayer["playerDetails"],
+        }),
+        signal: seasonRankedSignal,
+        score: 70,
+      },
+      {
+        player: makePlayer({
+          player_id: "dynasty-rank-receiver",
+          name: "Dynasty Rank Receiver",
+          pos: "WR",
+          currentPositionRank: "WR2",
+          playerDetails: {
+            valueProfile: {
+              dynastyPositionRank: "WR2",
+              seasonPositionRank: "WR42",
+            },
+          } as TrendingPlayer["playerDetails"],
+        }),
+        signal: dynastyRankedSignal,
+        score: 82,
+      },
+    ]);
+    report.leagueValueMode = "dynasty";
+
+    const rows = buildScheduleEdgeRows(report, { now: NOW });
+    const seasonRankRow = rows.find(row => row.id === "season-rank-receiver")!;
+    const dynastyRankRow = rows.find(row => row.id === "dynasty-rank-receiver")!;
+
+    expect(seasonRankRow.seasonRank).toBe("WR8");
+    expect(seasonRankRow.currentRank).toBe("WR8");
+    expect(dynastyRankRow.seasonRank).toBe("WR42");
+    expect(
+      sortScheduleEdgeRows(rows, { start: 1, end: 3 }, "rank")[0].id
+    ).toBe("season-rank-receiver");
   });
 
   it("warns on special teams with a rough next-three matchup window", () => {
@@ -239,7 +305,7 @@ describe("schedule edge rows", () => {
       },
     ];
     const signal = makeSignal({
-      signalType: "matchup-calendar",
+      signalType: "draftsharks-sos",
       playerId: "rams",
       name: "Los Angeles Rams",
       position: "DST",
@@ -267,6 +333,59 @@ describe("schedule edge rows", () => {
 
     expect(row.action).toBe("Avoid early stream");
     expect(row.actionTone).toBe("warn");
+    expect(row.evidenceRead.canAct).toBe(false);
+    expect(row.evidenceRead.finalScore).toBeLessThanOrEqual(52);
+    expect(row.evidenceRead.confidenceCapReason).toBe("Rough early schedule");
+    expect(row.decisionLabel).toBe("Don't force it");
+  });
+
+  it("caps streamer confidence when DraftSharks schedule data is missing", () => {
+    const signal = makeSignal({
+      playerId: "rank-only-kicker",
+      name: "Rank Only Kicker",
+      position: "K",
+      bestRankEcr: 4,
+      bestPositionRank: "K4",
+      weeks: [
+        {
+          week: 1,
+          rankEcr: 4,
+          positionRank: "K4",
+          bestRank: null,
+          worstRank: null,
+          averageRank: 4,
+          rankStdDev: null,
+          lastUpdated: "2026-09-08T18:00:00.000Z",
+          fetchedAt: "2026-09-08T18:00:00.000Z",
+          sourceStatus: "loaded",
+        },
+      ],
+      sourceTrace: [makeTrace({ position: "K" })],
+    });
+    const [row] = buildScheduleEdgeRows(
+      makeReportWithScheduleTargets([
+        {
+          player: makePlayer({
+            player_id: "rank-only-kicker",
+            name: "Rank Only Kicker",
+            pos: "K",
+            team: "BUF",
+            ktcValue: 220,
+          }),
+          signal,
+          score: 93,
+        },
+      ]),
+      { now: NOW }
+    );
+
+    expect(row.evidenceRead.canAct).toBe(false);
+    expect(row.evidenceRead.confidenceCap).toBe(56);
+    expect(row.evidenceRead.confidenceCapReason).toBe("Missing schedule data");
+    expect(row.evidenceRead.missingEvidence.join(" ")).toContain(
+      "No opponent or schedule-strength data"
+    );
+    expect(row.decisionLabel).toBe("Don't force it");
   });
 
   it("summarizes and sorts rows by the selected week range", () => {
@@ -347,7 +466,7 @@ describe("schedule edge rows", () => {
             pos: "DEF",
           }),
           signal: makeSignal({
-            signalType: "matchup-calendar",
+            signalType: "draftsharks-sos",
             playerId: "easy-defense",
             name: "Easy Defense",
             position: "DEF",
@@ -364,7 +483,7 @@ describe("schedule edge rows", () => {
             pos: "DEF",
           }),
           signal: makeSignal({
-            signalType: "matchup-calendar",
+            signalType: "draftsharks-sos",
             playerId: "hard-defense",
             name: "Hard Defense",
             position: "DEF",
@@ -487,6 +606,11 @@ describe("schedule edge rows", () => {
     expect(row.team).toBe("HOU");
     expect(row.availabilityLabel).toBe("Roster Manager");
     expect(row.availabilityTone).toBe("warn");
+    expect(row.evidenceRead.label).toBe("blocked");
+    expect(row.evidenceRead.hardBlockers.join(" ")).toContain(
+      "already on Roster Manager"
+    );
+    expect(row.decisionLabel).toBe("Don't add");
   });
 
   it("uses league-aware next-three and playoff matchup windows", () => {
@@ -575,9 +699,8 @@ describe("schedule edge rows", () => {
     const rows = buildScheduleSnapshotHealthRows({
       sourceSnapshotDiagnostics: [
         {
-          sourceKey:
-            "fantasypros-endpoint-v1:2026:PPR:fantasypros-weekly-ecr-qb-week-1",
-          source: "FantasyPros weekly ECR QB Week 1 endpoint snapshot",
+          sourceKey: "draftsharks-sos-qb-week-1",
+          source: "DraftSharks QB SOS Week 1 snapshot",
           tableName: "providerDataSnapshots",
           snapshotKey: "latest",
           updatedAt: "2026-09-08T18:00:00.000Z",
@@ -589,9 +712,8 @@ describe("schedule edge rows", () => {
           note: "loaded",
         },
         {
-          sourceKey:
-            "fantasypros-endpoint-v1:2026:PPR:fantasypros-weekly-ecr-rb-week-2",
-          source: "FantasyPros weekly ECR RB Week 2 endpoint snapshot",
+          sourceKey: "draftsharks-sos-rb-week-2",
+          source: "DraftSharks RB SOS Week 2 snapshot",
           tableName: "providerDataSnapshots",
           snapshotKey: "latest",
           updatedAt: "2026-09-08T18:00:00.000Z",
@@ -603,9 +725,8 @@ describe("schedule edge rows", () => {
           note: "empty",
         },
         {
-          sourceKey:
-            "fantasypros-endpoint-v1:2026:PPR:fantasypros-weekly-ecr-wr-week-3",
-          source: "FantasyPros weekly ECR WR Week 3 endpoint snapshot",
+          sourceKey: "draftsharks-sos-wr-week-3",
+          source: "DraftSharks WR SOS Week 3 snapshot",
           tableName: "providerDataSnapshots",
           snapshotKey: null,
           updatedAt: null,
@@ -638,7 +759,7 @@ describe("schedule edge rows", () => {
     });
   });
 
-  it("summarizes matchup-calendar trace health by week and position", () => {
+  it("summarizes DraftSharks trace health by week and position", () => {
     const rows = buildScheduleSnapshotHealthRows(
       makeReport({
         weeklyEcrTargets: [
@@ -649,9 +770,9 @@ describe("schedule edge rows", () => {
               name: "Matchup Receiver",
               sourceTrace: [
                 makeTrace({
-                  sourceKey: "fantasypros-matchup-calendar-v1:2026:WR",
-                  endpointKey: "fantasypros-matchup-calendar-wr-week-2",
-                  endpointLabel: "FantasyPros WR matchup calendar",
+                  sourceKey: "draftsharks-sos-v1",
+                  endpointKey: "draftsharks-sos-wr-week-2",
+                  endpointLabel: "DraftSharks WR SOS Week 2",
                   rowCount: 160,
                 }),
               ],
@@ -773,8 +894,38 @@ describe("schedule edge rows", () => {
 
     expect(staleRows[0].sourceFreshness).toMatch(/^Stale - /);
     expect(staleRows[0].sourceTone).toBe("warn");
+    expect(staleRows[0].evidenceRead.confidenceCap).toBe(58);
+    expect(staleRows[0].evidenceRead.confidenceCapReason).toContain(
+      "source freshness"
+    );
     expect(partialRows[0].sourceFreshness).toMatch(/^Partial - /);
     expect(partialRows[0].sourceTone).toBe("warn");
+    expect(partialRows[0].evidenceRead.confidenceCap).toBe(60);
+    expect(partialRows[0].evidenceRead.confidenceCapReason).toBe(
+      "Partial schedule source trace"
+    );
+  });
+
+  it("caps schedule rows without source trace instead of rendering a confident decision", () => {
+    const [row] = buildScheduleEdgeRows(
+      makeReportWithScheduleTargets([
+        {
+          player: makePlayer({ player_id: "no-trace", name: "No Trace Runner" }),
+          signal: makeSignal({
+            playerId: "no-trace",
+            name: "No Trace Runner",
+            sourceTrace: [],
+          }),
+          score: 84,
+        },
+      ]),
+      { now: NOW }
+    );
+
+    expect(row.evidenceRead.canAct).toBe(false);
+    expect(row.evidenceRead.confidenceCap).toBe(48);
+    expect(row.evidenceRead.confidenceCapReason).toBe("No schedule source trace");
+    expect(row.decisionLabel).toBe("Don't force it");
   });
 
   it("uses the newest parseable source timestamp for freshness", () => {

@@ -105,7 +105,8 @@ button.player-team-tile:focus-visible {
 }
 
 .trade-war-room {
-  width: min(100%, 82rem);
+  width: 100%;
+  max-width: none;
   margin-inline: auto;
   border: 1px solid rgba(34, 211, 238, 0.16);
   border-radius: 1.35rem;
@@ -281,7 +282,7 @@ button.player-team-tile:focus-visible {
 
 .trade-war-manager-board-card summary {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(10rem, 0.72fr);
+  grid-template-columns: auto minmax(11rem, 0.5fr) minmax(0, 1fr);
   align-items: center;
   gap: 0.7rem;
   min-height: 3.7rem;
@@ -338,10 +339,132 @@ button.player-team-tile:focus-visible {
   font-weight: 850;
 }
 
+.trade-war-manager-board-profile-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.32rem;
+}
+
+.trade-war-manager-board-profile-meta > em {
+  min-width: 0;
+}
+
+.trade-war-manager-tier-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 9.2rem;
+  min-height: 1.1rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  padding: 0 0.42rem;
+  font-size: 0.58rem !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.trade-war-manager-tier-boss {
+  border-color: rgba(168, 85, 247, 0.58);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(250, 204, 21, 0.28), transparent 58%),
+    rgba(76, 29, 149, 0.5);
+  color: #fde68a !important;
+}
+
+.trade-war-manager-tier-dynasty {
+  border-color: rgba(250, 204, 21, 0.46);
+  background: rgba(113, 63, 18, 0.38);
+  color: #fde68a !important;
+}
+
+.trade-war-manager-tier-scanner-contender {
+  border-color: rgba(52, 211, 153, 0.44);
+  background: rgba(6, 78, 59, 0.4);
+  color: #bbf7d0 !important;
+}
+
+.trade-war-manager-tier-scanner-rebuilder {
+  border-color: rgba(168, 85, 247, 0.42);
+  background: rgba(88, 28, 135, 0.36);
+  color: #f0abfc !important;
+}
+
+.trade-war-manager-tier-heavyweight {
+  border-color: rgba(52, 211, 153, 0.42);
+  background: rgba(6, 78, 59, 0.4);
+  color: #bbf7d0 !important;
+}
+
+.trade-war-manager-tier-problem {
+  border-color: rgba(34, 211, 238, 0.44);
+  background: rgba(8, 47, 73, 0.44);
+  color: #a5f3fc !important;
+}
+
+.trade-war-manager-tier-spoiler {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(127, 29, 29, 0.34);
+  color: #fecaca !important;
+}
+
+.trade-war-manager-tier-contender {
+  border-color: rgba(56, 189, 248, 0.44);
+  background: rgba(8, 47, 73, 0.44);
+  color: #a5f3fc !important;
+}
+
+.trade-war-manager-tier-playoff {
+  border-color: rgba(217, 70, 239, 0.38);
+  background: rgba(88, 28, 135, 0.36);
+  color: #f0abfc !important;
+}
+
+.trade-war-manager-tier-reload {
+  border-color: rgba(251, 146, 60, 0.4);
+  background: rgba(124, 45, 18, 0.38);
+  color: #fed7aa !important;
+}
+
+.trade-war-manager-tier-lost {
+  border-color: rgba(251, 146, 60, 0.42);
+  background: rgba(124, 45, 18, 0.38);
+  color: #fdba74 !important;
+}
+
+.trade-war-manager-tier-squeak {
+  border-color: rgba(251, 113, 133, 0.4);
+  background: rgba(136, 19, 55, 0.36);
+  color: #fecdd3 !important;
+}
+
+.trade-war-manager-tier-future {
+  border-color: rgba(45, 212, 191, 0.38);
+  background: rgba(15, 118, 110, 0.34);
+  color: #99f6e4 !important;
+}
+
+.trade-war-manager-tier-balanced,
+.trade-war-manager-tier-neutral {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: rgba(30, 41, 59, 0.5);
+  color: #cbd5e1 !important;
+}
+
+.trade-war-manager-board-summary-stats {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .trade-war-manager-board-bars {
   display: grid;
+  flex: 1 1 18rem;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   overflow: hidden;
+  min-width: 12rem;
   min-height: 1.25rem;
   border-radius: 999px;
   background: rgba(2, 6, 23, 0.7);
@@ -368,20 +491,23 @@ button.player-team-tile:focus-visible {
   text-transform: uppercase;
 }
 
-.trade-war-bar-qb { background: #2dd4bf; }
-.trade-war-bar-rb { background: #38bdf8; }
-.trade-war-bar-wr { background: #fb7185; }
-.trade-war-bar-te { background: #d946ef; }
+.trade-war-bar-qb { background: #fb7185; }
+.trade-war-bar-rb { background: #34d399; }
+.trade-war-bar-wr { background: #60a5fa; }
+.trade-war-bar-te { background: #fdba74; }
 .trade-war-bar-pick { background: #f59e0b; }
 
 .trade-war-manager-board-meta {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.4rem;
+  overflow: hidden;
   padding: 0 0.72rem 0.72rem;
 }
 
 .trade-war-manager-board-meta span {
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid rgba(34, 211, 238, 0.15);
   border-radius: 999px;
   background: rgba(8, 15, 31, 0.66);
@@ -389,29 +515,51 @@ button.player-team-tile:focus-visible {
   color: #cbd5e1;
   font-size: 0.66rem;
   font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.trade-war-manager-lens-ranks {
+.trade-war-manager-summary-lens-ranks {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding: 0 0.72rem 0.72rem;
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 0.28rem;
 }
 
-.trade-war-manager-lens-ranks span {
+.trade-war-manager-lens-pill {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.35rem;
-  min-width: 0;
-  border: 1px solid rgba(251, 146, 60, 0.16);
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.58);
-  padding: 0.25rem 0.48rem;
+  min-width: fit-content;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  --trade-war-lens-border: rgba(251, 146, 60, 0.48);
+  --trade-war-lens-bg: rgba(124, 45, 18, 0.46);
+  --trade-war-lens-color: #fed7aa;
 }
 
-.trade-war-manager-lens-ranks em,
-.trade-war-manager-lens-ranks strong {
+.trade-war-manager-lens-pill-dynasty {
+  --trade-war-lens-border: rgba(251, 146, 60, 0.54);
+  --trade-war-lens-bg: rgba(124, 45, 18, 0.46);
+  --trade-war-lens-color: #fed7aa;
+}
+
+.trade-war-manager-lens-pill-contender {
+  --trade-war-lens-border: rgba(56, 189, 248, 0.5);
+  --trade-war-lens-bg: rgba(8, 47, 73, 0.48);
+  --trade-war-lens-color: #a5f3fc;
+}
+
+.trade-war-manager-lens-pill-rebuilder {
+  --trade-war-lens-border: rgba(168, 85, 247, 0.5);
+  --trade-war-lens-bg: rgba(76, 29, 149, 0.42);
+  --trade-war-lens-color: #ddd6fe;
+}
+
+.trade-war-manager-lens-pill em,
+.trade-war-manager-lens-pill strong {
   min-width: 0;
   overflow: hidden;
   line-height: 1;
@@ -419,7 +567,8 @@ button.player-team-tile:focus-visible {
   white-space: nowrap;
 }
 
-.trade-war-manager-lens-ranks em {
+.trade-war-manager-lens-pill em {
+  flex: 0 0 auto;
   color: #94a3b8;
   font-size: 0.58rem;
   font-style: normal;
@@ -428,10 +577,37 @@ button.player-team-tile:focus-visible {
   text-transform: uppercase;
 }
 
-.trade-war-manager-lens-ranks strong {
-  color: #fb923c;
-  font-size: 0.74rem;
+.trade-war-manager-lens-pill strong {
+  display: inline-grid;
+  min-width: 1.7rem;
+  height: 1.08rem;
+  place-items: center;
+  border: 1px solid var(--trade-war-lens-border);
+  border-radius: 999px;
+  background: var(--trade-war-lens-bg);
+  color: var(--trade-war-lens-color);
+  font-size: 0.62rem;
   font-weight: 950;
+}
+
+.trade-war-manager-summary-lens-ranks .trade-war-manager-lens-pill {
+  gap: 0;
+  padding-inline: 0.16rem;
+}
+
+.trade-war-manager-summary-lens-ranks .trade-war-manager-lens-pill em {
+  display: none;
+}
+
+.trade-war-manager-detail-lens-pill {
+  flex: 1 1 6.8rem;
+  max-width: 8rem;
+}
+
+@media (max-width: 900px) {
+  .trade-war-manager-summary-lens-ranks {
+    display: none;
+  }
 }
 
 .trade-war-manager-board-sections {
@@ -470,7 +646,7 @@ button.player-team-tile:focus-visible {
 
 .trade-war-manager-board-section-head span {
   display: grid;
-  min-width: 1.4rem;
+  min-width: 2.6rem;
   height: 1.25rem;
   place-items: center;
   border-radius: 999px;
@@ -481,19 +657,19 @@ button.player-team-tile:focus-visible {
 }
 
 .trade-war-manager-board-section-qb .trade-war-manager-board-section-head {
-  background: #2dd4bf;
-}
-
-.trade-war-manager-board-section-rb .trade-war-manager-board-section-head {
-  background: #38bdf8;
-}
-
-.trade-war-manager-board-section-wr .trade-war-manager-board-section-head {
   background: #fb7185;
 }
 
+.trade-war-manager-board-section-rb .trade-war-manager-board-section-head {
+  background: #34d399;
+}
+
+.trade-war-manager-board-section-wr .trade-war-manager-board-section-head {
+  background: #60a5fa;
+}
+
 .trade-war-manager-board-section-te .trade-war-manager-board-section-head {
-  background: #d946ef;
+  background: #fdba74;
 }
 
 .trade-war-manager-board-section-pick .trade-war-manager-board-section-head {
@@ -502,7 +678,7 @@ button.player-team-tile:focus-visible {
 
 .trade-war-manager-board-rank-head {
   display: grid;
-  grid-template-columns: minmax(7.5rem, 1fr) 2.2rem 2.2rem;
+  grid-template-columns: minmax(0, 1fr) 2.05rem 2.05rem;
   align-items: center;
   gap: 0.2rem;
   padding: 0.2rem 0.2rem 0;
@@ -527,7 +703,7 @@ button.player-team-tile:focus-visible {
 
 .trade-war-manager-board-asset {
   display: grid;
-  grid-template-columns: minmax(7.5rem, 1fr) 2.2rem 2.2rem;
+  grid-template-columns: minmax(0, 1fr) 2.05rem 2.05rem;
   align-items: center;
   gap: 0.2rem;
   min-height: 2.05rem;
@@ -714,18 +890,44 @@ button.player-team-tile:focus-visible {
   background: rgba(2, 6, 23, 0.72);
 }
 
+.trade-war-manager-avatar.manager-champion-avatar > img,
+.trade-war-manager-avatar.manager-champion-avatar > span:not(.manager-accolade-crown):not(.manager-sacko-dunce) {
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.trade-war-manager-avatar.manager-champion-avatar .manager-accolade-crown {
+  top: -0.9rem;
+  right: -0.72rem !important;
+  transform: rotate(12deg) scale(0.96);
+}
+
+.trade-war-manager-board-lockup .manager-accolade-crown {
+  top: -0.68rem;
+  right: -0.58rem !important;
+  transform: rotate(12deg) scale(0.82);
+}
+
 .trade-war-manager-avatar,
 .trade-war-manager-avatar img,
-.trade-war-manager-avatar > span {
+.trade-war-manager-avatar > span:not(.manager-accolade-crown):not(.manager-sacko-dunce) {
   width: 2.65rem;
   height: 2.65rem;
 }
 
 .trade-war-owner-avatar,
 .trade-war-owner-avatar img,
-.trade-war-owner-avatar > span {
+.trade-war-owner-avatar > span:not(.manager-accolade-crown):not(.manager-sacko-dunce) {
   width: 1.8rem;
   height: 1.8rem;
+}
+
+.trade-war-league-avatar {
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  color: #67e8f9;
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
 }
 
 .trade-war-manager-lockup strong {
@@ -755,7 +957,7 @@ button.player-team-tile:focus-visible {
 .trade-war-selected-assets,
 .trade-war-player-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(12rem, 1fr));
   gap: 0.55rem;
 }
 
@@ -804,17 +1006,55 @@ button.player-team-tile:focus-visible {
   position: relative;
   display: grid;
   gap: 0.45rem;
+  min-height: 5.35rem;
   border-radius: 0.95rem;
   padding: 0.55rem;
 }
 
 .trade-war-selected-asset {
-  padding-right: 2.25rem;
+  padding-right: 0.55rem;
 }
 
 .trade-war-player-muted {
   filter: saturate(0.58);
   opacity: 0.62;
+}
+
+.trade-war-player-card-suggested {
+  border-color: rgba(251, 146, 60, 0.8) !important;
+  box-shadow:
+    0 0 0 1px rgba(251, 146, 60, 0.22),
+    0 0 20px rgba(251, 146, 60, 0.22);
+}
+
+.trade-war-other-manager-banner {
+  position: absolute;
+  left: 54%;
+  top: 56%;
+  z-index: 3;
+  display: inline-flex;
+  width: 160%;
+  min-height: 1.45rem;
+  transform: translate(-50%, -50%) rotate(-15deg);
+  align-items: center;
+  justify-content: center;
+  border-block: 1px solid rgba(196, 181, 253, 0.42);
+  background: linear-gradient(
+    90deg,
+    rgba(49, 46, 129, 0),
+    rgba(49, 46, 129, 0.66) 17%,
+    rgba(30, 41, 59, 0.72) 50%,
+    rgba(15, 118, 110, 0.58) 83%,
+    rgba(15, 118, 110, 0)
+  );
+  color: rgba(245, 243, 255, 0.92);
+  font-size: 0.54rem;
+  font-weight: 950;
+  letter-spacing: 0.13em;
+  line-height: 1;
+  pointer-events: none;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .trade-war-player-add,
@@ -823,6 +1063,7 @@ button.player-team-tile:focus-visible {
   min-width: 0;
   width: 100%;
   gap: 0.45rem;
+  align-content: start;
   text-align: left;
 }
 
@@ -832,6 +1073,11 @@ button.player-team-tile:focus-visible {
   width: 100%;
 }
 
+.trade-war-selected-main > .player-chip,
+.trade-war-selected-main > .trade-war-pick-label {
+  padding-right: 2.15rem;
+}
+
 .trade-war-player-name .player-chip > span:last-child,
 .trade-war-selected-main .player-chip > span:last-child {
   overflow: hidden;
@@ -839,6 +1085,20 @@ button.player-team-tile:focus-visible {
   white-space: nowrap;
   color: #f8fafc;
   font-weight: 950;
+}
+
+.trade-war-player-name,
+.trade-war-selected-main > .player-chip {
+  display: flex;
+}
+
+.trade-war-player-name,
+.trade-war-selected-main > .player-chip,
+.trade-war-selected-main > .trade-war-pick-label {
+  min-height: 1.9rem;
+  align-items: flex-start;
+  font-size: 0.78rem;
+  line-height: 1.08;
 }
 
 .trade-war-pick-label {
@@ -863,31 +1123,16 @@ button.player-team-tile:focus-visible {
   font-weight: 800;
 }
 
-.trade-war-owner {
-  display: inline-flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.35rem;
-  color: #cbd5e1;
-  font-size: 0.72rem;
-  font-weight: 850;
-}
-
-.trade-war-owner > span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .trade-war-player-pills {
   display: flex;
+  width: 100%;
   min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.35rem;
 }
 
-.trade-war-player-pills > span:not(.team-logo-pill):not([class*="position-rank-pill"]) {
+.trade-war-player-pills > span:not(.team-logo-pill):not([class*="position-rank-pill"]):not(.trade-war-owner-avatar) {
   display: inline-flex;
   align-items: center;
   min-height: 1.35rem;
@@ -900,19 +1145,19 @@ button.player-team-tile:focus-visible {
   font-weight: 950;
 }
 
-.trade-war-off-roster-pill {
-  border-color: rgba(251, 191, 36, 0.36) !important;
-  background: rgba(251, 191, 36, 0.12) !important;
-  color: #fcd34d !important;
+.trade-war-meta-owner-avatar {
+  margin-left: auto;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: hidden;
 }
 
-.trade-war-detail-button {
-  justify-self: start;
-  color: #67e8f9;
-  font-size: 0.66rem;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.trade-war-meta-owner-avatar,
+.trade-war-meta-owner-avatar img,
+.trade-war-meta-owner-avatar > span:not(.manager-accolade-crown):not(.manager-sacko-dunce) {
+  width: 1.55rem;
+  height: 1.55rem;
 }
 
 .trade-war-remove {
@@ -948,6 +1193,99 @@ button.player-team-tile:focus-visible {
   padding: 0.85rem;
 }
 
+.trade-war-before-after-panel {
+  min-height: auto;
+}
+
+.trade-war-before-after-title {
+  display: grid;
+  min-width: 0;
+  align-items: start;
+  gap: 0.14rem;
+}
+
+.trade-war-before-after-topline {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.trade-war-before-after-heading-row {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.42rem;
+}
+
+.trade-war-before-after-manager-stack {
+  display: grid;
+  min-width: 0;
+  gap: 0.16rem;
+}
+
+.trade-war-before-after-manager-stack > strong {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: #f8fafc;
+  font-family: var(--font-athletic);
+  font-size: 0.96rem;
+  font-weight: 950;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-war-before-after-eyebrow {
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.trade-war-before-after-summary {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.22rem;
+  color: #dbeafe;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.trade-war-before-after-summary > strong {
+  max-width: 8rem;
+  overflow: hidden;
+  color: #f8fafc;
+  font-family: var(--font-athletic);
+  font-size: 0.84rem;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-war-before-after-avatar {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+.trade-war-before-after-avatar,
+.trade-war-before-after-avatar img,
+.trade-war-before-after-avatar > span:not(.manager-accolade-crown):not(.manager-sacko-dunce) {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
 .trade-war-note-panel p {
   margin-top: 0.55rem;
   color: #dbeafe;
@@ -958,39 +1296,138 @@ button.player-team-tile:focus-visible {
 
 .trade-war-rank-pills {
   display: flex;
+  min-width: 0;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: 0.55rem;
+  align-items: center;
+  gap: 0.18rem 0.58rem;
+  margin-top: 0;
 }
 
-.trade-war-rank-pills > span,
-.trade-war-suggestion-block > span {
+.trade-war-rank-pills > span {
   display: inline-flex;
   align-items: center;
-  min-height: 1.45rem;
-  border: 1px solid rgba(34, 211, 238, 0.25);
-  border-radius: 999px;
-  background: rgba(8, 15, 31, 0.78);
-  padding: 0 0.55rem;
+  min-height: 1rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
   color: #8cecff;
   font-size: 0.7rem;
   font-weight: 950;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
 }
 
-.trade-war-suggestion-block + .trade-war-suggestion-block {
-  margin-top: 0.9rem;
+.trade-war-rank-shift-pill {
+  gap: 0.28rem;
+  background: transparent !important;
 }
 
-.trade-war-suggested-asset {
-  width: 100%;
-  margin-top: 0.45rem;
-  text-align: left;
+.trade-war-rank-shift-pill em,
+.trade-war-read-metric {
+  color: var(--trade-war-metric-color, #8cecff);
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.04em;
 }
 
-.trade-war-suggested-main {
-  display: grid;
-  gap: 0.45rem;
+.trade-war-rank-shift-pill strong,
+.trade-war-read-rank {
+  display: inline;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 0.74rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.trade-war-rank-shift-pill i {
+  color: rgba(203, 213, 225, 0.72);
+  font-style: normal;
+  font-weight: 950;
+}
+
+.trade-war-rank-shift-pill-qb,
+.trade-war-read-metric-qb {
+  --trade-war-metric-color: #fb7185;
+  border-color: rgba(251, 113, 133, 0.34) !important;
+}
+
+.trade-war-rank-shift-pill-rb,
+.trade-war-read-metric-rb {
+  --trade-war-metric-color: #34d399;
+  border-color: rgba(52, 211, 153, 0.34) !important;
+}
+
+.trade-war-rank-shift-pill-wr,
+.trade-war-read-metric-wr {
+  --trade-war-metric-color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.36) !important;
+}
+
+.trade-war-rank-shift-pill-te,
+.trade-war-read-metric-te {
+  --trade-war-metric-color: #fdba74;
+  border-color: rgba(253, 186, 116, 0.36) !important;
+}
+
+.trade-war-rank-shift-pill-value,
+.trade-war-read-metric-value {
+  --trade-war-metric-color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.38) !important;
+}
+
+.trade-war-rank-shift-pill-contender,
+.trade-war-read-metric-contender {
+  --trade-war-metric-color: #67e8f9;
+  border-color: rgba(103, 232, 249, 0.36) !important;
+}
+
+.trade-war-rank-shift-pill-rebuilder,
+.trade-war-read-metric-rebuilder {
+  --trade-war-metric-color: #c084fc;
+  border-color: rgba(192, 132, 252, 0.36) !important;
+}
+
+.trade-war-rank-shift-pill-power,
+.trade-war-read-metric-power {
+  --trade-war-metric-color: #f97316;
+  border-color: rgba(249, 115, 22, 0.34) !important;
+}
+
+.trade-war-before-after-copy {
+  display: block;
+}
+
+.trade-war-before-after-line {
+  display: flex;
+  min-width: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.22rem;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.trade-war-before-after-line > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #f8fafc;
+  font-weight: 950;
+  text-overflow: ellipsis;
+}
+
+.trade-war-before-after-line > span {
+  color: #dbeafe;
+}
+
+.trade-war-read-value {
+  color: #fbbf24;
+  font-size: 1.05rem;
+  font-weight: 950;
 }
 
 .trade-war-negotiation-panel {
@@ -1005,11 +1442,21 @@ button.player-team-tile:focus-visible {
   grid-column: 1 / -1;
 }
 
+.trade-war-value-match-row {
+  display: grid;
+  gap: 0.58rem;
+  margin-top: 0.72rem;
+}
+
+.trade-war-value-match-row + .trade-war-value-match-row {
+  border-top: 1px solid rgba(34, 211, 238, 0.12);
+  padding-top: 0.72rem;
+}
+
 .trade-war-value-match-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.62rem;
-  margin-top: 0.65rem;
 }
 
 .trade-war-value-match-card {
@@ -1052,58 +1499,67 @@ button.player-team-tile:focus-visible {
   text-transform: uppercase;
 }
 
-.trade-war-value-match-card p {
-  margin: 0;
-  color: #cbd5e1;
-  font-size: 0.74rem;
-  font-weight: 760;
-  line-height: 1.35;
+.trade-war-value-match-body {
+  display: grid;
+  gap: 0.55rem;
 }
 
 .trade-war-value-match-assets {
   display: grid;
-  gap: 0.35rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
 }
 
 .trade-war-value-match-asset {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 0.45rem;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 0.64rem;
-  background: rgba(15, 23, 42, 0.62);
-  padding: 0.42rem 0.5rem;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 0.42rem;
+  min-height: 4.85rem;
+  border-radius: 0.78rem;
+  padding: 0.5rem;
   text-align: left;
 }
 
-.trade-war-value-match-asset span,
-.trade-war-value-match-asset em,
-.trade-war-value-match-asset strong {
+.trade-war-value-match-name,
+.trade-war-value-match-asset .player-chip,
+.trade-war-value-match-asset .trade-war-pick-label,
+.trade-war-value-match-asset .player-chip > span:last-child {
   min-width: 0;
   overflow: hidden;
-  line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.trade-war-value-match-asset span {
+.trade-war-value-match-name,
+.trade-war-value-match-asset .player-chip,
+.trade-war-value-match-asset .trade-war-pick-label {
+  width: 100%;
+}
+
+.trade-war-value-match-asset .player-chip {
+  gap: 0.46rem;
+}
+
+.trade-war-value-match-asset .player-chip > span:last-child,
+.trade-war-value-match-asset .trade-war-pick-label > span {
   color: #f8fafc;
-  font-size: 0.76rem;
-  font-weight: 900;
-}
-
-.trade-war-value-match-asset em {
-  color: #8cecff;
-  font-size: 0.64rem;
-  font-style: normal;
+  font-size: 0.78rem;
   font-weight: 950;
+  line-height: 1.08;
 }
 
-.trade-war-value-match-asset strong {
-  color: #fb923c;
+.trade-war-value-match-asset .trade-war-pick-label > small {
+  color: #67e8f9;
   font-size: 0.66rem;
-  font-weight: 950;
+}
+
+.trade-war-value-match-asset .trade-war-player-pills {
+  width: 100%;
+}
+
+.trade-war-value-match-use {
+  justify-self: center;
 }
 
 .trade-war-package-grid {
@@ -1116,6 +1572,7 @@ button.player-team-tile:focus-visible {
 .trade-war-package-card {
   display: grid;
   min-width: 0;
+  align-content: start;
   gap: 0.48rem;
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 0.88rem;
@@ -1164,24 +1621,31 @@ button.player-team-tile:focus-visible {
   line-height: 1.35;
 }
 
-.trade-war-package-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.32rem;
-}
-
-.trade-war-package-chips span {
-  border: 1px solid rgba(34, 211, 238, 0.16);
+.trade-war-suggested-add-overlay {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 4;
+  display: inline-flex;
+  min-height: 1.28rem;
+  align-items: center;
+  border: 1px solid rgba(251, 146, 60, 0.78);
   border-radius: 999px;
-  background: rgba(8, 47, 73, 0.3);
-  padding: 0.2rem 0.42rem;
-  color: #a5f3fc;
+  background: rgba(30, 10, 4, 0.92);
+  padding: 0 0.52rem;
+  color: #fed7aa;
   font-size: 0.62rem;
-  font-weight: 900;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 0 12px rgba(251, 146, 60, 0.32);
 }
 
 .trade-war-package-apply {
-  justify-self: start;
+  justify-self: center;
+  align-self: end;
+  margin-top: auto;
   min-height: 1.9rem;
   border: 1px solid rgba(52, 211, 153, 0.34);
   border-radius: 999px;
@@ -1224,10 +1688,24 @@ button.player-team-tile:focus-visible {
   padding: 0.68rem;
 }
 
-.trade-war-negotiation-card > div:first-child {
+.trade-war-negotiation-manager {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.48rem;
+}
+
+.trade-war-negotiation-manager > span {
   display: grid;
   min-width: 0;
   gap: 0.18rem;
+}
+
+.trade-war-negotiation-avatar,
+.trade-war-negotiation-avatar img,
+.trade-war-negotiation-avatar > span:not(.manager-accolade-crown):not(.manager-sacko-dunce) {
+  width: 1.8rem;
+  height: 1.8rem;
 }
 
 .trade-war-negotiation-card strong,
@@ -1283,11 +1761,86 @@ button.player-team-tile:focus-visible {
   font-weight: 900;
 }
 
+.trade-war-negotiation-chip-danger {
+  border-color: rgba(251, 113, 133, 0.36) !important;
+  background: rgba(127, 29, 29, 0.38) !important;
+  color: #fecdd3 !important;
+}
+
+.trade-war-negotiation-chip-good {
+  border-color: rgba(52, 211, 153, 0.36) !important;
+  background: rgba(6, 78, 59, 0.38) !important;
+  color: #bbf7d0 !important;
+}
+
+.trade-war-negotiation-chip-warn {
+  border-color: rgba(251, 191, 36, 0.36) !important;
+  background: rgba(113, 63, 18, 0.36) !important;
+  color: #fde68a !important;
+}
+
+.trade-war-negotiation-chip-balanced {
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  background: rgba(30, 41, 59, 0.5) !important;
+  color: #cbd5e1 !important;
+}
+
+.trade-war-negotiation-chip-surplus {
+  border-color: rgba(192, 132, 252, 0.36) !important;
+  background: rgba(88, 28, 135, 0.34) !important;
+  color: #ddd6fe !important;
+}
+
+.trade-war-negotiation-chip-qb {
+  border-color: rgba(251, 113, 133, 0.38) !important;
+  background: rgba(127, 29, 29, 0.34) !important;
+  color: #fecdd3 !important;
+}
+
+.trade-war-negotiation-chip-rb {
+  border-color: rgba(52, 211, 153, 0.36) !important;
+  background: rgba(6, 78, 59, 0.34) !important;
+  color: #bbf7d0 !important;
+}
+
+.trade-war-negotiation-chip-wr {
+  border-color: rgba(96, 165, 250, 0.36) !important;
+  background: rgba(30, 64, 175, 0.3) !important;
+  color: #bfdbfe !important;
+}
+
+.trade-war-negotiation-chip-te {
+  border-color: rgba(253, 186, 116, 0.38) !important;
+  background: rgba(124, 45, 18, 0.34) !important;
+  color: #fed7aa !important;
+}
+
 .trade-war-negotiation-card p {
   grid-column: 1 / -1;
   margin-top: 0;
   font-size: 0.76rem;
   line-height: 1.36;
+}
+
+.trade-war-position-text {
+  font-style: normal;
+  font-weight: 950;
+}
+
+.trade-war-position-text-qb {
+  color: #fb7185;
+}
+
+.trade-war-position-text-rb {
+  color: #34d399;
+}
+
+.trade-war-position-text-wr {
+  color: #60a5fa;
+}
+
+.trade-war-position-text-te {
+  color: #fdba74;
 }
 
 .trade-war-negotiation-good {
@@ -1333,6 +1886,14 @@ button.player-team-tile:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .trade-war-value-match-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trade-war-value-match-assets {
+    grid-template-columns: 1fr;
+  }
+
   .trade-war-manager-board-head {
     display: grid;
   }
@@ -1346,12 +1907,23 @@ button.player-team-tile:focus-visible {
     grid-template-columns: auto minmax(0, 1fr);
   }
 
-  .trade-war-manager-board-bars {
+  .trade-war-manager-board-summary-stats {
     grid-column: 1 / -1;
+    display: grid;
+    gap: 0.45rem;
   }
 
-  .trade-war-manager-lens-ranks {
-    grid-template-columns: 1fr;
+  .trade-war-manager-board-bars {
+    min-width: 0;
+  }
+
+  .trade-war-manager-summary-lens-ranks,
+  .trade-war-manager-board-meta {
+    flex-wrap: wrap;
+  }
+
+  .trade-war-manager-summary-lens-ranks {
+    display: none;
   }
 
   .trade-war-manager-board-sections {
@@ -3470,8 +4042,7 @@ button.trade-manager-trade {
 .report-shell .trade-war-selected-asset,
 .report-shell .trade-war-player-add,
 .report-shell .trade-war-selected-main,
-.report-shell .trade-war-player-name,
-.report-shell .trade-war-owner {
+.report-shell .trade-war-player-name {
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -3492,7 +4063,7 @@ button.trade-manager-trade {
     gap: 0.24rem;
   }
 
-  .report-shell .trade-war-player-pills > span:not(.team-logo-pill):not([class*="position-rank-pill"]) {
+  .report-shell .trade-war-player-pills > span:not(.team-logo-pill):not([class*="position-rank-pill"]):not(.trade-war-owner-avatar) {
     min-height: 1.18rem;
     padding-inline: 0.34rem;
     font-size: 0.58rem;
@@ -5487,6 +6058,7 @@ button.trade-manager-trade {
   --dd-cyan: #67e8f9;
   --dd-orange: #fb923c;
   --dd-gold: #fbbf24;
+  --dd-orange-title-gradient: linear-gradient(90deg, #c2410c 0%, #fb923c 22%, #fdba74 52%, #fb923c 78%, #c2410c 100%);
   --dd-good: #34d399;
   --dd-danger: #fb7185;
   --dd-panel: rgba(2, 6, 23, 0.72);
@@ -5553,6 +6125,100 @@ body {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 8px 22px rgba(0, 0, 0, 0.22) !important;
+}
+
+.report-shell .report-header,
+.report-shell .report-footer,
+.home-footer-light-shell {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.report-shell .dd-header-content,
+.home-footer-light-shell > :not(.dd-header-css-lights) {
+  position: relative;
+  z-index: 2;
+}
+
+.report-shell .dd-header-css-lights,
+.home-footer-light-shell .dd-header-css-lights {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.report-shell .report-header .dd-header-css-lights {
+  opacity: 0.78;
+}
+
+.report-shell .report-footer .dd-header-css-lights,
+.home-footer-light-shell .dd-footer-css-lights {
+  opacity: 0.46;
+}
+
+.report-shell .dd-header-css-lights span,
+.home-footer-light-shell .dd-header-css-lights span {
+  position: absolute;
+  display: block;
+  width: var(--size, 18px);
+  height: var(--size, 18px);
+  left: var(--x, 50%);
+  top: var(--y, 50%);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--color, #00c8e8) 92%, white 8%) 0%, var(--color, #00c8e8) 34%, transparent 70%);
+  opacity: 0.08;
+  filter:
+    blur(var(--blur, 4px))
+    drop-shadow(0 0 16px var(--color, #00c8e8));
+  transform: translate(-50%, -50%) scale(var(--min-scale, 0.7));
+  animation: dd-header-light-pulse var(--duration, 5s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.report-shell .report-footer .dd-header-css-lights span,
+.home-footer-light-shell .dd-header-css-lights span {
+  width: calc(var(--size, 18px) * 0.82);
+  height: calc(var(--size, 18px) * 0.82);
+}
+
+@keyframes dd-header-light-pulse {
+  0%,
+  100% {
+    opacity: 0.035;
+    transform: translate(-50%, -50%) scale(var(--min-scale, 0.7));
+  }
+
+  36% {
+    opacity: var(--peak, 0.42);
+    transform:
+      translate(
+        calc(-50% + var(--drift-x, 0px)),
+        calc(-50% + var(--drift-y, 0px))
+      )
+      scale(var(--max-scale, 1.25));
+  }
+
+  64% {
+    opacity: calc(var(--peak, 0.42) * 0.36);
+    transform: translate(-50%, -50%) scale(var(--end-scale, 0.95));
+  }
+
+  82% {
+    opacity: calc(var(--peak, 0.42) * 0.18);
+    transform: translate(-50%, -50%) scale(var(--min-scale, 0.7));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-shell .dd-header-css-lights,
+  .home-footer-light-shell .dd-header-css-lights {
+    display: none;
+  }
 }
 
 /* Brand redesign: loaded report dashboard frame. */
@@ -5983,7 +6649,7 @@ body {
 }
 
 .report-overview-hero h1 span:last-child {
-  background: linear-gradient(90deg, #fb923c 0%, #fdba74 52%, #fde68a 100%);
+  background: var(--dd-orange-title-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -6033,6 +6699,161 @@ body {
   border-radius: 0.45rem;
   background: rgba(4, 11, 20, 0.72);
   backdrop-filter: blur(14px);
+}
+
+.report-delta-brief {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.75fr) minmax(0, 1.45fr);
+  gap: clamp(0.7rem, 1.2vw, 1rem);
+  width: calc(100% - clamp(1.8rem, 3.1vw, 2.56rem));
+  margin: 0 auto clamp(0.92rem, 1.6vw, 1.25rem);
+  padding: clamp(0.78rem, 1.2vw, 1rem) !important;
+}
+
+.report-delta-brief-copy {
+  display: grid;
+  align-content: center;
+  gap: 0.26rem;
+  min-width: 0;
+}
+
+.report-delta-brief-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  align-items: center;
+  color: rgba(125, 249, 255, 0.92);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.report-delta-brief-kicker svg {
+  width: 0.82rem;
+  height: 0.82rem;
+  color: rgb(var(--ai-board-cyan));
+}
+
+.report-delta-brief-kicker em {
+  color: rgba(226, 232, 240, 0.58);
+  font-style: normal;
+  letter-spacing: 0.04em;
+}
+
+.report-delta-brief h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-family: "Oswald", sans-serif;
+  font-size: clamp(1.02rem, 1.34vw, 1.34rem);
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.report-delta-brief-copy > p {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.84);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.report-delta-brief-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.54rem;
+  min-width: 0;
+}
+
+.report-delta-brief-list article {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.28rem;
+  border: 1px solid rgba(var(--ai-board-cyan), 0.18);
+  border-radius: 0.46rem;
+  background: rgba(2, 13, 24, 0.58);
+  padding: 0.62rem;
+  box-shadow: inset 0 0 18px rgba(var(--ai-board-cyan), 0.035);
+}
+
+.report-delta-brief-list article[data-tone="good"] {
+  border-color: rgba(52, 211, 153, 0.28);
+}
+
+.report-delta-brief-list article[data-tone="warn"] {
+  border-color: rgba(251, 191, 36, 0.28);
+}
+
+.report-delta-brief-list article[data-tone="danger"] {
+  border-color: rgba(251, 113, 133, 0.3);
+}
+
+.report-delta-brief-list article > span {
+  display: flex;
+  gap: 0.28rem;
+  align-items: center;
+  min-width: 0;
+  color: rgba(125, 249, 255, 0.76);
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.report-delta-brief-list article > span svg {
+  width: 0.68rem;
+  height: 0.68rem;
+  flex: 0 0 auto;
+}
+
+.report-delta-brief-list article strong {
+  color: #f8fafc;
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.report-delta-brief-list article p {
+  margin: 0;
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 0.62rem;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.report-delta-brief-receipts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.24rem;
+  margin-top: 0.04rem;
+}
+
+.report-delta-brief-receipts em,
+.report-delta-brief-more {
+  border: 1px solid rgba(var(--ai-board-cyan), 0.18);
+  border-radius: 999px;
+  background: rgba(var(--ai-board-cyan), 0.06);
+  padding: 0.18rem 0.36rem;
+  color: rgba(207, 250, 254, 0.72);
+  font-size: 0.5rem;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.report-delta-brief-more {
+  align-self: center;
+  justify-self: start;
+  grid-column: 1 / -1;
+  border-style: dashed;
+  color: rgba(226, 232, 240, 0.62);
 }
 
 .dashboard-metric-card {
@@ -6703,9 +7524,9 @@ body {
 .report-command-section-stack .report-section-header {
   justify-self: start;
   margin: 0 !important;
-  border-left: 4px solid transparent;
-  border-image: linear-gradient(to bottom, #00c8e8, #f4a020) 1;
-  padding-left: 0.85rem;
+  border-left: 0;
+  border-image: none;
+  padding-left: 0;
   text-align: left !important;
 }
 
@@ -7696,8 +8517,11 @@ body {
 
 .command-mini-badge-elite,
 .manager-intel-pill-elite {
-  border-color: rgba(132, 204, 22, 0.34) !important;
-  background: rgba(63, 98, 18, 0.42) !important;
+  border-color: rgba(168, 85, 247, 0.44) !important;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(250, 204, 21, 0.18), transparent 58%),
+    rgba(76, 29, 149, 0.42) !important;
+  color: #fde68a !important;
 }
 
 .command-mini-badge-warn,

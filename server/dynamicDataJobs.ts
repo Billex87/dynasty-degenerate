@@ -1,11 +1,11 @@
 import fs from 'fs';
 import path from 'path';
+import { resolvePendingAIPredictionOutcomes } from './aiPredictionOutcomeJob';
 import { listLeagueReportCacheEntries } from './db';
 import { loadDraftSharksScheduleContext } from './draftSharksSchedule';
 import { warmEspnDepthChartsForTeams } from './espnDepthCharts';
 import { refreshFantasyProsEndpointSnapshots } from './fantasyProsEndpointSnapshots';
 import { buildFantasyProsSourceHealthEvents, checkFantasyProsApiHealth } from './fantasyProsHealth';
-import { refreshFantasyProsMatchupCalendarSnapshots } from './fantasyProsMatchupCalendar';
 import { resolveFantasyProsSnapshotStartWeek } from './fantasyProsSnapshotWindow';
 import { loadBlendedKTCValues, loadLatestLocalWeeklyMomentumSnapshot } from './ktcLoader';
 import { attachLeagueAiConfidence, persistLeagueAiConfidenceSnapshot } from './leagueAiConfidence';
@@ -13,6 +13,7 @@ import { loadPlayerNewsBundle } from './playerNews';
 import { loadNflverseDraftCapitalSnapshot } from './nflverseDraftCapital';
 import { loadNflversePlayerContext } from './nflversePlayerContext';
 import { refreshPlayerPropSnapshots } from './playerPropSnapshots';
+import { isAnyProjectionTypeEnabled } from './projectionFeatureFlags';
 import { buildProspectLookup, loadProspectContext } from './prospectSource';
 import { getCurrentRankingSeason } from './rankingSeason';
 import { buildRankingsBoard } from './rankingsBoard';
@@ -56,6 +57,19 @@ function envNumber(name: string, fallback: number): number {
 function envOptionalNumber(name: string): number | null {
   const parsed = Number(process.env[name]);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function includeFantasyProsProjectionSnapshots(): boolean {
+  return isAnyProjectionTypeEnabled('fantasypros', [
+    'weekly',
+    'restOfSeason',
+    'preseason',
+    'playoffWeeks',
+    'positionSpecific',
+    'teamDefense',
+    'kicker',
+    'injuryAdjusted',
+  ]);
 }
 
 async function resolveFantasyProsSnapshotWindow(shouldResolveWeek: boolean) {
@@ -323,7 +337,7 @@ export async function refreshFantasyProsEndpointSnapshotRefresh(options: {
   const results = await refreshFantasyProsEndpointSnapshots({
     season: snapshotWindow.season,
     scoring: 'PPR',
-    includeProjections: envFlag('ENABLE_FANTASYPROS_PROJECTIONS'),
+    includeProjections: includeFantasyProsProjectionSnapshots(),
     includeExpanded: expanded,
     currentWeek: snapshotWindow.currentWeek,
     weekWindow: snapshotWindow.weekWindow,
@@ -331,38 +345,6 @@ export async function refreshFantasyProsEndpointSnapshotRefresh(options: {
     rateLimitRetryAttempts: envNumber('FANTASYPROS_SNAPSHOT_RATE_LIMIT_RETRY_ATTEMPTS', 1),
     rateLimitRetryDelayMs: envNumber('FANTASYPROS_SNAPSHOT_RATE_LIMIT_RETRY_DELAY_MS', 5000),
     stopOnRateLimit: envFlag('FANTASYPROS_SNAPSHOT_STOP_ON_RATE_LIMIT'),
-  });
-
-  return {
-    skipped: false,
-    reason: null,
-    season: snapshotWindow.season,
-    currentWeek: snapshotWindow.currentWeek,
-    weekWindow: snapshotWindow.weekWindow,
-    results,
-  };
-}
-
-export async function refreshFantasyProsMatchupCalendarRefresh(options: {
-  force?: boolean;
-} = {}) {
-  const enabled = envFlag('ENABLE_FANTASYPROS_MATCHUP_CALENDAR_SNAPSHOTS') || options.force === true;
-  const snapshotWindow = await resolveFantasyProsSnapshotWindow(true);
-
-  if (!enabled) {
-    return {
-      skipped: true,
-      reason: 'ENABLE_FANTASYPROS_MATCHUP_CALENDAR_SNAPSHOTS is not enabled.',
-      season: snapshotWindow.season,
-      currentWeek: snapshotWindow.currentWeek,
-      weekWindow: snapshotWindow.weekWindow,
-      results: [] as Awaited<ReturnType<typeof refreshFantasyProsMatchupCalendarSnapshots>>,
-    };
-  }
-
-  const results = await refreshFantasyProsMatchupCalendarSnapshots({
-    season: snapshotWindow.season,
-    requestDelayMs: envNumber('FANTASYPROS_MATCHUP_CALENDAR_REQUEST_DELAY_MS', envNumber('FANTASYPROS_SNAPSHOT_REQUEST_DELAY_MS', 750)),
   });
 
   return {
@@ -408,7 +390,7 @@ export async function refreshRankingSourceSnapshots() {
   const fantasyProsHealthRows = await checkFantasyProsApiHealth({
     season: fantasyProsSnapshotWindow.season,
     scoring: 'PPR',
-    includeProjections: envFlag('ENABLE_FANTASYPROS_PROJECTIONS'),
+    includeProjections: includeFantasyProsProjectionSnapshots(),
     includeExpanded: fantasyProsExpandedHealth,
     currentWeek: fantasyProsSnapshotWindow.currentWeek,
     weekWindow: fantasyProsSnapshotWindow.weekWindow,
@@ -417,11 +399,7 @@ export async function refreshRankingSourceSnapshots() {
   const fantasyProsEndpointSnapshotRefresh = envFlag('ENABLE_FANTASYPROS_ENDPOINT_SNAPSHOTS_DAILY')
     ? await refreshFantasyProsEndpointSnapshotRefresh()
     : null;
-  const fantasyProsMatchupCalendarRefresh = envFlag('ENABLE_FANTASYPROS_MATCHUP_CALENDAR_SNAPSHOTS_DAILY')
-    ? await refreshFantasyProsMatchupCalendarRefresh()
-    : null;
   const fantasyProsEndpointSnapshots = fantasyProsEndpointSnapshotRefresh?.results || [];
-  const fantasyProsMatchupCalendarSnapshots = fantasyProsMatchupCalendarRefresh?.results || [];
   const fantasyProsHealthEvents = buildFantasyProsSourceHealthEvents(fantasyProsHealthRows);
   const sourceHealth = await recordSourceHealthEvents([
     ...sourceHealthEvents,
@@ -434,7 +412,6 @@ export async function refreshRankingSourceSnapshots() {
     diagnosticCount: diagnostics.length,
     fantasyProsEndpointCount: fantasyProsHealthRows.length,
     fantasyProsEndpointSnapshotCount: fantasyProsEndpointSnapshots.length,
-    fantasyProsMatchupCalendarSnapshotCount: fantasyProsMatchupCalendarSnapshots.length,
     alertCount: sourceHealthEvents.length + fantasyProsHealthEvents.filter((event) => event.level !== 'info').length,
     sourceHealthStored: sourceHealth.stored,
     fantasyProsEndpointSnapshotRefresh: fantasyProsEndpointSnapshotRefresh
@@ -444,15 +421,6 @@ export async function refreshRankingSourceSnapshots() {
         season: fantasyProsEndpointSnapshotRefresh.season,
         currentWeek: fantasyProsEndpointSnapshotRefresh.currentWeek,
         weekWindow: fantasyProsEndpointSnapshotRefresh.weekWindow,
-      }
-      : null,
-    fantasyProsMatchupCalendarRefresh: fantasyProsMatchupCalendarRefresh
-      ? {
-        skipped: fantasyProsMatchupCalendarRefresh.skipped,
-        reason: fantasyProsMatchupCalendarRefresh.reason,
-        season: fantasyProsMatchupCalendarRefresh.season,
-        currentWeek: fantasyProsMatchupCalendarRefresh.currentWeek,
-        weekWindow: fantasyProsMatchupCalendarRefresh.weekWindow,
       }
       : null,
     fantasyProsHealth: fantasyProsHealthRows.map((row) => ({
@@ -476,16 +444,6 @@ export async function refreshRankingSourceSnapshots() {
       rowCount: row.rowCount,
       totalExperts: row.totalExperts,
       lastUpdated: row.lastUpdated,
-      persisted: row.persisted,
-      error: row.error,
-    })),
-    fantasyProsMatchupCalendarSnapshots: fantasyProsMatchupCalendarSnapshots.map((row) => ({
-      key: row.position,
-      sourceKey: row.sourceKey,
-      source: `FantasyPros ${row.position} matchup calendar`,
-      status: row.status,
-      rowCount: row.rowCount,
-      weekCount: row.weekCount,
       persisted: row.persisted,
       error: row.error,
     })),
@@ -583,6 +541,7 @@ export async function runDynamicDataRefresh(options: {
     sourceRefresh?: Awaited<ReturnType<typeof refreshRankingSourceSnapshots>>;
     enrichmentRefresh?: Awaited<ReturnType<typeof refreshReportEnrichmentSnapshots>>;
     confidenceBackfill?: Awaited<ReturnType<typeof backfillLeagueAiConfidenceSnapshots>>;
+    aiPredictionOutcomeResolution?: Awaited<ReturnType<typeof resolvePendingAIPredictionOutcomes>>;
     sourceHealthBackfill?: Awaited<ReturnType<typeof backfillSourceHealthFromCachedReports>>;
     errors: string[];
   } = {
@@ -624,6 +583,19 @@ export async function runDynamicDataRefresh(options: {
   } catch (error) {
     result.ok = false;
     result.errors.push(`confidence backfill: ${getErrorMessage(error)}`);
+  }
+
+  try {
+    result.aiPredictionOutcomeResolution = await resolvePendingAIPredictionOutcomes({
+      limit: options.backfillLimit || 100,
+    });
+    if (!result.aiPredictionOutcomeResolution.ok) {
+      result.ok = false;
+      result.errors.push('AI prediction outcome resolution completed with unresolved errors.');
+    }
+  } catch (error) {
+    result.ok = false;
+    result.errors.push(`AI prediction outcome resolution: ${getErrorMessage(error)}`);
   }
 
   if (/^(?:1|true|yes|on)$/i.test(String(process.env.ENABLE_SOURCE_HEALTH_BACKFILL || ''))) {

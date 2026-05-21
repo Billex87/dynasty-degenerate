@@ -20,6 +20,7 @@ Run:
 ```sh
 pnpm build:player-season-outcomes
 pnpm backtest:player-cohorts
+pnpm backtest:player-comparisons
 pnpm publish:player-cohort-calibration
 ```
 
@@ -30,6 +31,7 @@ START_SEASON=2017 END_SEASON=2025 pnpm build:player-season-outcomes
 SEASONS=2021,2022,2023 WRITE_ROWS=0 pnpm build:player-season-outcomes
 OUT_DIR=/path/outside/repo/player-season-outcomes pnpm build:player-season-outcomes
 MIN_SAMPLE_SIZE=6 pnpm publish:player-cohort-calibration
+MIN_SIMILARITY=62 PEER_LIMIT=6 pnpm backtest:player-comparisons
 ```
 
 ## Source
@@ -80,6 +82,29 @@ The calibration output includes:
 - primary failure modes such as role loss, production collapse, efficiency-spike pullback, and breakout pullback
 
 This is the evidence layer that should eventually inform player AI confidence. Keep it offline until we intentionally promote a compact, versioned summary.
+
+## Historical Comparison Backtest
+
+After building player-season outcomes, run `pnpm backtest:player-comparisons`.
+
+The comparison backtest tests whether a player-season's closest same-position historical seasons would have predicted the correct next-season direction. It only uses candidates whose next-season result was already complete before the tested season, which prevents current-season or future-outcome leakage.
+
+It writes:
+
+- `.cache/modeling/player-comparison-backtest/diagnostics.json`
+- `.cache/modeling/player-comparison-backtest/summary.md`
+
+The diagnostics include:
+
+- eligible rows, compared rows, and no-comp rows
+- hit rate
+- false-positive and false-negative rates
+- positive and negative precision
+- season-by-season drift
+- position and prior-trajectory summaries
+- strongest hits, false positives, false negatives, and no-comp examples
+
+The current season warehouse supports production, role, usage, target-share/WOPR, and prior-trajectory matching. It does not yet provide season-specific market value, season-specific age, or format-specific scoring context, so those remain explicitly listed as missing warehouse-backed features in the diagnostic output.
 
 ## Runtime Receipts
 

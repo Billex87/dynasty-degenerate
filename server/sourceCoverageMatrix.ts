@@ -1,6 +1,5 @@
 import type { SourceSnapshotFreshnessDiagnostic } from '../shared/types';
 import type { StoredSourceHealthEvent } from './db';
-import { FANTASYPROS_MATCHUP_CALENDAR_POSITIONS, getFantasyProsMatchupCalendarSourceKey } from './fantasyProsMatchupCalendar';
 
 export type SourceCoverageStatus = 'loaded' | 'stale' | 'missing' | 'error' | 'blocked' | 'research';
 export type SourceCoverageLevel = 'info' | 'warn' | 'danger';
@@ -117,7 +116,7 @@ const FANTASYPROS_ENDPOINT_DEFINITIONS: SourceCoverageDefinition[] = [
     endpointKey: 'fantasypros-weekly-ecr',
     fieldMap: ['fantasypros_id', 'player_name', 'position', 'team', 'rank_ecr', 'pos_rank', 'rank_min', 'rank_max', 'rank_ave', 'rank_std', 'week'],
     couldPowerLater: ['start/sit confidence', 'weekly streamer reads', 'rank fallback for matchup recommendations'],
-    knownGaps: ['Weekly ECR snapshots remain useful as rank context, but the admin matchup table now prefers FantasyPros matchup-calendar rows'],
+    knownGaps: ['Weekly ECR snapshots remain rank context only; DraftSharks owns SOS and schedule-strength reads'],
   }),
   fantasyProsEndpointDefinition({
     sourceKey: 'fantasypros-ww-snapshot',
@@ -160,26 +159,6 @@ const FANTASYPROS_ENDPOINT_DEFINITIONS: SourceCoverageDefinition[] = [
     knownGaps: ['Should only run for selected close-call players, not broad report-wide comparisons'],
   }),
 ];
-
-const FANTASYPROS_MATCHUP_CALENDAR_DEFINITIONS: SourceCoverageDefinition[] = FANTASYPROS_MATCHUP_CALENDAR_POSITIONS.map((position) => ({
-  sourceKey: `fantasypros-matchup-calendar-${position.toLowerCase()}`,
-  source: `FantasyPros ${position} matchup calendar`,
-  category: 'FantasyPros matchup snapshot',
-  endpoint: `providerDataSnapshots fantasypros-matchup-calendar-v1:{season}:${position}`,
-  authModel: 'Public FantasyPros matchup page; cron/admin snapshot only after usage approval',
-  refreshCadence: 'Weekly Tuesday noon snapshot job; optional daily refresh only if explicitly enabled',
-  rateLimit: 'Six paced page fetches; no report-load provider calls',
-  snapshotSourceKey: (context) => getFantasyProsMatchupCalendarSourceKey({ season: context.currentSeason, position }),
-  healthSourceKeys: ['fantasypros-matchup-calendar-v1', `fantasypros-matchup-calendar-v1:${position}`],
-  fieldMap: ['fantasypros_id', 'player_name', 'position', 'team', 'rank', 'position_rank', 'week', 'opponent', 'home_away', 'matchup_stars', 'opponent_rank', 'matchup_tier', 'matchup_text', 'source_url'],
-  ids: ['FantasyPros player ID', 'name/team/position join keys', 'team-defense normalization'],
-  timestamps: ['fetchedAt', 'snapshotKey', 'updatedAt'],
-  usedNow: ['admin Schedule Edge matchup table', 'waiver AI target context', 'source freshness diagnostics'],
-  couldPowerLater: ['week-sorted matchup browser', 'D/ST and K pairing view', 'start/sit confidence', 'short-window add/drop explainers'],
-  knownGaps: ['Public page shape can change; rank remains a relevance guard so one green matchup does not promote a fringe player by itself'],
-  complianceNote: 'Stored snapshot only; no browser-cookie, user-session, or report-load page scraping.',
-  statusWhenUnbacked: 'research',
-}));
 
 const SOURCE_DEFINITIONS: SourceCoverageDefinition[] = [
   {
@@ -269,7 +248,6 @@ const SOURCE_DEFINITIONS: SourceCoverageDefinition[] = [
     complianceNote: 'Stored news metadata only; do not print article payloads or secrets.',
   },
   ...FANTASYPROS_ENDPOINT_DEFINITIONS,
-  ...FANTASYPROS_MATCHUP_CALENDAR_DEFINITIONS,
   {
     sourceKey: 'sportsdataio-news-v1',
     source: 'SportsDataIO/RotoBaller news snapshot',

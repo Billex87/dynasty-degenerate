@@ -1,0 +1,953 @@
+import { createHash } from 'node:crypto';
+import type {
+  AIEvidenceAction,
+  AIEvidencePenalty,
+  AIEvidenceResult,
+  AIEvidenceSurface,
+  AIConfidenceLabel,
+  AISourceTrace,
+} from '../shared/aiEvidenceEngine';
+import type {
+  AICounterfactualRead,
+  AICounterfactualStatus,
+  AIDecisionSnapshot,
+  AIRealizedEdge,
+  AIPredictionDecayProfile,
+} from '../shared/aiDecisionSnapshots';
+
+export type AIPredictionDecision = 'do' | 'dont' | 'watch' | 'hold' | 'blocked';
+export type AIPredictionOutcomeStatus = 'hit' | 'miss' | 'push' | 'pending' | 'blocked';
+export type AISourceAgreementState = 'aligned' | 'split' | 'conflicted' | 'thin' | 'missing' | 'unknown';
+export type AISourceSignalDirection = 'for' | 'against' | 'neutral' | 'missing';
+
+export type AISourceAgreementSignal = {
+  source: string;
+  direction: AISourceSignalDirection;
+  confidence?: number | null;
+  status?: AISourceTrace['status'] | null;
+  detail?: string | null;
+};
+
+export type AISourceAgreementRead = {
+  state: AISourceAgreementState;
+  directionalSourceCount: number;
+  sourceCount: number;
+  forWeight: number;
+  againstWeight: number;
+  neutralWeight: number;
+  missingCount: number;
+  confidenceCap: number | null;
+  reason: string;
+  signals: AISourceAgreementSignal[];
+};
+
+export type AIPredictionOutcome = {
+  status: AIPredictionOutcomeStatus;
+  resolvedAt?: string | null;
+  actualValue?: number | null;
+  baselineValue?: number | null;
+  realizedEdge?: AIRealizedEdge | null;
+  feedbackSource?: 'system' | 'user' | 'admin' | null;
+  note?: string | null;
+};
+
+export type AIPredictionEvent = {
+  schemaVersion: 1;
+  eventId: string;
+  predictionKey: string;
+  createdAt: string;
+  surface: AIEvidenceSurface;
+  action: AIEvidenceAction;
+  decision: AIPredictionDecision;
+  entityType: 'player' | 'team' | 'manager' | 'league' | 'trade' | 'lineup' | 'schedule' | 'unknown';
+  entityId?: string | null;
+  entityName?: string | null;
+  leagueId?: string | null;
+  manager?: string | null;
+  season?: string | null;
+  week?: number | null;
+  label: AIConfidenceLabel;
+  finalScore: number;
+  confidenceCap: number;
+  confidenceCapReason?: string | null;
+  evidence: string[];
+  missingEvidence: string[];
+  hardBlockers: string[];
+  softPenalties: AIEvidencePenalty[];
+  sourceTrace: AISourceTrace[];
+  sourceAgreement?: AISourceAgreementRead | null;
+  decisionSnapshot?: AIDecisionSnapshot | null;
+  counterfactual?: AICounterfactualRead | null;
+  decay?: AIPredictionDecayProfile | null;
+  expiresAt?: string | null;
+  whyThisFired: string;
+  outcome: AIPredictionOutcome;
+  metadata?: Record<string, unknown>;
+};
+
+export type CreateAIPredictionEventInput = {
+  evidenceRead: AIEvidenceResult;
+  surface: AIEvidenceSurface;
+  action: AIEvidenceAction;
+  entityType?: AIPredictionEvent['entityType'];
+  entityId?: string | number | null;
+  entityName?: string | null;
+  leagueId?: string | null;
+  manager?: string | null;
+  season?: string | number | null;
+  week?: string | number | null;
+  decision?: AIPredictionDecision | null;
+  createdAt?: string | Date | null;
+  eventId?: string | null;
+  predictionKey?: string | null;
+  sourceAgreement?: AISourceAgreementRead | null;
+  decisionSnapshot?: AIDecisionSnapshot | null;
+  counterfactual?: AICounterfactualRead | null;
+  decay?: AIPredictionDecayProfile | null;
+  metadata?: Record<string, unknown>;
+};
+
+export type AIPredictionReliabilityGroupBy =
+  | 'surface'
+  | 'action'
+  | 'label'
+  | 'decision'
+  | 'sourceAgreement'
+  | 'league'
+  | 'manager'
+  | 'leagueFormat'
+  | 'counterfactual'
+  | 'realizedEdge';
+
+export type AIPredictionReliabilityBucket = {
+  key: string;
+  group: Record<string, string>;
+  eventCount: number;
+  scoredCount: number;
+  hitCount: number;
+  missCount: number;
+  pushCount: number;
+  pendingCount: number;
+  blockedCount: number;
+  avgConfidence: number | null;
+  hitRate: number | null;
+  brierScore: number | null;
+  calibrationGap: number | null;
+  recommendedScoreAdjustment: number;
+  recommendation: 'collect-more-samples' | 'lower-confidence' | 'raise-confidence' | 'review-model' | 'calibrated';
+};
+
+export type AIPredictionReliabilitySummary = {
+  schemaVersion: 1;
+  generatedFrom: 'ai-prediction-events';
+  generatedAt: string;
+  eventCount: number;
+  scoredCount: number;
+  pendingCount: number;
+  buckets: AIPredictionReliabilityBucket[];
+};
+
+export type AICounterfactualReliabilityBucket = {
+  status: AICounterfactualStatus | 'all';
+  eventCount: number;
+  scoredCount: number;
+  hitCount: number;
+  missCount: number;
+  avgEdge: number | null;
+  avgConfidence: number | null;
+  hitRate: number | null;
+};
+
+export type AICounterfactualReliabilitySummary = {
+  schemaVersion: 1;
+  generatedFrom: 'ai-prediction-events';
+  generatedAt: string;
+  eventCount: number;
+  baselineCount: number;
+  missingBaselineCount: number;
+  doWithoutBaselineEdgeCount: number;
+  avgEdge: number | null;
+  buckets: AICounterfactualReliabilityBucket[];
+};
+
+export type AIManagerTradeCalibrationRow = {
+  manager: string;
+  eventCount: number;
+  scoredCount: number;
+  completedCount: number;
+  missCount: number;
+  pendingCount: number;
+  avgPredictedEdge: number | null;
+  avgRealizedEdge: number | null;
+  acceptanceRate: number | null;
+  recommendation: 'attack' | 'test-carefully' | 'avoid-unless-overpay' | 'collect-more-samples';
+  note: string;
+};
+
+export type AIManagerTradeCalibrationSummary = {
+  schemaVersion: 1;
+  generatedFrom: 'ai-prediction-events';
+  generatedAt: string;
+  eventCount: number;
+  rows: AIManagerTradeCalibrationRow[];
+};
+
+export type AICalibrationAdjustmentScope =
+  | 'global'
+  | 'surface'
+  | 'action'
+  | 'label'
+  | 'sourceAgreement'
+  | 'leagueFormat'
+  | 'counterfactual'
+  | 'realizedEdge'
+  | 'surfaceAction'
+  | 'surfaceActionLabel'
+  | 'surfaceActionSourceAgreement'
+  | 'surfaceActionLeagueFormat'
+  | 'surfaceActionCounterfactual'
+  | 'surfaceActionRealizedEdge'
+  | 'surfaceManager';
+
+export type AICalibrationAdjustment = {
+  key: string;
+  scope: AICalibrationAdjustmentScope;
+  group: Record<string, string>;
+  eventCount: number;
+  scoredCount: number;
+  pendingCount: number;
+  hitRate: number | null;
+  avgConfidence: number | null;
+  calibrationGap: number | null;
+  brierScore: number | null;
+  scoreAdjustment: number;
+  confidenceCap: number | null;
+  recommendation: AIPredictionReliabilityBucket['recommendation'];
+  priority: 'danger' | 'warn' | 'info' | 'good';
+  reason: string;
+};
+
+export type AICalibrationAdjustmentProfile = {
+  schemaVersion: 1;
+  generatedFrom: 'ai-prediction-events';
+  generatedAt: string;
+  eventCount: number;
+  scoredCount: number;
+  pendingCount: number;
+  globalAdjustment: AICalibrationAdjustment;
+  adjustments: AICalibrationAdjustment[];
+};
+
+export type ApplyAICalibrationAdjustmentInput = {
+  profile: AICalibrationAdjustmentProfile;
+  surface: AIEvidenceSurface;
+  action: AIEvidenceAction;
+  label: AIConfidenceLabel;
+  sourceAgreementState?: AISourceAgreementState | null;
+  finalScore: number;
+  confidenceCap?: number | null;
+};
+
+export type AppliedAICalibrationAdjustment = {
+  finalScore: number;
+  confidenceCap: number;
+  appliedAdjustment: AICalibrationAdjustment | null;
+  reason: string | null;
+};
+
+function cleanText(value: unknown): string | null {
+  const clean = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return clean || null;
+}
+
+function numeric(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function clampPercent(value: unknown): number {
+  const parsed = numeric(value);
+  if (parsed === null) return 0;
+  return Math.max(0, Math.min(100, Math.round(parsed)));
+}
+
+function weekNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function isoDate(value?: string | Date | null): string {
+  const date = value ? new Date(value) : new Date();
+  return Number.isFinite(date.getTime()) ? date.toISOString() : new Date().toISOString();
+}
+
+function hashKey(parts: Array<string | number | null | undefined>): string {
+  return createHash('sha1')
+    .update(parts.map(part => cleanText(part) || 'none').join('|'))
+    .digest('hex')
+    .slice(0, 16);
+}
+
+export function getAIPredictionKey(input: {
+  surface: AIEvidenceSurface;
+  action: AIEvidenceAction;
+  entityType?: string | null;
+  entityId?: string | number | null;
+  leagueId?: string | null;
+  manager?: string | null;
+  season?: string | number | null;
+  week?: string | number | null;
+}): string {
+  return [
+    input.surface,
+    input.action,
+    cleanText(input.leagueId) || 'global',
+    cleanText(input.manager) || 'all',
+    cleanText(input.entityType) || 'unknown',
+    cleanText(input.entityId) || 'unknown',
+    cleanText(input.season) || 'season',
+    cleanText(input.week) || 'week',
+  ].join(':');
+}
+
+function defaultDecision(result: AIEvidenceResult): AIPredictionDecision {
+  if (!result.shouldRender || result.hardBlockers.length || result.label === 'blocked') return 'blocked';
+  if (result.label === 'high conviction' || result.label === 'priority' || result.label === 'actionable') return 'do';
+  if (result.label === 'watchlist') return 'watch';
+  return 'dont';
+}
+
+export function createAIPredictionEvent(input: CreateAIPredictionEventInput): AIPredictionEvent {
+  const createdAt = isoDate(input.createdAt);
+  const entityType = input.entityType || 'unknown';
+  const entityId = cleanText(input.entityId);
+  const season = cleanText(input.season);
+  const week = weekNumber(input.week);
+  const counterfactual = input.counterfactual || input.decisionSnapshot?.counterfactual || null;
+  const rawDecision = input.decision || defaultDecision(input.evidenceRead);
+  const decision = rawDecision === 'do' && counterfactual && counterfactual.status !== 'beats-baseline'
+    ? 'watch'
+    : rawDecision;
+  const predictionKey = cleanText(input.predictionKey) || getAIPredictionKey({
+    surface: input.surface,
+    action: input.action,
+    entityType,
+    entityId,
+    leagueId: input.leagueId,
+    manager: input.manager,
+    season,
+    week,
+  });
+  const eventId = cleanText(input.eventId) || `ai-${hashKey([predictionKey, createdAt, input.evidenceRead.finalScore])}`;
+
+  return {
+    schemaVersion: 1,
+    eventId,
+    predictionKey,
+    createdAt,
+    surface: input.surface,
+    action: input.action,
+    decision,
+    entityType,
+    entityId,
+    entityName: cleanText(input.entityName),
+    leagueId: cleanText(input.leagueId),
+    manager: cleanText(input.manager),
+    season,
+    week,
+    label: input.evidenceRead.label,
+    finalScore: clampPercent(input.evidenceRead.finalScore),
+    confidenceCap: clampPercent(input.evidenceRead.confidenceCap),
+    confidenceCapReason: cleanText(input.evidenceRead.confidenceCapReason),
+    evidence: input.evidenceRead.evidence,
+    missingEvidence: input.evidenceRead.missingEvidence,
+    hardBlockers: input.evidenceRead.hardBlockers,
+    softPenalties: input.evidenceRead.softPenalties,
+    sourceTrace: input.evidenceRead.sourceTrace,
+    sourceAgreement: input.sourceAgreement || null,
+    decisionSnapshot: input.decisionSnapshot || null,
+    counterfactual,
+    decay: input.decay || null,
+    expiresAt: input.decay?.expiresAt || null,
+    whyThisFired: input.evidenceRead.whyThisFired,
+    outcome: {
+      status: input.evidenceRead.label === 'blocked' ? 'blocked' : 'pending',
+      baselineValue: counterfactual?.baseline.score ?? null,
+      feedbackSource: 'system',
+    },
+    metadata: input.metadata,
+  };
+}
+
+function normalizeDirection(value: unknown): AISourceSignalDirection {
+  const clean = String(value || '').trim().toLowerCase();
+  if (clean === 'for' || clean === 'support' || clean === 'positive' || clean === 'boost') return 'for';
+  if (clean === 'against' || clean === 'negative' || clean === 'avoid' || clean === 'fade') return 'against';
+  if (clean === 'missing') return 'missing';
+  return 'neutral';
+}
+
+function signalWeight(signal: AISourceAgreementSignal): number {
+  if (signal.status === 'missing' || signal.direction === 'missing') return 0;
+  return Math.max(1, Math.min(100, clampPercent(signal.confidence ?? 60)));
+}
+
+export function buildSourceAgreementRead(signals: AISourceAgreementSignal[]): AISourceAgreementRead {
+  const normalized = signals
+    .map(signal => ({
+      source: cleanText(signal.source) || 'unknown-source',
+      direction: normalizeDirection(signal.direction),
+      confidence: signal.confidence === null || signal.confidence === undefined ? null : clampPercent(signal.confidence),
+      status: signal.status || undefined,
+      detail: cleanText(signal.detail),
+    }))
+    .filter(signal => signal.source);
+  const missingCount = normalized.filter(signal => signal.status === 'missing' || signal.direction === 'missing').length;
+  const directional = normalized.filter(signal => signal.direction === 'for' || signal.direction === 'against');
+  const forWeight = directional
+    .filter(signal => signal.direction === 'for')
+    .reduce((sum, signal) => sum + signalWeight(signal), 0);
+  const againstWeight = directional
+    .filter(signal => signal.direction === 'against')
+    .reduce((sum, signal) => sum + signalWeight(signal), 0);
+  const neutralWeight = normalized
+    .filter(signal => signal.direction === 'neutral')
+    .reduce((sum, signal) => sum + signalWeight(signal), 0);
+  const totalDirectionalWeight = forWeight + againstWeight;
+
+  if (!normalized.length || directional.length === 0) {
+    return {
+      state: normalized.length ? 'unknown' : 'missing',
+      directionalSourceCount: directional.length,
+      sourceCount: normalized.length,
+      forWeight,
+      againstWeight,
+      neutralWeight,
+      missingCount,
+      confidenceCap: 48,
+      reason: normalized.length ? 'No directional source signal was available' : 'No source signals were available',
+      signals: normalized,
+    };
+  }
+
+  if (directional.length < 2) {
+    return {
+      state: 'thin',
+      directionalSourceCount: directional.length,
+      sourceCount: normalized.length,
+      forWeight,
+      againstWeight,
+      neutralWeight,
+      missingCount,
+      confidenceCap: 56,
+      reason: 'Only one directional source supports this read',
+      signals: normalized,
+    };
+  }
+
+  const hasFor = forWeight > 0;
+  const hasAgainst = againstWeight > 0;
+  if (hasFor && hasAgainst) {
+    const diff = Math.abs(forWeight - againstWeight);
+    const strongBothSides = forWeight >= 70 && againstWeight >= 70;
+    const state: AISourceAgreementState = strongBothSides ? 'conflicted' : 'split';
+    return {
+      state,
+      directionalSourceCount: directional.length,
+      sourceCount: normalized.length,
+      forWeight,
+      againstWeight,
+      neutralWeight,
+      missingCount,
+      confidenceCap: state === 'conflicted' ? 52 : diff / totalDirectionalWeight < 0.35 ? 62 : 68,
+      reason: state === 'conflicted'
+        ? 'Strong approved sources point in opposite directions'
+        : 'Approved sources are split, so confidence stays capped',
+      signals: normalized,
+    };
+  }
+
+  return {
+    state: 'aligned',
+    directionalSourceCount: directional.length,
+    sourceCount: normalized.length,
+    forWeight,
+    againstWeight,
+    neutralWeight,
+    missingCount,
+    confidenceCap: missingCount > 0 ? 84 : null,
+    reason: missingCount > 0 ? 'Directional sources align, but at least one expected source is missing' : 'Directional sources align',
+    signals: normalized,
+  };
+}
+
+function eventGroupValue(event: AIPredictionEvent, groupBy: AIPredictionReliabilityGroupBy): string {
+  if (groupBy === 'sourceAgreement') return event.sourceAgreement?.state || 'unknown';
+  if (groupBy === 'league') return event.leagueId || 'global';
+  if (groupBy === 'manager') return event.manager || 'unknown';
+  if (groupBy === 'leagueFormat') return event.decisionSnapshot?.valueMode || String(event.metadata?.valueMode || 'unknown');
+  if (groupBy === 'counterfactual') return event.counterfactual?.status || 'missing-baseline';
+  if (groupBy === 'realizedEdge') return event.outcome.realizedEdge?.status || 'unresolved';
+  return String(event[groupBy] || 'unknown');
+}
+
+function bucketRecommendation(input: {
+  scoredCount: number;
+  calibrationGap: number | null;
+  brierScore: number | null;
+}): AIPredictionReliabilityBucket['recommendation'] {
+  if (input.scoredCount < 5) return 'collect-more-samples';
+  if (input.brierScore !== null && input.brierScore > 0.28) return 'review-model';
+  if (input.calibrationGap !== null && input.calibrationGap > 15) return 'lower-confidence';
+  if (input.calibrationGap !== null && input.calibrationGap < -15) return 'raise-confidence';
+  return 'calibrated';
+}
+
+function buildReliabilityBucket(key: string, group: Record<string, string>, events: AIPredictionEvent[]): AIPredictionReliabilityBucket {
+  const hitEvents = events.filter(event => event.outcome.status === 'hit');
+  const missEvents = events.filter(event => event.outcome.status === 'miss');
+  const pushCount = events.filter(event => event.outcome.status === 'push').length;
+  const pendingCount = events.filter(event => event.outcome.status === 'pending').length;
+  const blockedCount = events.filter(event => event.outcome.status === 'blocked').length;
+  const scored = [...hitEvents, ...missEvents];
+  const scoredCount = scored.length;
+  const avgConfidence = scoredCount
+    ? Math.round(scored.reduce((sum, event) => sum + event.finalScore, 0) / scoredCount)
+    : null;
+  const hitRate = scoredCount ? Math.round((hitEvents.length / scoredCount) * 1000) / 10 : null;
+  const brierScore = scoredCount
+    ? Math.round((scored.reduce((sum, event) => {
+      const predicted = event.finalScore / 100;
+      const actual = event.outcome.status === 'hit' ? 1 : 0;
+      return sum + ((predicted - actual) ** 2);
+    }, 0) / scoredCount) * 1000) / 1000
+    : null;
+  const calibrationGap = avgConfidence !== null && hitRate !== null
+    ? Math.round((avgConfidence - hitRate) * 10) / 10
+    : null;
+  const recommendedScoreAdjustment = calibrationGap === null
+    ? 0
+    : Math.max(-20, Math.min(20, Math.round(-calibrationGap / 2)));
+
+  return {
+    key,
+    group,
+    eventCount: events.length,
+    scoredCount,
+    hitCount: hitEvents.length,
+    missCount: missEvents.length,
+    pushCount,
+    pendingCount,
+    blockedCount,
+    avgConfidence,
+    hitRate,
+    brierScore,
+    calibrationGap,
+    recommendedScoreAdjustment,
+    recommendation: bucketRecommendation({ scoredCount, calibrationGap, brierScore }),
+  };
+}
+
+function getSampleSizeConfidenceCap(scoredCount: number): number | null {
+  if (scoredCount < 5) return 56;
+  if (scoredCount < 20) return 68;
+  if (scoredCount < 50) return 82;
+  return null;
+}
+
+export function summarizeAIPredictionReliability(
+  events: AIPredictionEvent[],
+  options: { groupBy?: AIPredictionReliabilityGroupBy[] } = {}
+): AIPredictionReliabilitySummary {
+  const groupBy: AIPredictionReliabilityGroupBy[] = options.groupBy?.length ? options.groupBy : ['surface', 'action', 'label'];
+  const buckets = new Map<string, { group: Record<string, string>; events: AIPredictionEvent[] }>();
+
+  events.forEach(event => {
+    const group = Object.fromEntries(groupBy.map(key => [key, eventGroupValue(event, key)]));
+    const key = groupBy.map(item => `${item}=${group[item]}`).join('|');
+    const bucket = buckets.get(key) || { group, events: [] };
+    bucket.events.push(event);
+    buckets.set(key, bucket);
+  });
+
+  const allBucket = buildReliabilityBucket('all', { all: 'all' }, events);
+  const detailBuckets = Array.from(buckets.entries())
+    .map(([key, bucket]) => buildReliabilityBucket(key, bucket.group, bucket.events))
+    .sort((a, b) => b.scoredCount - a.scoredCount || b.eventCount - a.eventCount || a.key.localeCompare(b.key));
+
+  return {
+    schemaVersion: 1,
+    generatedFrom: 'ai-prediction-events',
+    generatedAt: new Date().toISOString(),
+    eventCount: events.length,
+    scoredCount: allBucket.scoredCount,
+    pendingCount: allBucket.pendingCount,
+    buckets: [allBucket, ...detailBuckets],
+  };
+}
+
+export function summarizeSourceAgreementReliability(events: AIPredictionEvent[]): AIPredictionReliabilitySummary {
+  return summarizeAIPredictionReliability(events, { groupBy: ['sourceAgreement'] });
+}
+
+function buildCounterfactualBucket(
+  status: AICounterfactualStatus | 'all',
+  events: AIPredictionEvent[]
+): AICounterfactualReliabilityBucket {
+  const scored = events.filter(event => event.outcome.status === 'hit' || event.outcome.status === 'miss');
+  const hitCount = scored.filter(event => event.outcome.status === 'hit').length;
+  const missCount = scored.filter(event => event.outcome.status === 'miss').length;
+  const edges = events
+    .map(event => event.counterfactual?.edge)
+    .filter((edge): edge is number => Number.isFinite(edge));
+
+  return {
+    status,
+    eventCount: events.length,
+    scoredCount: scored.length,
+    hitCount,
+    missCount,
+    avgEdge: edges.length
+      ? Math.round((edges.reduce((sum, edge) => sum + edge, 0) / edges.length) * 10) / 10
+      : null,
+    avgConfidence: scored.length
+      ? Math.round(scored.reduce((sum, event) => sum + event.finalScore, 0) / scored.length)
+      : null,
+    hitRate: scored.length ? Math.round((hitCount / scored.length) * 1000) / 10 : null,
+  };
+}
+
+export function summarizeAICounterfactualReliability(events: AIPredictionEvent[]): AICounterfactualReliabilitySummary {
+  const withCounterfactual = events.filter(event => event.counterfactual);
+  const missingBaselineCount = events.filter(event =>
+    event.counterfactual?.status === 'missing-baseline' ||
+    (!event.counterfactual && event.decision === 'do')
+  ).length;
+  const doWithoutBaselineEdgeCount = events.filter(event =>
+    event.decision === 'do' &&
+    event.counterfactual?.status !== 'beats-baseline'
+  ).length;
+  const byStatus = new Map<AICounterfactualStatus, AIPredictionEvent[]>();
+  withCounterfactual.forEach(event => {
+    const status = event.counterfactual?.status || 'missing-baseline';
+    const bucket = byStatus.get(status) || [];
+    bucket.push(event);
+    byStatus.set(status, bucket);
+  });
+
+  const buckets = [
+    buildCounterfactualBucket('all', withCounterfactual),
+    ...Array.from(byStatus.entries())
+      .map(([status, bucketEvents]) => buildCounterfactualBucket(status, bucketEvents))
+      .sort((a, b) => b.eventCount - a.eventCount || a.status.localeCompare(b.status)),
+  ];
+  const edges = withCounterfactual
+    .map(event => event.counterfactual?.edge)
+    .filter((edge): edge is number => Number.isFinite(edge));
+
+  return {
+    schemaVersion: 1,
+    generatedFrom: 'ai-prediction-events',
+    generatedAt: new Date().toISOString(),
+    eventCount: events.length,
+    baselineCount: withCounterfactual.length,
+    missingBaselineCount,
+    doWithoutBaselineEdgeCount,
+    avgEdge: edges.length
+      ? Math.round((edges.reduce((sum, edge) => sum + edge, 0) / edges.length) * 10) / 10
+      : null,
+    buckets,
+  };
+}
+
+function avg(values: Array<number | null | undefined>): number | null {
+  const numericValues = values.filter((value): value is number => Number.isFinite(value));
+  return numericValues.length
+    ? Math.round((numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length) * 10) / 10
+    : null;
+}
+
+function getTradeTargetManager(event: AIPredictionEvent): string {
+  const metadataTarget = cleanText(event.metadata?.counterparty)
+    || cleanText(event.metadata?.targetManager)
+    || cleanText(event.metadata?.opposingManager);
+  return metadataTarget
+    || cleanText(event.outcome.realizedEdge?.source?.replace(/^trade:/i, ''))
+    || cleanText(event.entityName)
+    || cleanText(event.manager)
+    || 'unknown manager';
+}
+
+function managerTradeRecommendation(input: {
+  scoredCount: number;
+  acceptanceRate: number | null;
+  avgRealizedEdge: number | null;
+}): AIManagerTradeCalibrationRow['recommendation'] {
+  if (input.scoredCount < 3) return 'collect-more-samples';
+  if ((input.acceptanceRate ?? 0) >= 55 && (input.avgRealizedEdge ?? 0) >= 0) return 'attack';
+  if ((input.acceptanceRate ?? 0) >= 30) return 'test-carefully';
+  return 'avoid-unless-overpay';
+}
+
+export function summarizeAIManagerTradeCalibration(events: AIPredictionEvent[]): AIManagerTradeCalibrationSummary {
+  const tradeEvents = events.filter(event => event.action === 'trade' || event.surface === 'trade');
+  const byManager = new Map<string, AIPredictionEvent[]>();
+  tradeEvents.forEach(event => {
+    const manager = getTradeTargetManager(event);
+    byManager.set(manager, [...(byManager.get(manager) || []), event]);
+  });
+
+  const rows = Array.from(byManager.entries())
+    .map(([manager, managerEvents]) => {
+      const scored = managerEvents.filter(event => event.outcome.status === 'hit' || event.outcome.status === 'miss');
+      const completedCount = managerEvents.filter(event => event.outcome.status === 'hit').length;
+      const missCount = managerEvents.filter(event => event.outcome.status === 'miss').length;
+      const pendingCount = managerEvents.filter(event => event.outcome.status === 'pending').length;
+      const acceptanceRate = scored.length
+        ? Math.round((completedCount / scored.length) * 1000) / 10
+        : null;
+      const avgPredictedEdge = avg(managerEvents.map(event => event.counterfactual?.edge));
+      const avgRealizedEdge = avg(scored.map(event => event.outcome.realizedEdge?.realizedEdge));
+      const recommendation = managerTradeRecommendation({
+        scoredCount: scored.length,
+        acceptanceRate,
+        avgRealizedEdge,
+      });
+
+      return {
+        manager,
+        eventCount: managerEvents.length,
+        scoredCount: scored.length,
+        completedCount,
+        missCount,
+        pendingCount,
+        avgPredictedEdge,
+        avgRealizedEdge,
+        acceptanceRate,
+        recommendation,
+        note:
+          recommendation === 'attack'
+            ? 'This manager has accepted enough modeled trade edges to stay in the attack lane.'
+            : recommendation === 'test-carefully'
+              ? 'This manager is tradeable, but the offer needs a clean edge and clean fit.'
+              : recommendation === 'avoid-unless-overpay'
+                ? 'This manager has not converted enough offers; avoid thin trade reads here.'
+                : 'Collect more trade outcomes before leaning on this manager profile.',
+      } satisfies AIManagerTradeCalibrationRow;
+    })
+    .sort((a, b) =>
+      (b.scoredCount - a.scoredCount) ||
+      ((b.acceptanceRate ?? -1) - (a.acceptanceRate ?? -1)) ||
+      a.manager.localeCompare(b.manager)
+    )
+    .slice(0, 24);
+
+  return {
+    schemaVersion: 1,
+    generatedFrom: 'ai-prediction-events',
+    generatedAt: new Date().toISOString(),
+    eventCount: tradeEvents.length,
+    rows,
+  };
+}
+
+function adjustmentScopeForGroupBy(groupBy: AIPredictionReliabilityGroupBy[]): AICalibrationAdjustmentScope {
+  const key = groupBy.join('|');
+  if (key === 'surface') return 'surface';
+  if (key === 'action') return 'action';
+  if (key === 'label') return 'label';
+  if (key === 'sourceAgreement') return 'sourceAgreement';
+  if (key === 'leagueFormat') return 'leagueFormat';
+  if (key === 'counterfactual') return 'counterfactual';
+  if (key === 'realizedEdge') return 'realizedEdge';
+  if (key === 'surface|action') return 'surfaceAction';
+  if (key === 'surface|action|label') return 'surfaceActionLabel';
+  if (key === 'surface|action|sourceAgreement') return 'surfaceActionSourceAgreement';
+  if (key === 'surface|action|leagueFormat') return 'surfaceActionLeagueFormat';
+  if (key === 'surface|action|counterfactual') return 'surfaceActionCounterfactual';
+  if (key === 'surface|action|realizedEdge') return 'surfaceActionRealizedEdge';
+  if (key === 'surface|manager') return 'surfaceManager';
+  return 'global';
+}
+
+function getAdjustmentPriority(bucket: AIPredictionReliabilityBucket): AICalibrationAdjustment['priority'] {
+  if (bucket.recommendation === 'review-model') return 'danger';
+  if (bucket.recommendation === 'lower-confidence') return 'warn';
+  if (bucket.recommendation === 'raise-confidence') return 'info';
+  if (bucket.recommendation === 'calibrated') return 'good';
+  return 'info';
+}
+
+function getRecommendedConfidenceCap(bucket: AIPredictionReliabilityBucket): number | null {
+  const sampleCap = getSampleSizeConfidenceCap(bucket.scoredCount);
+  if (bucket.scoredCount < 5 || bucket.hitRate === null || bucket.avgConfidence === null) return sampleCap;
+  if (bucket.recommendation === 'review-model') {
+    return Math.min(sampleCap ?? 100, Math.max(35, Math.min(76, Math.round(bucket.hitRate + 8))));
+  }
+  if (bucket.recommendation === 'lower-confidence') {
+    return Math.min(sampleCap ?? 100, Math.max(38, Math.min(88, Math.round(bucket.hitRate + 12))));
+  }
+  return sampleCap;
+}
+
+function getAdjustmentReason(bucket: AIPredictionReliabilityBucket): string {
+  if (bucket.scoredCount < 5) {
+    return `Only ${bucket.scoredCount} scored outcome${bucket.scoredCount === 1 ? '' : 's'}; cap confidence until this bucket proves itself.`;
+  }
+  if (bucket.recommendation === 'review-model') {
+    return `High miss error in this bucket: ${bucket.hitRate ?? 0}% hit rate at ${bucket.avgConfidence ?? 0}% average confidence.`;
+  }
+  if (bucket.recommendation === 'lower-confidence') {
+    return `Overconfident by ${bucket.calibrationGap ?? 0} points; lower future reads in this bucket.`;
+  }
+  if (bucket.recommendation === 'raise-confidence') {
+    return `Underconfident by ${Math.abs(bucket.calibrationGap ?? 0)} points; future reads can earn a small bump.`;
+  }
+  return 'Observed outcomes are close to the emitted confidence.';
+}
+
+function adjustmentFromBucket(
+  scope: AICalibrationAdjustmentScope,
+  bucket: AIPredictionReliabilityBucket
+): AICalibrationAdjustment {
+  const hasEnoughSample = bucket.scoredCount >= 5;
+  const scoreAdjustment = hasEnoughSample ? bucket.recommendedScoreAdjustment : 0;
+
+  return {
+    key: `${scope}:${bucket.key}`,
+    scope,
+    group: bucket.group,
+    eventCount: bucket.eventCount,
+    scoredCount: bucket.scoredCount,
+    pendingCount: bucket.pendingCount,
+    hitRate: bucket.hitRate,
+    avgConfidence: bucket.avgConfidence,
+    calibrationGap: bucket.calibrationGap,
+    brierScore: bucket.brierScore,
+    scoreAdjustment,
+    confidenceCap: getRecommendedConfidenceCap(bucket),
+    recommendation: bucket.recommendation,
+    priority: getAdjustmentPriority(bucket),
+    reason: getAdjustmentReason(bucket),
+  };
+}
+
+function adjustmentSortValue(adjustment: AICalibrationAdjustment): number {
+  const priorityScore = adjustment.priority === 'danger'
+    ? 4
+    : adjustment.priority === 'warn'
+      ? 3
+      : adjustment.priority === 'info'
+        ? 2
+        : 1;
+  return priorityScore * 10000 + Math.abs(adjustment.scoreAdjustment) * 100 + adjustment.scoredCount;
+}
+
+export function buildAICalibrationAdjustmentProfile(
+  events: AIPredictionEvent[],
+  options: { limit?: number } = {}
+): AICalibrationAdjustmentProfile {
+  const limit = Math.max(1, Math.min(Number(options.limit) || 40, 100));
+  const globalSummary = summarizeAIPredictionReliability(events, { groupBy: ['surface'] });
+  const globalAdjustment = adjustmentFromBucket('global', globalSummary.buckets[0]);
+  const groupings: AIPredictionReliabilityGroupBy[][] = [
+    ['surface'],
+    ['action'],
+    ['label'],
+    ['sourceAgreement'],
+    ['leagueFormat'],
+    ['counterfactual'],
+    ['realizedEdge'],
+    ['surface', 'action'],
+    ['surface', 'action', 'label'],
+    ['surface', 'action', 'sourceAgreement'],
+    ['surface', 'action', 'leagueFormat'],
+    ['surface', 'action', 'counterfactual'],
+    ['surface', 'action', 'realizedEdge'],
+    ['surface', 'manager'],
+  ];
+
+  const adjustmentsByKey = new Map<string, AICalibrationAdjustment>();
+  groupings.forEach(groupBy => {
+    const scope = adjustmentScopeForGroupBy(groupBy);
+    summarizeAIPredictionReliability(events, { groupBy }).buckets
+      .filter(bucket => bucket.key !== 'all')
+      .map(bucket => adjustmentFromBucket(scope, bucket))
+      .forEach(adjustment => adjustmentsByKey.set(adjustment.key, adjustment));
+  });
+
+  const adjustments = Array.from(adjustmentsByKey.values())
+    .sort((a, b) => adjustmentSortValue(b) - adjustmentSortValue(a) || a.key.localeCompare(b.key))
+    .slice(0, limit);
+
+  return {
+    schemaVersion: 1,
+    generatedFrom: 'ai-prediction-events',
+    generatedAt: new Date().toISOString(),
+    eventCount: events.length,
+    scoredCount: globalAdjustment.scoredCount,
+    pendingCount: globalAdjustment.pendingCount,
+    globalAdjustment,
+    adjustments,
+  };
+}
+
+function getAdjustmentGroupValue(input: ApplyAICalibrationAdjustmentInput, key: string): string {
+  if (key === 'surface') return input.surface;
+  if (key === 'action') return input.action;
+  if (key === 'label') return input.label;
+  if (key === 'sourceAgreement') return input.sourceAgreementState || 'unknown';
+  return 'unknown';
+}
+
+function matchesAdjustment(input: ApplyAICalibrationAdjustmentInput, adjustment: AICalibrationAdjustment): boolean {
+  return Object.entries(adjustment.group).every(([key, value]) => getAdjustmentGroupValue(input, key) === value);
+}
+
+function adjustmentSpecificity(adjustment: AICalibrationAdjustment): number {
+  return Object.keys(adjustment.group).length;
+}
+
+export function findAICalibrationAdjustment(
+  input: ApplyAICalibrationAdjustmentInput
+): AICalibrationAdjustment | null {
+  const matches = input.profile.adjustments
+    .filter(adjustment => adjustment.scoreAdjustment !== 0 || adjustment.confidenceCap !== null)
+    .filter(adjustment => matchesAdjustment(input, adjustment))
+    .sort((a, b) =>
+      adjustmentSpecificity(b) - adjustmentSpecificity(a) ||
+      Math.abs(b.scoreAdjustment) - Math.abs(a.scoreAdjustment) ||
+      b.scoredCount - a.scoredCount
+    );
+
+  return matches[0] || null;
+}
+
+export function applyAICalibrationAdjustment(
+  input: ApplyAICalibrationAdjustmentInput
+): AppliedAICalibrationAdjustment {
+  const baseScore = clampPercent(input.finalScore);
+  const baseCap = clampPercent(input.confidenceCap ?? 100);
+  const adjustment = findAICalibrationAdjustment(input);
+  if (!adjustment) {
+    return {
+      finalScore: Math.min(baseScore, baseCap),
+      confidenceCap: baseCap,
+      appliedAdjustment: null,
+      reason: null,
+    };
+  }
+
+  const adjustedCap = adjustment.confidenceCap === null
+    ? baseCap
+    : Math.min(baseCap, clampPercent(adjustment.confidenceCap));
+  const adjustedScore = clampPercent(baseScore + adjustment.scoreAdjustment);
+
+  return {
+    finalScore: Math.min(adjustedScore, adjustedCap),
+    confidenceCap: adjustedCap,
+    appliedAdjustment: adjustment,
+    reason: adjustment.reason,
+  };
+}

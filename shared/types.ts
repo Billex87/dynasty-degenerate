@@ -641,7 +641,7 @@ export interface WaiverWeeklyEcrWeek {
   endpointKey?: string | null;
   fetchedAt?: string | null;
   sourceStatus?: string | null;
-  sourceType?: 'weekly-rank' | 'matchup-calendar' | string;
+  sourceType?: 'weekly-rank' | 'draftsharks-sos' | string;
   opponent?: string | null;
   homeAway?: 'home' | 'away' | null;
   opponentRank?: number | null;
@@ -687,7 +687,7 @@ export interface MatchupWindowSet {
 }
 
 export interface WaiverSourceTraceEntry {
-  source: 'FantasyPros' | string;
+  source: 'FantasyPros' | 'DraftSharks' | string;
   sourceKey: string;
   endpointKey: string;
   endpointLabel: string;
@@ -722,13 +722,13 @@ export interface FantasyProsPlayerSourceTrace {
 }
 
 export interface WaiverWeeklyEcrSignal {
-  signalType?: 'weekly-rank' | 'matchup-calendar' | string;
+  signalType?: 'weekly-rank' | 'draftsharks-sos' | string;
   playerId: string;
   fantasyProsId: string | null;
   name: string;
   position: string;
   team: string | null;
-  source: 'FantasyPros';
+  source: 'FantasyPros' | 'DraftSharks' | string;
   updatedAt: string | null;
   weeks: WaiverWeeklyEcrWeek[];
   bestWeek: number | null;
@@ -877,6 +877,16 @@ export type PlayerCohortOutcomeBucket = 'breakout' | 'sustain' | 'fade-risk' | '
 export type PlayerCohortEvidenceGrade = 'strong' | 'usable' | 'thin' | 'blocked';
 export type PlayerDraftCapitalTier = 'premium' | 'day-two' | 'late-round' | 'undrafted' | 'unknown';
 export type PlayerOpportunityWindow = 'protected-runway' | 'prove-it-window' | 'short-leash' | 'unknown';
+export type PlayerCohortAnomalyRuleKey = 'age-curve-outlier' | 'late-breakout' | 'injury-comeback' | 'small-sample-spike' | 'role-driven-jump';
+
+export interface PlayerCohortAnomalyFlag {
+  key: PlayerCohortAnomalyRuleKey;
+  label: string;
+  tone: 'good' | 'info' | 'warn' | 'danger';
+  score: number;
+  detail: string;
+  evidence: string[];
+}
 
 export interface PlayerCohortDraftCapital {
   round: number | null;
@@ -938,6 +948,7 @@ export interface PlayerCohortProfile {
     cautionFlags: string[];
     note: string;
   };
+  anomalyFlags?: PlayerCohortAnomalyFlag[];
   draftCapital: PlayerCohortDraftCapital;
   seasonOutcomeReceipt?: PlayerCohortSeasonOutcomeReceipt | null;
   peers: Array<{
@@ -1689,6 +1700,7 @@ export interface LeagueAiConfidence {
 export interface LeagueDiagnostics {
   teamCount: number;
   valueMode: LeagueValueMode;
+  qbFormat?: 'one_qb' | 'superflex' | 'two_qb' | 'unknown';
   currentSeason?: string;
   currentWeek?: number | null;
   playoffWeekStart?: number | null;
@@ -1712,6 +1724,7 @@ export interface LeagueDiagnostics {
   scoringSummary: string;
   receptionScoring: number;
   tightEndPremium: number;
+  passingTdPoints?: number | null;
   ktcProfileLabel: string;
   valueSnapshotProfileCount: number;
   valueSnapshotProfiles: string[];

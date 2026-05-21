@@ -2,8 +2,8 @@
 
 ## Working Rules
 
-- Keep the raw ChatGPT kit in `design-inputs/` as a local-only reference.
-- Move only shipping assets into `client/public`.
+- Keep raw design kits outside the repo once their shipping assets are copied in.
+- Move only production-ready shipping assets into `client/public`.
 - Preserve current Sleeper username, league picker, league ID, report loading, and tab data flows.
 - Preserve existing copy unless a prompt explicitly asks for a wording change or the mockup requires a short UI label.
 - Validate desktop, tablet, and mobile before calling a slice done.

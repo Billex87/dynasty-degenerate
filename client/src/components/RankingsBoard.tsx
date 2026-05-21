@@ -459,6 +459,18 @@ function getProfileButtonLabel(option: RankingProfileOption): string {
   return `${prefix} TEP++`;
 }
 
+function getPickYearSuffix(player: RankingPlayer): string {
+  const draftYear = Number(player.draftYear || 0);
+  if (Number.isFinite(draftYear) && draftYear > 0) {
+    return String(draftYear % 100).padStart(2, '0');
+  }
+
+  const yearMatch = player.name.match(/\b(20\d{2})\b/);
+  if (yearMatch) return yearMatch[1].slice(-2);
+
+  return 'PK';
+}
+
 function RankingPlayerIdentity({ player, team }: { player: RankingPlayer; team?: string | null }) {
   const preferredImageUrl = getCachedDraftBuzzImageUrl(player.imageUrl || player.prospectProfile?.playerImageUrl || null);
   const shouldUseRankingImage = Boolean(preferredImageUrl && (player.isDevy || !player.player_id));
@@ -467,6 +479,17 @@ function RankingPlayerIdentity({ player, team }: { player: RankingPlayer; team?:
   useEffect(() => {
     setImageFailed(false);
   }, [preferredImageUrl]);
+
+  if (player.isPick) {
+    return (
+      <div className="ranking-player-identity ranking-player-identity-pick">
+        <span className="ranking-pick-avatar" aria-hidden="true">
+          {getPickYearSuffix(player)}
+        </span>
+        <span>{player.name}</span>
+      </div>
+    );
+  }
 
   if (shouldUseRankingImage && preferredImageUrl && !imageFailed) {
     return (
@@ -625,9 +648,18 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
     context: 'rankings',
   }) || player.pos;
   const previousSeasonSummary = !player.isDevy && !player.isPick ? getPreviousSeasonSummary(details) : null;
-
-  return (
-    <button type="button" className={`player-team-tile ranking-player-card value-board__row value-board__mobile-card ${player.isDevy ? 'ranking-player-card-devy value-board__row-devy' : ''} ${viewerOwnedHighlightClass(player.owner, viewerManager)}`} style={player.isDevy ? getCollegeTileStyle(player.college) : getTeamTileStyle(details?.team || player.team)} onClick={() => onSelect(player)}>
+  const rowClassName = [
+    'player-team-tile',
+    'ranking-player-card',
+    'value-board__row',
+    'value-board__mobile-card',
+    player.isDevy ? 'ranking-player-card-devy value-board__row-devy' : '',
+    player.isPick ? 'ranking-player-card-pick ranking-player-card-static' : '',
+    viewerOwnedHighlightClass(player.owner, viewerManager),
+  ].filter(Boolean).join(' ');
+  const rowStyle = player.isDevy ? getCollegeTileStyle(player.college) : getTeamTileStyle(details?.team || player.team);
+  const rowContent = (
+    <>
       <div className="value-board__score">
         <span className="ranking-overall-rank value-board__rank">{rankLabel}</span>
         <span className={valueClassName}>
@@ -646,10 +678,20 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
         <RankingPlayerIdentity player={player} team={displayTeam} />
       </div>
 
+      {!player.isDevy ? (
+        <div className="value-board__mobile-primary">
+          <span className="value-board__mobile-rank">{rankLabel}</span>
+          <span className="value-board__mobile-value">
+            <span>Value</span>
+            <strong>{valueLabel}</strong>
+          </span>
+        </div>
+      ) : null}
+
       <div className="value-board__mobile-meta">
         <div className="value-board__team">
           {player.isPick ? (
-            <span className="ranking-owner-pill value-board__pick-team">Pick</span>
+            <span className="value-board__team-empty" aria-label="No NFL team assigned">-</span>
           ) : player.isDevy && player.college ? (
             <>
               <CollegeTeamPill college={player.college} logoUrl={player.collegeLogoUrl || player.prospectProfile?.collegeLogoUrl} />
@@ -699,7 +741,7 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
             {player.movementLabel || 'Stable'}
             {movementIcon}
           </span>
-          {showAIReads ? (
+          {!player.isPick && showAIReads ? (
             <span className="ranking-ai-read-chip" title="Open the player card for the full AI read">
               AI Read
             </span>
@@ -734,6 +776,20 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
           </span>
         </div>
       ) : null}
+    </>
+  );
+
+  if (player.isPick) {
+    return (
+      <div className={rowClassName} style={rowStyle} aria-label={`${player.name} draft pick ranking`}>
+        {rowContent}
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" className={rowClassName} style={rowStyle} onClick={() => onSelect(player)}>
+      {rowContent}
     </button>
   );
 }
@@ -1373,7 +1429,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   );
 }
 
-export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, leagueId, leagueLogo, viewerManager, board = 'all', hidePicks = false, leagueValueMode: leagueValueModeInput = 'dynasty', showAIReads = false }: { rankings?: ReportData['rankings']; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; leagueId?: string; leagueLogo?: string | null; viewerManager?: string | null; board?: 'all' | 'dynasty' | 'redraft' | 'devy' | 'draftbuzz'; hidePicks?: boolean; leagueValueMode?: ReportData['leagueValueMode']; showAIReads?: boolean }) {
+export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, leagueId, leagueLogo, viewerManager, board = 'all', hidePicks = false, leagueValueMode: leagueValueModeInput = 'dynasty', leagueDiagnostics, showAIReads = false }: { rankings?: ReportData['rankings']; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; leagueId?: string; leagueLogo?: string | null; viewerManager?: string | null; board?: 'all' | 'dynasty' | 'redraft' | 'devy' | 'draftbuzz'; hidePicks?: boolean; leagueValueMode?: ReportData['leagueValueMode']; leagueDiagnostics?: ReportData['leagueDiagnostics']; showAIReads?: boolean }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
   const shouldShowDraftBuzzScoreboard = board === 'draftbuzz' || (board === 'all' && leagueValueMode !== 'redraft');
@@ -1390,6 +1446,8 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
   const draftBuzzEntries = localDraftBuzzEntries.length ? localDraftBuzzEntries : draftBuzzQuery.data?.entries || [];
 
   const handleSelectPlayer = (player: RankingPlayer) => {
+    if (player.isPick) return;
+
     const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
     const draftBuzzEntry = player.isDevy
       ? draftBuzzEntries.find((entry) => {
@@ -1592,7 +1650,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
         <EmptyState className="rankings-empty-state" title="Prospect score archive is not available for this report yet." description="Prospect archive data was not returned with this report." />
       ) : null}
 
-      <PlayerDetailModal isOpen={selectedPlayer !== null} onClose={() => setSelectedPlayer(null)} pick={selectedPlayer} leagueId={leagueId} leagueLogo={leagueLogo} managerAvatars={managerAvatars} playerDetailsById={playerDetailsById} showAIRead={showAIReads} />
+      <PlayerDetailModal isOpen={selectedPlayer !== null} onClose={() => setSelectedPlayer(null)} pick={selectedPlayer} leagueId={leagueId} leagueLogo={leagueLogo} managerAvatars={managerAvatars} playerDetailsById={playerDetailsById} leagueDiagnostics={leagueDiagnostics} showAIRead={showAIReads} />
     </div>
   );
 }

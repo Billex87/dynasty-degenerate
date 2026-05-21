@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Sparkles, Zap } from 'lucide-react';
-import { AITronSurface } from './AITronSurface';
+import type { LoaderManagerAnchor } from './LoaderKitBackdrop';
+
+const LoaderKitBackdrop = lazy(() => import('./LoaderKitBackdrop'));
 
 function LoadingLetterbox({ isComplete }: { isComplete: boolean }) {
   if (typeof document === 'undefined') return null;
@@ -11,6 +13,29 @@ function LoadingLetterbox({ isComplete }: { isComplete: boolean }) {
       data-state={isComplete ? 'exit' : 'enter'}
       aria-hidden="true"
     />,
+    document.body
+  );
+}
+
+function LoadingSceneBackdrop({
+  isComplete,
+  managerAnchors,
+}: {
+  isComplete: boolean;
+  managerAnchors?: LoaderManagerAnchor[];
+}) {
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div
+      className="dd-loading-scene-backdrop"
+      data-state={isComplete ? 'exit' : 'enter'}
+      aria-hidden="true"
+    >
+      <Suspense fallback={<div className="analysis-loading-loader-kit-fallback" />}>
+        <LoaderKitBackdrop variant="ambient" managerAnchors={managerAnchors} />
+      </Suspense>
+    </div>,
     document.body
   );
 }
@@ -39,11 +64,13 @@ export function LoadingAnimation({
   leagueName,
   leagueFormat,
   leagueLogo,
+  managerAnchors,
 }: {
   isComplete?: boolean;
   leagueName?: string | null;
   leagueFormat?: string | null;
   leagueLogo?: string | null;
+  managerAnchors?: LoaderManagerAnchor[];
 }) {
   const [steps, setSteps] = useState<LoadingStep[]>(() => createInitialLoadingSteps());
 
@@ -74,13 +101,8 @@ export function LoadingAnimation({
   return (
     <div className="loading-panel analysis-loading-panel">
       <LoadingLetterbox isComplete={isComplete} />
-      <div className="loading-tron-backdrop ai-surface-r3f analysis-loading-tron" aria-hidden="true">
-        <AITronSurface
-          density="small"
-          routeKey={`loading-${leagueName || 'league'}`}
-          theme="cyan"
-        />
-      </div>
+      <LoadingSceneBackdrop isComplete={isComplete} managerAnchors={managerAnchors} />
+      <div className="loading-tron-backdrop analysis-loading-tron analysis-loading-loader-kit" aria-hidden="true" />
 
       <div className="loading-modal-header">
         <span className="loading-modal-bolt" aria-hidden="true">

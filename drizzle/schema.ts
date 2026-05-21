@@ -1,4 +1,4 @@
-import { index, int, longtext, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { double, index, int, longtext, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -90,6 +90,40 @@ export const leagueAiConfidenceSnapshots = mysqlTable("leagueAiConfidenceSnapsho
 
 export type LeagueAiConfidenceSnapshot = typeof leagueAiConfidenceSnapshots.$inferSelect;
 export type InsertLeagueAiConfidenceSnapshot = typeof leagueAiConfidenceSnapshots.$inferInsert;
+
+export const aiPredictionEvents = mysqlTable("aiPredictionEvents", {
+  id: int("id").autoincrement().primaryKey(),
+  eventId: text("eventId").notNull(),
+  predictionKey: text("predictionKey").notNull(),
+  userKey: text("userKey"),
+  leagueId: text("leagueId"),
+  surface: varchar("surface", { length: 32 }).notNull(),
+  action: varchar("action", { length: 32 }).notNull(),
+  decision: varchar("decision", { length: 16 }).notNull(),
+  entityType: varchar("entityType", { length: 32 }).notNull(),
+  entityId: text("entityId"),
+  entityName: text("entityName"),
+  manager: text("manager"),
+  label: varchar("label", { length: 32 }).notNull(),
+  finalScore: int("finalScore").notNull(),
+  confidenceCap: int("confidenceCap").default(100).notNull(),
+  outcomeStatus: varchar("outcomeStatus", { length: 16 }).default("pending").notNull(),
+  outcomeValue: double("outcomeValue"),
+  baselineValue: double("baselineValue"),
+  resolvedAt: timestamp("resolvedAt"),
+  payload: longtext("payload").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  eventUnique: uniqueIndex("aiPredictionEvents_event_uidx").on(table.eventId),
+  userLeagueIndex: index("aiPredictionEvents_user_league_updatedAt_idx").on(table.userKey, table.leagueId, table.updatedAt),
+  predictionKeyIndex: index("aiPredictionEvents_prediction_key_idx").on(table.predictionKey, table.updatedAt),
+  surfaceActionIndex: index("aiPredictionEvents_surface_action_createdAt_idx").on(table.surface, table.action, table.createdAt),
+  outcomeStatusIndex: index("aiPredictionEvents_outcome_status_idx").on(table.outcomeStatus, table.updatedAt),
+}));
+
+export type AiPredictionEvent = typeof aiPredictionEvents.$inferSelect;
+export type InsertAiPredictionEvent = typeof aiPredictionEvents.$inferInsert;
 
 export const sourceHealthEvents = mysqlTable("sourceHealthEvents", {
   id: int("id").autoincrement().primaryKey(),

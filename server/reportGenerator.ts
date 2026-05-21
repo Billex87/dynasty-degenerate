@@ -997,6 +997,13 @@ function normalizeNumQbsForDiagnostics(profile: LineupSlotProfile): 1 | 2 {
   return profile.superFlex > 0 || profile.QB >= 2 ? 2 : 1;
 }
 
+function getQbFormatForDiagnostics(profile: LineupSlotProfile): NonNullable<ReportData['leagueDiagnostics']>['qbFormat'] {
+  if (profile.superFlex > 0) return 'superflex';
+  if (profile.QB >= 2) return 'two_qb';
+  if (profile.QB >= 1) return 'one_qb';
+  return 'unknown';
+}
+
 function formatStarterCountSummary(counts: Record<FantasyPosition, number>): string {
   return FANTASY_POSITIONS.map((position) => `${position} x${counts[position]}`).join(', ');
 }
@@ -1048,6 +1055,8 @@ function buildLeagueDiagnostics(
   const totalRosterSlots = Math.max(0, currentSeasonData.rosterPositions?.length || 0) + reserveSlots + taxiSlots;
   const receptionScoring = getScoringNumber(currentSeasonData.scoringSettings, 'rec');
   const tightEndPremium = getTightEndPremium(currentSeasonData.scoringSettings);
+  const passingTdPoints = getScoringNumber(currentSeasonData.scoringSettings, 'pass_td') || null;
+  const qbFormat = getQbFormatForDiagnostics(lineupProfile);
   const sourceWeightOptions = {
     numQbs: normalizeNumQbsForDiagnostics(lineupProfile),
     ppr: receptionScoring,
@@ -1088,6 +1097,7 @@ function buildLeagueDiagnostics(
   return {
     teamCount,
     valueMode: leagueValueMode,
+    qbFormat,
     currentSeason: currentSeasonData.label,
     currentWeek: currentSeasonData.currentWeek ?? null,
     playoffWeekStart: playoffWeeks[0] || currentSeasonData.playoffWeekStart || null,
@@ -1111,6 +1121,7 @@ function buildLeagueDiagnostics(
     scoringSummary: formatScoringSummary(currentSeasonData.scoringSettings),
     receptionScoring,
     tightEndPremium,
+    passingTdPoints,
     ktcProfileLabel: `This report is using the ${selectedValueProfile} blended profile. Primary dynasty weights for this league: ${sourceWeightLabel}. FantasyPros Dynasty is included where available; FantasyPros Draft/ROS stays season/redraft-only. Dynasty Dealer remains benchmark-only.`,
     valueSnapshotProfileCount: VALUE_SOURCE_PROFILE_DEFINITIONS.length,
     valueSnapshotProfiles: [
@@ -1519,11 +1530,12 @@ function normalizeScore(value: number, max: number): number {
 }
 
 function getTier(score: number): string {
-  if (score >= 86) return 'Juggernaut';
-  if (score >= 74) return 'Contender';
-  if (score >= 60) return 'Playoff Mix';
-  if (score >= 45) return 'Reloading';
-  return 'Rebuild Mode';
+  if (score >= 96) return 'Thanos';
+  if (score >= 91) return 'Heavyweight';
+  if (score >= 86) return 'Could Be a Threat';
+  if (score >= 81) return 'Sneaky Problem';
+  if (score >= 70) return 'Meh';
+  return 'Free Money';
 }
 
 function getRosterIdentity(

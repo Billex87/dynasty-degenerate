@@ -191,7 +191,7 @@ export function AIChatBox({
     <div
       ref={containerRef}
       className={cn(
-        "ai-neural-surface ai-neural-surface-neutral flex flex-col bg-card text-card-foreground rounded-lg border shadow-sm",
+        "ai-surface-r3f ai-neural-surface-tron ai-neural-surface ai-neural-surface-neutral ai-chatbox-tron flex flex-col bg-card text-card-foreground rounded-lg border shadow-sm",
         className
       )}
       style={{ height }}

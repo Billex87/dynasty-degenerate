@@ -1,6 +1,8 @@
 /* AI Read Robot Circuit Board Surface
    Goal: robot PCB module cards, not generic glowing cards. */
 
+.report-shell .ai-surface-r3f,
+.report-shell .ai-read-panel-r3f,
 .ai-surface-r3f,
 .ai-read-panel-r3f {
   --ai-board-cyan: 96, 245, 255;
@@ -28,6 +30,60 @@
     inset 0 0 78px rgba(0, 0, 0, 0.72),
     0 0 22px rgba(var(--ai-board-cyan), 0.11),
     0 18px 48px rgba(0, 0, 0, 0.36) !important;
+}
+
+.ai-surface-r3f.ai-action-queue-do,
+.ai-surface-r3f.ai-neural-surface-upside,
+.ai-surface-r3f.ai-neural-surface-core {
+  --ai-board-cyan: 103, 232, 249;
+  --ai-board-copper-rgb: 52, 211, 153;
+}
+
+.ai-surface-r3f.ai-action-queue-watch,
+.ai-surface-r3f.ai-action-queue-hold,
+.ai-surface-r3f.ai-neural-surface-draft,
+.ai-surface-r3f.ai-neural-surface-risk,
+.ai-surface-r3f.ai-neural-surface-churn {
+  --ai-board-cyan: 125, 211, 252;
+  --ai-board-copper-rgb: 251, 191, 36;
+}
+
+.ai-surface-r3f.ai-action-queue-blocked,
+.ai-surface-r3f.ai-neural-surface-sell {
+  --ai-board-cyan: 147, 197, 253;
+  --ai-board-copper-rgb: 251, 113, 133;
+}
+
+.ai-surface-r3f.ai-neural-surface-trade,
+.ai-surface-r3f.ai-neural-surface-window {
+  --ai-board-cyan: 125, 249, 255;
+  --ai-board-copper-rgb: 96, 165, 250;
+}
+
+.ai-action-queue-tron,
+.ai-neural-surface-tron,
+.admin-diagnostics-shell-tron,
+.ai-chatbox-tron {
+  border-radius: 14px !important;
+}
+
+.ai-action-queue-compact.ai-action-queue-tron {
+  margin-top: 0.95rem;
+  border-width: 1px !important;
+  padding: 0.85rem;
+}
+
+.ai-neural-surface-tron::before,
+.ai-neural-surface-tron::after {
+  opacity: 0.24;
+}
+
+.ai-action-queue-tron .ai-tron-static-traces {
+  opacity: 0.18 !important;
+}
+
+.ai-action-queue-tron .ai-tron-junction-flares {
+  opacity: 0.3 !important;
 }
 
 .ai-read-panel-r3f {
@@ -58,6 +114,8 @@
 }
 
 /* PCB substrate */
+.report-shell .ai-surface-r3f::before,
+.report-shell .ai-read-panel-r3f::before,
 .ai-surface-r3f::before,
 .ai-read-panel-r3f::before {
   content: "";
@@ -93,6 +151,8 @@
 }
 
 /* Glass/vignette */
+.report-shell .ai-surface-r3f::after,
+.report-shell .ai-read-panel-r3f::after,
 .ai-surface-r3f::after,
 .ai-read-panel-r3f::after {
   content: "";
@@ -686,6 +746,8 @@
 }
 
 /* Text hierarchy */
+.report-shell .ai-surface-r3f> :not(.ai-tron-surface),
+.report-shell .ai-read-panel-r3f> :not(.ai-tron-surface),
 .ai-surface-r3f> :not(.ai-tron-surface),
 .ai-read-panel-r3f> :not(.ai-tron-surface) {
   position: relative;
@@ -1639,4 +1701,26 @@
   .ai-tron-junction-flares animate {
     display: none;
   }
+}
+
+/* Report audit closeout. This file loads after report-responsive.css. */
+.ai-read-confidence small {
+  display: none !important;
+}
+
+.ai-read-panel-compact .ai-read-panel-head,
+.ai-read-panel-r3f.ai-read-panel-compact .ai-read-panel-head {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.ai-read-panel-compact .ai-read-panel-title-lockup,
+.ai-read-panel-compact .ai-read-title-row,
+.ai-read-panel-compact .ai-read-label-row-under-title {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.ai-read-panel-compact .ai-read-label-row-under-title {
+  padding-left: 0 !important;
 }

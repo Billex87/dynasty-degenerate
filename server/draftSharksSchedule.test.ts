@@ -64,14 +64,57 @@ describe('DraftSharks schedule integration', () => {
 
     expect(profiles['DEN:RB']).toMatchObject({
       seasonSOS: 82,
+      remainingSOS: null,
       scheduleTier: 'elite',
       streamerWeeks: [6, 7],
       avoidWeeks: [10],
+      weeklyMatchups: [],
     });
     expect(profiles['SEA:WR']).toMatchObject({
       seasonSOS: 31,
       scheduleTier: 'hard',
       avoidWeeks: [8, 11],
+    });
+  });
+
+  it('normalizes DraftSharks weekly matchup percentages for slider-based SOS reads', () => {
+    const profiles = normalizeDraftSharksSosPayload({
+      rows: [
+        {
+          team: 'PHI',
+          position: 'QB',
+          remainingSOS: '8.8%',
+          week1: '19.1% WAS',
+          week2: '14.0% @ TEN',
+          week3_percent: '-18.4%',
+          week3Opponent: 'CHI',
+          week4: 'BYE',
+        },
+      ],
+    });
+
+    expect(profiles['PHI:QB']).toMatchObject({
+      remainingSOS: 8.8,
+      weeklyMatchups: [
+        {
+          week: 1,
+          opponent: 'WAS',
+          matchupPercent: 19.1,
+          matchupTier: 'easy',
+        },
+        {
+          week: 2,
+          opponent: 'TEN',
+          homeAway: 'away',
+          matchupPercent: 14,
+        },
+        {
+          week: 3,
+          opponent: 'CHI',
+          matchupPercent: -18.4,
+          matchupTier: 'hard',
+        },
+      ],
     });
   });
 

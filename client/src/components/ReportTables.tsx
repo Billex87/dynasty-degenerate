@@ -81,6 +81,10 @@ import {
   sortRowsByViewerAndStanding,
 } from "@/lib/managerOrdering";
 import { isPlaceholderManagerName } from "@/lib/managerDisplay";
+import {
+  getManagerProfileLabel,
+  getOwnerIntelProfileLabel,
+} from "@/lib/managerProfileLabels";
 import { viewerOwnedHighlightClass } from "@/lib/viewerHighlight";
 import { getBalancedGridStyle } from "@/lib/balancedGrid";
 
@@ -3282,14 +3286,23 @@ function getPillToneClass(value: string): string {
     normalized.includes("win") ||
     normalized.includes("elite") ||
     normalized.includes("shark") ||
-    normalized.includes("war chest")
+    normalized.includes("war chest") ||
+    normalized.includes("final boss") ||
+    normalized.includes("thanos") ||
+    normalized.includes("heavyweight") ||
+    normalized.includes("problem") ||
+    normalized.includes("spoiler") ||
+    normalized.includes("title threat") ||
+    normalized.includes("playoff push") ||
+    normalized.includes("no brakes")
   ) {
     return "manager-intel-pill-good";
   }
   if (
     normalized.includes("rebuild") ||
     normalized.includes("future") ||
-    normalized.includes("youth")
+    normalized.includes("youth") ||
+    normalized.includes("draft mode")
   ) {
     return "manager-intel-pill-future";
   }
@@ -3322,7 +3335,7 @@ function buildManagerSignalTags({
   ageFlags?: string[];
 }): Array<{
   label: string;
-  tone: "neutral" | "good" | "warn" | "danger" | "future";
+  tone: "neutral" | "good" | "warn" | "danger" | "future" | "elite";
 }> {
   const contenders = timeline?.contenderScore ?? 0;
   const rebuild = timeline?.rebuildScore ?? 0;
@@ -3330,18 +3343,22 @@ function buildManagerSignalTags({
   const futurePickCount = (pickRow?.count2026 || 0) + (pickRow?.count2027 || 0);
   const tags: Array<{
     label: string;
-    tone: "neutral" | "good" | "warn" | "danger" | "future";
+    tone: "neutral" | "good" | "warn" | "danger" | "future" | "elite";
   }> = [];
 
-  if (powerScore !== null && powerScore !== undefined && powerScore >= 86)
-    tags.push({ label: `Juggernaut ${powerScore}`, tone: "good" });
+  if (powerScore !== null && powerScore !== undefined && powerScore >= 90)
+    tags.push({ label: `Thanos ${powerScore}`, tone: "elite" });
   else if (powerScore !== null && powerScore !== undefined && powerScore <= 48)
     tags.push({ label: `Needs Work ${powerScore}`, tone: "danger" });
 
-  if (contenders >= 84 && contenders - rebuild >= 18)
-    tags.push({ label: `True Contender ${contenders}`, tone: "good" });
+  if (contenders >= 90 && contenders - rebuild >= 22)
+    tags.push({ label: `Heavyweight ${contenders}`, tone: "good" });
+  else if (contenders >= 80 && contenders - rebuild >= 14)
+    tags.push({ label: `Dangerous ${contenders}`, tone: "good" });
+  else if (contenders >= 70 && contenders - rebuild >= 4)
+    tags.push({ label: `Upset Alert ${contenders}`, tone: "warn" });
   else if (rebuild >= 68 && rebuild - contenders >= 10)
-    tags.push({ label: `Rebuild Mode ${rebuild}`, tone: "future" });
+    tags.push({ label: `Future Rich ${rebuild}`, tone: "future" });
   else if (contenders >= 70 && rebuild >= 52)
     tags.push({ label: "Fork In Road", tone: "warn" });
 
@@ -3453,7 +3470,7 @@ function buildOwnerIntelTileTags({
 
   if (powerRow) {
     tags.push({
-      label: `#${powerRow.rank} ${powerRow.tier}`,
+      label: `#${powerRow.rank} ${getManagerProfileLabel(powerRow.tier, powerRow.score).label}`,
       tone:
         powerRow.score >= 78
           ? "good"
@@ -3621,7 +3638,11 @@ type OwnerGrowthRow = NonNullable<
 type OwnerNeedPosition = "QB" | "RB" | "WR" | "TE";
 type OwnerSignalTone =
   | "neutral"
+  | "dynasty"
+  | "contender"
+  | "rebuilder"
   | "good"
+  | "contender-gold"
   | "warn"
   | "danger"
   | "future"
@@ -3642,13 +3663,31 @@ type DynastyAiTheme =
   | "neutral";
 type OwnerSignalTag = { label: string; tone?: OwnerSignalTone };
 type OwnerBuildLabel =
-  | "Juggernaut"
-  | "Strong Contender"
-  | "Weak Contender"
-  | "Balanced"
-  | "Strong Rebuilder"
-  | "Weak Rebuilder"
-  | "Pip Squeak"
+  | "Thanos"
+  | "Heavyweight"
+  | "Crown Me"
+  | "Ring Ready"
+  | "Could Be a Threat"
+  | "Dangerous"
+  | "Real Threat"
+  | "One Move Away"
+  | "Could Steal It"
+  | "Upset Alert"
+  | "Meh"
+  | "Future Rich"
+  | "Future Menace"
+  | "Pick Rich"
+  | "Growth Rocket"
+  | "Cooking"
+  | "Half Built"
+  | "Still Cooking"
+  | "All In"
+  | "Time to Rebuild"
+  | "Rebuilding"
+  | "Work In Progress"
+  | "Free Money"
+  | "Sell Your Team"
+  | "Try Harder"
   | "Playoff Push"
   | "Starter Need"
   | "Depth Build";
@@ -3677,6 +3716,8 @@ export function getAiNeuralSurfaceClass(
   extraClassName = ""
 ) {
   return [
+    "ai-surface-r3f",
+    "ai-neural-surface-tron",
     AI_NEURAL_SURFACE_CLASS,
     `${AI_NEURAL_SURFACE_CLASS}-${theme}`,
     extraClassName,
@@ -4309,26 +4350,34 @@ function normalizeOwnerValueScore(
 }
 
 function isOwnerRebuildLane(label?: string | null): boolean {
-  return Boolean(label && /rebuild|pip squeak/i.test(label));
+  return Boolean(
+    label &&
+      /rebuild|draft mode|future rich|future menace|pick rich|pick stash|growth rocket|cooking|half built|time to rebuild|work in progress|lunch money/i.test(label)
+  );
 }
 
 function isOwnerStrongRebuildLane(label?: string | null): boolean {
   return Boolean(
     label &&
-      label.toLowerCase().includes("strong") &&
-      label.toLowerCase().includes("rebuild")
+      /strong rebuild|future rich|future menace|pick rich|pick stash|growth rocket|draft mode/i.test(
+        label.toLowerCase()
+      )
   );
 }
 
 function isOwnerContenderLane(label?: string | null): boolean {
-  return Boolean(label && /contender|juggernaut/i.test(label));
+  return Boolean(
+    label &&
+      /contender|final boss|thanos|heavyweight|dangerous|upset alert|problem|spoiler|title threat|playoff push|wild card/i.test(label)
+  );
 }
 
 function isOwnerStrongContenderLane(label?: string | null): boolean {
   return Boolean(
     label &&
-      label.toLowerCase().includes("strong") &&
-      label.toLowerCase().includes("contender")
+      /strong contender|final boss|thanos|heavyweight|title threat/i.test(
+        label.toLowerCase()
+      )
   );
 }
 
@@ -4347,118 +4396,44 @@ function getOwnerTeamTypeLabel({
   leagueSize?: number;
   dynastyScore?: number | null;
 }): OwnerBuildLabel {
-  const contenderScore = toOwnerScore(timelineRow?.contenderScore);
-  const rebuilderScore = toOwnerScore(timelineRow?.rebuildScore);
-  const rosterValueScore =
-    toOwnerScore(powerRow?.rosterValue) ?? toOwnerScore(dynastyScore);
-  const valueRank = overviewRow?.rank_value ?? null;
-  const titleWindow =
-    leagueSize > 0 ? Math.max(3, Math.ceil(leagueSize * 0.42)) : 5;
-  const strongTitleWindow =
-    leagueSize > 0 ? Math.max(2, Math.ceil(leagueSize * 0.2)) : 3;
-  const bottomWindowStart =
-    leagueSize > 0
-      ? Math.max(leagueSize - Math.max(2, Math.ceil(leagueSize * 0.24)) + 1, 1)
-      : 9;
-  const lowerThirdStart =
-    leagueSize > 0 ? Math.max(1, Math.floor(leagueSize * 0.67)) : 8;
-  const hasTitleValue =
-    valueRank !== null
-      ? valueRank <= titleWindow
-      : (rosterValueScore ?? 0) >= 86;
-  const hasEliteTitleValue =
-    valueRank !== null
-      ? valueRank <= strongTitleWindow
-      : (rosterValueScore ?? 0) >= 94;
-  const isBottomValue =
-    valueRank !== null
-      ? valueRank >= lowerThirdStart
-      : (rosterValueScore ?? 100) <= 72;
-  const isBasementValue =
-    valueRank !== null
-      ? valueRank >= bottomWindowStart
-      : (rosterValueScore ?? 100) <= 42;
-  const olderRoster =
-    (row.avgAge ?? 0) >= 27.3 || (row.avgAgeByPosition.RB ?? 0) >= 26.8;
-  const titleScore =
-    contenderScore ??
-    (/win|contender/i.test(row.identity || row.timeline || "") ? 78 : 0);
-  const rebuildScore =
-    rebuilderScore ??
-    (/rebuild|future|youth/i.test(row.identity || row.timeline || "") ? 70 : 0);
-  const scoreGap = titleScore - rebuildScore;
-  const starterShare = Number.isFinite(row.starterValuePct)
-    ? row.starterValuePct
-    : 0;
-  const source = `${row.identity || ""} ${timelineRow?.label || ""} ${row.timeline || ""}`;
-
-  if (
-    titleScore >= 88 &&
-    scoreGap >= 18 &&
-    (hasEliteTitleValue || titleScore >= 95 || (rosterValueScore ?? 0) >= 96) &&
-    starterShare >= 48
-  ) {
-    return "Juggernaut";
-  }
-
-  if (
-    titleScore >= 78 &&
-    scoreGap >= 10 &&
-    (hasTitleValue || titleScore >= 88 || (rosterValueScore ?? 0) >= 90)
-  ) {
-    return "Strong Contender";
-  }
-
-  if (
-    titleScore >= 66 &&
-    scoreGap >= -4 &&
-    !isBasementValue &&
-    (/contender|win|playoff/i.test(source) ||
-      hasTitleValue ||
-      starterShare >= 52)
-  ) {
-    return "Weak Contender";
-  }
-
-  const strongRebuild =
-    rebuildScore >= 74 ||
-    titleScore <= 62 ||
-    (isBottomValue && (titleScore < 70 || olderRoster)) ||
-    (/rebuild|future|youth/i.test(source) &&
-      rebuildScore >= 68 &&
-      titleScore < 75);
-
-  if (
-    isBasementValue &&
-    titleScore <= 46 &&
-    rebuildScore <= 55 &&
-    starterShare <= 42
-  ) {
-    return "Pip Squeak";
-  }
-
-  if (strongRebuild) return "Strong Rebuilder";
-
-  if (
-    rebuildScore >= 58 ||
-    isBottomValue ||
-    /rebuild|future|youth/i.test(source)
-  ) {
-    return "Weak Rebuilder";
-  }
-
-  return "Balanced";
+  return getManagerProfileLabel(powerRow?.tier, powerRow?.score, {
+    powerRow,
+    timelineRow,
+    managerRow: row,
+    overviewRow,
+    dynastyScore,
+    leagueSize,
+  }).label as OwnerBuildLabel;
 }
 
 function getOwnerTeamTypeTone(label: string): OwnerSignalTone {
-  if (/juggernaut/i.test(label)) return "elite";
-  if (/strong contender|playoff/i.test(label)) return "good";
-  if (/weak contender/i.test(label)) return "weak-contender";
-  if (/balanced|starter need|depth build/i.test(label)) return "balanced";
-  if (/strong rebuild/i.test(label)) return "future";
-  if (/weak rebuild/i.test(label)) return "weak-rebuilder";
-  if (/pip squeak/i.test(label)) return "squeak";
+  if (/final boss|thanos/i.test(label)) return "elite";
+  if (/crown me/i.test(label)) return "contender-gold";
+  if (/heavyweight|ring ready|real threat|one move away|dangerous|problem|title threat|playoff/i.test(label)) return "good";
+  if (/could steal it|upset alert|spoiler|wild card/i.test(label)) return "weak-contender";
+  if (/starter need/i.test(label)) return "weak-contender";
+  if (/meh|middle child|balanced|depth build/i.test(label))
+    return "balanced";
+  if (/future rich|future menace|pick rich|pick stash|growth rocket|rebuilding|draft mode/i.test(label))
+    return "future";
+  if (/cooking|half built|time to rebuild|still cooking|work in progress/i.test(label))
+    return "weak-rebuilder";
+  if (/all in/i.test(label)) return "good";
+  if (/free money|sell your team|try harder|lunch money/i.test(label))
+    return "squeak";
   return isOwnerRebuildLane(label) ? "future" : "good";
+}
+
+function getOwnerTeamTypeToneForMode(
+  label: string,
+  sortMode: OwnerIntelSortMode
+): OwnerSignalTone {
+  if (/thanos/i.test(label)) return "elite";
+  if (sortMode === "dynasty") return "dynasty";
+  if (sortMode === "contender") {
+    return /crown me/i.test(label) ? "contender-gold" : "contender";
+  }
+  return "rebuilder";
 }
 
 function buildOwnerScoreLens({
@@ -4469,6 +4444,7 @@ function buildOwnerScoreLens({
   growthRow,
   maxGrowthValue,
   leagueSize = 0,
+  sortMode = "dynasty",
 }: {
   row: OwnerIntelRow;
   timelineRow?: OwnerTimelineRow | null;
@@ -4477,13 +4453,14 @@ function buildOwnerScoreLens({
   growthRow?: OwnerGrowthRow | null;
   maxGrowthValue: number;
   leagueSize?: number;
+  sortMode?: OwnerIntelSortMode;
 }): OwnerScoreLens {
   const dynastyScore =
     toOwnerScore(powerRow?.rosterValue) ??
     normalizeOwnerValueScore(growthRow?.total_val, maxGrowthValue);
   const contenderScore = toOwnerScore(timelineRow?.contenderScore);
   const rebuilderScore = toOwnerScore(timelineRow?.rebuildScore);
-  const buildLabel = getOwnerTeamTypeLabel({
+  const fallbackBuildLabel = getOwnerTeamTypeLabel({
     row,
     timelineRow,
     powerRow,
@@ -4491,13 +4468,29 @@ function buildOwnerScoreLens({
     leagueSize,
     dynastyScore,
   });
+  const activeScore =
+    sortMode === "contender"
+      ? contenderScore
+      : sortMode === "rebuilder"
+        ? rebuilderScore
+        : dynastyScore;
+  const buildLabel = getOwnerIntelProfileLabel(
+    sortMode,
+    activeScore,
+    fallbackBuildLabel,
+    {
+      dynastyScore,
+      contenderScore,
+      rebuilderScore,
+    }
+  ).label as OwnerBuildLabel;
 
   return {
     dynastyScore,
     contenderScore,
     rebuilderScore,
     buildLabel,
-    buildTone: getOwnerTeamTypeTone(buildLabel),
+    buildTone: getOwnerTeamTypeToneForMode(buildLabel, sortMode),
   };
 }
 
@@ -4526,21 +4519,21 @@ function OwnerScoreStrip({
       <span>
         {renderLabel(
           isRedraft ? "Current" : "Dynasty",
-          isRedraft ? "Current" : "Dynasty"
+          isRedraft ? "Cur" : "Dyn"
         )}
         <em>{formatOwnerScore(scores.dynastyScore)}</em>
       </span>
       <span>
         {renderLabel(
           isRedraft ? "Starters" : "Contend",
-          isRedraft ? "Start" : "Contend"
+          isRedraft ? "St" : "Cnt"
         )}
         <em>{formatOwnerScore(scores.contenderScore)}</em>
       </span>
       <span>
         {renderLabel(
           isRedraft ? "Bench" : "Rebuild",
-          isRedraft ? "Bench" : "Rebuild"
+          isRedraft ? "Bn" : "Reb"
         )}
         <em>{formatOwnerScore(scores.rebuilderScore)}</em>
       </span>
@@ -5192,9 +5185,9 @@ function buildDynastyAiSuggestions({
         leagueSize
       ),
     },
+    buildDynastySituationRadar(row),
     buildDynastyWindowGuardrail(row, pickRow, buildLabel),
     buildDynastyPickLeverage(pickRow),
-    buildDynastySituationRadar(row),
     buildDynastyRosterChurn(row),
     buildDynastyRiskRadar(row),
     buildDynastyOfferFilter(row, overviewRow),
@@ -5238,7 +5231,7 @@ function buildDynastyAiSuggestions({
     card => card.copy,
     getDynastyTradeTrackedNames(row),
     seededTradeCopies
-  ).slice(0, 8);
+  ).slice(0, 3);
 }
 
 function buildSeasonRosterRead({
@@ -8612,6 +8605,7 @@ export function OwnerIntelMatrix({
       growthRow: getGrowthRow(row.manager),
       maxGrowthValue,
       leagueSize: visibleIntelRows.length,
+      sortMode: ownerIntelSortMode,
     });
   const getSortScoreForRow = (row: OwnerIntelRow) => {
     const scoreLens = getScoreLensForRow(row);
@@ -9106,6 +9100,12 @@ export function OwnerIntelMatrix({
                     <AIReadPanel
                       title={isRedraft ? "Roster Read" : "Dynasty Roster Read"}
                       body={selectedRosterRead}
+                      decision={{
+                        label: "Watch only",
+                        detail: "Roster shape is context for the actual move; do not treat it as a transaction by itself.",
+                        tone: "watch",
+                        status: "Context only",
+                      }}
                       traceItems={selectedRosterTraceItems}
                       backgroundVariant="roster"
                       severity="info"
@@ -9115,6 +9115,12 @@ export function OwnerIntelMatrix({
                     <AIReadPanel
                       title={isRedraft ? "Best Move" : "Dynasty Best Move"}
                       body={selectedBestMove}
+                      decision={{
+                        label: "Do this",
+                        detail: selectedBestMove,
+                        tone: "go",
+                        status: "Primary move",
+                      }}
                       traceItems={selectedMoveTraceItems}
                       backgroundVariant="trade"
                       severity="info"
@@ -9125,6 +9131,12 @@ export function OwnerIntelMatrix({
                         isRedraft ? "Starter / Bench Context" : "Market / Picks"
                       }
                       body={selectedTradeDraftProfile}
+                      decision={{
+                        label: "Watch only",
+                        detail: "Use this as deal context; the Best Move panel owns the action call.",
+                        tone: "watch",
+                        status: "Context only",
+                      }}
                       traceItems={selectedMarketTraceItems}
                       backgroundVariant="market"
                       severity="warn"
@@ -9160,12 +9172,34 @@ export function OwnerIntelMatrix({
                             : card.tone === "good"
                               ? "good"
                               : "info";
+                      const cardDecision =
+                        card.tone === "danger"
+                          ? {
+                              label: "Do not force it",
+                              detail: card.copy,
+                              tone: "stop" as const,
+                              status: "Guardrail",
+                            }
+                          : card.tone === "warn"
+                            ? {
+                                label: "Watch only",
+                                detail: card.copy,
+                                tone: "watch" as const,
+                                status: "Caution",
+                              }
+                            : {
+                                label: "Do this",
+                                detail: card.copy,
+                                tone: "go" as const,
+                                status: "Action lane",
+                              };
 
                       return (
                         <AIReadPanel
                           key={`${card.title}-${card.copy}`}
                           title={card.title}
                           body={card.copy}
+                          decision={cardDecision}
                           traceItems={[
                             `Owner profile: ${selectedRow.identity || 'returned owner identity'}.`,
                             `Timeline: ${selectedRow.timeline || selectedTeamType || 'unknown'}.`,

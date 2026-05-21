@@ -1,0 +1,382 @@
+import type { AIPredictionEvent, AIPredictionOutcome } from './aiPredictionCalibration';
+import {
+  resolveAIPredictionOutcome,
+  type AIPredictionOutcomeResolverContext,
+  type AIPredictionResolvedPlayerStat,
+  type AIPredictionResolvedTransaction,
+} from './aiPredictionOutcomeResolver';
+import * as db from './db';
+import * as userLoadPolicy from './loadTimeProviderPolicy';
+
+type SleeperUser = {
+  user_id?: string | number | null;
+  display_name?: string | null;
+  username?: string | null;
+};
+
+type SleeperRoster = {
+  roster_id?: string | number | null;
+  owner_id?: string | number | null;
+  metadata?: {
+    team_name?: string | null;
+  } | null;
+};
+
+type SleeperTransaction = {
+  type?: string | null;
+  status?: string | null;
+  adds?: Record<string, string | number | null> | null;
+  drops?: Record<string, string | number | null> | null;
+  roster_ids?: Array<string | number | null> | null;
+  created?: string | number | null;
+  status_updated?: string | number | null;
+};
+
+type SleeperMatchup = {
+  roster_id?: string | number | null;
+  starters?: string[] | null;
+  players_points?: Record<string, number | string | null> | null;
+};
+
+type LeagueOutcomeFacts = AIPredictionOutcomeResolverContext & {
+  weeks: number[];
+  transactionFactCount: number;
+  playerStatFactCount: number;
+};
+
+export type AIPredictionOutcomeJobLeagueResult = {
+  leagueId: string;
+  eventCount: number;
+  weeks: number[];
+  transactionFactCount: number;
+  playerStatFactCount: number;
+  resolved: number;
+  pending: number;
+  failed: number;
+  error?: string | null;
+};
+
+export type AIPredictionOutcomeJobResult = {
+  ok: boolean;
+  generatedAt: string;
+  durationMs: number;
+  scanned: number;
+  resolved: number;
+  pending: number;
+  skipped: number;
+  failed: number;
+  leagues: AIPredictionOutcomeJobLeagueResult[];
+};
+
+function cleanText(value: unknown): string | null {
+  const clean = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return clean || null;
+}
+
+function normalizeRosterId(value: unknown): string | null {
+  const clean = cleanText(value);
+  return clean ? clean : null;
+}
+
+function asRecord(value: unknown): Record<string, any> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, any>
+    : {};
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error || 'Unknown error');
+}
+
+function getSleeperCurrentWeek(leagueInfo: any): number {
+  const candidate = Number(leagueInfo?.leg ?? leagueInfo?.week ?? leagueInfo?.settings?.leg ?? 1);
+  return Number.isFinite(candidate) && candidate > 0 ? Math.min(18, Math.floor(candidate)) : 1;
+}
+
+function getDateFromSleeperTimestamp(value: unknown): string | null {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  const ms = parsed > 10_000_000_000 ? parsed : parsed * 1000;
+  const date = new Date(ms);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
+function getEventWeeks(events: AIPredictionEvent[], currentWeek: number): number[] {
+  const weeks = new Set<number>();
+  let hasWeeklessEvent = false;
+
+  events.forEach((event) => {
+    const week = Number(event.week);
+    if (Number.isInteger(week) && week >= 1 && week <= 18) {
+      weeks.add(week);
+    } else {
+      hasWeeklessEvent = true;
+    }
+  });
+
+  if (hasWeeklessEvent) {
+    weeks.add(Math.max(1, currentWeek));
+    weeks.add(Math.max(1, currentWeek - 1));
+  }
+
+  if (!weeks.size) weeks.add(Math.max(1, currentWeek));
+  return Array.from(weeks).sort((a, b) => a - b).slice(0, 18);
+}
+
+function buildRosterManagerLookup(users: SleeperUser[], rosters: SleeperRoster[]): Map<string, string> {
+  const userById = new Map<string, SleeperUser>();
+  users.forEach((user) => {
+    const userId = cleanText(user.user_id);
+    if (userId) userById.set(userId, user);
+  });
+
+  const managerByRosterId = new Map<string, string>();
+  rosters.forEach((roster) => {
+    const rosterId = normalizeRosterId(roster.roster_id);
+    if (!rosterId) return;
+
+    const user = userById.get(cleanText(roster.owner_id) || '');
+    const teamName = cleanText(roster.metadata?.team_name);
+    const displayName = cleanText(user?.display_name) || cleanText(user?.username);
+    const label = [teamName, displayName]
+      .filter((value, index, list): value is string => Boolean(value && list.indexOf(value) === index))
+      .join(' / ');
+
+    if (label) managerByRosterId.set(rosterId, label);
+  });
+
+  return managerByRosterId;
+}
+
+function getCounterpartyLabel(
+  rosterIds: Array<string | number | null> | null | undefined,
+  selectedRosterId: string | null,
+  managerByRosterId: Map<string, string>
+): string | null {
+  const counterparties = (rosterIds || [])
+    .map(normalizeRosterId)
+    .filter((rosterId): rosterId is string => Boolean(rosterId && rosterId !== selectedRosterId))
+    .map((rosterId) => managerByRosterId.get(rosterId) || rosterId);
+
+  return counterparties.length ? counterparties.join(' / ') : null;
+}
+
+function buildTransactionFacts(
+  transactionsByWeek: SleeperTransaction[][],
+  managerByRosterId: Map<string, string>
+): AIPredictionResolvedTransaction[] {
+  const facts: AIPredictionResolvedTransaction[] = [];
+
+  transactionsByWeek.flat().forEach((transaction) => {
+    if (String(transaction.status || '').toLowerCase() !== 'complete') return;
+
+    const occurredAt = getDateFromSleeperTimestamp(transaction.status_updated) || getDateFromSleeperTimestamp(transaction.created);
+    const transactionType = String(transaction.type || '').toLowerCase();
+    const adds = asRecord(transaction.adds);
+    const drops = asRecord(transaction.drops);
+
+    Object.entries(adds).forEach(([playerId, rosterId]) => {
+      const normalizedRosterId = normalizeRosterId(rosterId);
+      const manager = normalizedRosterId ? managerByRosterId.get(normalizedRosterId) || null : null;
+      const counterparty = getCounterpartyLabel(transaction.roster_ids, normalizedRosterId, managerByRosterId);
+      facts.push({
+        type: transactionType === 'trade' ? 'trade' : 'add',
+        playerId,
+        manager,
+        counterparty,
+        occurredAt,
+      });
+    });
+
+    Object.entries(drops).forEach(([playerId, rosterId]) => {
+      const normalizedRosterId = normalizeRosterId(rosterId);
+      facts.push({
+        type: 'drop',
+        playerId,
+        manager: normalizedRosterId ? managerByRosterId.get(normalizedRosterId) || null : null,
+        occurredAt,
+      });
+    });
+
+    if (transactionType === 'trade' && !Object.keys(adds).length) {
+      const rosterIds = transaction.roster_ids || [];
+      rosterIds.forEach((rosterId) => {
+        const normalizedRosterId = normalizeRosterId(rosterId);
+        facts.push({
+          type: 'trade',
+          manager: normalizedRosterId ? managerByRosterId.get(normalizedRosterId) || null : null,
+          counterparty: getCounterpartyLabel(rosterIds, normalizedRosterId, managerByRosterId),
+          occurredAt,
+        });
+      });
+    }
+  });
+
+  return facts;
+}
+
+function buildPlayerStatFacts(matchupsByWeek: SleeperMatchup[][]): AIPredictionResolvedPlayerStat[] {
+  const facts: AIPredictionResolvedPlayerStat[] = [];
+
+  matchupsByWeek.flat().forEach((matchup) => {
+    const starters = new Set((matchup.starters || []).map(String));
+    Object.entries(asRecord(matchup.players_points)).forEach(([playerId, value]) => {
+      const fantasyPoints = Number(value);
+      if (!Number.isFinite(fantasyPoints)) return;
+      facts.push({
+        playerId,
+        fantasyPoints,
+        started: starters.has(playerId),
+      });
+    });
+  });
+
+  return facts;
+}
+
+async function fetchSleeperJson<T>(url: string, context: string): Promise<T> {
+  return await userLoadPolicy.fetchUserLoadJson<T>(url, context);
+}
+
+async function fetchLeagueOutcomeFacts(leagueId: string, events: AIPredictionEvent[]): Promise<LeagueOutcomeFacts> {
+  const encodedLeagueId = encodeURIComponent(leagueId);
+  const leagueInfo = await fetchSleeperJson<any>(
+    `https://api.sleeper.app/v1/league/${encodedLeagueId}`,
+    'ai-prediction-outcome-resolution'
+  );
+  const currentWeek = getSleeperCurrentWeek(leagueInfo);
+  const weeks = getEventWeeks(events, currentWeek);
+  const [users, rosters, transactionsByWeek, matchupsByWeek] = await Promise.all([
+    fetchSleeperJson<SleeperUser[]>(
+      `https://api.sleeper.app/v1/league/${encodedLeagueId}/users`,
+      'ai-prediction-outcome-resolution'
+    ).catch(() => []),
+    fetchSleeperJson<SleeperRoster[]>(
+      `https://api.sleeper.app/v1/league/${encodedLeagueId}/rosters`,
+      'ai-prediction-outcome-resolution'
+    ).catch(() => []),
+    Promise.all(weeks.map((week) =>
+      fetchSleeperJson<SleeperTransaction[]>(
+        `https://api.sleeper.app/v1/league/${encodedLeagueId}/transactions/${week}`,
+        'ai-prediction-outcome-resolution'
+      ).catch(() => [])
+    )),
+    Promise.all(weeks.map((week) =>
+      fetchSleeperJson<SleeperMatchup[]>(
+        `https://api.sleeper.app/v1/league/${encodedLeagueId}/matchups/${week}`,
+        'ai-prediction-outcome-resolution'
+      ).catch(() => [])
+    )),
+  ]);
+
+  const managerByRosterId = buildRosterManagerLookup(users || [], rosters || []);
+  const transactions = buildTransactionFacts(transactionsByWeek, managerByRosterId);
+  const playerStats = buildPlayerStatFacts(matchupsByWeek);
+
+  return {
+    resolvedAt: new Date(),
+    transactions,
+    playerStats,
+    weeks,
+    transactionFactCount: transactions.length,
+    playerStatFactCount: playerStats.length,
+  };
+}
+
+function groupEventsByLeague(events: AIPredictionEvent[]): Map<string, AIPredictionEvent[]> {
+  const byLeague = new Map<string, AIPredictionEvent[]>();
+  events.forEach((event) => {
+    const leagueId = cleanText(event.leagueId);
+    if (!leagueId) return;
+    byLeague.set(leagueId, [...(byLeague.get(leagueId) || []), event]);
+  });
+  return byLeague;
+}
+
+function shouldPersistOutcome(outcome: AIPredictionOutcome): boolean {
+  return outcome.status !== 'pending';
+}
+
+export async function resolvePendingAIPredictionOutcomes(options: {
+  leagueId?: string | null;
+  limit?: number;
+} = {}): Promise<AIPredictionOutcomeJobResult> {
+  const startedAt = Date.now();
+  const limit = Math.max(1, Math.min(Number(options.limit) || 200, 1000));
+  const generatedAt = new Date().toISOString();
+  const result: AIPredictionOutcomeJobResult = {
+    ok: true,
+    generatedAt,
+    durationMs: 0,
+    scanned: 0,
+    resolved: 0,
+    pending: 0,
+    skipped: 0,
+    failed: 0,
+    leagues: [],
+  };
+
+  const events = await db.listPendingAiPredictionEvents({
+    leagueId: options.leagueId || null,
+    limit,
+  });
+  result.scanned = events.length;
+
+  const byLeague = groupEventsByLeague(events);
+  result.skipped = events.length - Array.from(byLeague.values()).reduce((sum, leagueEvents) => sum + leagueEvents.length, 0);
+
+  for (const [leagueId, leagueEvents] of Array.from(byLeague.entries())) {
+    const leagueResult: AIPredictionOutcomeJobLeagueResult = {
+      leagueId,
+      eventCount: leagueEvents.length,
+      weeks: [],
+      transactionFactCount: 0,
+      playerStatFactCount: 0,
+      resolved: 0,
+      pending: 0,
+      failed: 0,
+      error: null,
+    };
+    result.leagues.push(leagueResult);
+
+    try {
+      const facts = await fetchLeagueOutcomeFacts(leagueId, leagueEvents);
+      leagueResult.weeks = facts.weeks;
+      leagueResult.transactionFactCount = facts.transactionFactCount;
+      leagueResult.playerStatFactCount = facts.playerStatFactCount;
+
+      for (const event of leagueEvents) {
+        const outcome = resolveAIPredictionOutcome(event, facts);
+        if (!shouldPersistOutcome(outcome)) {
+          leagueResult.pending += 1;
+          result.pending += 1;
+          continue;
+        }
+
+        const updated = await db.updateAiPredictionOutcome({
+          eventId: event.eventId,
+          outcome,
+        });
+
+        if (updated) {
+          leagueResult.resolved += 1;
+          result.resolved += 1;
+        } else {
+          leagueResult.failed += 1;
+          result.failed += 1;
+        }
+      }
+    } catch (error) {
+      const message = getErrorMessage(error);
+      leagueResult.error = message;
+      leagueResult.failed += leagueEvents.length;
+      result.failed += leagueEvents.length;
+      result.ok = false;
+      console.warn(`[AIPredictionOutcomeJob] Failed to resolve league ${leagueId}:`, message);
+    }
+  }
+
+  if (result.failed > 0) result.ok = false;
+  result.durationMs = Date.now() - startedAt;
+  return result;
+}

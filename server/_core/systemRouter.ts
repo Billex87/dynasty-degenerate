@@ -1,10 +1,24 @@
 import { z } from "zod";
 import { adminProcedure, publicProcedure, router } from "./trpc";
-import { getLoginAttemptsSince, listKtcSnapshotDateKeysSince, listSourceHealthEventsSince, type StoredLoginAttempt, type StoredSourceHealthEvent } from "../db";
+import {
+  getLoginAttemptsSince,
+  listAiPredictionEvents,
+  listKtcSnapshotDateKeysSince,
+  listSourceHealthEventsSince,
+  type StoredLoginAttempt,
+  type StoredSourceHealthEvent,
+} from "../db";
 import { getSnapshotDateKey, listLocalKtcSnapshotDateKeysSince } from "../ktcLoader";
 import { getApiProviderTelemetrySnapshot } from "../apiProviderTelemetry";
 import { buildSourceCoverageMatrix } from "../sourceCoverageMatrix";
 import { loadSourceSnapshotFreshnessDiagnostics } from "../sourceSnapshotFreshness";
+import {
+  buildAICalibrationAdjustmentProfile,
+  summarizeAICounterfactualReliability,
+  summarizeAIPredictionReliability,
+  summarizeSourceAgreementReliability,
+} from "../aiPredictionCalibration";
+import { resolvePendingAIPredictionOutcomes } from "../aiPredictionOutcomeJob";
 
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 
@@ -349,5 +363,66 @@ export const systemRouter = router({
     .query(({ input }) => getApiProviderTelemetrySnapshot({
       lookbackMs: input.lookbackDays * 24 * 60 * 60 * 1000,
       limit: input.limit,
+    })),
+
+  aiCalibration: adminProcedure
+    .input(
+      z.object({
+        leagueId: z.string().max(64).optional().nullable(),
+        limit: z.number().int().min(25).max(1000).default(500),
+      }).optional()
+    )
+    .query(async ({ input }) => {
+      const events = await listAiPredictionEvents({
+        leagueId: input?.leagueId || null,
+        limit: input?.limit || 500,
+      });
+      const reliability = summarizeAIPredictionReliability(events);
+      const sourceAgreement = summarizeSourceAgreementReliability(events);
+      const counterfactuals = summarizeAICounterfactualReliability(events);
+      const adjustmentProfile = buildAICalibrationAdjustmentProfile(events);
+
+      return {
+        generatedAt: new Date().toISOString(),
+        eventCount: events.length,
+        leagueId: input?.leagueId || null,
+        reliability,
+        sourceAgreement,
+        counterfactuals,
+        adjustmentProfile,
+        recentEvents: events.slice(0, 50).map(event => ({
+          eventId: event.eventId,
+          predictionKey: event.predictionKey,
+          createdAt: event.createdAt,
+          updatedAt: event.updatedAt || null,
+          leagueId: event.leagueId || null,
+          surface: event.surface,
+          action: event.action,
+          decision: event.decision,
+          entityType: event.entityType,
+          entityId: event.entityId || null,
+          entityName: event.entityName || null,
+          label: event.label,
+          finalScore: event.finalScore,
+          sourceAgreement: event.sourceAgreement?.state || 'unknown',
+          counterfactualStatus: event.counterfactual?.status || 'missing-baseline',
+          counterfactualEdge: event.counterfactual?.edge ?? null,
+          baselineLabel: event.counterfactual?.baseline.label || null,
+          baselineScore: event.counterfactual?.baseline.score ?? event.outcome.baselineValue ?? null,
+          outcomeStatus: event.outcome.status,
+        })),
+      } as const;
+    }),
+
+  resolveAiPredictionOutcomes: adminProcedure
+    .input(
+      z.object({
+        leagueId: z.string().max(64).optional().nullable(),
+        limit: z.number().int().min(1).max(1000).default(200),
+      }).optional()
+    )
+    .mutation(({ input }) => resolvePendingAIPredictionOutcomes({
+      leagueId: input?.leagueId || null,
+      limit: input?.limit || 200,
     })),
 });

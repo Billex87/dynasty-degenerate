@@ -288,14 +288,13 @@ export default function TradeProfitLeaderboardTable({
                 </span>
               )}
               {tendency?.favoritePartner && (
-                <OwnerMetricPill
-                  label="Likes Trading With"
-                  value={renderPartnerName(
-                    tendency.favoritePartner,
-                    managerAvatars
-                  )}
-                  tone="info"
-                />
+                <span
+                  className="trade-partner-pill"
+                  title={`Likes trading with ${tendency.favoritePartner}`}
+                >
+                  <em>Likes with</em>
+                  {renderPartnerName(tendency.favoritePartner, managerAvatars)}
+                </span>
               )}
             </OwnerSummaryTile>
           );
@@ -451,7 +450,7 @@ export default function TradeProfitLeaderboardTable({
                 </div>
               )}
               <div className="trade-manager-list">
-                {selectedManagerTrades.map(trade => {
+                {selectedManagerTrades.map((trade, tradeIndex) => {
                   const tradeEvaluation = buildTradeLedgerEvaluation(
                     trade,
                     dynastyTimelines,
@@ -469,7 +468,7 @@ export default function TradeProfitLeaderboardTable({
                     selectedManager
                   );
                   const opponent = getTradeOpponent(trade, selectedManager);
-                  const tradeKey = `${trade.date}-${trade.team_a}-${trade.team_b}`;
+                  const tradeKey = `${trade.date}-${trade.team_a}-${trade.team_b}-${tradeIndex}`;
                   const isTradeOpen = selectedManagerTradeKey === tradeKey;
 
                   return (

@@ -29,6 +29,7 @@ interface DraftAnalysisProps {
   currentStandings?: ReportData['currentStandings'];
   leagueOverview?: ReportData['leagueOverview'];
   leagueValueMode?: ReportData['leagueValueMode'];
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
   showAIReads?: boolean;
 }
 
@@ -403,6 +404,29 @@ function buildDraftYearPreviewMetrics(
   ].filter(Boolean) as PreviewMetric[];
 }
 
+function buildDraftOpportunitySummary(
+  picks: DraftPick[],
+  opportunityByPick: Record<string, DraftOpportunity>,
+) {
+  const missed = picks
+    .flatMap((pick) => {
+      const opportunity = opportunityByPick[getDraftPickKey(pick)];
+      if (!opportunity || opportunity.type !== 'missed') return [];
+      return [{
+        ...opportunity,
+        draftedPlayerName: pick.playerName,
+      }];
+    })
+    .sort((a, b) => b.delta - a.delta)
+    .slice(0, 3);
+  const boardWins = picks.filter((pick) => opportunityByPick[getDraftPickKey(pick)]?.type === 'win').length;
+
+  return {
+    boardWins,
+    missed,
+  };
+}
+
 export function DraftAnalysis({
   draftPicks,
   draftStats,
@@ -415,6 +439,7 @@ export function DraftAnalysis({
   currentStandings,
   leagueOverview,
   leagueValueMode: leagueValueModeInput = 'dynasty',
+  leagueDiagnostics,
   showAIReads = false,
 }: DraftAnalysisProps) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
@@ -787,6 +812,7 @@ export function DraftAnalysis({
           const isDraftBoardOpen = activeDraftSectionId === draftYearSectionId;
           const yearPreviewMetrics = buildDraftYearPreviewMetrics(yearPicks, leagueValueMode, draftDecisionAudits, managerAvatars);
           const draftWindowLabel = getDraftWindowLabel(yearPicks, leagueValueMode);
+          const opportunitySummary = buildDraftOpportunitySummary(yearPicks, draftOpportunityByPick);
 
           return (
             <DraftCollapsibleSection
@@ -799,6 +825,22 @@ export function DraftAnalysis({
               open={isDraftBoardOpen}
               onToggle={(open) => setDraftSectionOpen(draftYearSectionId, open)}
             >
+              {opportunitySummary.missed.length > 0 && (
+                <div className="draft-board-context-callout">
+                  <div>
+                    <span>Board-value context</span>
+                    <strong>
+                      {opportunitySummary.boardWins.toLocaleString()} board wins ·{" "}
+                      {opportunitySummary.missed.length.toLocaleString()} review spots
+                    </strong>
+                  </div>
+                  <p>
+                    {opportunitySummary.missed.map(item => (
+                      `${item.draftedPlayerName} passed ${item.playerName} (${item.pickLabel}, +${item.delta.toLocaleString()})`
+                    )).join(' · ')}
+                  </p>
+                </div>
+              )}
                   <div className="rookie-draft-row-shell">
                     <div className="draft-sort-strip">
                       <button type="button" onClick={() => handleSort('pick')}>
@@ -856,7 +898,7 @@ export function DraftAnalysis({
                                 team={details?.team}
                                 position={pick.playerPos}
                               />
-                              <DraftOpportunityNote opportunity={opportunity} />
+                              <DraftOpportunityNote opportunity={opportunity?.type === 'win' ? opportunity : undefined} />
                               <DraftWindowNote pick={pick} leagueValueMode={leagueValueMode} />
                               <DraftMarketMovementNote pick={pick} leagueValueMode={leagueValueMode} />
                             </span>
@@ -924,6 +966,7 @@ export function DraftAnalysis({
         leagueLogo={leagueLogo}
         managerAvatars={managerAvatars}
         playerDetailsById={playerDetailsById}
+        leagueDiagnostics={leagueDiagnostics}
         showAIRead={showAIReads}
       />
     </div>

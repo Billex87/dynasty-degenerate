@@ -3,8 +3,18 @@ import type {
   ManagerStarterPlayer,
   TrendingPlayer,
   WaiverWeeklyEcrSignal,
+  WaiverSourceTraceEntry,
 } from "@shared/types";
 import { getShortTermMatchupOutlook } from "@shared/matchupWindows";
+import {
+  evaluateAIEvidence,
+  getAIEvidenceLeagueContextFromDiagnostics,
+  type AIEvidenceAction,
+  type AIEvidenceMode,
+  type AIEvidenceResult,
+  type AISourceTrace,
+} from "@shared/aiEvidenceEngine";
+import { buildAIEvidenceLeagueActivityContext } from "@shared/leagueActivityContext";
 import { normalizeNflTeamAbbr } from "@/lib/teamTileStyle";
 
 export type ScheduleEdgePositionFilter =
@@ -40,6 +50,8 @@ export type ScheduleEdgeRow = {
   team: string | null;
   bestRank: string;
   bestRankNumber: number | null;
+  seasonRank: string | null;
+  seasonRankNumber: number | null;
   bestWeek: number | null;
   window: string;
   playoffWindow: string | null;
@@ -50,6 +62,9 @@ export type ScheduleEdgeRow = {
   availabilityDetail: string;
   action: string;
   actionTone: ScheduleEdgeTone;
+  decisionLabel: string;
+  decisionTone: ScheduleEdgeTone;
+  evidenceRead: AIEvidenceResult;
   value: number | null;
   currentRank: string | null;
   targetScore: number | null;
@@ -160,6 +175,10 @@ function makeScheduleEdgeOwnershipKey(input: {
     name: nameKey ? `${position}:name:${nameKey}` : null,
     team: team ? `${position}:team:${team}` : null,
   };
+}
+
+function isDraftSharksScheduleSignal(signal?: WaiverWeeklyEcrSignal | null): boolean {
+  return signal?.source === "DraftSharks" || signal?.signalType === "draftsharks-sos";
 }
 
 function buildScheduleEdgeOwnerLookup(reportData: ReportData) {
@@ -418,6 +437,20 @@ function formatScheduleEdgeRank(signal: WaiverWeeklyEcrSignal): string {
   return signal.bestRankEcr ? `Rank ${Math.round(signal.bestRankEcr)}` : "Ranked";
 }
 
+function getScheduleEdgeSeasonRank(input: {
+  player: TrendingPlayer;
+  signal: WaiverWeeklyEcrSignal;
+}): string | null {
+  const profile = input.player.playerDetails?.valueProfile;
+  return (
+    profile?.seasonPositionRank ||
+    profile?.fantasyProsPositionRank ||
+    input.player.currentPositionRank ||
+    input.signal.bestPositionRank ||
+    null
+  );
+}
+
 function getScheduleEdgeWindowWeeks(
   signal: WaiverWeeklyEcrSignal,
   key: "next3" | "playoffs" = "next3"
@@ -479,7 +512,8 @@ export function sortScheduleEdgeRows(
   const summaryById = new Map(
     rows.map(row => [row.id, getScheduleEdgeRangeSummary(row, range)])
   );
-  const rankValue = (row: ScheduleEdgeRow) => row.bestRankNumber || Infinity;
+  const rankValue = (row: ScheduleEdgeRow) =>
+    row.seasonRankNumber || row.bestRankNumber || Infinity;
   const scoreValue = (row: ScheduleEdgeRow) =>
     summaryById.get(row.id)?.score ?? -1;
 
@@ -519,26 +553,18 @@ function parseScheduleHealthEndpoint(
   week: number;
 } | null {
   const value = `${sourceKey || ""}:${endpointKey || ""}`;
-  const matchupMatch = value.match(
-    /fantasypros-matchup-calendar-(qb|rb|wr|te|k|dst|def)-week-(\d+)/i
+  const draftSharksMatch = value.match(
+    /draftsharks-sos-(qb|rb|wr|te|k|dst|def)-week-(\d+)/i
   );
-  if (matchupMatch) {
-    const position = normalizeScheduleEdgePosition(matchupMatch[1]);
-    const week = Number(matchupMatch[2]);
+  if (draftSharksMatch) {
+    const position = normalizeScheduleEdgePosition(draftSharksMatch[1]);
+    const week = Number(draftSharksMatch[2]);
     if (!position || position === "ALL" || !Number.isFinite(week) || week <= 0)
       return null;
     return { position, week };
   }
 
-  const match = value.match(
-    /fantasypros-weekly-ecr-(qb|rb|wr|te|k|dst|def)-week-(\d+)/i
-  );
-  if (!match) return null;
-  const position = normalizeScheduleEdgePosition(match[1]);
-  const week = Number(match[2]);
-  if (!position || position === "ALL" || !Number.isFinite(week) || week <= 0)
-    return null;
-  return { position, week };
+  return null;
 }
 
 function getScheduleHealthStatus(input: {
@@ -731,6 +757,261 @@ function getScheduleEdgeSourceFreshness(
   return { label: `Fresh - ${dateCopy} - ${rowCopy}`, tone: "good" };
 }
 
+function normalizeScheduleEvidenceTraceStatus(
+  trace: Pick<WaiverSourceTraceEntry, "status" | "rowCount">
+): AISourceTrace["status"] {
+  const status = String(trace.status || "").trim().toLowerCase();
+  if (/error|failed|danger/.test(status)) return "error";
+  if (/stale/.test(status)) return "stale";
+  if (/missing|empty|no rows/.test(status) || trace.rowCount === 0) {
+    return "missing";
+  }
+  if (/blocked|rate|limit|partial/.test(status)) return "limited";
+  if (/loaded|ok|success/.test(status)) return "loaded";
+  return "limited";
+}
+
+function getScheduleEvidenceTraceAgeHours(
+  trace: Pick<WaiverSourceTraceEntry, "fetchedAt" | "lastUpdated">,
+  now: number
+): number | null {
+  const latestTime = [trace.fetchedAt, trace.lastUpdated]
+    .map(value => (value ? Date.parse(value) : NaN))
+    .filter(Number.isFinite)
+    .sort((a, b) => b - a)[0];
+  if (!Number.isFinite(latestTime)) return null;
+  return Math.max(0, Math.round(((now - latestTime) / (1000 * 60 * 60)) * 10) / 10);
+}
+
+function getScheduleEvidenceSourceTrace(
+  signal: WaiverWeeklyEcrSignal,
+  now: number
+): AISourceTrace[] {
+  return (signal.sourceTrace || []).map(trace => {
+    const status = normalizeScheduleEvidenceTraceStatus(trace);
+    const rowCopy =
+      typeof trace.rowCount === "number"
+        ? `${trace.rowCount.toLocaleString()} rows`
+        : "rows n/a";
+    const weekCopy = trace.week ? `W${trace.week}` : null;
+    const detail = [weekCopy, trace.position, rowCopy, trace.evidence]
+      .filter(Boolean)
+      .join(" - ");
+
+    return {
+      label: trace.endpointLabel || trace.source || "Schedule source",
+      status,
+      detail,
+      ageHours: getScheduleEvidenceTraceAgeHours(trace, now),
+    };
+  });
+}
+
+function getScheduleEvidenceAction(
+  position: ScheduleEdgePositionFilter,
+  action: Pick<ScheduleEdgeRow, "action" | "actionTone">
+): AIEvidenceAction {
+  if (position === "K" || position === "DEF") return "stream";
+  if (/avoid|tough/i.test(action.action)) return "avoid";
+  if (action.actionTone === "good") return "start";
+  return "watch";
+}
+
+function getScheduleEvidenceModes(): AIEvidenceMode[] {
+  return ["redraft", "current", "schedule"];
+}
+
+function hasScheduleWeekMatchupData(week: WaiverWeeklyEcrSignal["weeks"][number]) {
+  return Boolean(
+    week.isBye ||
+      week.opponent ||
+      week.matchupTier ||
+      typeof week.matchupStars === "number" ||
+      typeof week.opponentRank === "number"
+  );
+}
+
+function getScheduleEvidenceWindow(signal: WaiverWeeklyEcrSignal): {
+  hasScheduleData: boolean;
+  isRoughStart: boolean;
+  isStrongStart: boolean;
+  playableWeeks: number;
+  easyWeeks: number;
+  hardWeeks: number;
+  averageStars: number | null;
+} {
+  const windowWeeks = getScheduleEdgeWindowWeeks(signal, "next3");
+  const rows = windowWeeks
+    ? signal.weeks.filter(week => windowWeeks.includes(week.week))
+    : signal.weeks.slice(0, 3);
+  const playableRows = rows.filter(week => !week.isBye);
+  const starValues = playableRows
+    .map(getScheduleEdgeStarValue)
+    .filter((value): value is number => value !== null);
+  const averageStars = starValues.length
+    ? Math.round(
+        (starValues.reduce((total, value) => total + value, 0) /
+          starValues.length) *
+          10
+      ) / 10
+    : null;
+  const easyWeeks = playableRows.filter(isScheduleEdgeEasyWeek).length;
+  const hardWeeks = playableRows.filter(isScheduleEdgeHardWeek).length;
+  const hasScheduleData = rows.some(hasScheduleWeekMatchupData);
+  const outlook = signal.matchupWindows
+    ? getShortTermMatchupOutlook(signal.matchupWindows)
+    : null;
+  const isRoughStart = Boolean(
+    hasScheduleData &&
+      (outlook?.isRoughStart ||
+        (hardWeeks >= 2 && easyWeeks === 0) ||
+        (averageStars !== null && averageStars < 2.4))
+  );
+  const isStrongStart = Boolean(
+    hasScheduleData &&
+      (easyWeeks >= 2 || (averageStars !== null && averageStars >= 4))
+  );
+
+  return {
+    hasScheduleData,
+    isRoughStart,
+    isStrongStart,
+    playableWeeks: playableRows.length,
+    easyWeeks,
+    hardWeeks,
+    averageStars,
+  };
+}
+
+function buildScheduleEvidenceRead(input: {
+  reportData: ReportData;
+  player: TrendingPlayer;
+  signal: WaiverWeeklyEcrSignal;
+  position: ScheduleEdgePositionFilter;
+  team: string | null;
+  bestRank: string;
+  bestRankNumber: number | null;
+  seasonRank: string | null;
+  seasonRankNumber: number | null;
+  targetScore: number | null;
+  action: Pick<ScheduleEdgeRow, "action" | "actionTone">;
+  availability: Pick<
+    ScheduleEdgeRow,
+    "availabilityLabel" | "availabilityTone" | "availabilityDetail"
+  >;
+  freshness: { label: string; tone: ScheduleEdgeTone };
+  now: number;
+}): AIEvidenceResult {
+  const sourceTrace = getScheduleEvidenceSourceTrace(input.signal, input.now);
+  const window = getScheduleEvidenceWindow(input.signal);
+  const isStreamRead = input.position === "K" || input.position === "DEF";
+  const hasRosterOwner =
+    input.availability.availabilityTone === "warn" &&
+    !/^available$/i.test(input.availability.availabilityLabel);
+  const loadedSourceCount = sourceTrace.filter(trace => trace.status === "loaded").length;
+  const hasPartialSource = sourceTrace.some(
+    trace => trace.status === "missing" || trace.status === "limited"
+  );
+  const baseScore =
+    input.targetScore !== null
+      ? input.targetScore
+      : input.signal.confidence
+        ? Math.min(input.signal.confidence, 52)
+        : input.bestRankNumber
+          ? Math.max(35, 72 - input.bestRankNumber)
+          : 42;
+  const confidenceCap = !sourceTrace.length
+    ? 48
+    : hasPartialSource
+      ? 60
+      : null;
+  const confidenceCapReason = !sourceTrace.length
+    ? "No schedule source trace"
+    : hasPartialSource
+      ? "Partial schedule source trace"
+      : null;
+
+  return evaluateAIEvidence({
+    surface: "schedule",
+    action: getScheduleEvidenceAction(input.position, input.action),
+    leagueValueMode: input.reportData.leagueValueMode === "redraft" ? "redraft" : "dynasty",
+    leagueContext: getAIEvidenceLeagueContextFromDiagnostics(
+      input.reportData.leagueDiagnostics,
+      input.reportData.leagueValueMode === "redraft" ? "redraft" : "dynasty"
+    ),
+    leagueActivity: buildAIEvidenceLeagueActivityContext(input.reportData),
+    signalModes: getScheduleEvidenceModes(),
+    baseScore,
+    evidence: [
+      input.seasonRank && input.seasonRankNumber
+        ? `${input.seasonRank} current-season rank anchors this matchup read.`
+        : input.bestRankNumber
+          ? `${input.bestRank} schedule rank is in the playable range.`
+        : null,
+      window.hasScheduleData
+        ? `Next matchup window: ${formatScheduleEdgeWindow(input.signal)}.`
+        : null,
+      input.targetScore !== null
+        ? `Schedule target score ${Math.round(input.targetScore)}.`
+        : null,
+      input.availability.availabilityTone === "good"
+        ? "League roster snapshot shows this player is available."
+        : null,
+      input.player.ktcValue
+        ? `Market value ${formatScheduleEdgeValue(input.player.ktcValue)}.`
+        : null,
+      input.freshness.tone === "good" ? input.freshness.label : null,
+    ].filter((value): value is string => Boolean(value)),
+    missingEvidence: [
+      !sourceTrace.length ? "No source trace attached to this schedule row." : null,
+      !window.hasScheduleData
+        ? "No opponent or schedule-strength data for the short-term schedule window."
+        : null,
+      input.availability.availabilityTone === "info"
+        ? input.availability.availabilityDetail
+        : null,
+    ].filter((value): value is string => Boolean(value)),
+    sourceTrace,
+    confidenceCap,
+    confidenceCapReason,
+    player: {
+      name: input.player.name || input.signal.name,
+      position: input.position,
+      team: input.team,
+      owner: isStreamRead && hasRosterOwner ? input.availability.availabilityLabel : null,
+      value: input.player.ktcValue,
+      sourceCount: loadedSourceCount || sourceTrace.length,
+      hasCurrentSeasonValue: true,
+      hasDynastyValue: input.reportData.leagueValueMode !== "redraft",
+      hasProspectOnlyValue: false,
+    },
+    schedule: {
+      hasScheduleData: window.hasScheduleData,
+      isRoughStart: window.isRoughStart,
+      isStrongStart: window.isStrongStart,
+      missingReason:
+        "No opponent or schedule-strength data for the short-term schedule window.",
+    },
+    requiresActiveTeam: true,
+    requiresLiveAvailability: isStreamRead,
+    requiresCurrentSeasonEvidence: true,
+    staleSourceCap: 58,
+  });
+}
+
+function getScheduleDecisionLabel(read: AIEvidenceResult): string {
+  if (read.canAct) return "Do this";
+  if (read.label === "blocked") return "Don't add";
+  return "Don't force it";
+}
+
+function getScheduleDecisionTone(read: AIEvidenceResult): ScheduleEdgeTone {
+  if (read.canAct) return "good";
+  if (read.label === "blocked") return "danger";
+  if (read.label === "watchlist") return "info";
+  return "warn";
+}
+
 function getScheduleEdgeAction(input: {
   position: ScheduleEdgePositionFilter;
   bestRankNumber: number | null;
@@ -760,7 +1041,7 @@ function getScheduleEdgeAction(input: {
       week => week.matchupTier === "easy" || Number(week.matchupStars || 0) >= 4
     ).length;
   const isSpecialTeams = input.position === "K" || input.position === "DEF";
-  const outlook = isSpecialTeams && input.signal.signalType === "matchup-calendar"
+  const outlook = isSpecialTeams && isDraftSharksScheduleSignal(input.signal) && input.signal.matchupWindows
     ? getShortTermMatchupOutlook(input.signal.matchupWindows)
     : null;
 
@@ -834,8 +1115,8 @@ export function buildScheduleEdgeRows(
         ? options.now
         : Date.now();
   const weeklyTargets = [
-    ...(waiver?.weeklyEcrTargets || []),
-    ...scheduleTargets,
+    ...(waiver?.weeklyEcrTargets || []).filter(target => isDraftSharksScheduleSignal(target.signal)),
+    ...scheduleTargets.filter(target => isDraftSharksScheduleSignal(target.signal)),
   ];
   const targetScores = new Map(
     weeklyTargets.map(target => [
@@ -854,7 +1135,7 @@ export function buildScheduleEdgeRows(
   const addPlayer = (player?: TrendingPlayer | null) => {
     if (!player?.player_id || playersById.has(player.player_id)) return;
     const signal = player.weeklyEcr || targetSignalByPlayerId.get(player.player_id) || null;
-    if (!signal) return;
+    if (!signal || !isDraftSharksScheduleSignal(signal)) return;
     playersById.set(player.player_id, { ...player, weeklyEcr: signal });
   };
 
@@ -877,6 +1158,9 @@ export function buildScheduleEdgeRows(
         getScheduleEdgeRankNumber(signal.bestPositionRank) ||
         signal.bestRankEcr ||
         null;
+      const seasonRank = getScheduleEdgeSeasonRank({ player, signal });
+      const seasonRankNumber =
+        getScheduleEdgeRankNumber(seasonRank) || bestRankNumber;
       const freshness = getScheduleEdgeSourceFreshness(signal, now);
       const action = getScheduleEdgeAction({
         position,
@@ -895,6 +1179,23 @@ export function buildScheduleEdgeRows(
         team,
         ownerLookup,
       });
+      const targetScore = targetScores.get(player.player_id) || null;
+      const evidenceRead = buildScheduleEvidenceRead({
+        reportData,
+        player,
+        signal,
+        position,
+        team,
+        bestRank,
+        bestRankNumber,
+        seasonRank,
+        seasonRankNumber,
+        targetScore,
+        action,
+        availability,
+        freshness,
+        now,
+      });
 
       return {
         id: player.player_id,
@@ -904,6 +1205,8 @@ export function buildScheduleEdgeRows(
         team,
         bestRank,
         bestRankNumber,
+        seasonRank,
+        seasonRankNumber,
         bestWeek: signal.bestWeek,
         window: formatScheduleEdgeWindow(signal),
         playoffWindow: signal.matchupWindows?.playoffs?.playableWeeks
@@ -916,18 +1219,33 @@ export function buildScheduleEdgeRows(
         availabilityDetail: availability.availabilityDetail,
         action: action.action,
         actionTone: action.actionTone,
+        decisionLabel: getScheduleDecisionLabel(evidenceRead),
+        decisionTone: getScheduleDecisionTone(evidenceRead),
+        evidenceRead,
         value: player.ktcValue,
-        currentRank: player.currentPositionRank || null,
-        targetScore: targetScores.get(player.player_id) || null,
+        currentRank: seasonRank,
+        targetScore,
         note: signal.note,
       };
     })
     .filter((row): row is ScheduleEdgeRow => Boolean(row))
     .sort((a, b) => {
+      const aBlocked = a.evidenceRead.label === "blocked";
+      const bBlocked = b.evidenceRead.label === "blocked";
+      if (aBlocked !== bBlocked) return aBlocked ? 1 : -1;
+      const aHasTarget = a.targetScore !== null;
+      const bHasTarget = b.targetScore !== null;
+      if (aHasTarget !== bHasTarget) return aHasTarget ? -1 : 1;
+      if (a.evidenceRead.finalScore !== b.evidenceRead.finalScore) {
+        return b.evidenceRead.finalScore - a.evidenceRead.finalScore;
+      }
       const aScore = a.targetScore ?? 0;
       const bScore = b.targetScore ?? 0;
       if (aScore !== bScore) return bScore - aScore;
-      return (a.bestRankNumber || Infinity) - (b.bestRankNumber || Infinity);
+      return (
+        (a.seasonRankNumber || a.bestRankNumber || Infinity) -
+        (b.seasonRankNumber || b.bestRankNumber || Infinity)
+      );
     })
     .slice(0, SCHEDULE_EDGE_TABLE_ROW_LIMIT);
 }
