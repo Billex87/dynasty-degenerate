@@ -2643,6 +2643,42 @@ function getTaxiActionClassName(action?: string | null) {
   );
 }
 
+function getTaxiDisplayAction(action?: string | null) {
+  if (action === "Cuttable") return "Cuts";
+  return action || undefined;
+}
+
+function getTaxiActionSortRank(action?: string | null) {
+  switch (action) {
+    case "Promote Now":
+      return 0;
+    case "Keep Parked":
+      return 1;
+    case "Trade Sweetener":
+      return 2;
+    case "Taxi Risk":
+      return 3;
+    case "Cuttable":
+      return 4;
+    default:
+      return 5;
+  }
+}
+
+function sortTaxiTriageItems(items: TaxiTriageItem[]) {
+  return [...items].sort((a, b) => {
+    const actionRank =
+      getTaxiActionSortRank(a.taxiAction) - getTaxiActionSortRank(b.taxiAction);
+    if (actionRank) return actionRank;
+
+    return (
+      (b.taxiScore || 0) - (a.taxiScore || 0) ||
+      (b.seasonValue || b.value || 0) - (a.seasonValue || a.value || 0) ||
+      a.name.localeCompare(b.name)
+    );
+  });
+}
+
 function splitTradeItems(items: string): string[] {
   return items
     .split(",")
@@ -5985,6 +6021,7 @@ function CommandPlayerTile({
   onClick,
   variant = "default",
   label,
+  note,
   showValueStack = false,
   swapSignal,
 }: {
@@ -5992,6 +6029,7 @@ function CommandPlayerTile({
   onClick: () => void;
   variant?: "default" | "step";
   label?: string;
+  note?: string | null;
   showValueStack?: boolean;
   swapSignal?: CommandSwapSignal;
 }) {
@@ -6042,6 +6080,7 @@ function CommandPlayerTile({
           position={player.pos}
         />
       </div>
+      {note && <p className="manager-command-player-tile-note">{note}</p>}
       <div className="manager-command-player-tile-pills">
         <div className="manager-command-player-tile-pills-main">
           <TeamLogoPill team={player.playerDetails?.team} />
@@ -7225,6 +7264,9 @@ export function LeagueCommandCenter({
   const selectedTaxiParkedCount =
     selectedIntel?.taxiTriage?.counts["Keep Parked"] || 0;
   const selectedTaxiCutCount = selectedIntel?.taxiTriage?.counts.Cuttable || 0;
+  const selectedTaxiItems = sortTaxiTriageItems(
+    selectedIntel?.taxiTriage?.items || []
+  );
   const selectedSeasonTags = (() => {
     if (!selectedIntel) return [];
     const starterCount = selectedCounts
@@ -7389,23 +7431,21 @@ export function LeagueCommandCenter({
                   key={row.manager}
                   manager={row.manager}
                   avatarUrl={managerAvatars?.[row.manager]}
-                  className={viewerOwnedHighlightClass(
+                  className={`taxi-triage-depth-tile ${viewerOwnedHighlightClass(
                     row.manager,
                     viewerManager
-                  )}
+                  )}`}
+                  subtitle={
+                    row.taxiTriage.counts["Promote Now"]
+                      ? `${row.taxiTriage.counts["Promote Now"]} promote`
+                      : null
+                  }
+                  subtitleTone="balanced"
                   badges={[
                     {
                       label: `${row.taxiTriage.items.length} taxi`,
                       tone: "neutral",
                     },
-                    ...(row.taxiTriage.counts["Promote Now"]
-                      ? [
-                          {
-                            label: `${row.taxiTriage.counts["Promote Now"]} promote`,
-                            tone: "good" as const,
-                          },
-                        ]
-                      : []),
                     ...(row.taxiTriage.counts["Keep Parked"]
                       ? [
                           {
@@ -7425,7 +7465,7 @@ export function LeagueCommandCenter({
                     ...(row.taxiTriage.counts.Cuttable
                       ? [
                           {
-                            label: `${row.taxiTriage.counts.Cuttable} cuttable`,
+                            label: `${row.taxiTriage.counts.Cuttable} cuts`,
                             tone: "danger" as const,
                           },
                         ]
@@ -7527,11 +7567,11 @@ export function LeagueCommandCenter({
                         tone={selectedTaxiPromoteCount ? "positive" : "neutral"}
                       />
                       <IntelligenceMetric
-                        label="Parked"
+                        label="Stash"
                         value={selectedTaxiParkedCount || 0}
                       />
                       <IntelligenceMetric
-                        label="Cuttable"
+                        label="Cuts"
                         value={selectedTaxiCutCount || 0}
                         tone={selectedTaxiCutCount ? "negative" : "neutral"}
                       />
@@ -7558,36 +7598,22 @@ export function LeagueCommandCenter({
                 {section === "taxi" ? (
                   selectedIntel?.taxiTriage?.items.length ? (
                     <div className="manager-command-section manager-command-taxi">
-                      <h4>Taxi Squad Triage</h4>
-                      <p className="manager-command-taxi-summary">
-                        {selectedIntel.taxiTriage.summary}
-                      </p>
-                      <p className="manager-command-taxi-note">
+                      <p className="manager-command-taxi-note manager-command-taxi-note-primary">
                         Activation calls use current-season values and ranks
-                        against active starters and injury fill-ins. Cards
-                        marked Dynasty are stash value only, not a season
-                        projection.
+                        against active starters and injury fill-ins.
                       </p>
-                      <div className="manager-command-taxi-reasons manager-command-taxi-reasons-high">
-                        {selectedIntel.taxiTriage.items
-                          .slice(0, 3)
-                          .map(player => (
-                            <p key={`${player.player_id}-reason`}>
-                              <strong>{player.name}:</strong>{" "}
-                              {player.taxiReason}
-                            </p>
-                          ))}
-                      </div>
                       <div
-                        className="manager-command-tile-grid balanced-tile-grid"
+                        className="manager-command-tile-grid balanced-tile-grid balanced-centered-tile-grid"
                         style={getBalancedGridStyle(
-                          selectedIntel.taxiTriage.items.length
+                          Math.max(selectedTaxiItems.length, 4),
+                          4
                         )}
                       >
-                        {selectedIntel.taxiTriage.items.map(player => (
+                        {selectedTaxiItems.map(player => (
                           <CommandPlayerTile
                             key={player.player_id}
-                            label={player.taxiAction}
+                            label={getTaxiDisplayAction(player.taxiAction)}
+                            note={player.taxiReason}
                             player={player}
                             showValueStack
                             onClick={() => openCommandPlayer(player)}

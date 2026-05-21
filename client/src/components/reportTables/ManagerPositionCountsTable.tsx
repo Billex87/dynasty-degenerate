@@ -14,7 +14,6 @@ import { PlayerDetailModal, type PlayerModalData } from '../PlayerDetailModal';
 import { TeamLogoPill } from '../TeamLogoPill';
 import {
   buildPlayerModalData,
-  getAiNeuralSurfaceClass,
   getManagerHeadingClassName,
   getPlayerStatusClass,
   getPlayerStatusLabel,
@@ -27,7 +26,6 @@ import {
   type PlayerDetailsById,
 } from '../ReportTables';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
-import { normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 
@@ -53,14 +51,6 @@ function sortPositionDepthSignals(a: PositionDepthSignal, b: PositionDepthSignal
     statusOrder(a) - statusOrder(b) ||
     (POSITION_DEPTH_ORDER[a.position] ?? 99) - (POSITION_DEPTH_ORDER[b.position] ?? 99)
   );
-}
-
-function getPositionDepthSignalLabel(status: PositionDepthSignal['status']) {
-  return status === 'shortage' ? 'Shortage' : 'Excess';
-}
-
-function getPositionDepthNeedLabel(status: PositionDepthSignal['status']) {
-  return status === 'shortage' ? 'Need' : 'Extra';
 }
 
 function isCountPosition(position: string): position is CountPosition {
@@ -125,93 +115,6 @@ function compareManagerCountPlayers(a: ManagerCountPlayer, b: ManagerCountPlayer
   return (b.seasonValue || b.value || 0) - (a.seasonValue || a.value || 0);
 }
 
-function getStartingCaliberCount(row: ManagerCountRow, position: CountPosition, leagueSize: number): number {
-  const starterNeed = Math.max(1, getPositionStarterNeed(row, position));
-  const starterCaliberCutoff = Math.max(1, leagueSize) * starterNeed;
-
-  return (row.rosterPlayers || row.lineupPlayers || [])
-    .filter((player) => player.pos === position)
-    .filter((player) => {
-      const rank = parsePositionRankValue(player.seasonPositionRank || player.currentPositionRank);
-      return rank !== null && rank <= starterCaliberCutoff;
-    })
-    .length;
-}
-
-function getPositionDepthSignalPlayers(row: ManagerCountRow, signal: PositionDepthSignal): ManagerCountPlayer[] {
-  if (!isCountPosition(signal.position)) return [];
-
-  const positionPlayers = [...(row.rosterPlayers || row.lineupPlayers || [])]
-    .filter((player) => player.pos === signal.position)
-    .sort(compareManagerCountPlayers);
-
-  if (signal.status === 'excess') {
-    const starterIds = new Set(
-      (row.starterPlayers || [])
-        .filter((player) => player.pos === signal.position)
-        .map((player) => player.player_id),
-    );
-    return positionPlayers.filter((player) => !starterIds.has(player.player_id)).slice(0, 3);
-  }
-
-  return positionPlayers.slice(0, 3);
-}
-
-function getPositionDepthRead(signal: PositionDepthSignal, row?: ManagerCountRow | null, leagueSize = 0, leagueValueMode: LeagueValueMode = 'dynasty') {
-  const rosterScope = leagueValueMode === 'redraft' ? 'bench and reserve players' : 'taxi and reserve players';
-  if (!row || !isCountPosition(signal.position)) {
-    return `${signal.manager} is flagged for ${signal.status === 'shortage' ? 'the league-low count' : 'the league-high count'} at ${signal.position}. This compares full roster counts for that position across the league, including ${rosterScope}.`;
-  }
-
-  const rosterCount = getPositionRosterCount(row, signal.position);
-  const starterNeed = getPositionStarterNeed(row, signal.position);
-  const startingCaliberCount = getStartingCaliberCount(row, signal.position, leagueSize);
-  const displayedPlayers = getPositionDepthSignalPlayers(row, signal).map((player) => player.name);
-  const playerCopy = displayedPlayers.length
-    ? signal.status === 'excess'
-      ? ` Best non-starting ${signal.position} options shown: ${displayedPlayers.join(', ')}.`
-      : ` Thin ${signal.position} room shown: ${displayedPlayers.join(', ')}.`
-    : '';
-
-  return `${signal.manager} has the league-${signal.status === 'shortage' ? 'low' : 'high'} ${signal.position} count: ${rosterCount}/${starterNeed} rostered-to-start, including ${rosterScope}. ${startingCaliberCount} ${signal.position} player${startingCaliberCount === 1 ? '' : 's'} clear the ${Math.max(leagueSize, 1)}-team starter-caliber cutoff for this lineup format.${playerCopy}`;
-}
-
-function buildManagerPositionCountAiRead(
-  row: ManagerCountRow,
-  data: ReportData['managerPositionCounts'],
-  signals: PositionDepthSignal[],
-  visiblePositions: CountPosition[] = COUNT_POSITIONS,
-  leagueValueMode: LeagueValueMode = 'dynasty',
-): string {
-  const leagueSize = Math.max(data.length, 1);
-  const visiblePositionSet = new Set(visiblePositions);
-  const shortageSignals = signals.filter((signal) => signal.status === 'shortage' && isCountPosition(signal.position) && visiblePositionSet.has(signal.position));
-  const excessSignals = signals.filter((signal) => signal.status === 'excess' && isCountPosition(signal.position) && visiblePositionSet.has(signal.position));
-  const countReads = visiblePositions
-    .map((position) => {
-      const count = getPositionRosterCount(row, position);
-      if (!count) return null;
-      const delta = getPositionCountDelta(row, data, position);
-      const starterNeed = getPositionStarterNeed(row, position);
-      const starterCaliberCount = getStartingCaliberCount(row, position, leagueSize);
-      const deltaCopy = Math.abs(delta) < 0.75 ? 'near league average' : `${delta > 0 ? '+' : ''}${Math.round(delta)} vs average`;
-      return `${position}: ${count} rostered, ${starterNeed} projected starter slot${starterNeed === 1 ? '' : 's'}, ${starterCaliberCount} starter-caliber by season rank, ${deltaCopy}`;
-    })
-    .filter(Boolean) as string[];
-  const excessPlayerCopy = excessSignals
-    .flatMap((signal) => getPositionDepthSignalPlayers(row, signal).slice(0, 2).map((player) => `${player.name} (${player.seasonPositionRank || player.currentPositionRank || player.pos})`))
-    .slice(0, 4);
-  const shortageCopy = shortageSignals.length
-    ? `Shortage watch: ${shortageSignals.map((signal) => signal.position).join(', ')}.`
-    : 'No position is meaningfully below league count average.';
-  const excessCopy = excessSignals.length
-    ? `Overage leverage: ${excessSignals.map((signal) => signal.position).join(', ')}${excessPlayerCopy.length ? `, led by ${excessPlayerCopy.join(', ')}` : ''}.`
-    : 'No position is meaningfully over league count average.';
-
-  const rosterScope = leagueValueMode === 'redraft' ? 'starters, bench, and IR' : 'starters, bench, IR, and taxi';
-  return `${shortageCopy} ${excessCopy} This count board includes ${rosterScope}, then compares the full room against the league. ${countReads.slice(0, 4).join(' ')}${countReads.length > 4 ? ' Extra K/DEF rooms are included when this league uses them.' : ''}`;
-}
-
 function getManagerRosterPlayersByPosition(row: ManagerCountRow): Record<CountPosition, ManagerCountPlayer[]> {
   return Object.fromEntries(
     COUNT_POSITIONS.map((position) => [
@@ -227,64 +130,39 @@ function getManagerRosterPlayerCount(row: ManagerCountRow, positions: CountPosit
   return positions.reduce((sum, position) => sum + getPositionRosterCount(row, position), 0);
 }
 
-function StarterDepthSignalPlayerTile({
-  player,
-  signal,
-  manager,
-  managerAvatarUrl,
-  playerDetailsById,
-  onSelect,
-}: {
-  player: ManagerCountPlayer;
-  signal: PositionDepthSignal;
-  manager: string;
-  managerAvatarUrl?: string | null;
-  playerDetailsById?: PlayerDetailsById;
-  onSelect: (player: PlayerModalData) => void;
-}) {
-  const signalLabel = getPositionDepthSignalLabel(signal.status);
+function getManagerRosterDisplayCount(row: ManagerCountRow, positions: CountPosition[] = COUNT_POSITIONS): number {
+  const explicitCount = Number(row.totalRosterPlayerCount || 0);
+  if (explicitCount > 0) return explicitCount;
 
+  const listedPlayers = row.rosterPlayers || row.lineupPlayers || [];
+  if (listedPlayers.length > 0) return listedPlayers.length;
+
+  return getManagerRosterPlayerCount(row, positions);
+}
+
+function ManagerPositionCountValue({
+  count,
+  delta,
+}: {
+  count: number;
+  delta: number;
+}) {
   return (
-    <button
-      type="button"
-      className="starter-depth-player-tile player-team-tile"
-      style={getTeamTileStyle(player.playerDetails?.team)}
-      onClick={() => {
-        const seasonValue = player.seasonValue || player.value;
-        const seasonRank = player.seasonPositionRank || player.currentPositionRank || player.pos;
-        onSelect(buildPlayerModalData({
-          playerId: player.player_id,
-          playerName: player.name,
-          playerPos: player.pos,
-          value: seasonValue,
-          playerDetails: player.playerDetails,
-          playerDetailsById,
-          currentPositionRank: seasonRank,
-          valueMode: 'redraft',
-          manager,
-          managerAvatarUrl,
-        }));
-      }}
-    >
-      <span className="starter-depth-player-main">
-        <PlayerNameWithHeadshot
-          playerId={player.player_id}
-          playerName={player.name}
-          team={player.playerDetails?.team}
-          position={player.pos}
-        />
-      </span>
-      <span className="starter-depth-player-meta">
-        <TeamLogoPill team={player.playerDetails?.team} />
-        <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
-        <span className={`starter-depth-player-signal starter-depth-player-signal-${signal.status}`}>
-          {signalLabel}
-        </span>
-      </span>
-    </button>
+    <span className="manager-position-count-value">
+      <span>{count}</span>
+      <small>{formatPositionCountDelta(delta)}</small>
+    </span>
   );
 }
 
+function ManagerRosterCountValue({ count }: { count: number }) {
+  return (
+    <span className="manager-position-count-value manager-position-count-value-roster">
+      <span>{count}</span>
+      <small>Players</small>
+    </span>
+  );
+}
 
 export function ManagerPositionCountsTable({
   data,
@@ -294,7 +172,6 @@ export function ManagerPositionCountsTable({
   leagueId,
   leagueLogo,
   viewerManager,
-  leagueValueMode: leagueValueModeInput = 'dynasty',
 }: {
   data: ReportData['managerPositionCounts'];
   positionDepth?: ReportData['positionDepth'];
@@ -308,13 +185,12 @@ export function ManagerPositionCountsTable({
   const [selectedManager, setSelectedManager] = useState<ReportData['managerPositionCounts'][number] | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const selectedAvatar = selectedManager ? managerAvatars?.[selectedManager.manager] : null;
-  const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
   const visibleCountPositions = useMemo(
     () => getVisibleCountPositions(data, positionDepth),
     [data, positionDepth]
   );
   const selectedRosterPlayersByPosition = selectedManager ? getManagerRosterPlayersByPosition(selectedManager) : null;
-  const selectedRosterPlayerCount = selectedManager ? getManagerRosterPlayerCount(selectedManager, visibleCountPositions) : 0;
+  const selectedRosterPlayerCount = selectedManager ? getManagerRosterDisplayCount(selectedManager, visibleCountPositions) : 0;
   const positionDepthByManager = useMemo(() => {
     const signalsByManager = new Map<string, PositionDepthSignal[]>();
 
@@ -335,16 +211,12 @@ export function ManagerPositionCountsTable({
     <div className="owner-tile-shell">
       <div className="owner-tile-grid position-counts-tile-grid balanced-tile-grid" style={getBalancedGridStyle(data.length)}>
         {data.map((row, idx) => {
-          const depthSignals = (positionDepthByManager.get(row.manager) || []).filter(
-            (signal) => isCountPosition(signal.position) && visibleCountPositions.includes(signal.position)
-          );
-
           return (
             <OwnerSummaryTile
               key={`${row.manager}-${idx}`}
               manager={row.manager}
               avatarUrl={managerAvatars?.[row.manager]}
-              className={viewerOwnedHighlightClass(row.manager, viewerManager)}
+              className={`${viewerOwnedHighlightClass(row.manager, viewerManager)} position-count-summary-tile`}
               onClick={() => setSelectedManager(row)}
             >
               {visibleCountPositions.map((position) => {
@@ -353,22 +225,21 @@ export function ManagerPositionCountsTable({
                   <OwnerMetricPill
                     key={position}
                     label={position}
-                    value={getPositionRosterCount(row, position)}
+                    value={(
+                      <ManagerPositionCountValue
+                        count={getPositionRosterCount(row, position)}
+                        delta={delta}
+                      />
+                    )}
                     tone={getPositionCountPillTone(delta)}
                   />
                 );
               })}
-              {depthSignals.slice(0, 2).map((signal) => (
-                <OwnerMetricPill
-                  key={`${signal.position}-${signal.status}`}
-                  label={getPositionDepthNeedLabel(signal.status)}
-                  value={signal.position}
-                  tone={signal.status === 'shortage' ? 'danger' : 'good'}
-                />
-              ))}
-              {depthSignals.length > 2 && (
-                <OwnerMetricPill label="Depth" value={`+${depthSignals.length - 2}`} tone="info" />
-              )}
+              <OwnerMetricPill
+                label="Roster"
+                value={<ManagerRosterCountValue count={getManagerRosterDisplayCount(row, visibleCountPositions)} />}
+                tone="info"
+              />
             </OwnerSummaryTile>
           );
         })}
@@ -420,12 +291,19 @@ export function ManagerPositionCountsTable({
                     <p>Roster Room</p>
                     <h3 className={getManagerHeadingClassName(selectedManager.manager)}>{selectedManager.manager}</h3>
                     <ManagerChampionshipPills managerName={selectedManager.manager} className="manager-command-championships" />
-                    <p className="starter-modal-subtitle">
-                      {selectedRosterPlayerCount} rostered lineup player{selectedRosterPlayerCount === 1 ? '' : 's'} by season rank, including bench and IR{leagueValueMode === 'dynasty' ? ', plus taxi where available' : ''}
-                    </p>
                   </div>
                 </div>
                 <div className="manager-command-hero-metrics starter-modal-metrics">
+                  <IntelligenceMetric
+                    label="Roster"
+                    tone="neutral"
+                    value={(
+                      <span className="starter-modal-count-value">
+                        <span>{selectedRosterPlayerCount}</span>
+                        <small>Players</small>
+                      </span>
+                    )}
+                  />
                   {visibleCountPositions.map((position) => {
                     const delta = getPositionCountDelta(selectedManager, data, position);
                     return (
@@ -460,10 +338,6 @@ export function ManagerPositionCountsTable({
                     })}
                   </div>
                 )}
-                <div className={getAiNeuralSurfaceClass('window', 'manager-command-section manager-command-read manager-command-ai-read starter-depth-count-read')}>
-                  <h4>Roster Count AI Read</h4>
-                  <p>{buildManagerPositionCountAiRead(selectedManager, data, selectedDepthSignals, visibleCountPositions, leagueValueMode)}</p>
-                </div>
                 {selectedRosterPlayersByPosition && selectedRosterPlayerCount > 0 ? (
                   <div className="starter-roster-position-list">
                     {visibleCountPositions.map((position) => {
@@ -476,7 +350,7 @@ export function ManagerPositionCountsTable({
                             <span>{position}</span>
                             <strong>{players.length}</strong>
                           </div>
-                          <div className="starter-grid starter-compact-grid balanced-tile-grid" style={getBalancedGridStyle(players.length)}>
+                          <div className="starter-grid starter-compact-grid starter-balanced-player-grid balanced-tile-grid" style={getBalancedGridStyle(Math.max(players.length, 3), 3)}>
                             {players.map((player) => (
                               <button
                                 key={player.player_id}
@@ -508,18 +382,16 @@ export function ManagerPositionCountsTable({
                                     position={player.pos}
                                   />
                                 </div>
+                                <TeamLogoPill team={player.playerDetails?.team} className="starter-player-team-corner" />
                                 <div className="starter-player-meta">
                                   <div className="starter-player-meta-main">
-                                    <TeamLogoPill team={player.playerDetails?.team} className="starter-player-team-pill" />
                                     <PositionRankPill rank={player.seasonPositionRank || player.currentPositionRank || player.pos} />
-                                    {(player.seasonValue || player.value) > 0 && (
-                                      <strong>{(player.seasonValue || player.value).toLocaleString()}</strong>
-                                    )}
-                                  </div>
-                                  <div className="starter-player-status-row">
                                     <span className={`starter-player-status-pill ${getPlayerStatusClass(player.playerDetails)}`}>
                                       {getPlayerStatusLabel(player.playerDetails)}
                                     </span>
+                                    {(player.seasonValue || player.value) > 0 && (
+                                      <strong>{(player.seasonValue || player.value).toLocaleString()}</strong>
+                                    )}
                                   </div>
                                 </div>
                               </button>

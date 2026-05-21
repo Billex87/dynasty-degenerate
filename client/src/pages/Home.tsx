@@ -766,10 +766,7 @@ function buildTaxiPreviewMetrics(data: ReportData): PreviewMetric[] {
       : null,
     preview.mostCuttableManager
       ? {
-          label:
-            preview.cutCount === 1
-              ? "Cuttable"
-              : `Cuttable (${preview.cutCount})`,
+          label: preview.cutCount === 1 ? "Cuts" : `Cuts (${preview.cutCount})`,
           value: renderPreviewManagerIdentity(
             preview.mostCuttableManager,
             data.managerAvatars

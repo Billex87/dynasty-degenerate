@@ -2857,6 +2857,71 @@ button.owner-summary-tile:focus-visible {
   color: #67e8f9;
 }
 
+.report-shell .owner-summary-tile.position-count-summary-tile {
+  min-height: clamp(7.25rem, 10vw, 8.35rem);
+  gap: clamp(0.44rem, 0.8vw, 0.58rem);
+  padding: clamp(0.64rem, 1vw, 0.78rem);
+}
+
+.report-shell .owner-summary-tile.position-count-summary-tile .owner-summary-main {
+  align-items: center;
+}
+
+.report-shell .owner-summary-tile.position-count-summary-tile .owner-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(3.15rem, 1fr));
+  gap: clamp(0.28rem, 0.58vw, 0.38rem);
+}
+
+.report-shell .owner-summary-tile.position-count-summary-tile .owner-metric-pill {
+  display: grid;
+  min-height: 2.35rem;
+  grid-auto-flow: row;
+  justify-items: center;
+  gap: 0.1rem;
+  border-radius: 0.72rem;
+  padding: 0.26rem 0.34rem;
+  text-align: center;
+}
+
+.report-shell .owner-summary-tile.position-count-summary-tile .owner-metric-pill > span {
+  font-size: 0.5rem;
+  letter-spacing: 0.1em;
+}
+
+.report-shell .owner-summary-tile.position-count-summary-tile .owner-metric-pill > strong {
+  width: 100%;
+}
+
+.manager-position-count-value {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 0.08rem;
+  line-height: 1;
+}
+
+.manager-position-count-value > span {
+  color: currentColor;
+  font-family: var(--font-athletic);
+  font-size: 0.86rem;
+  font-weight: 1000;
+  letter-spacing: 0;
+}
+
+.manager-position-count-value > small {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.44rem;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .owner-summary-tile .trade-habit-pill {
   position: relative;
   z-index: 1;
@@ -3538,6 +3603,24 @@ button.trade-manager-trade {
 .report-shell .command-depth-tile {
   min-height: clamp(8.5rem, 14vw, 10.35rem);
   padding: clamp(0.78rem, 1.25vw, 1.05rem);
+}
+
+.report-shell .command-depth-tile.taxi-triage-depth-tile {
+  grid-template-rows: minmax(3.75rem, auto) minmax(1.35rem, auto);
+  min-height: clamp(6.45rem, 10vw, 7.35rem);
+  gap: clamp(0.42rem, 0.9vw, 0.62rem);
+}
+
+.report-shell .taxi-triage-depth-tile .command-depth-subtitle {
+  border-color: rgba(250, 204, 21, 0.48);
+  background: rgba(113, 63, 18, 0.44);
+  color: #fde68a;
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.12);
+}
+
+.report-shell .taxi-triage-depth-tile .command-depth-badges {
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .report-shell .owner-summary-name,
@@ -8783,6 +8866,148 @@ body {
 
 .intelligence-metric-negative {
   border-color: rgba(251, 113, 133, 0.28) !important;
+}
+
+.starter-modal .starter-modal-metrics .intelligence-metric {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.starter-modal-count-value {
+  display: grid;
+  justify-items: center;
+  gap: 0.14rem;
+  line-height: 1;
+}
+
+.starter-modal-count-value > span {
+  font-family: var(--font-athletic);
+  font-size: 1.18rem;
+  font-weight: 1000;
+  letter-spacing: 0;
+}
+
+.starter-modal-count-value > small {
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.5rem;
+  font-weight: 1000;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+@media (min-width: 1024px) {
+  .starter-modal .manager-command-hero-metrics.starter-modal-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)) !important;
+  }
+}
+
+.starter-modal .starter-balanced-player-grid {
+  --dd-balanced-grid-gap: clamp(0.56rem, 0.95vw, 0.78rem);
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: var(--dd-balanced-grid-gap);
+}
+
+.starter-modal .starter-balanced-player-grid > .starter-player-tile {
+  flex: 0 1 var(--dd-balanced-grid-item-width, min(100%, 15rem));
+  min-width: min(100%, 13rem);
+  max-width: 100%;
+}
+
+.starter-modal .starter-player-tile-compact {
+  position: relative;
+  display: grid;
+  align-content: space-between;
+  gap: 0.68rem;
+  min-height: 7.6rem;
+  padding: 0.82rem;
+  padding-top: 1.05rem;
+}
+
+.starter-modal .starter-player-team-corner {
+  position: absolute;
+  top: 0.58rem;
+  right: 0.58rem;
+  z-index: 2;
+  min-height: 1.35rem;
+  min-width: 1.35rem;
+  padding: 0.12rem;
+}
+
+.starter-modal .starter-player-team-corner img {
+  height: 1.05rem;
+  width: 1.05rem;
+}
+
+.starter-modal .starter-player-tile-compact .starter-player-main {
+  padding-right: 2rem;
+}
+
+.starter-modal .starter-player-tile-compact .starter-player-meta {
+  width: 100%;
+}
+
+.starter-modal .starter-player-tile-compact .starter-player-meta-main {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(4.8rem, 1fr) minmax(3.7rem, auto);
+  align-items: center;
+  justify-content: stretch;
+  gap: 0.34rem;
+}
+
+.starter-modal .starter-player-tile-compact .starter-player-status-pill {
+  display: inline-flex;
+  width: 100%;
+  min-height: 1.22rem;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.48);
+  padding: 0.18rem 0.5rem;
+  color: #cbd5e1;
+  font-size: 0.6rem;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: capitalize;
+}
+
+.starter-modal .starter-player-tile-compact .starter-player-status-pill.is-active {
+  border-color: rgba(52, 211, 153, 0.36);
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+}
+
+.starter-modal .starter-player-tile-compact .starter-player-status-pill.is-warning {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(245, 158, 11, 0.14);
+  color: #fde68a;
+}
+
+.starter-modal .starter-player-tile-compact .starter-player-status-pill.is-risk {
+  border-color: rgba(251, 113, 133, 0.38);
+  background: rgba(244, 63, 94, 0.14);
+  color: #fecdd3;
+}
+
+.starter-modal .starter-player-tile-compact .starter-player-status-pill.is-taxi {
+  border-color: rgba(34, 211, 238, 0.34);
+  background: rgba(8, 145, 178, 0.14);
+  color: #a5f3fc;
+}
+
+.starter-modal .starter-player-tile-compact .starter-player-meta-main > strong {
+  justify-self: end;
+  color: #34d399;
+  font-family: var(--font-athletic);
+  font-size: 0.82rem;
+  letter-spacing: 0;
+  line-height: 1;
 }
 
 .owner-intel-stat-grid,

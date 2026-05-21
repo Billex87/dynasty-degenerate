@@ -8634,6 +8634,17 @@
     line-height: 1.38;
   }
 
+  .manager-command-taxi-note-primary {
+    margin: 0 auto 0.8rem;
+    max-width: 46rem;
+    color: #67e8f9;
+    font-size: 0.72rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
   .manager-command-taxi-reasons {
     display: grid;
     gap: 0.45rem;
@@ -8837,6 +8848,7 @@
   }
 
   .manager-command-action-cuttable,
+  .manager-command-action-cuts,
   .manager-command-action-taxi-risk {
     border-color: rgba(251, 113, 133, 0.36);
     background: rgba(244, 63, 94, 0.13);
@@ -8873,6 +8885,20 @@
     font-weight: 950;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .manager-command-player-tile-note {
+    display: flex;
+    min-height: 3.35rem;
+    align-items: center;
+    justify-content: center;
+    margin: 0.46rem auto 0;
+    max-width: 15.5rem;
+    color: rgba(226, 232, 240, 0.9);
+    font-size: 0.68rem;
+    font-weight: 850;
+    line-height: 1.32;
+    text-align: center;
   }
 
   .manager-command-player-tile-pills {
