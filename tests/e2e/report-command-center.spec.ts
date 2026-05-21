@@ -556,8 +556,21 @@ test.describe("command center feature surfaces", () => {
       .locator(".command-depth-tile")
       .filter({ hasText: "Tester" })
       .click();
+    const headerMetrics = page.locator(".manager-command-hero-metrics-season");
+    await expect(headerMetrics.getByText("Season Value")).toBeVisible();
+    await expect(
+      headerMetrics.getByText("Starters", { exact: true })
+    ).toHaveCount(0);
+    const startingRanks = page.locator(".manager-command-starting-rank-panel");
+    await expect(startingRanks.getByText("QB/SF")).toBeVisible();
+    await expect(startingRanks.getByText("Season Value")).toHaveCount(0);
     const swapRead = page.locator(".manager-command-swap-read");
     await expect(swapRead.getByText("Start/Sit Swap Signals")).toBeVisible();
+    await expect(page.getByText("Season AI Read")).toHaveCount(0);
+    await expect(page.getByText("Action History")).toHaveCount(0);
+    await expect(
+      swapRead.getByRole("button", { name: /Save plan/i })
+    ).toHaveCount(0);
     await expect(
       swapRead
         .locator(".manager-command-swap-out-name")
@@ -565,6 +578,11 @@ test.describe("command center feature surfaces", () => {
     ).toBeVisible();
     await expect(
       swapRead.getByText("Replacement Tight End").first()
+    ).toBeVisible();
+    await expect(
+      swapRead
+        .locator(".manager-command-swap-player .interactive-identity-name")
+        .filter({ hasText: "Sample Tight End" })
     ).toBeVisible();
     await expect(swapRead.getByText("Why this swap").first()).toBeVisible();
     await swapRead.getByText("Why this swap").first().click();
@@ -575,14 +593,9 @@ test.describe("command center feature surfaces", () => {
     await expect(
       swapRead.getByRole("button", { name: /Open Sleeper/i })
     ).toHaveCount(0);
-    await swapRead
-      .getByRole("button", { name: /Save plan/i })
-      .first()
-      .click();
     await expect(
-      swapRead.getByRole("button", { name: /Plan saved/i }).first()
-    ).toBeVisible();
-    await expect(page.getByText("Action History").first()).toBeVisible();
+      swapRead.getByRole("button", { name: /Plan saved/i })
+    ).toHaveCount(0);
     const lineupPlans = await page.evaluate(
       () =>
         JSON.parse(
@@ -590,7 +603,24 @@ test.describe("command center feature surfaces", () => {
             "[]"
         ) as Array<{ kind?: string }>
     );
-    expect(lineupPlans.some(plan => plan.kind === "lineup")).toBeTruthy();
+    expect(lineupPlans.some(plan => plan.kind === "lineup")).toBeFalsy();
+    await expect(
+      page
+        .locator(".manager-command-player-tile-swap-in .manager-command-swap-status")
+        .getByText("Best Fit TE")
+    ).toBeVisible();
+    const swapIsAfterRosterGrid = await page.evaluate(() => {
+      const grid = document.querySelector(
+        ".manager-command-dialog .manager-command-grid"
+      );
+      const swap = document.querySelector(
+        ".manager-command-dialog .manager-command-swap-read"
+      );
+      return Boolean(
+        grid && swap && grid.compareDocumentPosition(swap) & Node.DOCUMENT_POSITION_FOLLOWING
+      );
+    });
+    expect(swapIsAfterRosterGrid).toBeTruthy();
     await expect(
       page.locator(".manager-command-player-tile-swap-out")
     ).toHaveCount(1);

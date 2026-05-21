@@ -11857,6 +11857,16 @@
   min-height: 11.6rem;
 }
 
+.report-shell .command-depth-tile.projected-roster-depth-tile {
+  grid-template-rows: auto auto !important;
+  height: auto !important;
+  min-height: clamp(7.4rem, 10vw, 8.4rem) !important;
+  align-content: start !important;
+  align-self: start !important;
+  gap: clamp(0.48rem, 1vw, 0.68rem);
+  padding-block: clamp(0.72rem, 1.1vw, 0.92rem) !important;
+}
+
 .report-shell .owner-metric-pill > span {
   overflow: visible;
   max-width: none;

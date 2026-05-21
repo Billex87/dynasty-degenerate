@@ -22,7 +22,6 @@ import {
   ChevronDown,
   Crown,
   LockKeyhole,
-  Save,
   Scissors,
   ShieldCheck,
   Star,
@@ -32,8 +31,6 @@ import {
   X as XIcon,
 } from "lucide-react";
 import type {
-  ActionPlanRecord,
-  ActionPlanStatus,
   DraftPick,
   ManagerIntelPlayer,
   PlayerDetails,
@@ -100,12 +97,9 @@ type ManagerCountRow = ReportData["managerPositionCounts"][number];
 type CountPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 
 const COUNT_POSITIONS: CountPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
-const ACTION_PLAN_STORAGE_KEY = "dynasty-degenerates:action-plans:v1";
 const WAIVER_BID_HISTORY_STORAGE_KEY =
   "dynasty-degenerates:waiver-bid-history:v1";
 
-type StoredActionPlanStatus = ActionPlanStatus;
-type StoredActionPlan = ActionPlanRecord;
 type StoredWaiverBidHistoryItem = WaiverBidHistoryRecord;
 
 function readJsonArrayFromStorage<T>(key: string): T[] {
@@ -127,80 +121,6 @@ function writeJsonArrayToStorage<T>(key: string, value: T[]): void {
   } catch {
     // Storage can be unavailable in private or restricted browser contexts.
   }
-}
-
-function readStoredActionPlans(): StoredActionPlan[] {
-  return readJsonArrayFromStorage<StoredActionPlan>(ACTION_PLAN_STORAGE_KEY);
-}
-
-function upsertStoredActionPlan(plan: StoredActionPlan): StoredActionPlan[] {
-  const next = [
-    plan,
-    ...readStoredActionPlans().filter(item => item.id !== plan.id),
-  ].slice(0, 80);
-  writeJsonArrayToStorage(ACTION_PLAN_STORAGE_KEY, next);
-  return next;
-}
-
-function mergeActionPlans(...groups: StoredActionPlan[][]): StoredActionPlan[] {
-  const byId = new Map<string, StoredActionPlan>();
-  groups.flat().forEach(plan => {
-    const existing = byId.get(plan.id);
-    if (
-      !existing ||
-      (plan.updatedAt || plan.createdAt) >=
-        (existing.updatedAt || existing.createdAt)
-    ) {
-      byId.set(plan.id, plan);
-    }
-  });
-  return Array.from(byId.values())
-    .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
-    .slice(0, 100);
-}
-
-function useStoredActionPlans({ leagueId }: { leagueId?: string } = {}) {
-  const [storedActionPlans, setStoredActionPlans] = useState<
-    StoredActionPlan[]
-  >(() => readStoredActionPlans());
-  const utils = trpc.useUtils();
-  const authQuery = trpc.auth.me.useQuery(undefined, {
-    retry: false,
-    refetchOnWindowFocus: false,
-    staleTime: 1000 * 60 * 5,
-  });
-  const canUseServerPersistence = Boolean(authQuery.data);
-  const serverActionPlansQuery = trpc.actionPlans.list.useQuery(
-    { leagueId },
-    {
-      enabled: canUseServerPersistence,
-      retry: false,
-      refetchOnWindowFocus: false,
-      staleTime: 1000 * 30,
-    }
-  );
-  const upsertActionPlanMutation = trpc.actionPlans.upsert.useMutation({
-    onSuccess: async () => {
-      await utils.actionPlans.list.invalidate({ leagueId });
-    },
-  });
-  const persistStoredActionPlan = (plan: StoredActionPlan) => {
-    const next = upsertStoredActionPlan({ ...plan, updatedAt: Date.now() });
-    setStoredActionPlans(next);
-    if (canUseServerPersistence) {
-      upsertActionPlanMutation.mutate({
-        plan: { ...plan, updatedAt: Date.now() },
-      });
-    }
-  };
-  return {
-    storedActionPlans: mergeActionPlans(
-      storedActionPlans,
-      serverActionPlansQuery.data?.plans || []
-    ),
-    persistStoredActionPlan,
-    isServerPersistenceEnabled: canUseServerPersistence,
-  };
 }
 
 function readStoredWaiverBidHistory(): StoredWaiverBidHistoryItem[] {
@@ -3707,6 +3627,7 @@ type OwnerBuildLabel =
   | "Starter Need"
   | "Depth Build";
 type OwnerScoreLens = {
+  fullRosterScore: number | null;
   dynastyScore: number | null;
   contenderScore: number | null;
   rebuilderScore: number | null;
@@ -4470,6 +4391,7 @@ function buildOwnerScoreLens({
   leagueSize?: number;
   sortMode?: OwnerIntelSortMode;
 }): OwnerScoreLens {
+  const fullRosterScore = toOwnerScore(powerRow?.score);
   const dynastyScore =
     toOwnerScore(powerRow?.rosterValue) ??
     normalizeOwnerValueScore(growthRow?.total_val, maxGrowthValue);
@@ -4501,6 +4423,7 @@ function buildOwnerScoreLens({
   ).label as OwnerBuildLabel;
 
   return {
+    fullRosterScore,
     dynastyScore,
     contenderScore,
     rebuilderScore,
@@ -4531,6 +4454,10 @@ function OwnerScoreStrip({
       className={`owner-intel-score-strip${compact ? " owner-intel-score-strip-compact" : ""}`}
       aria-label="Manager score lenses"
     >
+      <span>
+        {renderLabel("Roster", "Full")}
+        <em>{formatOwnerScore(scores.fullRosterScore)}</em>
+      </span>
       <span>
         {renderLabel(
           isRedraft ? "Current" : "Dynasty",
@@ -5383,17 +5310,39 @@ function FullRosterRankTiles({
   );
 }
 
-type StartingRosterRankPosition = "QB" | "RB" | "WR" | "TE";
+type StartingRosterRankPosition = "QB_SF" | "RB" | "WR" | "TE" | "K" | "DEF";
 type StartingRosterPlayer = NonNullable<
   ReportData["managerPositionCounts"][number]["starterPlayers"]
 >[number];
 
 const STARTING_ROSTER_RANK_POSITIONS: StartingRosterRankPosition[] = [
-  "QB",
+  "QB_SF",
   "RB",
   "WR",
   "TE",
+  "K",
+  "DEF",
 ];
+
+function getStartingRosterRankLabel(position: StartingRosterRankPosition) {
+  if (position === "QB_SF") return "QB/SF";
+  return position;
+}
+
+function getStartingRosterRankClass(position: StartingRosterRankPosition) {
+  if (position === "QB_SF") return "owner-intel-heat-position-qb";
+  return `owner-intel-heat-position-${position.toLowerCase()}`;
+}
+
+function shouldShowStartingRosterRankPosition(
+  rows: ReportData["managerPositionCounts"],
+  position: StartingRosterRankPosition
+): boolean {
+  if (position !== "K" && position !== "DEF") return true;
+  return rows.some(row =>
+    getStartingRosterPlayers(row).some(player => player.pos === position)
+  );
+}
 
 function getStartingRosterSeasonValue(
   player: Pick<StartingRosterPlayer, "seasonValue" | "value">
@@ -5422,8 +5371,9 @@ function getStartingRosterPositionScore(
   row: ReportData["managerPositionCounts"][number] | null | undefined,
   position: StartingRosterRankPosition
 ): number {
+  const playerPosition = position === "QB_SF" ? "QB" : position;
   return getStartingRosterPlayers(row)
-    .filter(player => player.pos === position)
+    .filter(player => player.pos === playerPosition)
     .reduce((sum, player) => sum + getStartingRosterSeasonValue(player), 0);
 }
 
@@ -5471,6 +5421,57 @@ function sortLineupGroupsForDisplay<T extends { key?: string; label?: string }>(
   );
 }
 
+function isQuarterbackLineupGroup(group: { key?: string; label?: string }) {
+  const key = String(group.key || group.label || "").toUpperCase();
+  return key === "QB" || key.startsWith("QB ") || key.includes("QB_SF") || key.includes("QB/SF");
+}
+
+function getSwapFitLabel(label?: string | null) {
+  const normalized = String(label || "").trim();
+  if (/QB\/SF|QB_SF/i.test(normalized)) return "QB/SF";
+  if (/FLEX/i.test(normalized)) return "Flex";
+  if (/DEF/i.test(normalized)) return "DEF";
+  if (/\bK\b/i.test(normalized)) return "K";
+  if (/\bTE\b/i.test(normalized)) return "TE";
+  if (/\bWR\b/i.test(normalized)) return "WR";
+  if (/\bRB\b/i.test(normalized)) return "RB";
+  if (/\bQB\b/i.test(normalized)) return "QB";
+  return normalized || "Lineup";
+}
+
+function combineSuperflexQuarterbackGroups<
+  T extends { key?: string; label?: string; count?: number; players: CommandPlayer[] },
+>(groups: T[]): T[] {
+  const quarterbackGroups = groups.filter(isQuarterbackLineupGroup);
+  if (quarterbackGroups.length <= 1) return groups;
+
+  const usedPlayers = new Set<string>();
+  const combinedPlayers = quarterbackGroups.flatMap(group => group.players || [])
+    .filter(player => {
+      const key = player.player_id || `${player.name}-${player.pos}`;
+      if (usedPlayers.has(key)) return false;
+      usedPlayers.add(key);
+      return true;
+    });
+  const combinedCount =
+    quarterbackGroups.reduce(
+      (sum, group) => sum + (group.count || group.players.length || 0),
+      0
+    ) || combinedPlayers.length;
+  const combined = {
+    ...quarterbackGroups[0],
+    key: "QB_SF",
+    label: `QB/SF x${combinedCount}`,
+    count: combinedCount,
+    players: combinedPlayers,
+  } as T;
+
+  return sortLineupGroupsForDisplay([
+    combined,
+    ...groups.filter(group => !isQuarterbackLineupGroup(group)),
+  ]);
+}
+
 function StartingRosterRankTiles({
   manager,
   managerPositionCounts,
@@ -5483,7 +5484,9 @@ function StartingRosterRankTiles({
   );
   if (!selectedRow) return null;
 
-  const positionTiles = STARTING_ROSTER_RANK_POSITIONS.map(position => {
+  const tiles = STARTING_ROSTER_RANK_POSITIONS.filter(position =>
+    shouldShowStartingRosterRankPosition(managerPositionCounts, position)
+  ).map(position => {
     const score = getStartingRosterPositionScore(selectedRow, position);
     const scores = managerPositionCounts.map(row =>
       getStartingRosterPositionScore(row, position)
@@ -5491,22 +5494,11 @@ function StartingRosterRankTiles({
 
     return {
       key: position,
-      label: position,
+      label: getStartingRosterRankLabel(position),
       rank: getRankFromDescendingScores(score, scores),
-      className: `owner-intel-heat-position-${position.toLowerCase()}`,
+      className: getStartingRosterRankClass(position),
     };
   });
-  const valueScore = getStartingRosterTotalScore(selectedRow);
-  const valueScores = managerPositionCounts.map(getStartingRosterTotalScore);
-  const tiles = [
-    ...positionTiles,
-    {
-      key: "VALUE",
-      label: "Season Value",
-      rank: getRankFromDescendingScores(valueScore, valueScores),
-      className: "owner-intel-heat-position-value",
-    },
-  ];
 
   return (
     <div className="owner-intel-full-rank-panel manager-command-starting-rank-panel">
@@ -6168,6 +6160,7 @@ type LineupSwapOption = {
   confidencePct: number;
   scoreEdge: number;
   projectedPointEdge: number | null;
+  fitLabel: string;
   reason: string;
   reasonBullets: string[];
 };
@@ -6493,6 +6486,7 @@ function buildLineupSwapRecommendations({
   const recommendations: LineupSwapRecommendation[] = [];
 
   lineupGroups.forEach(group => {
+    const fitLabel = getSwapFitLabel(group.label || group.key);
     group.players.forEach(starter => {
       if (mustStartIds.has(starter.player_id)) return;
       if (getCommandPlayerGameLockState(starter).isLocked) return;
@@ -6581,6 +6575,7 @@ function buildLineupSwapRecommendations({
             confidencePct,
             scoreEdge,
             projectedPointEdge,
+            fitLabel,
             reason:
               `${reason} ${projectedPointCopy ? `${projectedPointCopy} weekly projection edge.` : ""} ${candidateRank && starterRank ? `${candidateRank} vs ${starterRank}.` : ""}`.trim(),
             reasonBullets,
@@ -6597,7 +6592,22 @@ function buildLineupSwapRecommendations({
           (a, b) =>
             b.confidencePct - a.confidencePct || b.scoreEdge - a.scoreEdge
         )
-        .slice(0, 3);
+        .slice(0, 3)
+        .reduce<LineupSwapOption[]>((adjusted, option, index) => {
+          const previousConfidence =
+            adjusted[index - 1]?.confidencePct ?? option.confidencePct;
+          adjusted.push({
+            ...option,
+            confidencePct:
+              index === 0
+                ? option.confidencePct
+                : Math.min(
+                    option.confidencePct,
+                    Math.max(0, previousConfidence - 7)
+                  ),
+          });
+          return adjusted;
+        }, []);
 
       if (!options.length) return;
       const topOption = options[0];
@@ -6608,7 +6618,7 @@ function buildLineupSwapRecommendations({
       );
       recommendations.push({
         starterOut: starter,
-        groupLabel: group.label || group.key || starter.pos,
+        groupLabel: fitLabel,
         severity,
         summary: `${starter.name} is the tile to pressure-test. ${topOption.player.name} is the strongest replacement signal at ${topOption.confidencePct}% confidence${formatProjectedPointEdge(topOption.projectedPointEdge) ? ` with a ${formatProjectedPointEdge(topOption.projectedPointEdge)} projection edge` : ""}.`,
         options,
@@ -6632,151 +6642,6 @@ function buildLineupSwapRecommendations({
     .slice(0, 4);
 }
 
-function getLineupActionPlanId(
-  leagueId: string | undefined,
-  manager: string | null | undefined,
-  recommendation: LineupSwapRecommendation
-): string {
-  const topOption = recommendation.options[0];
-  return [
-    "lineup",
-    leagueId || "unknown-league",
-    normalizeManagerKey(manager),
-    recommendation.starterOut.player_id,
-    topOption?.player.player_id || "replacement",
-  ].join(":");
-}
-
-function createLineupActionPlan({
-  leagueId,
-  manager,
-  recommendation,
-  status,
-}: {
-  leagueId?: string;
-  manager?: string | null;
-  recommendation: LineupSwapRecommendation;
-  status: StoredActionPlanStatus;
-}): StoredActionPlan {
-  const topOption = recommendation.options[0];
-  return {
-    id: getLineupActionPlanId(leagueId, manager, recommendation),
-    kind: "lineup",
-    leagueId,
-    manager,
-    playerId: recommendation.starterOut.player_id,
-    replacementPlayerId: topOption?.player.player_id,
-    createdAt: Date.now(),
-    title: topOption
-      ? `${recommendation.starterOut.name} -> ${topOption.player.name}`
-      : `${recommendation.starterOut.name} lineup review`,
-    summary: recommendation.summary,
-    status,
-    payload: {
-      starterOut: {
-        playerId: recommendation.starterOut.player_id,
-        name: recommendation.starterOut.name,
-        position: recommendation.starterOut.pos,
-      },
-      replacements: recommendation.options.map(option => ({
-        playerId: option.player.player_id,
-        name: option.player.name,
-        position: option.player.pos,
-        confidencePct: option.confidencePct,
-        scoreEdge: option.scoreEdge,
-        projectedPointEdge: option.projectedPointEdge,
-        reason: option.reason,
-      })),
-      groupLabel: recommendation.groupLabel,
-      severity: recommendation.severity,
-    },
-  };
-}
-
-function formatActionPlanTimestamp(value?: number): string {
-  if (!value) return "Saved";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Saved";
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "2-digit",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function getActionPlanKindLabel(kind: StoredActionPlan["kind"]): string {
-  if (kind === "lineup") return "Lineup";
-  if (kind === "trade") return "Trade";
-  return "Waiver";
-}
-
-function getWaiverPlanOutcomeStatus(
-  plan: StoredActionPlan,
-  recentTransactions?: ReportData["recentTransactions"]
-): StoredActionPlanStatus | null {
-  if (
-    plan.kind !== "waiver" ||
-    !plan.playerId ||
-    ["won", "lost"].includes(plan.status)
-  )
-    return null;
-  const matchingAdd =
-    (recentTransactions || [])
-      .filter(
-        transaction => transaction.addedPlayer?.player_id === plan.playerId
-      )
-      .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))[0] || null;
-  if (!matchingAdd) return null;
-  return normalizeManagerKey(matchingAdd.manager) ===
-    normalizeManagerKey(plan.manager)
-    ? "won"
-    : "lost";
-}
-
-function ActionPlanHistoryPanel({
-  plans,
-  isServerPersistenceEnabled,
-  title = "Action History",
-}: {
-  plans: StoredActionPlan[];
-  isServerPersistenceEnabled?: boolean;
-  title?: string;
-}) {
-  if (!plans.length) return null;
-
-  return (
-    <div className="action-plan-history-panel">
-      <div className="action-plan-history-head">
-        <div>
-          <span>Saved decisions</span>
-          <h4>{title}</h4>
-        </div>
-        <em>{isServerPersistenceEnabled ? "Synced" : "Local"}</em>
-      </div>
-      <div className="action-plan-history-list">
-        {plans.slice(0, 5).map(plan => (
-          <div
-            key={plan.id}
-            className={`action-plan-history-item action-plan-history-item-${plan.kind}`}
-          >
-            <div className="action-plan-history-copy">
-              <span>
-                {getActionPlanKindLabel(plan.kind)} • {plan.status}
-              </span>
-              <strong>{plan.title}</strong>
-              <p>{plan.summary}</p>
-              <small>
-                {formatActionPlanTimestamp(plan.updatedAt || plan.createdAt)}
-              </small>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ManagerDepthTile({
   manager,
   avatarUrl,
@@ -6797,6 +6662,7 @@ function ManagerDepthTile({
   className?: string;
 }) {
   const isViewerTile = className.includes("viewer-owned-highlight");
+  const orderedBadges = orderOwnerBadgesForCompactRows(badges);
 
   return (
     <button
@@ -6844,7 +6710,7 @@ function ManagerDepthTile({
         <span className="command-depth-score-row">{scoreStrip}</span>
       )}
       <span className="command-depth-badges">
-        {badges.map(badge => (
+        {orderedBadges.map(badge => (
           <span
             key={badge.label}
             className={`command-mini-badge command-mini-badge-${badge.tone || "neutral"}`}
@@ -6861,6 +6727,23 @@ function ManagerDepthTile({
       )}
     </button>
   );
+}
+
+function orderOwnerBadgesForCompactRows(badges: OwnerSignalTag[]) {
+  const remaining = [...badges].sort(
+    (a, b) => b.label.length - a.label.length
+  );
+  const ordered: OwnerSignalTag[] = [];
+
+  while (remaining.length) {
+    const longest = remaining.shift();
+    if (longest) ordered.push(longest);
+
+    const shortest = remaining.pop();
+    if (shortest) ordered.push(shortest);
+  }
+
+  return ordered;
 }
 
 export function OwnerMetricPill({
@@ -7077,11 +6960,6 @@ export function LeagueCommandCenter({
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(
     null
   );
-  const {
-    storedActionPlans,
-    persistStoredActionPlan,
-    isServerPersistenceEnabled,
-  } = useStoredActionPlans({ leagueId });
   const intel = data.managerRosterIntelligence || [];
   const leagueValueMode = normalizeLeagueValueMode(
     leagueValueModeInput ||
@@ -7231,7 +7109,7 @@ export function LeagueCommandCenter({
       { key: "FLEX", label: "Flex", count: 2, players: flex },
     ];
   };
-  const lineupGroups = selectedCounts?.starterGroups?.length
+  const rawLineupGroups = selectedCounts?.starterGroups?.length
     ? sortLineupGroupsForDisplay(
         selectedCounts.starterGroups.map(group => ({
           key: group.key,
@@ -7241,6 +7119,7 @@ export function LeagueCommandCenter({
         }))
       )
     : sortLineupGroupsForDisplay(fallbackStarterGroups(selectedStarters));
+  const lineupGroups = combineSuperflexQuarterbackGroups(rawLineupGroups);
   const projectedLineupIds = new Set(
     (selectedStarters.length
       ? selectedStarters
@@ -7415,22 +7294,6 @@ export function LeagueCommandCenter({
     }>;
     return tags.slice(0, 6);
   })();
-  const selectedActionPlans = storedActionPlans
-    .filter(plan => !leagueId || !plan.leagueId || plan.leagueId === leagueId)
-    .filter(
-      plan =>
-        !selectedManager ||
-        normalizeManagerKey(plan.manager) ===
-          normalizeManagerKey(selectedManager)
-    )
-    .slice(0, 5);
-  const rosterRead = buildSeasonRosterRead({
-    selectedIntel,
-    selectedCounts,
-    lineupGroups,
-    canStepInGroups,
-  });
-  const seasonInsuranceRead = buildSeasonInsuranceRead(selectedIntel);
   const startingRosterStrengthTiles = sortLineupGroupsForDisplay(
     selectedIntel?.startingRosterStrength || []
   );
@@ -7459,16 +7322,16 @@ export function LeagueCommandCenter({
                   key={row.manager}
                   manager={row.manager}
                   avatarUrl={managerAvatars?.[row.manager]}
-                  className={viewerOwnedHighlightClass(
+                  className={`${viewerOwnedHighlightClass(
                     row.manager,
                     viewerManager
-                  )}
+                  )} projected-roster-depth-tile`.trim()}
                   badges={[
-                    { label: `${row.starterCount} projected`, tone: "neutral" },
+                    { label: `${row.starterCount} starters`, tone: "neutral" },
                     ...(row.starterSeasonValue
                       ? [
                           {
-                            label: `Season ${formatCompactValue(row.starterSeasonValue)}`,
+                            label: `Starters ${formatCompactValue(row.starterSeasonValue)}`,
                             tone: "good" as const,
                           },
                         ]
@@ -7497,14 +7360,6 @@ export function LeagueCommandCenter({
                                 : row.rosterHealthScore <= 45
                                   ? ("danger" as const)
                                   : ("warn" as const),
-                          },
-                        ]
-                      : []),
-                    ...(row.pressurePoints.length
-                      ? [
-                          {
-                            label: `${row.pressurePoints.length} flags`,
-                            tone: "warn" as const,
                           },
                         ]
                       : []),
@@ -7658,7 +7513,7 @@ export function LeagueCommandCenter({
                   </div>
                 </div>
                 <div
-                  className={`manager-command-hero-metrics ${section === "taxi" ? "manager-command-hero-metrics-taxi" : ""}`}
+                  className={`manager-command-hero-metrics ${section === "taxi" ? "manager-command-hero-metrics-taxi" : "manager-command-hero-metrics-season"}`}
                 >
                   {section === "taxi" ? (
                     <>
@@ -7683,19 +7538,6 @@ export function LeagueCommandCenter({
                     </>
                   ) : (
                     <>
-                      <IntelligenceMetric
-                        label="Starters"
-                        value={
-                          selectedCounts
-                            ? selectedCounts.QB_starters +
-                              selectedCounts.RB_starters +
-                              selectedCounts.WR_starters +
-                              selectedCounts.TE_starters +
-                              (selectedCounts.K_starters || 0) +
-                              (selectedCounts.DEF_starters || 0)
-                            : "-"
-                        }
-                      />
                       <IntelligenceMetric
                         label="Season Value"
                         value={
@@ -7833,104 +7675,6 @@ export function LeagueCommandCenter({
                         ))}
                       </div>
                     ) : null}
-                    <ActionPlanHistoryPanel
-                      plans={selectedActionPlans}
-                      isServerPersistenceEnabled={isServerPersistenceEnabled}
-                    />
-                    {lineupSwapRecommendations.length ? (
-                      <div className="manager-command-section manager-command-swap-read">
-                        <h4>Start/Sit Swap Signals</h4>
-                        <div className="manager-command-swap-grid">
-                          {lineupSwapRecommendations.map(recommendation => {
-                            const topOption = recommendation.options[0];
-                            const planId = getLineupActionPlanId(
-                              leagueId,
-                              selectedManager,
-                              recommendation
-                            );
-                            const planSaved = storedActionPlans.some(
-                              plan => plan.id === planId
-                            );
-                            return (
-                              <div
-                                key={recommendation.starterOut.player_id}
-                                className={`manager-command-swap-card manager-command-swap-card-${recommendation.severity}`}
-                              >
-                                <div className="manager-command-swap-card-head">
-                                  <span>
-                                    {getLineupSwapSeverityLabel(
-                                      recommendation.severity
-                                    )}
-                                  </span>
-                                  <strong>{recommendation.groupLabel}</strong>
-                                </div>
-                                <p>{recommendation.summary}</p>
-                                <div className="manager-command-swap-flow">
-                                  <span className="manager-command-swap-out-name">
-                                    <em>Replace</em>
-                                    <strong>
-                                      {recommendation.starterOut.name}
-                                    </strong>
-                                  </span>
-                                  <ArrowRight
-                                    className="h-4 w-4"
-                                    aria-hidden="true"
-                                  />
-                                  <div className="manager-command-swap-options">
-                                    {recommendation.options.map(option => (
-                                      <span
-                                        key={option.player.player_id}
-                                        title={option.reason}
-                                      >
-                                        <strong>{option.player.name}</strong>
-                                        <em>
-                                          {option.confidencePct}%
-                                          {formatProjectedPointEdge(
-                                            option.projectedPointEdge
-                                          )
-                                            ? ` • ${formatProjectedPointEdge(option.projectedPointEdge)}`
-                                            : ""}
-                                        </em>
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                                {topOption?.reasonBullets.length ? (
-                                  <details className="manager-command-swap-details">
-                                    <summary>Why this swap</summary>
-                                    <ul>
-                                      {topOption.reasonBullets.map(reason => (
-                                        <li key={reason}>{reason}</li>
-                                      ))}
-                                    </ul>
-                                  </details>
-                                ) : null}
-                                <div className="manager-command-swap-actions">
-                                  <button
-                                    type="button"
-                                    className="manager-command-swap-action manager-command-swap-action-primary"
-                                    aria-pressed={planSaved}
-                                    onClick={() =>
-                                      persistStoredActionPlan(
-                                        createLineupActionPlan({
-                                          leagueId,
-                                          manager: selectedManager,
-                                          recommendation,
-                                          status: "saved",
-                                        })
-                                      )
-                                    }
-                                  >
-                                    <Save aria-hidden="true" />
-                                    {planSaved ? "Plan saved" : "Save plan"}
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : null}
                     <div className="manager-command-grid">
                       <div className="manager-command-lineup-panel">
                         <h4>Projected Starters</h4>
@@ -8006,12 +7750,20 @@ export function LeagueCommandCenter({
                                         )
                                           ? {
                                               role: "in",
-                                              label: "Start",
+                                              label: `Best Fit ${
+                                                swapOptionByPlayerId.get(
+                                                  player.player_id
+                                                )?.fitLabel || group.label
+                                              }`,
                                               confidencePct:
                                                 swapOptionByPlayerId.get(
                                                   player.player_id
                                                 )?.confidencePct || 0,
-                                              detail: "Best fit",
+                                              detail: `Best Fit ${
+                                                swapOptionByPlayerId.get(
+                                                  player.player_id
+                                                )?.fitLabel || group.label
+                                              }`,
                                             }
                                           : undefined
                                       }
@@ -8029,23 +7781,93 @@ export function LeagueCommandCenter({
                         </div>
                       </div>
                     </div>
-                    <div
-                      className={getAiNeuralSurfaceClass(
-                        "window",
-                        "manager-command-section manager-command-read manager-command-ai-read"
-                      )}
-                    >
-                      <h4>Season AI Read</h4>
-                      <p>{rosterRead}</p>
-                      {seasonInsuranceRead ? (
-                        <div className="manager-command-inline-read">
-                          <h4>Injury Insurance</h4>
-                          <p>{seasonInsuranceRead}</p>
+                    {lineupSwapRecommendations.length ? (
+                      <div className="manager-command-section manager-command-swap-read">
+                        <h4>Start/Sit Swap Signals</h4>
+                        <div className="manager-command-swap-grid">
+                          {lineupSwapRecommendations.map(recommendation => {
+                            const topOption = recommendation.options[0];
+                            return (
+                              <div
+                                key={recommendation.starterOut.player_id}
+                                className={`manager-command-swap-card manager-command-swap-card-${recommendation.severity}`}
+                              >
+                                <div className="manager-command-swap-card-head">
+                                  <span>
+                                    {getLineupSwapSeverityLabel(
+                                      recommendation.severity
+                                    )}
+                                  </span>
+                                  <strong>{recommendation.groupLabel}</strong>
+                                </div>
+                                <p>{recommendation.summary}</p>
+                                <div className="manager-command-swap-flow">
+                                  <span className="manager-command-swap-out-name">
+                                    <em>Replace</em>
+                                    <span className="manager-command-swap-player">
+                                      <PlayerNameWithHeadshot
+                                        playerId={
+                                          recommendation.starterOut.player_id
+                                        }
+                                        playerName={
+                                          recommendation.starterOut.name
+                                        }
+                                        team={
+                                          recommendation.starterOut
+                                            .playerDetails?.team
+                                        }
+                                        position={recommendation.starterOut.pos}
+                                      />
+                                    </span>
+                                  </span>
+                                  <ArrowRight
+                                    className="h-4 w-4"
+                                    aria-hidden="true"
+                                  />
+                                  <div className="manager-command-swap-options">
+                                    {recommendation.options.map(option => (
+                                      <span
+                                        key={option.player.player_id}
+                                        title={option.reason}
+                                      >
+                                        <span className="manager-command-swap-player">
+                                          <PlayerNameWithHeadshot
+                                            playerId={option.player.player_id}
+                                            playerName={option.player.name}
+                                            team={option.player.playerDetails?.team}
+                                            position={option.player.pos}
+                                          />
+                                        </span>
+                                        <em>
+                                          {option.confidencePct}%
+                                          {formatProjectedPointEdge(
+                                            option.projectedPointEdge
+                                          )
+                                            ? ` • ${formatProjectedPointEdge(option.projectedPointEdge)}`
+                                            : ""}
+                                        </em>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                                {topOption?.reasonBullets.length ? (
+                                  <details className="manager-command-swap-details">
+                                    <summary>Why this swap</summary>
+                                    <ul>
+                                      {topOption.reasonBullets.map(reason => (
+                                        <li key={reason}>{reason}</li>
+                                      ))}
+                                    </ul>
+                                  </details>
+                                ) : null}
+                              </div>
+                            );
+                          })}
                         </div>
-                      ) : null}
-                    </div>
+                      </div>
+                    ) : null}
                     {selectedIntel?.pressurePoints?.length ? (
-                      <div className="manager-command-section">
+                      <div className="manager-command-section manager-command-pressure-points">
                         <h4>Pressure Points</h4>
                         <ul>
                           {selectedIntel.pressurePoints.map(point => (

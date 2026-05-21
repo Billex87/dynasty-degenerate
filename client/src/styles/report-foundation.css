@@ -7234,7 +7234,7 @@
   .owner-intel-score-strip {
     display: grid;
     width: 100%;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.32rem;
   }
 
@@ -7303,6 +7303,8 @@
     z-index: 1;
     display: flex;
     min-width: 0;
+    align-content: flex-start;
+    align-items: flex-start;
     flex-wrap: wrap;
     gap: clamp(0.24rem, 1.5vw, 0.36rem);
   }
@@ -7442,7 +7444,9 @@
 
   .command-mini-badge {
     display: inline-flex;
+    flex: 0 0 auto;
     max-width: 100%;
+    align-self: flex-start;
     align-items: center;
     justify-content: center;
     overflow: hidden;
@@ -8427,6 +8431,11 @@
     width: min(100%, 36rem);
   }
 
+  .manager-command-hero-metrics-season {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: min(100%, 27rem);
+  }
+
   .manager-command-hero-metrics > div {
     min-width: 0;
     border-radius: 0.95rem;
@@ -8577,6 +8586,24 @@
   .manager-command-section li {
     list-style: disc;
     margin-left: 1rem;
+  }
+
+  .manager-command-pressure-points {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .manager-command-pressure-points ul {
+    max-width: 68rem;
+    margin-inline: auto;
+    padding-left: 0;
+    justify-items: center;
+    list-style-position: inside;
+  }
+
+  .manager-command-pressure-points li {
+    margin-left: 0;
+    text-align: center;
   }
 
   .manager-command-section > .manager-command-player-grid {
@@ -9067,6 +9094,22 @@
   .manager-command-swap-options em {
     color: #86efac;
     letter-spacing: 0.02em;
+  }
+
+  .manager-command-swap-player .player-chip {
+    gap: 0.32rem;
+  }
+
+  .manager-command-swap-player .interactive-identity-avatar {
+    height: 1.35rem !important;
+    width: 1.35rem !important;
+  }
+
+  .manager-command-swap-player .interactive-identity-name {
+    max-width: 8.5rem;
+    color: #f8fafc;
+    font-size: 0.78rem;
+    font-weight: 950;
   }
 
   .manager-command-swap-details {
