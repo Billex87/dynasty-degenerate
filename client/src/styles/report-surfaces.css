@@ -5225,6 +5225,32 @@ button.trade-manager-trade {
   min-width: 3.35rem;
 }
 
+.rankings-context-pill {
+  display: inline-flex;
+  min-height: 2rem;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(34, 211, 238, 0.24);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(8, 47, 73, 0.58), rgba(2, 6, 23, 0.74));
+  padding: 0.32rem 0.66rem;
+  color: #a5f3fc;
+  font-size: 0.62rem;
+  font-weight: 1000;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.rankings-controls-devy .rankings-context-pill:first-of-type {
+  border-color: rgba(251, 146, 60, 0.34);
+  background: linear-gradient(135deg, rgba(124, 45, 18, 0.5), rgba(2, 6, 23, 0.74));
+  color: #fed7aa;
+}
+
 .ranking-filter-label-compact {
   display: none;
 }

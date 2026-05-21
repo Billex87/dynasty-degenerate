@@ -463,29 +463,6 @@ function ReportSectionLoadingFallback() {
   );
 }
 
-function ProspectArchiveLoadingState() {
-  return (
-    <div className="prospect-archive-loading" role="status" aria-live="polite">
-      <div className="prospect-archive-loading__logo" aria-hidden="true">
-        <img src="/assets/ncaa-logo.svg" alt="" />
-      </div>
-      <div className="prospect-archive-loading__copy">
-        <span>Scouting Data Archive</span>
-        <strong>Getting college prospects</strong>
-        <p>
-          Loading Draft Buzz scores, class filters, position ranks, and verified
-          combine measurables.
-        </p>
-      </div>
-      <div className="prospect-archive-loading__badges" aria-hidden="true">
-        <span>NCAA</span>
-        <span>Draft Buzz</span>
-        <span>Prospect Scores</span>
-      </div>
-    </div>
-  );
-}
-
 const REPORT_TAB_VALUES = [
   "overview",
   "autopilot",
@@ -9550,10 +9527,6 @@ export default function Home() {
   ] = useState(readAdminPassphraseVerifiedForSession);
   const [loadingTransitionPhase, setLoadingTransitionPhase] =
     useState<LoadingTransitionPhase>("loading");
-  const [
-    prospectArchiveOpenedWhileLoading,
-    setProspectArchiveOpenedWhileLoading,
-  ] = useState(false);
   const successTransitionTimerRefs = useRef<number[]>([]);
   const activeAnalysisLeagueIdRef = useRef<string | null>(null);
   const reportLoadStartedAtRef = useRef<number | null>(null);
@@ -10606,8 +10579,6 @@ export default function Home() {
   );
   const rankingsForReport =
     rankingsQuery.data?.rankings || reportData?.rankings;
-  const isProspectArchiveLoading =
-    rankingsQuery.isLoading && !rankingsForReport;
   const reportDataWithRankings = useMemo(
     () =>
       reportData && rankingsForReport
@@ -10777,12 +10748,6 @@ export default function Home() {
     window.addEventListener("hashchange", syncTabFromUrl);
     return () => window.removeEventListener("hashchange", syncTabFromUrl);
   }, [reportData]);
-
-  useEffect(() => {
-    if (!isProspectArchiveLoading) {
-      setProspectArchiveOpenedWhileLoading(false);
-    }
-  }, [isProspectArchiveLoading]);
 
   const clownEasterEggDialog = (
     <Dialog open={isClownModalOpen} onOpenChange={setIsClownModalOpen}>
@@ -11862,36 +11827,6 @@ export default function Home() {
                               leagueLogo={leagueLogo}
                               viewerManager={effectiveViewerManager}
                               board="devy"
-                              hidePicks
-                              leagueValueMode={leagueValueMode}
-                              leagueDiagnostics={reportData.leagueDiagnostics}
-                              showAIReads={canViewAdminFeatureExpansion}
-                            />
-                          )}
-                        </CollapsibleReportSection>
-                      )}
-                      {!isRedraftReport && (
-                        <CollapsibleReportSection
-                          title="Prospect Score Archive"
-                          kicker="Scouting data archive"
-                          onOpenChange={open => {
-                            if (open && isProspectArchiveLoading) {
-                              setProspectArchiveOpenedWhileLoading(true);
-                            }
-                          }}
-                        >
-                          {isProspectArchiveLoading &&
-                          prospectArchiveOpenedWhileLoading ? (
-                            <ProspectArchiveLoadingState />
-                          ) : isProspectArchiveLoading ? null : (
-                            <RankingsBoard
-                              rankings={rankingsForReport}
-                              playerDetailsById={reportData.playerDetailsById}
-                              managerAvatars={reportData.managerAvatars}
-                              leagueId={leagueId}
-                              leagueLogo={leagueLogo}
-                              viewerManager={effectiveViewerManager}
-                              board="draftbuzz"
                               hidePicks
                               leagueValueMode={leagueValueMode}
                               leagueDiagnostics={reportData.leagueDiagnostics}

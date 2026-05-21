@@ -9943,6 +9943,18 @@
     font-size: 0.54rem;
   }
 
+  .rankings-controls.value-board__toolbar .rankings-context-pill {
+    flex: 0 0 auto;
+    min-height: 1.92rem;
+    max-width: 11.5rem;
+    padding-inline: 0.46rem;
+    overflow: hidden;
+    font-size: 0.52rem;
+    letter-spacing: 0.02em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .rankings-controls.value-board__toolbar .ranking-position-button-overall {
     min-width: 2.38rem !important;
   }
