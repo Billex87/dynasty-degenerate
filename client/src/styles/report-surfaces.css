@@ -7277,8 +7277,9 @@ body {
 }
 
 .dashboard-spotlight-focus-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.5rem;
   margin-top: 0.85rem;
   border-top: 1px solid rgba(0, 200, 232, 0.12);
@@ -7287,6 +7288,8 @@ body {
 
 .dashboard-spotlight-focus-card {
   display: grid;
+  flex: 0 1 calc((100% - 0.5rem) / 2);
+  max-width: calc((100% - 0.5rem) / 2);
   min-width: 0;
   gap: 0.18rem;
   border: 1px solid rgba(0, 200, 232, 0.13);

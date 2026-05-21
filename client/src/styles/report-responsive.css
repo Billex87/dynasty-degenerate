@@ -11846,7 +11846,36 @@
 }
 
 .report-shell .balanced-tile-grid {
+  --dd-balanced-grid-gap: clamp(0.56rem, 0.95vw, 0.78rem);
+  --dd-balanced-grid-active-item-width: var(--dd-balanced-grid-item-width, min(100%, 15rem));
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: stretch;
+  gap: var(--dd-balanced-grid-gap);
+}
+
+.report-shell .balanced-tile-grid > * {
+  flex: 0 1 var(--dd-balanced-grid-active-item-width, min(100%, 15rem));
+  max-width: 100%;
+}
+
+@media (max-width: 1535px) {
+  .report-shell .balanced-tile-grid {
+    --dd-balanced-grid-active-item-width: var(--dd-balanced-grid-item-width-md, var(--dd-balanced-grid-item-width, min(100%, 15rem)));
+  }
+}
+
+@media (max-width: 1023px) {
+  .report-shell .balanced-tile-grid {
+    --dd-balanced-grid-active-item-width: var(--dd-balanced-grid-item-width-sm, var(--dd-balanced-grid-item-width-md, var(--dd-balanced-grid-item-width, min(100%, 15rem))));
+  }
+}
+
+@media (max-width: 639px) {
+  .report-shell .balanced-tile-grid {
+    --dd-balanced-grid-active-item-width: var(--dd-balanced-grid-item-width-xs, var(--dd-balanced-grid-item-width-sm, var(--dd-balanced-grid-item-width, min(100%, 15rem))));
+  }
 }
 
 .report-shell :is(.owner-summary-tile, .command-depth-tile, .weekly-momentum-tile, .trending-player-card, .trade-profit-card, .draft-decision-card) {
