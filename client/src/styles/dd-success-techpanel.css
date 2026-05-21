@@ -4,6 +4,9 @@
 
 .loading-success-card {
   /* 3D canvas inside provides the chrome — keep this container minimal */
+  width: min(calc(100vw - 2rem), 42.5rem) !important;
+  min-height: min(30.2rem, calc(100dvh - 5rem)) !important;
+  padding: clamp(1.45rem, 3vw, 2.35rem) clamp(1.2rem, 3vw, 2rem) !important;
   border: 0 !important;
   border-radius: 14px !important;
   background: transparent !important;
@@ -32,6 +35,50 @@
 .loading-success-card::before { display: none; }
 .loading-success-scanline { display: none !important; }
 .loading-success-impact-core { display: none !important; }
+
+.loading-success-copy {
+  min-height: min(25.25rem, calc(100dvh - 9rem)) !important;
+  gap: clamp(1rem, 2.3vw, 1.5rem) !important;
+}
+
+.loading-success-card .loading-success-kicker {
+  min-height: clamp(2.4rem, 5vw, 3.4rem) !important;
+  border-radius: 0.62rem !important;
+  padding: clamp(0.42rem, 1.2vw, 0.66rem) clamp(1rem, 2vw, 1.45rem) !important;
+  font-size: clamp(1.18rem, 2.2vw, 2.05rem) !important;
+}
+
+.loading-success-card .loading-success-kicker svg {
+  height: clamp(1.15rem, 2vw, 1.75rem) !important;
+  width: clamp(1.15rem, 2vw, 1.75rem) !important;
+}
+
+.loading-success-card .loading-success-icon {
+  height: clamp(7rem, 15vw, 10.2rem) !important;
+  width: clamp(7rem, 15vw, 10.2rem) !important;
+}
+
+.loading-success-card h2,
+.loading-success-title {
+  font-size: clamp(1.5rem, 3vw, 2.45rem) !important;
+}
+
+.loading-success-title-long {
+  font-size: clamp(1.18rem, 2.4vw, 1.95rem) !important;
+}
+
+.loading-success-title-compact {
+  font-size: clamp(0.95rem, 2vw, 1.45rem) !important;
+}
+
+.loading-success-format {
+  font-size: clamp(0.95rem, 1.6vw, 1.2rem) !important;
+}
+
+.loading-success-bar {
+  width: min(20rem, 74%) !important;
+  height: 0.36rem !important;
+}
 
 .success-card-3d-fallback {
   position: absolute;
@@ -257,4 +304,26 @@
     opacity: 1;
   }
   .loading-success-scanline { display: none; }
+}
+
+@media (max-width: 640px) {
+  .loading-success-card {
+    width: min(calc(100vw - 1rem), 27rem) !important;
+    min-height: min(25rem, calc(100dvh - 3.5rem)) !important;
+    padding: 1.25rem 0.9rem !important;
+  }
+
+  .loading-success-copy {
+    min-height: min(21.5rem, calc(100dvh - 7rem)) !important;
+    gap: 0.9rem !important;
+  }
+
+  .loading-success-card .loading-success-icon {
+    height: clamp(5.65rem, 22vw, 7.4rem) !important;
+    width: clamp(5.65rem, 22vw, 7.4rem) !important;
+  }
+
+  .loading-success-card .loading-success-kicker {
+    font-size: clamp(1rem, 5vw, 1.42rem) !important;
+  }
 }
