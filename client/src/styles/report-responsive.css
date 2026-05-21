@@ -3857,6 +3857,8 @@
 @media (min-width: 1800px) {
   .home-shell::before {
     background-image: url("/brand/hero/background/webp/hero-bg-ultrawide-long-2560x1600.webp") !important;
+    background-position: 100% -9rem !important;
+    background-size: 116% auto !important;
   }
 }
 
@@ -3890,9 +3892,8 @@
   }
 
   .home-shell::after {
-    background:
-      linear-gradient(180deg, rgba(3, 8, 12, 0.16) 0%, rgba(3, 8, 12, 0.36) 32%, rgba(3, 8, 12, 0.92) 64%, rgba(3, 8, 12, 0.98) 100%),
-      linear-gradient(90deg, rgba(3, 8, 12, 0.36), rgba(3, 8, 12, 0.05), rgba(3, 8, 12, 0.34)) !important;
+    background: none !important;
+    opacity: 0 !important;
   }
 
   .home-header-inner {

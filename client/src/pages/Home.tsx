@@ -47,6 +47,7 @@ import {
   Repeat2,
   ClipboardList,
   ListOrdered,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
@@ -64,6 +65,7 @@ import { ManagerChampionshipProvider } from "@/components/ManagerChampionships";
 import { TeamLogoPill } from "@/components/TeamLogoPill";
 import {
   PlayerPill,
+  PlayerIdentityRow,
   PreviewMetricChips,
   ReportSectionHeader,
   type PreviewMetric,
@@ -287,6 +289,7 @@ const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
 const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 850;
 const REPORT_SUCCESS_KICK_MS = 900;
 const SLEEPER_ID_PATTERN = /^\d{8,24}$/;
+const SHOW_LEGACY_LEAGUE_ID_LOGIN = false;
 const SHOW_ASSISTANT_FEATURE_RADAR =
   String(
     import.meta.env.VITE_SHOW_ASSISTANT_FEATURE_RADAR || "true"
@@ -1402,12 +1405,42 @@ type SleeperLeagueOption = {
   totalRosters: number;
   standingsRank: number | null;
   powerRank: number | null;
+  rosterPlayers?: PortfolioLeaguePlayer[];
 };
 
 type LeagueRankResult = Pick<
   SleeperLeagueOption,
-  "leagueId" | "standingsRank" | "powerRank"
+  "leagueId" | "standingsRank" | "powerRank" | "rosterPlayers"
 >;
+
+type PortfolioLeaguePlayer = {
+  playerId: string;
+  name: string;
+  position: string | null;
+  team: string | null;
+  value: number;
+  positionRank: string | null;
+  rosterSpot: "active" | "taxi" | "reserve";
+};
+
+type HomePortfolioLeague = Pick<
+  SleeperLeagueOption,
+  "leagueId" | "name" | "avatarUrl" | "format" | "mobileFormat"
+>;
+
+type HomePortfolioRow = {
+  id: string;
+  playerId?: string;
+  name: string;
+  position: string | null;
+  team: string | null;
+  value: number;
+  positionRank: string | null;
+  leagueCount: number;
+  leagueShare: number;
+  rosterSpots: PortfolioLeaguePlayer["rosterSpot"][];
+  leagues: HomePortfolioLeague[];
+};
 
 type AnalysisLeaguePreview = {
   leagueName: string;
@@ -2114,6 +2147,42 @@ function normalizeLeagueOption(value: unknown): SleeperLeagueOption | null {
     standingsRank:
       typeof value.standingsRank === "number" ? value.standingsRank : null,
     powerRank: typeof value.powerRank === "number" ? value.powerRank : null,
+    rosterPlayers: Array.isArray(value.rosterPlayers)
+      ? value.rosterPlayers
+          .map(normalizePortfolioLeaguePlayer)
+          .filter((player): player is PortfolioLeaguePlayer => Boolean(player))
+      : undefined,
+  };
+}
+
+function normalizePortfolioLeaguePlayer(
+  value: unknown
+): PortfolioLeaguePlayer | null {
+  if (
+    !isRecord(value) ||
+    typeof value.playerId !== "string" ||
+    typeof value.name !== "string"
+  ) {
+    return null;
+  }
+  const rosterSpot =
+    value.rosterSpot === "taxi" || value.rosterSpot === "reserve"
+      ? value.rosterSpot
+      : "active";
+  const valueScore =
+    typeof value.value === "number" && Number.isFinite(value.value)
+      ? value.value
+      : 0;
+
+  return {
+    playerId: value.playerId,
+    name: value.name,
+    position: typeof value.position === "string" ? value.position : null,
+    team: typeof value.team === "string" ? value.team : null,
+    value: valueScore,
+    positionRank:
+      typeof value.positionRank === "string" ? value.positionRank : null,
+    rosterSpot,
   };
 }
 
@@ -2261,6 +2330,7 @@ function mergeLeagueRanks(
       ...league,
       standingsRank: rank.standingsRank,
       powerRank: rank.powerRank,
+      rosterPlayers: rank.rosterPlayers || league.rosterPlayers,
     };
   });
 }
@@ -2291,29 +2361,6 @@ function getLeagueFallbackInitials(name: string): string {
   return name.trim().slice(0, 2).toUpperCase() || "DD";
 }
 
-function getLeagueShortcutsForUser(
-  cachedUser: CachedSleeperUser | null,
-  userLeagues: SleeperLeagueOption[],
-  activeLeagueId?: string | null
-): SleeperLeagueOption[] {
-  const leagues = cachedUser?.leagues.length ? cachedUser.leagues : userLeagues;
-  if (!leagues.length) return [];
-
-  const leagueById = new Map(leagues.map(league => [league.leagueId, league]));
-  const orderedIds = cachedUser?.recentLeagueIds || [];
-  const seen = new Set<string>();
-  return orderedIds
-    .filter(leagueId => leagueId !== activeLeagueId)
-    .filter(leagueId => {
-      if (seen.has(leagueId)) return false;
-      seen.add(leagueId);
-      return leagueById.has(leagueId);
-    })
-    .map(leagueId => leagueById.get(leagueId))
-    .filter((league): league is SleeperLeagueOption => Boolean(league))
-    .slice(0, MAX_RECENT_LEAGUES_PER_USER);
-}
-
 function getOrderedLeagueOptions(
   leagues: SleeperLeagueOption[],
   cachedUser: CachedSleeperUser | null
@@ -2334,6 +2381,114 @@ function getOrderedLeagueOptions(
     ...recentLeagues,
     ...leagues.filter(league => !seen.has(league.leagueId)),
   ];
+}
+
+function normalizePortfolioSearchValue(value?: string | number | null): string {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getHomePortfolioKey(player: PortfolioLeaguePlayer): string {
+  return (
+    player.playerId ||
+    [
+      normalizePortfolioSearchValue(player.name),
+      normalizePortfolioSearchValue(player.position),
+      normalizePortfolioSearchValue(player.team),
+    ]
+      .filter(Boolean)
+      .join(":")
+  );
+}
+
+function formatHomePortfolioValue(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "-";
+  if (value >= 1000) return `${Math.round(value / 100) / 10}K`;
+  return `${Math.round(value)}`;
+}
+
+function buildHomePortfolioRows(
+  leagues: SleeperLeagueOption[]
+): HomePortfolioRow[] {
+  const grouped = new Map<string, HomePortfolioRow>();
+
+  leagues.forEach(league => {
+    const leaguePlayers = Array.isArray(league.rosterPlayers)
+      ? league.rosterPlayers
+      : [];
+    const seenInLeague = new Set<string>();
+
+    leaguePlayers.forEach(player => {
+      const key = getHomePortfolioKey(player);
+      if (!key || seenInLeague.has(key)) return;
+      seenInLeague.add(key);
+
+      const leagueMeta: HomePortfolioLeague = {
+        leagueId: league.leagueId,
+        name: league.name,
+        avatarUrl: league.avatarUrl,
+        format: league.format,
+        mobileFormat: league.mobileFormat,
+      };
+      const existing = grouped.get(key);
+
+      if (!existing) {
+        grouped.set(key, {
+          id: key,
+          playerId: player.playerId,
+          name: player.name,
+          position: player.position,
+          team: player.team,
+          value: player.value,
+          positionRank: player.positionRank,
+          leagueCount: 1,
+          leagueShare: leagues.length ? 1 / leagues.length : 0,
+          rosterSpots: [player.rosterSpot],
+          leagues: [leagueMeta],
+        });
+        return;
+      }
+
+      existing.leagueCount += 1;
+      existing.leagueShare = leagues.length
+        ? existing.leagueCount / leagues.length
+        : 0;
+      existing.leagues.push(leagueMeta);
+      existing.rosterSpots.push(player.rosterSpot);
+      if (player.value > existing.value) existing.value = player.value;
+      if (!existing.positionRank && player.positionRank) {
+        existing.positionRank = player.positionRank;
+      }
+      if (!existing.team && player.team) existing.team = player.team;
+      if (!existing.position && player.position) existing.position = player.position;
+    });
+  });
+
+  return Array.from(grouped.values()).sort((a, b) => {
+    if (b.leagueCount !== a.leagueCount) return b.leagueCount - a.leagueCount;
+    if (b.value !== a.value) return b.value - a.value;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function filterHomePortfolioRows(
+  rows: HomePortfolioRow[],
+  query: string
+): HomePortfolioRow[] {
+  const normalizedQuery = normalizePortfolioSearchValue(query);
+  if (!normalizedQuery) return rows;
+  return rows.filter(row => {
+    const haystack = [
+      row.name,
+      row.team,
+      row.position,
+      row.positionRank,
+      ...row.leagues.map(league => league.name),
+      ...row.leagues.map(league => league.format),
+    ]
+      .map(normalizePortfolioSearchValue)
+      .join(" ");
+    return haystack.includes(normalizedQuery);
+  });
 }
 
 function getReportManagerNames(
@@ -2685,172 +2840,26 @@ function AdminManagerSwitcher({
   );
 }
 
-function HomeLogoChrome() {
-  return (
-    <div className="home-header-inner max-w-7xl mx-auto">
-      <div className="home-header-logo-wrap">
-        <img
-          src={DYNASTY_LOGO_SRC}
-          alt="Dynasty Degenerates Logo"
-          width={720}
-          height={200}
-          decoding="async"
-          className="home-header-logo"
-        />
-      </div>
-    </div>
-  );
-}
-
-function HomeCachedUserSwitcher({
-  users,
-  activeUsername,
-  onSelect,
-}: {
-  users: CachedSleeperUser[];
-  activeUsername: string;
-  onSelect: (user: CachedSleeperUser) => void;
-}) {
-  if (!users.length) return null;
-
-  const visibleUsers = users.slice(0, MAX_CACHED_SLEEPER_USERS).reverse();
-  const activeIdentifier = normalizeViewerIdentifier(activeUsername);
-
-  return (
-    <div className="home-user-switcher" aria-label="Recent Sleeper accounts">
-      <span className="home-user-switcher-label">Recent</span>
-      <div className="home-user-stack">
-        {visibleUsers.map((user, index) => {
-          const label = user.displayName || user.username;
-          const initials = label.slice(0, 2).toUpperCase();
-          const isActive =
-            activeIdentifier &&
-            normalizeViewerIdentifier(user.username) === activeIdentifier;
-          return (
-            <button
-              key={`${user.userId}-${user.username}`}
-              type="button"
-              className={`home-user-button${isActive ? " is-active" : ""}`}
-              onClick={() => onSelect(user)}
-              style={{ zIndex: index + 1 }}
-              title={`Use ${label}`}
-              aria-label={`Use ${label}`}
-            >
-              {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt="" aria-hidden="true" />
-              ) : (
-                <span>{initials}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function LeagueShortcutStack({
-  leagues,
-  activeLeagueId,
-  onSelect,
-  className,
-  label = "Leagues",
-  limit,
-}: {
-  leagues: SleeperLeagueOption[];
-  activeLeagueId?: string | null;
-  onSelect: (leagueId: string) => void;
-  className?: string;
-  label?: string;
-  limit?: number;
-}) {
-  if (!leagues.length) return null;
-
-  const visibleLeagueLimit =
-    typeof limit === "number" ? limit : MAX_RECENT_LEAGUES_PER_USER;
-  const visibleLeagues = leagues.slice(0, visibleLeagueLimit);
-
-  return (
-    <div
-      className={`league-shortcut-switcher${className ? ` ${className}` : ""}`}
-      aria-label="Previous league shortcuts"
-    >
-      <span className="league-shortcut-label">{label}</span>
-      <div className="league-shortcut-stack">
-        {visibleLeagues.map((league, index) => {
-          const isActive = league.leagueId === activeLeagueId;
-          return (
-            <button
-              key={league.leagueId}
-              type="button"
-              className={`league-shortcut-button${isActive ? " is-active" : ""}`}
-              onClick={() => {
-                if (!isActive) onSelect(league.leagueId);
-              }}
-              style={{ zIndex: visibleLeagues.length - index }}
-              title={
-                isActive ? `${league.name} is open` : `Open ${league.name}`
-              }
-              aria-label={
-                isActive ? `${league.name} is open` : `Open ${league.name}`
-              }
-              aria-current={isActive ? "page" : undefined}
-            >
-              {league.avatarUrl ? (
-                <img src={league.avatarUrl} alt="" aria-hidden="true" />
-              ) : (
-                <span>{getLeagueFallbackInitials(league.name)}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function HomeHeaderShortcuts({
-  leagues,
-  users,
-  activeUsername,
-  onLeagueSelect,
-  onUserSelect,
-}: {
-  leagues: SleeperLeagueOption[];
-  users: CachedSleeperUser[];
-  activeUsername: string;
-  onLeagueSelect: (leagueId: string) => void;
-  onUserSelect: (user: CachedSleeperUser) => void;
-}) {
-  if (leagues.length) {
-    return (
-      <LeagueShortcutStack
-        leagues={leagues}
-        onSelect={onLeagueSelect}
-        className="home-user-switcher home-league-shortcuts"
-        label="Previous Leagues"
-      />
-    );
-  }
-
-  return (
-    <HomeCachedUserSwitcher
-      users={users}
-      activeUsername={activeUsername}
-      onSelect={onUserSelect}
-    />
-  );
-}
-
 function HomeBrandLockup() {
   return (
-    <div className="home-footer-brand">
-      <h1 className="home-header-title athletic-title mb-2">
-        Dynasty
-        <br />
-        Degenerates
-      </h1>
-      <p className="home-header-tagline">For Degens, By Degens</p>
+    <div className="home-footer-brand" aria-label="Dynasty Degenerates">
+      <img
+        src={DYNASTY_LOGO_SRC}
+        alt="Dynasty Degenerates"
+        width={720}
+        height={200}
+        decoding="async"
+        className="home-footer-logo-long"
+      />
+      <img
+        src={DYNASTY_MOBILE_REPORT_LOGO_SRC}
+        alt=""
+        width={180}
+        height={180}
+        decoding="async"
+        aria-hidden="true"
+        className="home-footer-mobile-icon"
+      />
     </div>
   );
 }
@@ -2859,8 +2868,13 @@ function HomeFooterChrome({ showBrand = true }: { showBrand?: boolean }) {
   return (
     <div className="home-footer-inner home-footer-light-shell max-w-7xl mx-auto">
       <HeaderCssLights className="dd-footer-css-lights" />
-      <HomeActionRow />
+      <div className="home-footer-slot home-footer-slot-left">
+        <SupportButton className="home-action-button" />
+      </div>
       {showBrand && <HomeBrandLockup />}
+      <div className="home-footer-slot home-footer-slot-right">
+        <FeedbackButton className="home-action-button" />
+      </div>
     </div>
   );
 }
@@ -5036,7 +5050,172 @@ function LeaguePickerCard({
           </span>
         ) : null}
       </span>
+      <span className="home-league-card-cta">Attack League</span>
     </button>
+  );
+}
+
+function HomePortfolioLeagueStack({
+  leagues,
+}: {
+  leagues: HomePortfolioLeague[];
+}) {
+  const visibleLeagues = leagues.slice(0, 6);
+  const overflowCount = Math.max(0, leagues.length - visibleLeagues.length);
+
+  return (
+    <span
+      className="home-portfolio-league-stack"
+      aria-label={`${leagues.length} league${leagues.length === 1 ? "" : "s"}`}
+    >
+      {visibleLeagues.map((league, index) => (
+        <span
+          key={league.leagueId}
+          className="home-portfolio-league-avatar"
+          style={{ zIndex: visibleLeagues.length - index }}
+          title={league.name}
+        >
+          {league.avatarUrl ? (
+            <img src={league.avatarUrl} alt="" aria-hidden="true" />
+          ) : (
+            <span aria-hidden="true">{getLeagueFallbackInitials(league.name)}</span>
+          )}
+        </span>
+      ))}
+      {overflowCount > 0 ? (
+        <span className="home-portfolio-league-more">+{overflowCount}</span>
+      ) : null}
+    </span>
+  );
+}
+
+function HomePortfolioPanel({
+  rows,
+  filteredRows,
+  leagues,
+  isLoading,
+  query,
+  onQueryChange,
+  onLeagueSelect,
+}: {
+  rows: HomePortfolioRow[];
+  filteredRows: HomePortfolioRow[];
+  leagues: SleeperLeagueOption[];
+  isLoading: boolean;
+  query: string;
+  onQueryChange: (value: string) => void;
+  onLeagueSelect: (leagueId: string) => void;
+}) {
+  const duplicatedAssets = rows.filter(row => row.leagueCount > 1).length;
+  const maxExposure = rows[0]?.leagueCount || 0;
+
+  if (!leagues.length) return null;
+
+  return (
+    <section
+      className="home-portfolio-shell"
+      aria-label="Sleeper roster portfolio"
+    >
+      <div className="home-portfolio-panel">
+        <div className="home-portfolio-header">
+          <div>
+            <h3>Player Hoard</h3>
+            <p>
+              Every rostered player tied to this Sleeper username, exposed
+              across every league.
+            </p>
+          </div>
+          <div className="home-portfolio-stats" aria-label="Portfolio summary">
+            <span>
+              <strong>{rows.length || "-"}</strong>
+              <small>Players</small>
+            </span>
+            <span>
+              <strong>{duplicatedAssets || "-"}</strong>
+              <small>Overlap</small>
+            </span>
+            <span>
+              <strong>{maxExposure || "-"}</strong>
+              <small>Max Owned</small>
+            </span>
+          </div>
+        </div>
+
+        <label className="home-portfolio-search">
+          <Search size={18} aria-hidden="true" />
+          <span className="sr-only">Search portfolio players</span>
+          <input
+            type="search"
+            value={query}
+            onChange={event => onQueryChange(event.target.value)}
+            placeholder="Search player, team, position, or league"
+          />
+        </label>
+
+        <div className="home-portfolio-list" aria-live="polite">
+          {isLoading && !rows.length ? (
+            <div className="home-portfolio-empty">
+              Loading the player hoard...
+            </div>
+          ) : filteredRows.length ? (
+            filteredRows.slice(0, 60).map(row => (
+              <article key={row.id} className="home-portfolio-row">
+                <div className="home-portfolio-player">
+                  <PlayerIdentityRow
+                    playerId={row.playerId}
+                    playerName={row.name}
+                    team={row.team}
+                    position={row.position}
+                    hideMeta
+                  />
+                  <span className="home-portfolio-meta">
+                    {row.team || "FA"} · {row.position || "N/A"}
+                    {row.positionRank ? ` · ${row.positionRank}` : ""}
+                  </span>
+                </div>
+                <div className="home-portfolio-exposure">
+                  <strong>
+                    {row.leagueCount}/{leagues.length}
+                  </strong>
+                  <span>{Math.round(row.leagueShare * 100)}% exposure</span>
+                </div>
+                <HomePortfolioLeagueStack leagues={row.leagues} />
+                <div className="home-portfolio-value">
+                  <strong>{formatHomePortfolioValue(row.value)}</strong>
+                  <span>
+                    {row.rosterSpots.includes("taxi")
+                      ? "Taxi stash"
+                      : row.rosterSpots.includes("reserve")
+                        ? "IR/Reserve"
+                        : "Active roster"}
+                  </span>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="home-portfolio-empty">
+              No roster edges match that search.
+            </div>
+          )}
+        </div>
+      </div>
+
+      <aside className="home-league-chooser" aria-label="Choose your league">
+        <div className="home-league-chooser-header">
+          <h3>Pick The Target</h3>
+          <p>Choose where the AI starts doing damage.</p>
+        </div>
+        <div className="home-league-picker home-league-picker-portfolio">
+          {leagues.map(league => (
+            <LeaguePickerCard
+              key={league.leagueId}
+              league={league}
+              onSelect={onLeagueSelect}
+            />
+          ))}
+        </div>
+      </aside>
+    </section>
   );
 }
 
@@ -9538,6 +9717,7 @@ export default function Home() {
   const [focusedAutocomplete, setFocusedAutocomplete] = useState<
     "username" | "league" | null
   >(null);
+  const [portfolioSearch, setPortfolioSearch] = useState("");
   const [userLeagues, setUserLeagues] = useState<SleeperLeagueOption[]>([]);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [viewerUsername, setViewerUsername] = useState<string | null>(null);
@@ -10343,53 +10523,14 @@ export default function Home() {
       setIsClownModalOpen(true);
       return;
     }
+    setPortfolioSearch("");
     userLeaguesMutation.mutate({ username: normalizedUsername });
-  };
-
-  const handleCachedSleeperUserSelect = (cachedUser: CachedSleeperUser) => {
-    const sessionUser = cachedSleeperUserToSessionUser(cachedUser);
-    const nextViewerIdentity = getKtcAdminIdentity(
-      sessionUser,
-      cachedUser.username
-    );
-    const nextHasAdminPermissions =
-      sessionUser.hasAdminPermissions === true ||
-      sessionUser.isPrivilegedReportViewer === true;
-    setSleeperUsername(cachedUser.username);
-    setFocusedAutocomplete(null);
-    setUserLeagues(cachedUser.leagues);
-    setViewerUserId(cachedUser.userId);
-    setViewerUsername(nextViewerIdentity);
-    setAdminViewMode(nextHasAdminPermissions ? "regular" : null);
-    setAdminViewerManager(null);
-    setIsLeaguePickerOpen(false);
-    setIsChangeLeagueModalOpen(false);
-    rememberSleeperUsername(cachedUser.username);
-    setCachedSleeperUsers(rememberCachedSleeperUser(cachedUser));
-
-    try {
-      localStorage.setItem(
-        SLEEPER_SESSION_KEY,
-        JSON.stringify({
-          username: cachedUser.username,
-          user: sessionUser,
-          leagues: cachedUser.leagues,
-          adminViewMode: nextHasAdminPermissions ? "regular" : null,
-          savedAt: Date.now(),
-        } satisfies SleeperSession)
-      );
-    } catch {
-      // Account shortcuts still work for this page load.
-    }
-
-    if (!cachedUser.leagues.length) {
-      userLeaguesMutation.mutate({ username: cachedUser.username });
-    }
   };
 
   const handleClownDismiss = () => {
     setIsClownModalOpen(false);
     setSleeperUsername("");
+    setPortfolioSearch("");
     setUserLeagues([]);
     setFocusedAutocomplete(null);
     setAdminViewMode(null);
@@ -10447,6 +10588,7 @@ export default function Home() {
     setReportData(null);
     setLeagueId("");
     setSleeperUsername("");
+    setPortfolioSearch("");
     setLeagueName("");
     setLeagueLogo(null);
     setLeagueFormat("");
@@ -10482,78 +10624,6 @@ export default function Home() {
     await handleAnalyze(nextLeagueId);
   };
 
-  const handleCachedLeagueShortcutSelect = async (nextLeagueId: string) => {
-    const cachedUser = findCachedSleeperUser(
-      cachedSleeperUsers,
-      viewerUserId,
-      sleeperUsername
-    );
-    const sessionUser = cachedUser
-      ? cachedSleeperUserToSessionUser(cachedUser)
-      : null;
-    setAdminViewerManager(null);
-    if (cachedUser && sessionUser) {
-      const nextViewerIdentity = getKtcAdminIdentity(
-        sessionUser,
-        cachedUser.username
-      );
-      const nextHasAdminPermissions =
-        sessionUser.hasAdminPermissions === true ||
-        sessionUser.isPrivilegedReportViewer === true;
-      setSleeperUsername(cachedUser.username);
-      setFocusedAutocomplete(null);
-      setUserLeagues(cachedUser.leagues);
-      setViewerUserId(cachedUser.userId);
-      setViewerUsername(nextViewerIdentity);
-      setAdminViewMode(nextHasAdminPermissions ? adminViewMode : null);
-      rememberSleeperUsername(cachedUser.username);
-      setCachedSleeperUsers(
-        rememberCachedSleeperLeagueShortcut({
-          users: readCachedSleeperUsers(),
-          user: sessionUser,
-          username: cachedUser.username,
-          leagues: cachedUser.leagues,
-          leagueId: nextLeagueId,
-        })
-      );
-
-      try {
-        localStorage.setItem(
-          SLEEPER_SESSION_KEY,
-          JSON.stringify({
-            username: cachedUser.username,
-            user: sessionUser,
-            leagues: cachedUser.leagues,
-            adminViewMode: nextHasAdminPermissions ? adminViewMode : null,
-            savedAt: Date.now(),
-          } satisfies SleeperSession)
-        );
-      } catch {
-        // League shortcuts are still usable for this page load.
-      }
-    }
-
-    setIsLeaguePickerOpen(false);
-    setIsChangeLeagueModalOpen(false);
-    setLeagueId(nextLeagueId);
-    rememberLeagueId(nextLeagueId);
-    clearBrowserReportCache(nextLeagueId);
-    setReportData(null);
-    void beginAnalysisLoading(nextLeagueId, cachedUser?.leagues || []).finally(
-      () => {
-        if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
-        analyzeMutation.mutate({
-          leagueId: nextLeagueId,
-          viewerUserId:
-            getValidSleeperUserId(cachedUser?.userId) ||
-            getValidSleeperUserId(viewerUserId) ||
-            undefined,
-          liveRefresh: true,
-        });
-      }
-    );
-  };
-
   const usernameAutocompleteOptions = getFilteredAutocompleteOptions(
     sleeperUsernameHistory,
     sleeperUsername
@@ -10571,11 +10641,19 @@ export default function Home() {
     userLeagues,
     activeCachedSleeperUser
   );
-  const cachedLeagueShortcuts = getLeagueShortcutsForUser(
-    activeCachedSleeperUser,
-    userLeagues,
-    reportData ? leagueId : null
+  const homePortfolioRows = useMemo(
+    () => buildHomePortfolioRows(orderedUserLeagues),
+    [orderedUserLeagues]
   );
+  const filteredHomePortfolioRows = useMemo(
+    () => filterHomePortfolioRows(homePortfolioRows, portfolioSearch),
+    [homePortfolioRows, portfolioSearch]
+  );
+  const isHomePortfolioLoading =
+    Boolean(orderedUserLeagues.length) &&
+    Boolean(viewerUserId) &&
+    userLeagueRanksMutation.isPending &&
+    !homePortfolioRows.length;
   const hasAuthenticatedAdminPermissions = canViewAdminTelemetryForUser(
     authQuery.data
   );
@@ -12368,42 +12446,36 @@ export default function Home() {
   return (
     <>
       <div className="home-shell min-h-screen flex flex-col premium-fx-host">
-        <div className="home-header px-4 py-4 sm:py-5">
-          <HomeLogoChrome />
-          <HomeHeaderShortcuts
-            leagues={cachedLeagueShortcuts}
-            users={cachedSleeperUsers}
-            activeUsername={sleeperUsername}
-            onLeagueSelect={handleCachedLeagueShortcutSelect}
-            onUserSelect={handleCachedSleeperUserSelect}
-          />
-        </div>
         <main className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
-          <div className="home-hero w-full max-w-3xl space-y-8 sm:space-y-12">
+          <div
+            className={`home-hero home-hero-dashboard w-full max-w-3xl space-y-8 sm:space-y-12${orderedUserLeagues.length ? " home-hero-dashboard-portfolio" : ""}`}
+          >
             {/* Main Title */}
             <div className="home-hero-copy space-y-3 sm:space-y-4 text-center">
               <h2
                 className="athletic-title home-title"
-                aria-label="Win now. Win later. Build your dynasty."
+                aria-label="Abuse AI. Crush your league."
               >
-                <span className="home-title-primary">Win Now. Win Later.</span>
-                <span className="home-title-accent">Build Your Dynasty.</span>
+                <span className="home-title-primary">Abuse AI.</span>
+                <span className="home-title-accent">Crush Your League.</span>
               </h2>
               <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
-                Stop guessing. Start dominating.{" "}
+                Built for fantasy degenerates who want every unfair edge.{" "}
                 <span className="home-subtitle-name">Dynasty Degenerates</span>{" "}
-                spots trade windows, weekly lineup leverage, and manager tells
-                before your league catches up.
+                turns Sleeper data into trade heists, lineup leaks, draft traps,
+                and manager tells before your opponents know they are bleeding
+                value.
               </p>
             </div>
 
             {/* Input Section */}
+            {!orderedUserLeagues.length ? (
             <div className="home-analyze-card space-y-4 sm:space-y-6 p-4 sm:p-8">
               <div className="text-center">
                 <label className="home-field-label block text-sm font-semibold text-slate-200 mb-3">
-                  Enter Your Sleeper Username
+                  Drop Your Sleeper Username
                 </label>
-                <div className="home-username-row flex flex-col gap-2 sm:gap-3 sm:flex-row w-full">
+                <div className="home-username-row flex flex-col gap-2 sm:gap-3 w-full">
                   <div className="home-autocomplete-anchor flex-1 w-full sm:w-auto">
                     <Input
                       id="sleeper-username"
@@ -12445,103 +12517,110 @@ export default function Home() {
                     type="button"
                     onClick={handleFindLeagues}
                     disabled={userLeaguesMutation.isPending}
-                    className="home-find-leagues-button w-full sm:w-auto h-12 shrink-0 rounded-lg border border-cyan-300/25 bg-cyan-400/10 px-5 font-bold text-cyan-100 hover:bg-cyan-400/15"
+                    className="home-analyze-button w-full h-12 shrink-0 rounded-lg border border-orange-400/40 bg-gradient-to-r from-orange-500 to-orange-600 px-5 font-bold text-white hover:from-orange-600 hover:to-orange-700"
                   >
+                    <Zap size={20} />
                     {userLeaguesMutation.isPending
-                      ? "Finding..."
-                      : "Find Leagues"}
+                      ? "Finding Your Leagues..."
+                      : "Unleash The Degenerate AI"}
                   </Button>
                 </div>
                 <p className="home-field-helper text-xs text-slate-400 mt-2">
-                  Pick one of your Sleeper leagues and this will run the report
-                  automatically.
+                  We scan your leagues, expose your cross-league player
+                  portfolio, then let you pick where to start the damage.
                 </p>
               </div>
 
-              {userLeagues.length > 0 && (
-                <div className="home-league-picker">
-                  {orderedUserLeagues.map(league => (
-                    <LeaguePickerCard
-                      key={league.leagueId}
-                      league={league}
-                      onSelect={handleAnalyze}
-                    />
-                  ))}
-                </div>
-              )}
+              {SHOW_LEGACY_LEAGUE_ID_LOGIN ? (
+                <>
+                  <div className="home-id-divider">
+                    <span>or use a league ID</span>
+                  </div>
 
-              <div className="home-id-divider">
-                <span>or use a league ID</span>
-              </div>
+                  <div className="text-center">
+                    <label className="home-field-label block text-sm font-semibold text-slate-200 mb-3">
+                      Enter Your Sleeper League ID
+                    </label>
+                    <div className="home-autocomplete-anchor w-full">
+                      <Input
+                        id="sleeper-league-id"
+                        name="sleeper-league-id"
+                        type="text"
+                        aria-label="Enter Your Sleeper League ID"
+                        autoComplete="on"
+                        inputMode="numeric"
+                        list="sleeper-league-id-history"
+                        placeholder="Find in your Sleeper app settings or URL"
+                        value={leagueId}
+                        onChange={e => setLeagueId(e.target.value)}
+                        onFocus={() => setFocusedAutocomplete("league")}
+                        onBlur={() =>
+                          window.setTimeout(
+                            () => setFocusedAutocomplete(null),
+                            120
+                          )
+                        }
+                        className="w-full bg-slate-900 border-orange-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-orange-400 text-center"
+                        onKeyDown={e => e.key === "Enter" && handleAnalyze()}
+                      />
+                      <datalist id="sleeper-league-id-history">
+                        {leagueIdHistory.map(value => (
+                          <option key={value} value={value} />
+                        ))}
+                      </datalist>
+                      {focusedAutocomplete === "league" ? (
+                        <RecentEntrySuggestions
+                          label="Recent Sleeper league IDs"
+                          options={leagueIdAutocompleteOptions}
+                          onSelect={value => {
+                            setLeagueId(value);
+                            setFocusedAutocomplete(null);
+                          }}
+                        />
+                      ) : null}
+                    </div>
+                    <p className="home-field-helper text-xs text-slate-400 mt-2">
+                      In the Sleeper app, open your league → go to General
+                      Settings → scroll to the bottom to find your League ID.
+                    </p>
+                  </div>
 
-              <div className="text-center">
-                <label className="home-field-label block text-sm font-semibold text-slate-200 mb-3">
-                  Enter Your Sleeper League ID
-                </label>
-                <div className="home-autocomplete-anchor w-full">
-                  <Input
-                    id="sleeper-league-id"
-                    name="sleeper-league-id"
-                    type="text"
-                    aria-label="Enter Your Sleeper League ID"
-                    autoComplete="on"
-                    inputMode="numeric"
-                    list="sleeper-league-id-history"
-                    placeholder="Find in your Sleeper app settings or URL"
-                    value={leagueId}
-                    onChange={e => setLeagueId(e.target.value)}
-                    onFocus={() => setFocusedAutocomplete("league")}
-                    onBlur={() =>
-                      window.setTimeout(() => setFocusedAutocomplete(null), 120)
-                    }
-                    className="w-full bg-slate-900 border-orange-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-orange-400 text-center"
-                    onKeyDown={e => e.key === "Enter" && handleAnalyze()}
-                  />
-                  <datalist id="sleeper-league-id-history">
-                    {leagueIdHistory.map(value => (
-                      <option key={value} value={value} />
-                    ))}
-                  </datalist>
-                  {focusedAutocomplete === "league" ? (
-                    <RecentEntrySuggestions
-                      label="Recent Sleeper league IDs"
-                      options={leagueIdAutocompleteOptions}
-                      onSelect={value => {
-                        setLeagueId(value);
-                        setFocusedAutocomplete(null);
-                      }}
-                    />
-                  ) : null}
-                </div>
-                <p className="home-field-helper text-xs text-slate-400 mt-2">
-                  In the Sleeper app, open your league → go to General Settings
-                  → scroll to the bottom to find your League ID.
-                </p>
-              </div>
-
-              <Button
-                onClick={() => handleAnalyze()}
-                disabled={isLoading}
-                className="home-analyze-button w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-base gap-2 rounded-lg transition-all duration-200 shadow-lg"
-              >
-                <Zap size={20} />
-                Run Degenerate Analysis
-              </Button>
+                  <Button
+                    onClick={() => handleAnalyze()}
+                    disabled={isLoading}
+                    className="home-analyze-button w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-base gap-2 rounded-lg transition-all duration-200 shadow-lg"
+                  >
+                    <Zap size={20} />
+                    Unleash The Degenerate AI
+                  </Button>
+                </>
+              ) : null}
             </div>
+            ) : null}
+
+            <HomePortfolioPanel
+              rows={homePortfolioRows}
+              filteredRows={filteredHomePortfolioRows}
+              leagues={orderedUserLeagues}
+              isLoading={isHomePortfolioLoading}
+              query={portfolioSearch}
+              onQueryChange={setPortfolioSearch}
+              onLeagueSelect={handleAnalyzeLeagueOption}
+            />
 
             {/* Features Grid */}
+            {!orderedUserLeagues.length ? (
             <div className="home-feature-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-6">
               <div className="home-feature-card home-feature-green p-4 sm:p-6 space-y-3">
                 <div className="home-feature-heading">
                   <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
                     <BarChart3 className="w-6 h-6 text-emerald-400" />
                   </div>
-                  <h3 className="font-semibold text-white">League Overview</h3>
+                  <h3 className="font-semibold text-white">Roster Leaks</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  See every manager's format-aware value with position strength,
-                  starter depth, and roster context. No bullshit, just the
-                  numbers.
+                  Find weak rosters, desperate contenders, fake rebuilds, and
+                  managers with depth they cannot actually start.
                 </p>
               </div>
 
@@ -12550,11 +12629,11 @@ export default function Home() {
                   <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
                     <TrendingUp className="w-6 h-6 text-blue-400" />
                   </div>
-                  <h3 className="font-semibold text-white">Trade History</h3>
+                  <h3 className="font-semibold text-white">Trade Heists</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  Track dynasty market swings or redraft current-season trade
-                  gaps with the correct value lens for the league.
+                  Spot buy windows, sell peaks, and lopsided offers before your
+                  league chat wakes up and ruins the price.
                 </p>
               </div>
 
@@ -12563,11 +12642,11 @@ export default function Home() {
                   <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
                     <ListOrdered className="w-6 h-6 text-purple-400" />
                   </div>
-                  <h3 className="font-semibold text-white">Player Rankings</h3>
+                  <h3 className="font-semibold text-white">AI Big Board</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  Browse league-matched dynasty, redraft, and prospect boards
-                  across SuperFlex, Standard, PPR, and TE-premium formats.
+                  League-matched ranks for dynasty, redraft, rookies, SuperFlex,
+                  PPR, and TE premium. No generic internet slop.
                 </p>
               </div>
 
@@ -12576,19 +12655,20 @@ export default function Home() {
                   <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
                     <ClipboardList className="w-6 h-6 text-orange-300" />
                   </div>
-                  <h3 className="font-semibold text-white">Draft Intel</h3>
+                  <h3 className="font-semibold text-white">Draft Theft</h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                  Review rookie draft value, manager tendencies, and missed board
-                  opportunities without leaving the report.
+                  Steal rookie value, punish manager tendencies, and catch missed
+                  board opportunities while everyone else drafts off vibes.
                 </p>
               </div>
             </div>
+            ) : null}
           </div>
         </main>
 
         {!reportData && (
-          <div className="home-footer mt-auto px-4 py-6 sm:py-8">
+          <div className="home-footer mt-auto px-4 py-1">
             <HomeFooterChrome showBrand={!isLoading} />
           </div>
         )}
