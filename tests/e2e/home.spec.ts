@@ -4,9 +4,9 @@ test.describe('homepage smoke', () => {
   test('renders the league analyzer without horizontal overflow', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-    await expect(page.getByRole('heading', { name: 'Abuse AI. Crush your league.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fuck fair. Win anyway.' })).toBeVisible();
     await expect(page.getByPlaceholder('Sleeper username')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Unleash The Degenerate AI' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Run The Damn Report' })).toBeVisible();
     await expect(page.getByPlaceholder('Find in your Sleeper app settings or URL')).toHaveCount(0);
 
     const overflow = await page.evaluate(() => {

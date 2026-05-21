@@ -14,7 +14,7 @@ test.describe('shareable report URLs and redraft copy', () => {
     await expect(page.getByText('test league')).toBeVisible();
     await expect(page.locator('.report-league-format-row')).toContainText('Redraft');
     await expect(page.getByRole('tab', { name: 'Trade History' })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByText('Trade Value Leaderboard')).toBeVisible();
+    await expect(page.getByText('Trade Value Board')).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`leagueId=${cachedReport.leagueId}#trades$`));
 
     const bodyText = await page.locator('body').innerText();
