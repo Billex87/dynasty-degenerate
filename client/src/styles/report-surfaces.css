@@ -179,7 +179,12 @@ button.player-team-tile:focus-visible {
 }
 
 .trade-war-mode-tabs button {
+  --trade-war-mode-tab-border: rgba(251, 146, 60, 0.2);
+  --trade-war-mode-tab-bg: rgba(124, 45, 18, 0.2);
+  --trade-war-mode-tab-color: #fed7aa;
+  --trade-war-mode-tab-shadow: rgba(251, 146, 60, 0.18);
   min-height: 2rem;
+  border: 1px solid transparent;
   border-radius: 999px;
   padding: 0 0.8rem;
   color: #94a3b8;
@@ -189,9 +194,42 @@ button.player-team-tile:focus-visible {
 }
 
 .trade-war-mode-tabs button.active {
-  color: #06101b;
-  background: linear-gradient(135deg, #67e8f9, #fb923c);
-  box-shadow: 0 0 24px rgba(34, 211, 238, 0.22);
+  border-color: var(--trade-war-mode-tab-border);
+  background: var(--trade-war-mode-tab-bg);
+  color: var(--trade-war-mode-tab-color);
+  box-shadow: 0 0 24px var(--trade-war-mode-tab-shadow);
+}
+
+.trade-war-mode-tab-dynasty {
+  --trade-war-mode-tab-border: rgba(250, 204, 21, 0.5);
+  --trade-war-mode-tab-bg: rgba(113, 63, 18, 0.48);
+  --trade-war-mode-tab-color: #fde68a;
+  --trade-war-mode-tab-shadow: rgba(250, 204, 21, 0.18);
+}
+
+.trade-war-mode-tab-contender,
+.trade-war-mode-tab-starter-upgrade,
+.trade-war-mode-tab-playoff-push {
+  --trade-war-mode-tab-border: rgba(52, 211, 153, 0.44);
+  --trade-war-mode-tab-bg: rgba(6, 78, 59, 0.44);
+  --trade-war-mode-tab-color: #bbf7d0;
+  --trade-war-mode-tab-shadow: rgba(52, 211, 153, 0.16);
+}
+
+.trade-war-mode-tab-rebuilder,
+.trade-war-mode-tab-waiver-leverage {
+  --trade-war-mode-tab-border: rgba(168, 85, 247, 0.46);
+  --trade-war-mode-tab-bg: rgba(76, 29, 149, 0.42);
+  --trade-war-mode-tab-color: #ddd6fe;
+  --trade-war-mode-tab-shadow: rgba(168, 85, 247, 0.16);
+}
+
+.trade-war-mode-tab-depth-fix,
+.trade-war-mode-tab-positional-need {
+  --trade-war-mode-tab-border: rgba(56, 189, 248, 0.42);
+  --trade-war-mode-tab-bg: rgba(8, 47, 73, 0.44);
+  --trade-war-mode-tab-color: #a5f3fc;
+  --trade-war-mode-tab-shadow: rgba(56, 189, 248, 0.14);
 }
 
 .trade-war-scout-button {
@@ -284,6 +322,10 @@ button.player-team-tile:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.trade-war-manager-board-filter-head {
+  justify-content: flex-end;
 }
 
 .trade-war-manager-board-head > div {
@@ -572,6 +614,36 @@ button.player-team-tile:focus-visible {
   white-space: nowrap;
 }
 
+.trade-war-manager-board-open-controls {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0.72rem 0.32rem;
+}
+
+.trade-war-manager-close {
+  display: grid;
+  width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border: 1px solid rgba(251, 113, 133, 0.5);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #fecdd3;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.trade-war-manager-close:hover,
+.trade-war-manager-close:focus-visible {
+  border-color: rgba(251, 113, 133, 0.9);
+  background: rgba(127, 29, 29, 0.72);
+  color: #fff1f2;
+  transform: scale(1.04);
+}
+
 .trade-war-manager-summary-lens-ranks {
   display: flex;
   flex: 0 1 auto;
@@ -745,6 +817,11 @@ button.player-team-tile:focus-visible {
 
 .trade-war-manager-board-rank-head span:not(:first-child) {
   text-align: center;
+}
+
+.trade-war-manager-board-section-pick .trade-war-manager-board-rank-head,
+.trade-war-manager-board-section-pick .trade-war-manager-board-asset {
+  grid-template-columns: minmax(0, 1fr) 2.65rem 2.05rem;
 }
 
 .trade-war-manager-board-section p {
@@ -1008,6 +1085,26 @@ button.player-team-tile:focus-visible {
   font-size: clamp(1.05rem, 1.8vw, 1.45rem);
   line-height: 1;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-war-private-manager-chip {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.42);
+  padding: 0.18rem 0.42rem;
+  color: #a5f3fc;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 

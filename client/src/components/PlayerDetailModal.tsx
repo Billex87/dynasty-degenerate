@@ -25,6 +25,7 @@ import { normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValu
 import { getDraftKind, getDraftKindLabel, getDraftWindowLabel } from '@/lib/draftDisplay';
 import { getPlayerValueConfidence } from '@/lib/playerValueConfidence';
 import { getPlayerValueFraming, PLAYER_VALUE_LANGUAGE } from '@/lib/playerValueFraming';
+import { buildPlayerActionArchetypeRead } from '@/lib/playerActionArchetype';
 import { loadStaticPlayerValueTimeline } from '@/lib/playerValueHistoryShards';
 import { getVoicedAIConfidenceLabel } from '@/lib/aiVoice';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
@@ -138,6 +139,7 @@ interface PlayerDetailModalProps {
   managerAvatars?: Record<string, string | null>;
   playerDetailsById?: Record<string, PlayerDetails>;
   leagueDiagnostics?: ReportData['leagueDiagnostics'];
+  calibrationProfile?: ReportData['aiCalibrationAdjustmentProfile'];
   showAIRead?: boolean;
 }
 
@@ -230,6 +232,7 @@ export function PlayerDetailModal({
   managerAvatars,
   playerDetailsById,
   leagueDiagnostics,
+  calibrationProfile,
   showAIRead = false,
 }: PlayerDetailModalProps) {
   const [focusedPeerPick, setFocusedPeerPick] = useState<PlayerModalData | null>(null);
@@ -557,6 +560,8 @@ export function PlayerDetailModal({
     latestNews,
     redraftTimeline: redraftValueTimeline,
     leagueDiagnostics,
+    calibrationProfile,
+    calibrationLeagueId: leagueId,
   }) : null;
   const draftAuditRows = [
     pick.draftDecisionVerdict ? ['Draft Read', pick.draftDecisionVerdict] : null,
@@ -3518,6 +3523,8 @@ function buildPlayerAiEvidenceRead(input: {
   latestNews?: PlayerDetails['latestNews'];
   redraftHistoryContext?: ReturnType<typeof buildRedraftTimelineReadContext>;
   leagueDiagnostics?: ReportData['leagueDiagnostics'];
+  calibrationProfile?: ReportData['aiCalibrationAdjustmentProfile'];
+  calibrationLeagueId?: string | null;
 }): AIEvidenceResult {
   const hasCurrentSeasonEvidence = Boolean(
     input.valueProfile?.seasonValue ||
@@ -3599,6 +3606,8 @@ function buildPlayerAiEvidenceRead(input: {
     requiresActiveTeam: getPlayerAiEvidenceAction(input) === 'start',
     requiresLiveAvailability: false,
     staleSourceCap: 60,
+    calibrationProfile: input.calibrationProfile,
+    calibrationLeagueId: input.calibrationLeagueId,
   });
 }
 
@@ -3627,6 +3636,8 @@ function buildPlayerAiRead({
   latestNews,
   redraftTimeline,
   leagueDiagnostics,
+  calibrationProfile,
+  calibrationLeagueId,
 }: {
   playerName: string;
   position?: string | null;
@@ -3641,6 +3652,8 @@ function buildPlayerAiRead({
   latestNews?: PlayerDetails['latestNews'];
   redraftTimeline?: RedraftValueTimelineData | null;
   leagueDiagnostics?: ReportData['leagueDiagnostics'];
+  calibrationProfile?: ReportData['aiCalibrationAdjustmentProfile'];
+  calibrationLeagueId?: string | null;
 }) {
   const rankNumber = parseRankNumber(currentRank);
   const age = details?.age;
@@ -3676,6 +3689,11 @@ function buildPlayerAiRead({
     valueGain,
     details,
   });
+  const actionArchetype = buildPlayerActionArchetypeRead({
+    playerName,
+    position,
+    details,
+  });
   const redraftHistoryContext = valueMode === 'redraft' ? buildRedraftTimelineReadContext(redraftTimeline) : null;
 
   if (isCollegeProspect) {
@@ -3701,6 +3719,8 @@ function buildPlayerAiRead({
       latestNews,
       redraftHistoryContext,
       leagueDiagnostics,
+      calibrationProfile,
+      calibrationLeagueId,
     });
     if (!evidenceRead.shouldRender) return null;
     return {
@@ -3802,6 +3822,12 @@ function buildPlayerAiRead({
   }
   if (redraftHistoryContext) {
     chips.push({ label: redraftHistoryContext.chip, tone: 'info' });
+  }
+  if (actionArchetype) {
+    chips.push({
+      label: actionArchetype.label,
+      tone: actionArchetype.tone,
+    });
   }
 
   const isRedraft = valueMode === 'redraft';
@@ -3929,6 +3955,9 @@ function buildPlayerAiRead({
       ? redraftHistoryContext.copy
       : `${body} ${redraftHistoryContext.copy}`;
   }
+  if (actionArchetype) {
+    body = `${body} Archetype: ${actionArchetype.note}`;
+  }
 
   const rawConfidence = Math.min(
     cohort?.confidence ?? 100,
@@ -3956,9 +3985,12 @@ function buildPlayerAiRead({
     latestNews,
     redraftHistoryContext,
     leagueDiagnostics,
+    calibrationProfile,
+    calibrationLeagueId,
   });
   if (!evidenceRead.shouldRender) return null;
   const traceItems = buildPlayerAiTraceItems(evidenceRead, [
+    ...(actionArchetype?.receipts || []),
     ...(situationDelta?.dynamicSignals || []).map((signal) => `${signal.label}: ${signal.detail}`),
     ...(situationDelta?.trace || []),
     ...(cohort?.trace || []),
@@ -3975,6 +4007,7 @@ function buildPlayerAiRead({
       evidenceRead.confidenceCapReason ? `Confidence capped by ${evidenceRead.confidenceCapReason}.` : null,
       valueFraming.note,
       redraftHistoryContext?.confidenceNote || null,
+      actionArchetype ? `Archetype ${actionArchetype.label}: ${actionArchetype.note}` : null,
       cohort?.calibration?.note || null,
       cohort?.historicalComps ? `Historical comps confidence ${cohort.historicalComps.confidence}; ${cohort.historicalComps.summary}` : null,
       cohort?.seasonOutcomeReceipt ? `Season outcome receipt ${cohort.seasonOutcomeReceipt.confidenceGrade}; ${cohort.seasonOutcomeReceipt.note} ${cohort.seasonOutcomeReceipt.summary}` : null,

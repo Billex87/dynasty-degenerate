@@ -185,7 +185,7 @@ export function getDynastySourceWeightEntries(
   const notes: Record<DynastySourceWeightKey, string> = {
     flock: 'Primary expert-ranking anchor when available; trimmed after the historical calibration so it does not overpower market movement.',
     fantasyPros: 'API-backed FantasyPros dynasty ECR support; reduced because historical error was higher and the public ranking type is not league-format specific.',
-    dynastyNerds: 'Format-aware expert/community support, including Standard, SF, and SF TEP buckets.',
+    dynastyNerds: 'Format-aware expert/community support, including PPR, 1QB, SF, and SF TEP buckets.',
     fantasyNerds: 'API-backed consensus dynasty ranking support; kept modest because the endpoint is not league-format specific.',
     ktc: 'Market/liquidity signal raised by the historical calibration, but still balanced against ranking anchors to avoid crowd-noise whiplash.',
     fantasyCalc: 'Secondary market value support with team/QB/PPR format knobs; raised because the archive gives it enough forward samples.',
@@ -240,7 +240,7 @@ export function getDynastySourceWeightNotes(
   ];
 
   if (board === 'devy') {
-    notes.push('College rankings use devy/prospect coverage from Flock Fantasy and KTC for market context, FantasyPros devy ECR for board order, and archived scouting data for context. Scouting measurements and notes do not directly create market value.');
+    notes.push('College rankings use KTC Devy for market context, FantasyPros devy ECR for board order, and archived scouting data for context. Flock Fantasy is not part of devy because it does not publish a devy board. Scouting measurements and notes do not directly create market value.');
   }
 
   return notes;

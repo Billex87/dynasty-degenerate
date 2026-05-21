@@ -1,4 +1,5 @@
 import type { AIEvidenceLeagueActivityContext, AIEvidenceLeagueTempo } from "./aiEvidenceEngine";
+import { buildLeagueSharpnessProfile } from "./leagueSharpness";
 import type { ReportData } from "./types";
 
 type LeagueActivityReportInput = Partial<Pick<
@@ -13,6 +14,13 @@ type LeagueActivityReportInput = Partial<Pick<
   | "transactionBackfillDiagnostics"
   | "recentTransactions"
   | "waiverIntelligence"
+  | "managerRosterIntelligence"
+  | "managerPositionCounts"
+  | "powerRankings"
+  | "managerRosterValueGrowth"
+  | "draftStats"
+  | "rankings"
+  | "playerDetailsById"
 >>;
 
 function safeCount(value: unknown): number {
@@ -90,7 +98,9 @@ export function buildAIEvidenceLeagueActivityContext(
 
   const tradeTempo = tempoFromPerTeam(tradeSignalCount / teamCount, [0.35, 1.1, 2.2]);
   const waiverTempo = tempoFromPerTeam(waiverSignalCount / teamCount, [0.75, 2.25, 4.5]);
+  const sharpness = buildLeagueSharpnessProfile(input);
   const evidenceLabel = [
+    sharpness?.label || null,
     tradeTempo !== "unknown" ? `${tradeTempo} trade market` : null,
     waiverTempo !== "unknown" ? `${waiverTempo} waiver market` : null,
     `${roundCount(tradeSignalCount)} trade signals`,
@@ -100,6 +110,10 @@ export function buildAIEvidenceLeagueActivityContext(
   return {
     tradeTempo,
     waiverTempo,
+    sharpnessScore: sharpness?.score ?? null,
+    sharpnessTier: sharpness?.tier ?? null,
+    sharpnessLabel: sharpness?.label ?? null,
+    sharpnessActionBias: sharpness?.actionBias ?? null,
     tradeSignalCount: roundCount(tradeSignalCount),
     waiverSignalCount: roundCount(waiverSignalCount),
     transactionSignalCount: roundCount(transactionSignals),

@@ -10,7 +10,7 @@ describe("aiVoice", () => {
   it("keeps straight mode plain for serious/pro views", () => {
     const decision = getVoicedAIReadDecision(
       {
-        label: "Watch only",
+        label: "Don't force it",
         detail: "Useful signal, but not strong enough to force an action.",
         tone: "watch",
         status: "Capped · 63%",
@@ -19,7 +19,7 @@ describe("aiVoice", () => {
     );
 
     expect(decision).toMatchObject({
-      label: "Watch only",
+      label: "Don't force it",
       status: "Capped · 63%",
       detail: "Useful signal, but not strong enough to force an action.",
     });
@@ -28,7 +28,7 @@ describe("aiVoice", () => {
   it("turns generic AI decisions into Dynasty Degenerates lingo", () => {
     const decision = getVoicedAIReadDecision(
       {
-        label: "Watch only",
+        label: "Don't force it",
         detail: "Useful signal, but not strong enough to force an action.",
         tone: "watch",
         status: "Capped · 63%",
@@ -61,7 +61,7 @@ describe("aiVoice", () => {
 
   it("voices action queues as one-call surfaces", () => {
     expect(getVoicedAIActionDecisionCopy("do", "degen")).toBe("Green light");
-    expect(getVoicedAIActionLabel("Watch only", "watch", "degen")).toBe(
+    expect(getVoicedAIActionLabel("Don't force it", "watch", "degen")).toBe(
       "Don't get cute yet"
     );
     expect(getVoicedSuppressedAIActionsCopy(2, "degen")).toMatchObject({

@@ -50,7 +50,7 @@ test.describe('manual live report regression', () => {
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.getByPlaceholder('Sleeper username').fill(sleeperUsername);
-    await page.getByRole('button', { name: 'Find Leagues' }).click();
+    await page.getByRole('button', { name: 'Run Degenerate Analysis' }).click();
     await chooseRegularModeIfPrompted(page);
     await expect(page.getByText(leagueName, { exact: false })).toBeVisible({ timeout: 30_000 });
     await chooseRegularModeIfPrompted(page);

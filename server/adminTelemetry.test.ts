@@ -50,6 +50,17 @@ describe("system.abuseTelemetry", () => {
     expect(result.totals.events).toBeGreaterThanOrEqual(0);
   });
 
+  it("allows the default trusted Sleeper admin list", async () => {
+    const caller = appRouter.createCaller(createContext({
+      openId: "AwwQQ",
+      name: "AwwQQ",
+    }));
+
+    const result = await caller.system.abuseTelemetry({ lookbackDays: 1 });
+
+    expect(result.lookbackDays).toBe(1);
+  });
+
   it("blocks authenticated users outside the admin permission list", async () => {
     const caller = appRouter.createCaller(createContext({
       openId: "regular-user",

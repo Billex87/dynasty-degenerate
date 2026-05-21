@@ -387,6 +387,8 @@ function buildOwnerIntelEvidenceRead(
     requiresActiveTeam: false,
     requiresLiveAvailability: false,
     staleSourceCap: 60,
+    calibrationProfile: data.aiCalibrationAdjustmentProfile,
+    calibrationManager: manager,
   });
 }
 
@@ -457,6 +459,8 @@ function buildRankingsEvidenceRead(
     confidenceCap: sourceCount ? null : 54,
     confidenceCapReason: sourceCount ? null : 'Ranking source trace missing',
     staleSourceCap: 60,
+    calibrationProfile: data.aiCalibrationAdjustmentProfile,
+    calibrationManager: data.viewerManager,
   });
 }
 
@@ -513,6 +517,8 @@ function buildTradeBrowserEvidenceRead(
     confidenceCap: sourceCount <= 1 ? 58 : null,
     confidenceCapReason: sourceCount <= 1 ? 'Thin trade evidence' : null,
     staleSourceCap: 60,
+    calibrationProfile: data.aiCalibrationAdjustmentProfile,
+    calibrationManager: data.viewerManager,
   });
 }
 
@@ -1106,6 +1112,8 @@ function buildOverviewEvidenceRead(data: ReportData, baseScore: number): AIEvide
     confidenceCap: sourceCount <= 1 ? 54 : null,
     confidenceCapReason: sourceCount <= 1 ? 'Thin overview evidence' : null,
     staleSourceCap: 60,
+    calibrationProfile: data.aiCalibrationAdjustmentProfile,
+    calibrationManager: data.viewerManager,
   });
 }
 
@@ -1886,6 +1894,13 @@ export function MonthlyTeamBlueprint({
                     <em>{pickPortfolio.count2027} picks</em>
                     <small>{formatCompactValue(pickPortfolio.value2027)}</small>
                   </span>
+                  {pickPortfolio.count2028 || pickPortfolio.value2028 ? (
+                    <span>
+                      <strong>2028</strong>
+                      <em>{pickPortfolio.count2028 || 0} picks</em>
+                      <small>{formatCompactValue(pickPortfolio.value2028 || 0)}</small>
+                    </span>
+                  ) : null}
                   <p>Total capital: {formatCompactValue(pickPortfolio.totalValue)}{pickPortfolio.projectedSlots?.length ? ` · ${pickPortfolio.projectedSlots.slice(0, 3).join(', ')}` : ''}</p>
                 </div>
               ) : (
@@ -1981,7 +1996,7 @@ export function MonthlyTeamBlueprint({
               confidence={monthlyConfidence}
               confidenceNote={getAiConfidenceDisplayNote(data, manager)}
               decision={{
-                label: topPriorities[0] ? "Do this" : "Watch only",
+                label: topPriorities[0] ? "Do this" : "Don't force it",
                 detail: topPriorities[0] || "No single priority is strong enough to force from this blueprint.",
                 tone: topPriorities[0] ? "go" : "watch",
                 status: `Blueprint · ${monthlyConfidence}%`,
@@ -2048,11 +2063,6 @@ export function LeaguePowerRankings({
           ).label;
           const windowLabel = timeline?.label || dynastyPowerLabel;
           const subtitle = isRedraft ? redraftPowerLabel : dynastyPowerLabel;
-          const chips: AIReadChip[] = [
-            `League #${row.rank}`,
-            `Value #${overview?.rank_value || '-'}`,
-            isRedraft ? redraftPowerLabel : windowLabel,
-          ];
 
           return (
             <details key={`${row.rank}-${row.manager}`} className={`league-power-card ${viewerOwnedHighlightClass(row.manager, data.viewerManager)}`}>
@@ -2076,32 +2086,37 @@ export function LeaguePowerRankings({
                   {!isRedraft && <MetricPill label="Youth curve" value={row.youthScore} tone="info" />}
                   <MetricPill label="Readiness score" value={readiness} tone={readiness >= 70 ? 'good' : readiness <= 45 ? 'danger' : 'warn'} />
                 </div>
-                <AIReadPanel
-                  compact
-                  title={`${row.manager} power read`}
-                  readType={isRedraft ? 'Weekly Power' : 'Contender Path'}
-                  confidence={getManagerReadConfidence(data, row.manager)}
-                  decision={{
-                    label: readiness >= 70 ? "Do this" : readiness <= 45 ? "Watch only" : "Use as context",
-                    detail: readiness >= 70
-                      ? "Treat this manager as a priority contender benchmark."
-                      : readiness <= 45
-                        ? "Do not chase this profile without a cleaner roster reason."
-                        : "Useful context, but roster recon should own the actual next move.",
-                    tone: readiness >= 70 ? "go" : "watch",
-                    status: `Power · ${readiness}`,
-                  }}
-                  severity={readiness >= 70 ? 'good' : readiness <= 45 ? 'warn' : 'info'}
-                  chips={chips}
-                  body={`${row.manager} owns league power slot #${row.rank} with a ${row.score} composite score and ${readiness} readiness score. This card stays ranking-only; use roster recon for roster causes and Trade Finder for deal paths.`}
-                  traceItems={[
-                    `Power rank #${row.rank} from composite score ${row.score}.`,
-                    `Value slot ${overview ? `#${overview.rank_value}` : formatCompactValue(row.rosterValue)} sets the market-order signal.`,
-                    `Readiness score ${readiness} blends starter strength, roster value, and positional balance.`,
-                    isRedraft ? `Season tier: ${redraftPowerLabel}.` : `Window source: ${windowLabel}.`,
-                  ]}
-                  backgroundVariant="league"
-                />
+                <details className="ai-read-trace league-power-receipts">
+                  <summary className="ai-read-trace-kicker">
+                    Power receipts <span>{readiness} readiness</span>
+                  </summary>
+                  <ul className="ai-read-trace-list">
+                    <li>
+                      {row.manager} owns league power slot #{row.rank} with a{" "}
+                      {row.score} composite score. Use Team Breakdown for the
+                      roster cause and Trade Finder for deal paths.
+                    </li>
+                    <li>
+                      Power rank #{row.rank} from composite score {row.score}.
+                    </li>
+                    <li>
+                      Value slot{" "}
+                      {overview
+                        ? `#${overview.rank_value}`
+                        : formatCompactValue(row.rosterValue)}{" "}
+                      sets the market-order signal.
+                    </li>
+                    <li>
+                      Readiness score {readiness} blends starter strength,
+                      roster value, and positional balance.
+                    </li>
+                    <li>
+                      {isRedraft
+                        ? `Season tier: ${redraftPowerLabel}.`
+                        : `Window source: ${windowLabel}.`}
+                    </li>
+                  </ul>
+                </details>
               </div>
             </details>
           );
@@ -2434,23 +2449,46 @@ export function TradePartnerFinder({
               <MetricPill label="You offer" value={getPlayerLabel(recommendation.youOffer)} tone={recommendation.youOffer ? 'good' : 'neutral'} />
               <MetricPill label="Ask about" value={getPlayerLabel(recommendation.theyOffer)} tone={recommendation.theyOffer ? 'warn' : 'neutral'} />
             </div>
-            <AIReadPanel
-              compact
-              title={`${recommendation.manager} trade read`}
-              readType="Trade Window"
-              confidence={recommendation.confidence}
-              severity={recommendation.confidence >= 75 ? 'good' : recommendation.confidence <= 55 ? 'warn' : 'info'}
-              chips={[recommendation.label, recommendation.need ? `${recommendation.need} need` : 'No clear need', recommendation.resistanceRead.chip].filter(Boolean) as AIReadChip[]}
-              body={recommendation.aiRead}
-              traceItems={[
-                recommendation.need ? `${recommendation.manager} returned a ${recommendation.need} need.` : `${recommendation.manager} did not return a clean positional need.`,
-                recommendation.surplus ? `${recommendation.manager} has ${recommendation.surplus} surplus to ask about.` : 'No surplus position was returned for the target manager.',
-                recommendation.youOffer ? `Your matching offer lane starts with ${recommendation.youOffer.name}.` : 'No clean outgoing fit was returned.',
-                `Resistance note: ${recommendation.resistanceRead.note || recommendation.resistanceRead.chip}.`,
-              ]}
-              actions={[{ label: 'Track trade read', onClick: () => trackTradePlan(recommendation) }]}
-              backgroundVariant="trade"
-            />
+            <details className="ai-read-trace trade-partner-receipts">
+              <summary className="ai-read-trace-kicker">
+                Partner receipts <span>{recommendation.confidence}% fit</span>
+              </summary>
+              <ul className="ai-read-trace-list">
+                <li>{recommendation.aiRead}</li>
+                <li>
+                  {recommendation.need
+                    ? `${recommendation.manager} returned a ${recommendation.need} need.`
+                    : `${recommendation.manager} did not return a clean positional need.`}
+                </li>
+                <li>
+                  {recommendation.surplus
+                    ? `${recommendation.manager} has ${recommendation.surplus} surplus to ask about.`
+                    : "No surplus position was returned for the target manager."}
+                </li>
+                <li>
+                  {recommendation.youOffer
+                    ? `Your matching offer lane starts with ${recommendation.youOffer.name}.`
+                    : "No clean outgoing fit was returned."}
+                </li>
+                <li>
+                  Resistance note:{" "}
+                  {recommendation.resistanceRead.note ||
+                    (recommendation.resistanceRead.chip
+                      ? typeof recommendation.resistanceRead.chip === "string"
+                        ? recommendation.resistanceRead.chip
+                        : recommendation.resistanceRead.chip.label
+                      : "No resistance chip returned")}
+                  .
+                </li>
+              </ul>
+            </details>
+            <button
+              type="button"
+              className="command-secondary-action trade-partner-track-action"
+              onClick={() => trackTradePlan(recommendation)}
+            >
+              Track trade read
+            </button>
           </article>
         ))}
       </div>
@@ -2654,14 +2692,14 @@ function buildLeagueExploits(data: ReportData) {
   });
 
   data.pickPortfolios?.forEach((row) => {
-    const pickCount = row.count2026 + row.count2027;
+    const pickCount = row.futurePicks?.length || row.count2026 + row.count2027 + (row.count2028 || 0);
     if (pickCount <= 2 || row.totalValue <= 1200) {
       exploits.push({
         id: `pick-poor-${row.manager}`,
         exploit: 'No pick runway',
         manager: row.manager,
         suggestedMove: 'Offer flexible draft capital in packages where they need optionality',
-        why: `${row.manager} has a thin 2026/2027 pick portfolio.`,
+        why: `${row.manager} has a thin tracked future-pick portfolio.`,
         risk: 'If they are a true contender, picks may not be the hook.',
         tone: 'good',
       });
@@ -2671,7 +2709,7 @@ function buildLeagueExploits(data: ReportData) {
         exploit: 'Pick-rich manager',
         manager: row.manager,
         suggestedMove: 'Float insulated veterans or young starters for future picks',
-        why: `${row.manager} has ${pickCount} tracked 2026/2027 picks worth ${formatCompactValue(row.totalValue)}.`,
+        why: `${row.manager} has ${pickCount} tracked future picks worth ${formatCompactValue(row.totalValue)}.`,
         risk: 'Pick-rich rebuilders are often patient; do not anchor with depreciating assets only.',
         tone: 'info',
       });
@@ -2737,22 +2775,19 @@ export function LeagueExploits({
             <span><strong>Why it works</strong>{exploit.why}</span>
             <span><strong>Risk</strong>{exploit.risk}</span>
           </div>
-          <AIReadPanel
-            compact
-            title={`${exploit.manager} exploit read`}
-            readType="League Exploit"
-            confidence={getManagerReadConfidence(data, exploit.manager)}
-            severity={exploit.tone}
-            chips={[exploit.exploit, exploit.manager]}
-            body={`${exploit.suggestedMove}. ${exploit.why}`}
-            traceItems={[
-              `Exploit owner: ${exploit.exploit}.`,
-              `Manager signal: ${exploit.manager}.`,
-              `Why: ${exploit.why}`,
-              `Risk check: ${exploit.risk}`,
-            ]}
-            backgroundVariant="league"
-          />
+          <details className="ai-read-trace league-exploit-receipts">
+            <summary className="ai-read-trace-kicker">
+              Exploit receipts{" "}
+              <span>{getManagerReadConfidence(data, exploit.manager)}%</span>
+            </summary>
+            <ul className="ai-read-trace-list">
+              <li>{exploit.suggestedMove}.</li>
+              <li>Exploit owner: {exploit.exploit}.</li>
+              <li>Manager signal: {exploit.manager}.</li>
+              <li>Why: {exploit.why}</li>
+              <li>Risk check: {exploit.risk}</li>
+            </ul>
+          </details>
         </article>
       ))}
     </div>

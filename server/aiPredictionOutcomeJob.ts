@@ -4,9 +4,14 @@ import {
   type AIPredictionOutcomeResolverContext,
   type AIPredictionResolvedPlayerStat,
   type AIPredictionResolvedTransaction,
+  type AIPredictionResolvedValueMovement,
 } from './aiPredictionOutcomeResolver';
 import * as db from './db';
 import * as userLoadPolicy from './loadTimeProviderPolicy';
+import {
+  getPlayerValueTimelineForPlayer,
+  loadStoredValueTimelineSnapshotsForPlayers,
+} from './playerValueTimeline';
 
 type SleeperUser = {
   user_id?: string | number | null;
@@ -48,6 +53,7 @@ type LeagueOutcomeFacts = AIPredictionOutcomeResolverContext & {
   weeks: number[];
   transactionFactCount: number;
   playerStatFactCount: number;
+  valueMovementFactCount: number;
 };
 
 export type AIPredictionOutcomeJobLeagueResult = {
@@ -56,6 +62,7 @@ export type AIPredictionOutcomeJobLeagueResult = {
   weeks: number[];
   transactionFactCount: number;
   playerStatFactCount: number;
+  valueMovementFactCount: number;
   resolved: number;
   pending: number;
   failed: number;
@@ -110,6 +117,16 @@ function getDateFromSleeperTimestamp(value: unknown): string | null {
   const ms = parsed > 10_000_000_000 ? parsed : parsed * 1000;
   const date = new Date(ms);
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
+function getDateKey(value: string | Date | null | undefined): string | null {
+  const date = value ? new Date(value) : null;
+  if (!date || !Number.isFinite(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function daysBetweenDates(a: Date, b: Date): number {
+  return Math.max(1, Math.ceil(Math.abs(b.getTime() - a.getTime()) / 86_400_000));
 }
 
 function getEventWeeks(events: AIPredictionEvent[], currentWeek: number): number[] {
@@ -249,21 +266,147 @@ function buildTransactionFacts(
   return facts;
 }
 
-function buildPlayerStatFacts(matchupsByWeek: SleeperMatchup[][]): AIPredictionResolvedPlayerStat[] {
+function buildPlayerStatFacts(matchupsByWeek: SleeperMatchup[][], weeks: number[]): AIPredictionResolvedPlayerStat[] {
   const facts: AIPredictionResolvedPlayerStat[] = [];
 
-  matchupsByWeek.flat().forEach((matchup) => {
-    const starters = new Set((matchup.starters || []).map(String));
-    Object.entries(asRecord(matchup.players_points)).forEach(([playerId, value]) => {
-      const fantasyPoints = Number(value);
-      if (!Number.isFinite(fantasyPoints)) return;
-      facts.push({
-        playerId,
-        fantasyPoints,
-        started: starters.has(playerId),
+  matchupsByWeek.forEach((matchups, index) => {
+    const week = weeks[index] ?? null;
+    matchups.forEach((matchup) => {
+      const starters = new Set((matchup.starters || []).map(String));
+      Object.entries(asRecord(matchup.players_points)).forEach(([playerId, value]) => {
+        const fantasyPoints = Number(value);
+        if (!Number.isFinite(fantasyPoints)) return;
+        facts.push({
+          playerId,
+          fantasyPoints,
+          started: starters.has(playerId),
+          week,
+        });
       });
     });
   });
+
+  return facts;
+}
+
+function getEventValueProfileKey(event: AIPredictionEvent): string {
+  return cleanText(event.metadata?.valueProfileKey) || '12_sf_ppr_base';
+}
+
+function getEventValueMode(event: AIPredictionEvent): 'dynasty' | 'redraft' | 'keeper' {
+  const mode = cleanText(event.metadata?.valueMode) || cleanText(event.decisionSnapshot?.valueMode) || 'dynasty';
+  return mode === 'redraft' || mode === 'keeper' ? mode : 'dynasty';
+}
+
+function eventLooksValueResolvable(event: AIPredictionEvent): boolean {
+  if (event.entityType !== 'player') return false;
+  if (!cleanText(event.entityName)) return false;
+  if (getEventValueMode(event) === 'redraft') return false;
+  const text = [
+    event.surface,
+    event.action,
+    event.decision,
+    event.metadata?.source,
+    event.metadata?.recommendationType,
+    event.metadata?.actionText,
+    event.metadata?.archetypeKey,
+    event.metadata?.archetypeLabel,
+    event.whyThisFired,
+    ...event.evidence,
+  ].map(cleanText).filter(Boolean).join(' ').toLowerCase();
+  return /\b(buy|buy-low|sell|sell-high|hold|avoid|do not chase|don't chase|market|value|trap|stash|breakout|protected runway|fragile|promotion|volume spike)\b/i.test(text);
+}
+
+function selectValuePoint(points: Array<{ date: string; value: number; sourceCount?: number | null; sources?: string[] }>, dateKey: string, direction: 'before' | 'after') {
+  const sorted = points
+    .filter((point) => /^\d{4}-\d{2}-\d{2}$/.test(point.date) && Number.isFinite(Number(point.value)))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (direction === 'before') {
+    return [...sorted].reverse().find((point) => point.date <= dateKey) || null;
+  }
+  return [...sorted].reverse().find((point) => point.date > dateKey) || null;
+}
+
+function buildValueMovementFromTimeline(input: {
+  event: AIPredictionEvent;
+  valueProfileKey: string;
+  recentStoredSnapshots: Awaited<ReturnType<typeof loadStoredValueTimelineSnapshotsForPlayers>>;
+}): AIPredictionResolvedValueMovement | null {
+  const playerName = cleanText(input.event.entityName);
+  const createdDateKey = getDateKey(input.event.createdAt);
+  if (!playerName || !createdDateKey) return null;
+
+  const timeline = getPlayerValueTimelineForPlayer({
+    playerName,
+    valueProfileKey: input.valueProfileKey,
+    leagueValueMode: getEventValueMode(input.event),
+    selectedWindow: 'all',
+    recentStoredSnapshots: input.recentStoredSnapshots,
+  });
+  const points = (timeline?.windows?.all?.points?.length ? timeline.windows.all.points : timeline?.points || [])
+    .filter((point) => Number.isFinite(Number(point.value)));
+  if (!points.length) return null;
+
+  const baselinePoint = selectValuePoint(points, createdDateKey, 'before');
+  const followUpPoint = selectValuePoint(points, baselinePoint?.date || createdDateKey, 'after');
+  const metadataBaseline = numeric(input.event.metadata?.currentValue);
+  const baselineValue = baselinePoint?.value ?? metadataBaseline;
+  const baselineDate = baselinePoint?.date ?? (metadataBaseline !== null ? createdDateKey : null);
+  if (!baselineValue || !baselineDate || !followUpPoint || followUpPoint.date <= baselineDate) return null;
+
+  const followUpValue = Number(followUpPoint.value);
+  const valueDelta = Math.round(followUpValue - baselineValue);
+  const valueDeltaPct = baselineValue > 0 ? Math.round((valueDelta / baselineValue) * 1000) / 10 : null;
+  return {
+    playerId: cleanText(input.event.entityId),
+    playerName,
+    baselineDate,
+    followUpDate: followUpPoint.date,
+    baselineValue,
+    followUpValue,
+    valueDelta,
+    valueDeltaPct,
+    sourceCount: followUpPoint.sourceCount || followUpPoint.sources?.length || baselinePoint?.sourceCount || baselinePoint?.sources?.length || null,
+    source: timeline?.source || 'stored-value-snapshots',
+  };
+}
+
+async function buildValueMovementFacts(events: AIPredictionEvent[], resolvedAt: Date): Promise<AIPredictionResolvedValueMovement[]> {
+  const eligibleEvents = events.filter(eventLooksValueResolvable);
+  if (!eligibleEvents.length) return [];
+
+  const byProfile = new Map<string, AIPredictionEvent[]>();
+  eligibleEvents.forEach((event) => {
+    const profileKey = getEventValueProfileKey(event);
+    byProfile.set(profileKey, [...(byProfile.get(profileKey) || []), event]);
+  });
+
+  const facts: AIPredictionResolvedValueMovement[] = [];
+  for (const [valueProfileKey, profileEvents] of Array.from(byProfile.entries())) {
+    const players: Record<string, { full_name: string }> = Object.fromEntries(profileEvents.map((event: AIPredictionEvent, index: number) => [
+      cleanText(event.entityId) || `event-player-${index}`,
+      { full_name: cleanText(event.entityName) || cleanText(event.entityId) || `Player ${index + 1}` },
+    ]));
+    const playerIds = Object.keys(players);
+    const oldestCreatedAt = profileEvents
+      .map((event: AIPredictionEvent) => new Date(event.createdAt))
+      .filter((date: Date) => Number.isFinite(date.getTime()))
+      .sort((a: Date, b: Date) => a.getTime() - b.getTime())[0] || resolvedAt;
+    const daysBack = Math.min(5000, daysBetweenDates(oldestCreatedAt, resolvedAt) + 14);
+
+    const recentStoredSnapshots = await loadStoredValueTimelineSnapshotsForPlayers({
+      playerIds,
+      players,
+      valueProfileKey,
+      now: resolvedAt,
+      daysBack,
+    });
+
+    profileEvents.forEach((event: AIPredictionEvent) => {
+      const fact = buildValueMovementFromTimeline({ event, valueProfileKey, recentStoredSnapshots });
+      if (fact) facts.push(fact);
+    });
+  }
 
   return facts;
 }
@@ -282,7 +425,7 @@ async function fetchLeagueOutcomeFacts(leagueId: string, events: AIPredictionEve
   const defaultWaiverBudget = numeric(leagueInfo?.settings?.waiver_budget);
   const season = cleanText(leagueInfo?.season);
   const weeks = getEventWeeks(events, currentWeek);
-  const [users, rosters, transactionsByWeek, matchupsByWeek] = await Promise.all([
+  const [users, rosters, transactionsByWeek, matchupsByWeek, valueMovements] = await Promise.all([
     fetchSleeperJson<SleeperUser[]>(
       `https://api.sleeper.app/v1/league/${encodedLeagueId}/users`,
       'ai-prediction-outcome-resolution'
@@ -303,19 +446,22 @@ async function fetchLeagueOutcomeFacts(leagueId: string, events: AIPredictionEve
         'ai-prediction-outcome-resolution'
       ).catch(() => [])
     )),
+    buildValueMovementFacts(events, new Date()),
   ]);
 
   const managerByRosterId = buildRosterManagerLookup(users || [], rosters || []);
   const transactions = buildTransactionFacts(transactionsByWeek, managerByRosterId, defaultWaiverBudget, season);
-  const playerStats = buildPlayerStatFacts(matchupsByWeek);
+  const playerStats = buildPlayerStatFacts(matchupsByWeek, weeks);
 
   return {
     resolvedAt: new Date(),
     transactions,
     playerStats,
+    valueMovements,
     weeks,
     transactionFactCount: transactions.length,
     playerStatFactCount: playerStats.length,
+    valueMovementFactCount: valueMovements.length,
   };
 }
 
@@ -368,6 +514,7 @@ export async function resolvePendingAIPredictionOutcomes(options: {
       weeks: [],
       transactionFactCount: 0,
       playerStatFactCount: 0,
+      valueMovementFactCount: 0,
       resolved: 0,
       pending: 0,
       failed: 0,
@@ -380,6 +527,7 @@ export async function resolvePendingAIPredictionOutcomes(options: {
       leagueResult.weeks = facts.weeks;
       leagueResult.transactionFactCount = facts.transactionFactCount;
       leagueResult.playerStatFactCount = facts.playerStatFactCount;
+      leagueResult.valueMovementFactCount = facts.valueMovementFactCount;
 
       for (const event of leagueEvents) {
         const outcome = resolveAIPredictionOutcome(event, facts);

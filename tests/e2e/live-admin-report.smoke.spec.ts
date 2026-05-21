@@ -86,7 +86,7 @@ async function runLeagueReport(page: import('@playwright/test').Page, leagueName
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByPlaceholder('Sleeper username').fill(sleeperUsername);
-  await page.getByRole('button', { name: 'Find Leagues' }).click();
+  await page.getByRole('button', { name: 'Run Degenerate Analysis' }).click();
   await expect(page.getByText(leagueName, { exact: false })).toBeVisible({ timeout: 30_000 });
   const leagueButton = page.getByRole('button', { name: new RegExp(escapeRegex(leagueName), 'i') }).first();
   await leagueButton.scrollIntoViewIfNeeded();

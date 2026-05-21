@@ -30,6 +30,7 @@ interface DraftAnalysisProps {
   leagueOverview?: ReportData['leagueOverview'];
   leagueValueMode?: ReportData['leagueValueMode'];
   leagueDiagnostics?: ReportData['leagueDiagnostics'];
+  calibrationProfile?: ReportData['aiCalibrationAdjustmentProfile'];
   showAIReads?: boolean;
 }
 
@@ -440,6 +441,7 @@ export function DraftAnalysis({
   leagueOverview,
   leagueValueMode: leagueValueModeInput = 'dynasty',
   leagueDiagnostics,
+  calibrationProfile,
   showAIReads = false,
 }: DraftAnalysisProps) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
@@ -967,6 +969,7 @@ export function DraftAnalysis({
         managerAvatars={managerAvatars}
         playerDetailsById={playerDetailsById}
         leagueDiagnostics={leagueDiagnostics}
+        calibrationProfile={calibrationProfile}
         showAIRead={showAIReads}
       />
     </div>

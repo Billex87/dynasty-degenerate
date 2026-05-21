@@ -16,6 +16,7 @@ import { loadSourceSnapshotFreshnessDiagnostics } from "../sourceSnapshotFreshne
 import {
   buildAICalibrationAdjustmentProfile,
   buildAIModuleQualitySummary,
+  buildAIOutcomeMemorySummary,
   summarizeAICounterfactualReliability,
   summarizeAIManagerTradeCalibration,
   summarizeAIPredictionReliability,
@@ -386,6 +387,7 @@ export const systemRouter = router({
       const managerTrades = summarizeAIManagerTradeCalibration(events);
       const adjustmentProfile = buildAICalibrationAdjustmentProfile(events);
       const moduleQuality = buildAIModuleQualitySummary(events);
+      const outcomeMemory = buildAIOutcomeMemorySummary(events);
 
       return {
         generatedAt: new Date().toISOString(),
@@ -397,6 +399,7 @@ export const systemRouter = router({
         managerTrades,
         adjustmentProfile,
         moduleQuality,
+        outcomeMemory,
         recentEvents: events.slice(0, 50).map(event => ({
           eventId: event.eventId,
           predictionKey: event.predictionKey,

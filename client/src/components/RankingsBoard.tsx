@@ -1419,7 +1419,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   );
 }
 
-export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, leagueId, leagueLogo, viewerManager, board = 'all', hidePicks = false, leagueValueMode: leagueValueModeInput = 'dynasty', leagueDiagnostics, showAIReads = false }: { rankings?: ReportData['rankings']; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; leagueId?: string; leagueLogo?: string | null; viewerManager?: string | null; board?: 'all' | 'dynasty' | 'redraft' | 'devy' | 'draftbuzz'; hidePicks?: boolean; leagueValueMode?: ReportData['leagueValueMode']; leagueDiagnostics?: ReportData['leagueDiagnostics']; showAIReads?: boolean }) {
+export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, leagueId, leagueLogo, viewerManager, board = 'all', hidePicks = false, leagueValueMode: leagueValueModeInput = 'dynasty', leagueDiagnostics, calibrationProfile, showAIReads = false }: { rankings?: ReportData['rankings']; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; leagueId?: string; leagueLogo?: string | null; viewerManager?: string | null; board?: 'all' | 'dynasty' | 'redraft' | 'devy' | 'draftbuzz'; hidePicks?: boolean; leagueValueMode?: ReportData['leagueValueMode']; leagueDiagnostics?: ReportData['leagueDiagnostics']; calibrationProfile?: ReportData['aiCalibrationAdjustmentProfile']; showAIReads?: boolean }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
   const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
   const shouldShowDraftBuzzScoreboard = board === 'draftbuzz' || (board === 'all' && leagueValueMode !== 'redraft');
@@ -1640,7 +1640,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
         <EmptyState className="rankings-empty-state" title="Prospect score archive is not available for this report yet." description="Prospect archive data was not returned with this report." />
       ) : null}
 
-      <PlayerDetailModal isOpen={selectedPlayer !== null} onClose={() => setSelectedPlayer(null)} pick={selectedPlayer} leagueId={leagueId} leagueLogo={leagueLogo} managerAvatars={managerAvatars} playerDetailsById={playerDetailsById} leagueDiagnostics={leagueDiagnostics} showAIRead={showAIReads} />
+      <PlayerDetailModal isOpen={selectedPlayer !== null} onClose={() => setSelectedPlayer(null)} pick={selectedPlayer} leagueId={leagueId} leagueLogo={leagueLogo} managerAvatars={managerAvatars} playerDetailsById={playerDetailsById} leagueDiagnostics={leagueDiagnostics} calibrationProfile={calibrationProfile} showAIRead={showAIReads} />
     </div>
   );
 }

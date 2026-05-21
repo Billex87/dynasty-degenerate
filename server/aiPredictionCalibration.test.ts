@@ -5,6 +5,7 @@ import {
   applyAICalibrationAdjustment,
   buildAICalibrationAdjustmentProfile,
   buildAIModuleQualitySummary,
+  buildAIOutcomeMemorySummary,
   buildSourceAgreementRead,
   createAIPredictionEvent,
   summarizeAICounterfactualReliability,
@@ -209,6 +210,62 @@ describe('AI prediction calibration', () => {
     )).toBe(true);
   });
 
+  it('builds exact-league and cohort calibration fallback buckets', () => {
+    const events = [
+      event({
+        entityId: 'league-1',
+        leagueId: 'league-a',
+        finalScore: 92,
+        metadata: { leagueSharpnessTier: 'sharp', managerArchetype: 'Active dealer / Aggressive bidder' },
+        outcome: { status: 'miss' },
+      }),
+      event({
+        entityId: 'league-2',
+        leagueId: 'league-a',
+        finalScore: 88,
+        metadata: { leagueSharpnessTier: 'sharp', managerArchetype: 'Active dealer / Aggressive bidder' },
+        outcome: { status: 'miss' },
+      }),
+      event({
+        entityId: 'league-3',
+        leagueId: 'league-a',
+        finalScore: 86,
+        metadata: { leagueSharpnessTier: 'sharp', managerArchetype: 'Active dealer / Aggressive bidder' },
+        outcome: { status: 'miss' },
+      }),
+      event({
+        entityId: 'league-4',
+        leagueId: 'league-a',
+        finalScore: 84,
+        metadata: { leagueSharpnessTier: 'sharp', managerArchetype: 'Active dealer / Aggressive bidder' },
+        outcome: { status: 'miss' },
+      }),
+      event({
+        entityId: 'league-5',
+        leagueId: 'league-a',
+        finalScore: 82,
+        metadata: { leagueSharpnessTier: 'sharp', managerArchetype: 'Active dealer / Aggressive bidder' },
+        outcome: { status: 'hit' },
+      }),
+    ];
+    const profile = buildAICalibrationAdjustmentProfile(events);
+
+    expect(profile.adjustments).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        scope: 'surfaceActionLeague',
+        group: expect.objectContaining({ surface: 'waiver', action: 'pickup', league: 'league-a' }),
+      }),
+      expect.objectContaining({
+        scope: 'surfaceActionLeagueSharpness',
+        group: expect.objectContaining({ surface: 'waiver', action: 'pickup', leagueSharpness: 'sharp' }),
+      }),
+      expect.objectContaining({
+        scope: 'surfaceActionManagerArchetype',
+        group: expect.objectContaining({ surface: 'waiver', action: 'pickup', managerArchetype: 'Active dealer / Aggressive bidder' }),
+      }),
+    ]));
+  });
+
   it('adds sample-size confidence caps before buckets earn high conviction', () => {
     const profile = buildAICalibrationAdjustmentProfile([
       event({ entityId: 'p1', finalScore: 75, outcome: { status: 'hit' } }),
@@ -321,6 +378,65 @@ describe('AI prediction calibration', () => {
     expect(summary.rows.find(row => row.key === 'trade-resistance')?.nextDataNeeded).toMatch(/accepted/i);
   });
 
+  it('builds outcome memory ledgers, confidence buckets, and sharpness calibration', () => {
+    const hit = event({
+      entityId: 'p1',
+      finalScore: 84,
+      label: 'priority',
+      outcome: { status: 'hit', feedbackSource: 'system' },
+      metadata: {
+        source: 'waiver',
+        leagueSharpnessTier: 'sharp',
+        leagueSharpnessLabel: 'Sharp league',
+        leagueSharpnessScore: 78,
+      },
+    });
+    const miss = event({
+      entityId: 'p2',
+      surface: 'trade',
+      action: 'trade',
+      finalScore: 72,
+      label: 'priority',
+      outcome: { status: 'miss', feedbackSource: 'admin' },
+      metadata: {
+        source: 'trade',
+        leagueSharpnessTier: 'sleepy',
+        leagueSharpnessLabel: 'Sleepy league',
+        leagueSharpnessScore: 28,
+      },
+    });
+    const pending = event({
+      entityId: 'p3',
+      surface: 'player-detail',
+      action: 'watch',
+      finalScore: 55,
+      outcome: { status: 'pending' },
+    });
+
+    const memory = buildAIOutcomeMemorySummary([hit, miss, pending]);
+
+    expect(memory).toMatchObject({
+      schemaVersion: 1,
+      eventCount: 3,
+      scoredCount: 2,
+      pendingCount: 1,
+    });
+    expect(memory.ledger[0]).toMatchObject({
+      module: 'Waiver AI',
+      verdict: 'worked',
+      sharpnessLabel: 'Sharp league',
+      sharpnessScore: 78,
+    });
+    expect(memory.confidenceBuckets.find(bucket => bucket.group.label === 'priority')).toMatchObject({
+      scoredCount: 2,
+      hitRate: 50,
+    });
+    expect(memory.sharpnessBuckets.map(bucket => bucket.group.leagueSharpness)).toEqual(
+      expect.arrayContaining(['sharp', 'sleepy'])
+    );
+    expect(memory.moduleScorecards.some(bucket => bucket.group.surface === 'trade')).toBe(true);
+  });
+
   it('applies the most specific calibration adjustment to future reads', () => {
     const profile = buildAICalibrationAdjustmentProfile([
       event({ entityId: 'p1', finalScore: 90, outcome: { status: 'miss' } }),
@@ -336,6 +452,8 @@ describe('AI prediction calibration', () => {
       action: 'pickup',
       label: 'high conviction',
       sourceAgreementState: 'unknown',
+      leagueId: 'league-a',
+      leagueSharpnessTier: 'sharp',
       finalScore: 90,
       confidenceCap: 100,
     });

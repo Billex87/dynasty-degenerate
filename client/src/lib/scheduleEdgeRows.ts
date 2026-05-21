@@ -996,6 +996,8 @@ function buildScheduleEvidenceRead(input: {
     requiresLiveAvailability: isStreamRead,
     requiresCurrentSeasonEvidence: true,
     staleSourceCap: 58,
+    calibrationProfile: input.reportData.aiCalibrationAdjustmentProfile,
+    calibrationManager: input.reportData.viewerManager,
   });
 }
 

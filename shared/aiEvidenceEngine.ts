@@ -24,6 +24,7 @@ export type AIEvidenceMode = "dynasty" | "redraft" | "current" | "schedule" | "m
 export type AIEvidenceQbFormat = "one_qb" | "superflex" | "two_qb" | "unknown";
 export type AIEvidenceLeagueValueMode = "dynasty" | "redraft" | "keeper";
 export type AIEvidenceLeagueTempo = "unknown" | "quiet" | "balanced" | "active" | "hyperactive";
+export type AIEvidenceLeagueWaiverMode = "faab" | "priority" | "unknown";
 
 export type AIEvidenceLeagueContext = {
   valueMode?: AIEvidenceLeagueValueMode | null;
@@ -36,16 +37,41 @@ export type AIEvidenceLeagueContext = {
   starterSlots?: string[];
   scoringSummary?: string | null;
   formatLabel?: string | null;
+  waiverMode?: AIEvidenceLeagueWaiverMode | null;
 };
 
 export type AIEvidenceLeagueActivityContext = {
   tradeTempo?: AIEvidenceLeagueTempo | null;
   waiverTempo?: AIEvidenceLeagueTempo | null;
+  sharpnessScore?: number | null;
+  sharpnessTier?: string | null;
+  sharpnessLabel?: string | null;
+  sharpnessActionBias?: string | null;
   tradeSignalCount?: number | null;
   waiverSignalCount?: number | null;
   transactionSignalCount?: number | null;
   sampleSize?: number | null;
   evidenceLabel?: string | null;
+};
+
+export type AIEvidenceCalibrationAdjustment = {
+  key?: string;
+  scope: string;
+  group: Record<string, string>;
+  eventCount?: number;
+  scoredCount: number;
+  pendingCount?: number;
+  hitRate?: number | null;
+  scoreAdjustment: number;
+  confidenceCap: number | null;
+  recommendation?: string;
+  priority?: "danger" | "warn" | "info" | "good" | string;
+  reason: string;
+};
+
+export type AIEvidenceCalibrationProfile = {
+  globalAdjustment?: AIEvidenceCalibrationAdjustment | null;
+  adjustments?: AIEvidenceCalibrationAdjustment[] | null;
 };
 
 export type AIEvidenceLeagueDiagnosticsLike = {
@@ -58,6 +84,7 @@ export type AIEvidenceLeagueDiagnosticsLike = {
   rosterSlots?: string[] | null;
   starterSlots?: string[] | null;
   scoringSummary?: string | null;
+  waiverMode?: AIEvidenceLeagueWaiverMode | null;
 };
 
 export type AIConfidenceLabel =
@@ -121,6 +148,25 @@ export type AIEvidenceInput = {
   requiresCurrentSeasonEvidence?: boolean;
   lowValueThreshold?: number;
   staleSourceCap?: number;
+  calibrationProfile?: AIEvidenceCalibrationProfile | null;
+  calibrationManager?: string | null;
+  calibrationLeagueId?: string | null;
+  calibrationManagerArchetype?: string | null;
+};
+
+export type AIEvidenceAppliedCalibrationAdjustment = {
+  key: string | null;
+  scope: string;
+  reason: string;
+  scoreAdjustment: number;
+  confidenceCap: number | null;
+  priority?: string | null;
+  recommendation?: string | null;
+  scoredCount: number;
+  pendingCount: number;
+  hitRate: number | null;
+  baseFinalScore: number;
+  adjustedFinalScore: number;
 };
 
 export type AIEvidenceResult = {
@@ -137,6 +183,7 @@ export type AIEvidenceResult = {
   shouldRender: boolean;
   canAct: boolean;
   whyThisFired: string;
+  calibrationAdjustment?: AIEvidenceAppliedCalibrationAdjustment | null;
 };
 
 const STRONG_LABEL_MINIMUMS: Array<[AIConfidenceLabel, number]> = [
@@ -193,6 +240,112 @@ function normalizeSourceTrace(sourceTrace?: Array<string | AISourceTrace>): AISo
     result.push(trace);
   });
   return result.slice(0, 8);
+}
+
+function normalizeCalibrationText(value?: string | null): string | null {
+  const clean = cleanText(value);
+  return clean ? clean.toLowerCase() : null;
+}
+
+function getCalibrationSourceAgreement(input: {
+  hardBlockers: string[];
+  missingEvidence: string[];
+  sourceTrace: AISourceTrace[];
+}): string {
+  if (input.hardBlockers.length) return "conflicted";
+  if (input.missingEvidence.length >= 2) return "thin";
+  if (!input.sourceTrace.length) return "missing";
+  if (input.sourceTrace.some(trace => trace.status === "error" || trace.status === "stale")) return "split";
+  if (input.sourceTrace.every(trace => !trace.status || trace.status === "loaded")) return "aligned";
+  return "unknown";
+}
+
+function getCalibrationGroupValue(
+  input: AIEvidenceInput,
+  leagueContext: AIEvidenceLeagueContext,
+  label: AIConfidenceLabel,
+  sourceAgreement: string,
+  key: string
+): string | null {
+  if (key === "surface") return input.surface;
+  if (key === "action") return input.action;
+  if (key === "label") return label;
+  if (key === "sourceAgreement") return sourceAgreement;
+  if (key === "leagueFormat") return input.leagueValueMode || leagueContext.valueMode || null;
+  if (key === "manager") return input.calibrationManager || null;
+  if (key === "league") return input.calibrationLeagueId || null;
+  if (key === "leagueSharpness") return input.leagueActivity?.sharpnessTier || null;
+  if (key === "managerArchetype") return input.calibrationManagerArchetype || null;
+  if (key === "waiverMode") return leagueContext.waiverMode || null;
+  if (key === "qbFormat") return leagueContext.qbFormat || null;
+  if (key === "teamCountBucket") {
+    const teamCount = Number(leagueContext.teamCount || 0);
+    if (!teamCount) return null;
+    if (teamCount <= 10) return "small";
+    if (teamCount >= 14) return "deep";
+    return "standard";
+  }
+  return null;
+}
+
+function calibrationAdjustmentMatches(input: {
+  adjustment: AIEvidenceCalibrationAdjustment;
+  evidenceInput: AIEvidenceInput;
+  leagueContext: AIEvidenceLeagueContext;
+  label: AIConfidenceLabel;
+  sourceAgreement: string;
+}): boolean {
+  if (input.adjustment.scope === "global") return true;
+  const entries = Object.entries(input.adjustment.group || {});
+  if (!entries.length) return false;
+  return entries.every(([key, expected]) => {
+    const actual = getCalibrationGroupValue(
+      input.evidenceInput,
+      input.leagueContext,
+      input.label,
+      input.sourceAgreement,
+      key
+    );
+    return normalizeCalibrationText(actual) === normalizeCalibrationText(expected);
+  });
+}
+
+function getCalibrationAdjustmentSpecificity(adjustment: AIEvidenceCalibrationAdjustment): number {
+  return Object.keys(adjustment.group || {}).length;
+}
+
+function getCalibrationFallbackPriority(adjustment: AIEvidenceCalibrationAdjustment): number {
+  const group = adjustment.group || {};
+  if (group.manager) return 600;
+  if (group.league) return 500;
+  if (group.managerArchetype) return 400;
+  if (group.leagueSharpness) return 300;
+  if (group.waiverMode || group.qbFormat || group.teamCountBucket || group.leagueFormat) return 220;
+  if (adjustment.scope === "global") return 0;
+  return 100;
+}
+
+function findEvidenceCalibrationAdjustment(input: {
+  evidenceInput: AIEvidenceInput;
+  leagueContext: AIEvidenceLeagueContext;
+  label: AIConfidenceLabel;
+  sourceAgreement: string;
+}): AIEvidenceCalibrationAdjustment | null {
+  const profile = input.evidenceInput.calibrationProfile;
+  const candidates = [
+    profile?.globalAdjustment || null,
+    ...(profile?.adjustments || []),
+  ].filter((adjustment): adjustment is AIEvidenceCalibrationAdjustment => Boolean(adjustment));
+
+  return candidates
+    .filter(adjustment => adjustment.scoreAdjustment !== 0 || adjustment.confidenceCap !== null)
+    .filter(adjustment => calibrationAdjustmentMatches({ ...input, adjustment }))
+    .sort((a, b) =>
+      getCalibrationFallbackPriority(b) - getCalibrationFallbackPriority(a) ||
+      getCalibrationAdjustmentSpecificity(b) - getCalibrationAdjustmentSpecificity(a) ||
+      Math.abs(b.scoreAdjustment) - Math.abs(a.scoreAdjustment) ||
+      Number(b.scoredCount || 0) - Number(a.scoredCount || 0)
+    )[0] || null;
 }
 
 function normalizeSlot(slot?: string | null): string {
@@ -369,6 +522,7 @@ export function getAIEvidenceLeagueContextFromDiagnostics(
     qbFormat: diagnostics?.qbFormat || inferredQbFormat,
     receptionScoring: diagnostics?.receptionScoring ?? null,
     tightEndPremium: diagnostics?.tightEndPremium ?? null,
+    waiverMode: diagnostics?.waiverMode || null,
     passingTdPoints:
       diagnostics?.passingTdPoints ??
       getPassingTdPointsFromSummary(scoringSummary),
@@ -461,6 +615,9 @@ function applyLeagueActivityModifiers(input: AIEvidenceInput, activity: AIEviden
   const waiverTempo = normalizeLeagueTempo(activity?.waiverTempo);
   const tradeSignals = Number(activity?.tradeSignalCount || 0);
   const waiverSignals = Number(activity?.waiverSignalCount || 0);
+  const sharpnessScore = Number(activity?.sharpnessScore || 0);
+  const sharpnessLabel = cleanText(activity?.sharpnessLabel);
+  const sharpnessActionBias = cleanText(activity?.sharpnessActionBias);
   const sampleSize = Number(activity?.sampleSize || 0);
   const evidence: string[] = [];
   const penalties: AIEvidencePenalty[] = [];
@@ -482,6 +639,16 @@ function applyLeagueActivityModifiers(input: AIEvidenceInput, activity: AIEviden
       });
       confidenceCap = { value: 76, reason: "Thin league trade history" };
     }
+
+    if (sharpnessScore >= 72) {
+      evidence.push(`${sharpnessLabel || "Sharp league"} context supports acting before clean trade windows disappear.`);
+    } else if (sharpnessScore > 0 && sharpnessScore < 38) {
+      penalties.push({
+        label: "Sleepy league context lowers trade urgency",
+        points: 6,
+      });
+      confidenceCap = confidenceCap || { value: 76, reason: "Low league sharpness" };
+    }
   }
 
   if (isPickupLike) {
@@ -491,6 +658,17 @@ function applyLeagueActivityModifiers(input: AIEvidenceInput, activity: AIEviden
       penalties.push({
         label: "Quiet waiver market lowers urgency for pickup advice",
         points: 4,
+      });
+    }
+
+    if (sharpnessScore >= 86 || sharpnessActionBias === "overpay-or-pass") {
+      evidence.push(`${sharpnessLabel || "Shark-tank league"} context means obvious adds rarely stay cheap.`);
+    } else if (sharpnessScore >= 72 || sharpnessActionBias === "attack") {
+      evidence.push(`${sharpnessLabel || "Sharp league"} context raises timing urgency on backed pickup reads.`);
+    } else if (sharpnessScore > 0 && sharpnessScore < 38) {
+      penalties.push({
+        label: "Sleepy league context rewards patience over chase bids",
+        points: 3,
       });
     }
   }
@@ -684,8 +862,64 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
   const uncappedScore = hardBlockers.length
     ? 0
     : rawScore + evidenceBonus - penaltyPoints - missingPenalty;
-  const finalScore = clampPercent(Math.min(confidenceCap, uncappedScore));
+  const preliminaryFinalScore = clampPercent(Math.min(confidenceCap, uncappedScore));
+  const preliminaryLabel = getLabel(preliminaryFinalScore, hardBlockers, evidence.length);
+  const sourceAgreement = getCalibrationSourceAgreement({
+    hardBlockers,
+    missingEvidence,
+    sourceTrace,
+  });
+  const calibrationAdjustment = findEvidenceCalibrationAdjustment({
+    evidenceInput: input,
+    leagueContext,
+    label: preliminaryLabel,
+    sourceAgreement,
+  });
+  let calibrationScoreAdjustment = 0;
+  let appliedCalibrationAdjustment: AIEvidenceAppliedCalibrationAdjustment | null = null;
+  if (calibrationAdjustment) {
+    calibrationScoreAdjustment = Number(calibrationAdjustment.scoreAdjustment || 0);
+    if (calibrationAdjustment.confidenceCap !== null) {
+      const capped = applyCap(
+        confidenceCap,
+        confidenceCapReason,
+        calibrationAdjustment.confidenceCap,
+        `Calibration memory: ${calibrationAdjustment.reason}`
+      );
+      confidenceCap = capped.cap;
+      confidenceCapReason = capped.reason;
+    }
+
+    if (calibrationScoreAdjustment < 0) {
+      softPenalties.push({
+        label: `Calibration memory: ${calibrationAdjustment.reason}`,
+        points: Math.abs(calibrationScoreAdjustment),
+      });
+    } else if (calibrationScoreAdjustment > 0) {
+      evidence.push(`Calibration memory supports this read: ${calibrationAdjustment.reason}`);
+    }
+  }
+  const adjustedScore = hardBlockers.length
+    ? 0
+    : uncappedScore + calibrationScoreAdjustment;
+  const finalScore = clampPercent(Math.min(confidenceCap, adjustedScore));
   const label = getLabel(finalScore, hardBlockers, evidence.length);
+  if (calibrationAdjustment) {
+    appliedCalibrationAdjustment = {
+      key: calibrationAdjustment.key || null,
+      scope: calibrationAdjustment.scope,
+      reason: calibrationAdjustment.reason,
+      scoreAdjustment: calibrationScoreAdjustment,
+      confidenceCap: calibrationAdjustment.confidenceCap,
+      priority: calibrationAdjustment.priority || null,
+      recommendation: calibrationAdjustment.recommendation || null,
+      scoredCount: Number(calibrationAdjustment.scoredCount || 0),
+      pendingCount: Number(calibrationAdjustment.pendingCount || 0),
+      hitRate: calibrationAdjustment.hitRate ?? null,
+      baseFinalScore: preliminaryFinalScore,
+      adjustedFinalScore: finalScore,
+    };
+  }
   const shouldRender = label !== "blocked" && evidence.length > 0;
   const canAct = label === "actionable" || label === "priority" || label === "high conviction";
   const result = {
@@ -702,6 +936,7 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
     shouldRender,
     canAct,
     whyThisFired: "",
+    calibrationAdjustment: appliedCalibrationAdjustment,
   };
   result.whyThisFired = getWhyThisFired(result);
   return result;
@@ -715,6 +950,9 @@ export function getAIEvidenceReceiptItems(result: AIEvidenceResult): string[] {
     ...result.missingEvidence.map(item => `Missing: ${item}`),
     result.confidenceCapReason
       ? `Confidence cap: ${result.confidenceCap}% from ${result.confidenceCapReason}`
+      : null,
+    result.calibrationAdjustment
+      ? `Calibration memory: ${result.calibrationAdjustment.reason}`
       : null,
     ...result.sourceTrace.map(trace =>
       [

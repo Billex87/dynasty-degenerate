@@ -13,9 +13,18 @@ import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
 import { TeamLogoPill } from "../TeamLogoPill";
 import { getBalancedGridStyle } from "@/lib/balancedGrid";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
+import {
+  buildManagerPersonalityIntelRows,
+  type ManagerPersonalityIntelRow,
+} from "@/lib/managerPersonalityIntel";
 import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
 import { getTeamTileStyle } from "@/lib/teamTileStyle";
 import { trpc } from "@/lib/trpc";
+import {
+  buildTradeStatusCalibration,
+  getTradeStatusCalibrationForManager,
+  type TradeStatusCalibrationSummary,
+} from "@shared/tradeStatusCalibration";
 import {
   buildTradeValueCalibrationNote,
   getStrongestTradeValueCalibration,
@@ -442,6 +451,13 @@ function buildTradeWarTendencyLabel(
   if (tendency.winPct >= 58) return "Profit seeker";
   if (tendency.tradeCount <= 1) return "Slow mover";
   return "Balanced trader";
+}
+
+function getTradeWarManagerPersonalityLabel(
+  row?: ManagerPersonalityIntelRow | null
+): string | null {
+  if (!row || row.confidence === "thin") return null;
+  return row.tradeStyle || row.waiverStyle || row.rosterStyle || null;
 }
 
 function getTradeWarProposalPressure({
@@ -1102,6 +1118,7 @@ function buildTradeWarNegotiationRead({
   outgoing,
   valueGapForManager,
   proposalSignals,
+  tradeStatusCalibration,
 }: {
   manager: string;
   otherManager: string;
@@ -1111,6 +1128,7 @@ function buildTradeWarNegotiationRead({
   outgoing: TradeWarAsset[];
   valueGapForManager: number;
   proposalSignals?: ReportData["tradeProposalSignals"];
+  tradeStatusCalibration?: TradeStatusCalibrationSummary | null;
 }): TradeWarNegotiationRead {
   const need = row?.tradePlan?.needPosition || null;
   const surplus = row?.tradePlan?.surplusPosition || null;
@@ -1140,6 +1158,10 @@ function buildTradeWarNegotiationRead({
     otherManager,
     proposalSignals,
   });
+  const statusCalibration = getTradeStatusCalibrationForManager(
+    tradeStatusCalibration,
+    manager
+  );
   const favoritePartner =
     tendency?.favoritePartner &&
     normalizeTradeWarName(tendency.favoritePartner) ===
@@ -1185,6 +1207,12 @@ function buildTradeWarNegotiationRead({
   }
   if (pressure.openCount) score -= Math.min(8, pressure.openCount * 3);
   if (pressure.blockedCount) score -= Math.min(10, pressure.blockedCount * 4);
+  if (statusCalibration && statusCalibration.signalCount >= 2) {
+    if (statusCalibration.actionBias === "send") score += 5;
+    if (statusCalibration.actionBias === "soften") score -= 4;
+    if (statusCalibration.actionBias === "wait") score -= 7;
+    if (statusCalibration.actionBias === "avoid") score -= 12;
+  }
   score = Math.max(8, Math.min(94, Math.round(score)));
 
   const label =
@@ -1212,6 +1240,9 @@ function buildTradeWarNegotiationRead({
       : null,
     pressure.openCount
       ? `${pressure.openCount} open signal${pressure.openCount === 1 ? "" : "s"}`
+      : null,
+    statusCalibration && statusCalibration.signalCount >= 2
+      ? statusCalibration.label
       : null,
   ].filter(Boolean) as string[];
   const summaryParts = [
@@ -1249,6 +1280,9 @@ function buildTradeWarNegotiationRead({
       : null,
     pressure.blockedCount
       ? "Recent failed proposal context should lower the opening ask."
+      : null,
+    statusCalibration && statusCalibration.signalCount >= 2
+      ? `Manager calibration: ${statusCalibration.note}.`
       : null,
   ].filter(Boolean);
 
@@ -1709,6 +1743,8 @@ export default function TradeWarRoom({
   draftPicks,
   tradeTendencies,
   tradeProposalSignals,
+  recentTransactions,
+  showManagerPersonalityIntel = false,
   viewerManager,
   currentStandings,
   leagueValueMode: leagueValueModeInput = "dynasty",
@@ -1727,6 +1763,8 @@ export default function TradeWarRoom({
   draftPicks?: ReportData["draftPicks"];
   tradeTendencies?: ReportData["tradeTendencies"];
   tradeProposalSignals?: ReportData["tradeProposalSignals"];
+  recentTransactions?: ReportData["recentTransactions"];
+  showManagerPersonalityIntel?: boolean;
   viewerManager?: string | null;
   currentStandings?: ReportData["currentStandings"];
   leagueValueMode?: ReportData["leagueValueMode"];
@@ -1765,6 +1803,36 @@ export default function TradeWarRoom({
         ])
       ),
     [tradeTendencies]
+  );
+  const tradeStatusCalibration = React.useMemo(
+    () => buildTradeStatusCalibration(tradeProposalSignals || []),
+    [tradeProposalSignals]
+  );
+  const managerPersonalityByManager = React.useMemo(
+    () =>
+      showManagerPersonalityIntel
+        ? new Map(
+            buildManagerPersonalityIntelRows({
+              currentStandings,
+              leagueOverview: leagueOverview || [],
+              managerRosterIntelligence: data || [],
+              tradeTendencies,
+              pickPortfolios,
+              recentTransactions,
+              tradeProposalSignals,
+            } as ReportData).map(row => [normalizeTradeWarName(row.manager), row])
+          )
+        : new Map<string, ManagerPersonalityIntelRow>(),
+    [
+      currentStandings,
+      data,
+      leagueOverview,
+      pickPortfolios,
+      recentTransactions,
+      showManagerPersonalityIntel,
+      tradeProposalSignals,
+      tradeTendencies,
+    ]
   );
   const [mode, setMode] = useState<TradeWarMode>(tradeWarModeOptions[0]);
   const [managerAState, setManagerAState] = useState("");
@@ -2049,6 +2117,7 @@ export default function TradeWarRoom({
               outgoing: sideAAssets,
               valueGapForManager: valueGap,
               proposalSignals: tradeProposalSignals,
+              tradeStatusCalibration,
             }),
             buildTradeWarNegotiationRead({
               manager: managerB,
@@ -2061,6 +2130,7 @@ export default function TradeWarRoom({
               outgoing: sideBAssets,
               valueGapForManager: -valueGap,
               proposalSignals: tradeProposalSignals,
+              tradeStatusCalibration,
             }),
           ]
         : [],
@@ -2072,6 +2142,7 @@ export default function TradeWarRoom({
       sideAAssets,
       sideBAssets,
       tradeProposalSignals,
+      tradeStatusCalibration,
       tradeTendencyByManager,
       valueGap,
     ]
@@ -2143,6 +2214,15 @@ export default function TradeWarRoom({
                 <span>
                   <strong>{read.manager}</strong>
                   <em>{read.label}</em>
+                  {getTradeWarManagerPersonalityLabel(
+                    managerPersonalityByManager.get(normalizeTradeWarName(read.manager))
+                  ) && (
+                    <small className="trade-war-private-manager-chip">
+                      Admin: {getTradeWarManagerPersonalityLabel(
+                        managerPersonalityByManager.get(normalizeTradeWarName(read.manager))
+                      )}
+                    </small>
+                  )}
                 </span>
               </div>
               <b>{read.score}%</b>
@@ -2155,6 +2235,13 @@ export default function TradeWarRoom({
                     {getTradeWarTextPieces(chip)}
                   </span>
                 ))}
+                {getTradeWarManagerPersonalityLabel(
+                  managerPersonalityByManager.get(normalizeTradeWarName(read.manager))
+                ) && (
+                  <span className="trade-war-negotiation-chip-balanced">
+                    Private profile
+                  </span>
+                )}
               </div>
               <p>{getTradeWarTextPieces(read.summary)}</p>
             </div>
@@ -2174,7 +2261,9 @@ export default function TradeWarRoom({
         <button
           key={option}
           type="button"
-          className={mode === option ? "active" : ""}
+          className={`trade-war-mode-tab trade-war-mode-tab-${option} ${
+            mode === option ? "active" : ""
+          }`}
           onClick={() => setMode(option)}
         >
           {getTradeWarModeLabel(option)}
@@ -2596,6 +2685,9 @@ export default function TradeWarRoom({
       [manager, ...assets.map(asset => asset.manager)].filter(Boolean)
     );
     const isPickerOpen = mobilePickerOpen[sideKey];
+    const privateManagerLabel = getTradeWarManagerPersonalityLabel(
+      managerPersonalityByManager.get(normalizeTradeWarName(manager))
+    );
 
     return (
       <div
@@ -2623,6 +2715,11 @@ export default function TradeWarRoom({
             <div>
               <span>{label}</span>
               <strong>{managerLabel}</strong>
+              {privateManagerLabel && (
+                <em className="trade-war-private-manager-chip">
+                  Admin: {privateManagerLabel}
+                </em>
+              )}
             </div>
           </div>
           <div className="trade-war-side-total">

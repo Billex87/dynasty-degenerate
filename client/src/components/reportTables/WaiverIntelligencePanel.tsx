@@ -36,6 +36,7 @@ import { getPositionRankClass } from "@/lib/positionRank";
 import { getTeamTileStyle } from "@/lib/teamTileStyle";
 import { getBalancedGridStyle } from "@/lib/balancedGrid";
 import { getVoicedAIActionLabel } from "@/lib/aiVoice";
+import { buildPlayerActionArchetypeRead } from "@/lib/playerActionArchetype";
 import {
   buildPlayerModalData,
   formatCompactValue,
@@ -496,7 +497,7 @@ type WaiverRecommendation = {
   targetPosition: WaiverPosition | null;
   bidRangeLabel: string;
   bidConfidencePct: number;
-  bidSource: "league-history" | "free-history" | "model";
+  bidSource: "league-history" | "free-history" | "model" | "priority";
   bidEvidenceLabel: string;
   competitionRead: WaiverCompetitionRead | null;
   dropCandidate: ManagerIntelPlayer | null;
@@ -506,6 +507,8 @@ type WaiverRecommendation = {
   dropConfidencePct: number;
   claimPriority: "Add" | "Add/Drop" | "Watchlist";
   weeklyEcrSignal: WaiverWeeklyEcrSignal | null;
+  archetypeLabel?: string | null;
+  archetypeNote?: string | null;
 };
 
 type WaiverCompetitionRead = {
@@ -1926,6 +1929,7 @@ function buildWaiverBidRead({
   leagueId,
   leagueValueMode,
   currentSeason,
+  leagueDiagnostics,
 }: {
   player: TrendingPlayer;
   score: number;
@@ -1935,10 +1939,36 @@ function buildWaiverBidRead({
   leagueId?: string;
   leagueValueMode: LeagueValueMode;
   currentSeason?: string | null;
+  leagueDiagnostics?: ReportData["leagueDiagnostics"];
 }): Pick<
   WaiverRecommendation,
   "bidRangeLabel" | "bidConfidencePct" | "bidSource" | "bidEvidenceLabel"
 > {
+  if (leagueDiagnostics?.waiverMode === "priority") {
+    const pressureBoost =
+      competitionRead?.level === "High" ? 8 : competitionRead?.level === "Medium" ? 4 : 0;
+    const bidRangeLabel =
+      score >= 2600 || competitionRead?.level === "High"
+        ? "Burn priority"
+        : score >= 1700 || competitionRead?.level === "Medium"
+          ? "Use priority"
+          : score >= 1100
+            ? "Wait for waivers"
+            : "Free add only";
+    const pressureLabel = competitionRead
+      ? `${competitionRead.manager}'s ${competitionRead.level.toLowerCase()} claim pressure`
+      : "no strong competing-claim pressure";
+
+    return {
+      bidRangeLabel,
+      bidConfidencePct: clampPercentValue(
+        56 + Math.min(24, score / 170) + pressureBoost
+      ),
+      bidSource: "priority",
+      bidEvidenceLabel: `${leagueDiagnostics.waiverModeLabel || "Waiver priority"} detected; ${pressureLabel} included.`,
+    };
+  }
+
   const waiverBidSamples = [
     ...buildTransactionBidSamples(recentTransactions),
     ...buildStoredBidSamples(storedWaiverBidHistory, leagueId),
@@ -2278,6 +2308,9 @@ function buildWaiverEvidenceRead({
   leagueDiagnostics,
   leagueActivity,
   leagueValueMode,
+  calibrationProfile,
+  calibrationManager,
+  calibrationLeagueId,
 }: {
   player: TrendingPlayer;
   details?: PlayerDetails | null;
@@ -2298,6 +2331,9 @@ function buildWaiverEvidenceRead({
   leagueDiagnostics?: ReportData["leagueDiagnostics"];
   leagueActivity?: AIEvidenceLeagueActivityContext | null;
   leagueValueMode: LeagueValueMode;
+  calibrationProfile?: ReportData["aiCalibrationAdjustmentProfile"];
+  calibrationManager?: string | null;
+  calibrationLeagueId?: string | null;
 }): AIEvidenceResult {
   const isRedraft = leagueValueMode === "redraft";
   const position = isWaiverPosition(player.pos) ? player.pos : targetPosition;
@@ -2391,6 +2427,9 @@ function buildWaiverEvidenceRead({
     },
     confidenceCap: 94,
     confidenceCapReason: null,
+    calibrationProfile,
+    calibrationManager,
+    calibrationLeagueId,
   });
 }
 
@@ -2407,6 +2446,7 @@ export function buildWaiverRecommendationContext({
   storedWaiverBidHistory,
   leagueValueMode: leagueValueModeInput,
   scheduleEdgeTargets,
+  calibrationProfile,
 }: {
   data: NonNullable<ReportData["waiverIntelligence"]>;
   leagueId?: string;
@@ -2420,6 +2460,7 @@ export function buildWaiverRecommendationContext({
   storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
   leagueValueMode?: ReportData["leagueValueMode"];
   scheduleEdgeTargets?: ReportData["scheduleEdgeTargets"];
+  calibrationProfile?: ReportData["aiCalibrationAdjustmentProfile"];
 }): WaiverRecommendationContext {
   const normalizedViewer = normalizeReportManagerName(viewerManager);
   const viewerIntel = managerRosterIntelligence?.find(
@@ -2608,6 +2649,7 @@ export function buildWaiverRecommendationContext({
         leagueId,
         leagueValueMode,
         currentSeason: leagueDiagnostics?.currentSeason,
+        leagueDiagnostics,
       });
       const dropRead = getWaiverDropRead({
         player,
@@ -2656,6 +2698,14 @@ export function buildWaiverRecommendationContext({
           waiverIntelligence: data,
         }),
         leagueValueMode,
+        calibrationProfile,
+        calibrationManager: viewerManager,
+        calibrationLeagueId: leagueId,
+      });
+      const archetypeRead = buildPlayerActionArchetypeRead({
+        playerName: player.name,
+        position: player.pos,
+        details,
       });
 
       return {
@@ -2673,6 +2723,8 @@ export function buildWaiverRecommendationContext({
         ...dropRead,
         weeklyEcrSignal,
         reason,
+        archetypeLabel: archetypeRead?.label || null,
+        archetypeNote: archetypeRead?.note || null,
       };
     })
     .filter(item => item.score > 0 && item.evidenceRead.shouldRender && item.evidenceRead.label !== "thin")
@@ -2708,7 +2760,7 @@ export function buildWaiverRecommendationContext({
         ? `${recommendation.competitionRead.manager} is the top competing-claim risk`
         : "no strong competing-claim risk returned";
       const decisionLabel = getVoicedAIActionLabel(
-        recommendation.evidenceRead.canAct ? "Do this" : "Watch only",
+        recommendation.evidenceRead.canAct ? "Do this" : "Don't force it",
         recommendation.evidenceRead.canAct ? "do" : "watch"
       );
       return `${recommendation.player.name}: ${decisionLabel} - ${recommendation.reason} (${recommendation.evidenceRead.label}; ${bidCopy}; ${competitionCopy})`;
@@ -2742,6 +2794,7 @@ export default function WaiverIntelligencePanel({
   recentTransactions,
   leagueValueMode: leagueValueModeInput = "dynasty",
   scheduleEdgeTargets,
+  calibrationProfile,
 }: {
   data?: ReportData["waiverIntelligence"];
   managerAvatars?: ManagerAvatars;
@@ -2756,6 +2809,7 @@ export default function WaiverIntelligencePanel({
   recentTransactions?: ReportData["recentTransactions"];
   leagueValueMode?: ReportData["leagueValueMode"];
   scheduleEdgeTargets?: ReportData["scheduleEdgeTargets"];
+  calibrationProfile?: ReportData["aiCalibrationAdjustmentProfile"];
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(
     null
@@ -2785,6 +2839,7 @@ export default function WaiverIntelligencePanel({
     storedWaiverBidHistory,
     leagueValueMode,
     scheduleEdgeTargets,
+    calibrationProfile,
   });
   React.useEffect(() => {
     storedActionPlans
@@ -3055,7 +3110,11 @@ export default function WaiverIntelligencePanel({
                     <p>{recommendation.reason}</p>
                     <div className="waiver-ai-target-facts">
                       <span>
-                        <em>League bid range</em>
+                        <em>
+                          {recommendation.bidSource === "priority"
+                            ? "Waiver priority"
+                            : "League bid range"}
+                        </em>
                         <strong>{recommendation.bidRangeLabel}</strong>
                         <small>{recommendation.bidEvidenceLabel}</small>
                       </span>
@@ -3069,6 +3128,13 @@ export default function WaiverIntelligencePanel({
                               : "Manual room needed"}
                         </strong>
                       </span>
+                      {recommendation.archetypeLabel && (
+                        <span>
+                          <em>Archetype</em>
+                          <strong>{recommendation.archetypeLabel}</strong>
+                          <small>{recommendation.archetypeNote}</small>
+                        </span>
+                      )}
                       <span
                         className={`waiver-intel-threat waiver-intel-threat-${recommendation.competitionRead?.level.toLowerCase() || "low"}`}
                         title={
@@ -3141,7 +3207,8 @@ export default function WaiverIntelligencePanel({
                           : "Track only"}
                       <span>
                         {recommendation.evidenceRead.finalScore}% evidence /{" "}
-                        {recommendation.bidConfidencePct}% bid
+                        {recommendation.bidConfidencePct}%{" "}
+                        {recommendation.bidSource === "priority" ? "priority read" : "bid"}
                       </span>
                     </button>
                   </div>
@@ -3273,6 +3340,7 @@ export default function WaiverIntelligencePanel({
         managerAvatars={managerAvatars}
         playerDetailsById={playerDetailsById}
         leagueDiagnostics={leagueDiagnostics}
+        calibrationProfile={calibrationProfile}
       />
     </div>
   );

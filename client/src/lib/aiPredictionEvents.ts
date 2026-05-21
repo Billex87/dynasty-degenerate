@@ -19,12 +19,14 @@ import {
   type AIPredictionDecayProfile,
   type AIRealizedEdge,
 } from "@shared/aiDecisionSnapshots";
-import type { ReportData, TrendingPlayer, WaiverWeeklyEcrTarget } from "@shared/types";
+import type { PlayerDetails, ReportData, TrendingPlayer, WaiverWeeklyEcrTarget } from "@shared/types";
 import { buildAutopilotData } from "@/lib/autopilot/buildAutopilotData";
 import { AUTOPILOT_MOCK_DATA } from "@/lib/autopilot/mockData";
 import type { AIActionQueueItem, AutopilotMode, AutopilotRecommendation } from "@/lib/autopilot/types";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
+import { buildPlayerActionArchetypeRead } from "@/lib/playerActionArchetype";
 import { buildScheduleEdgeRows, type ScheduleEdgeRow } from "@/lib/scheduleEdgeRows";
+import { buildManagerPersonalityIntelRows } from "@/lib/managerPersonalityIntel";
 
 export type ClientAIPredictionDecision = "do" | "dont" | "watch" | "hold" | "blocked";
 export type ClientAIPredictionOutcomeStatus = "hit" | "miss" | "push" | "pending" | "blocked";
@@ -104,6 +106,25 @@ function cleanText(value: unknown): string | null {
   return clean || null;
 }
 
+function normalizeManagerKey(value?: string | null): string {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getManagerArchetypeFromReport(data: ReportData, manager?: string | null): string | null {
+  const key = normalizeManagerKey(manager);
+  if (!key) return null;
+  const row = buildManagerPersonalityIntelRows(data)
+    .find(item => normalizeManagerKey(item.manager) === key);
+  if (!row) return null;
+  return [
+    row.tradeStyle,
+    row.waiverStyle,
+    row.rosterStyle,
+  ]
+    .filter(Boolean)
+    .join(" / ");
+}
+
 function clampPercent(value: unknown): number {
   return clampAIDecisionScore(value);
 }
@@ -141,6 +162,15 @@ function getReportRunKey(reportData: ReportData, leagueId?: string | null): stri
     reportData.recentTransactions?.[0]?.id || "tx",
     reportData.waiverIntelligence?.weeklyEcrTargets?.[0]?.player?.player_id || "waiver",
   ].join(":");
+}
+
+function getReportValueProfileKey(reportData: ReportData): string {
+  const fromTradeAudit = cleanText(reportData.tradeHistoryValueAudit?.profileKey);
+  if (fromTradeAudit) return fromTradeAudit;
+  const firstTimeline = Object.values(reportData.playerDetailsById || {})
+    .map(details => cleanText(details?.valueTimeline?.profileKey))
+    .find(Boolean);
+  return firstTimeline || "12_sf_ppr_base";
 }
 
 function labelFromScore(score: number): AIConfidenceLabel {
@@ -183,6 +213,38 @@ function scoreFromValue(value?: number | null): number | null {
   return clampPercent(34 + Math.min(58, numeric / 120));
 }
 
+function currentPlayerValue(details?: PlayerDetails | null, valueMode?: "dynasty" | "redraft" | "keeper" | "unknown" | null): number | null {
+  const profile = details?.valueProfile;
+  if (!profile) return null;
+  if (valueMode === "redraft") {
+    return Number(profile.seasonValue ?? profile.fantasyProsSeasonValue ?? profile.fantasyCalcRedraft ?? null) || null;
+  }
+  return Number(profile.dynastyValue ?? profile.balancedValue ?? profile.marketKtc ?? null) || null;
+}
+
+function currentPlayerRank(details?: PlayerDetails | null, valueMode?: "dynasty" | "redraft" | "keeper" | "unknown" | null): string | number | null {
+  const profile = details?.valueProfile;
+  if (!profile) return null;
+  if (valueMode === "redraft") {
+    return profile.seasonPositionRank || profile.fantasyProsPositionRank || null;
+  }
+  return profile.dynastyPositionRank || profile.balancedPositionRank || null;
+}
+
+function scoreFromPlayerDetails(details?: PlayerDetails | null, valueMode?: "dynasty" | "redraft" | "keeper" | "unknown" | null): number {
+  const scores = [
+    scoreFromRank(currentPlayerRank(details, valueMode), details?.position),
+    scoreFromValue(currentPlayerValue(details, valueMode)),
+    details?.playerSituationDelta?.confidence ?? null,
+    details?.playerCohort?.confidence ?? null,
+    details?.playerCohort?.calibration?.evidenceScore ?? null,
+    details?.playerCohort?.seasonOutcomeReceipt?.confidence ?? null,
+  ].filter((score): score is number => Number.isFinite(score));
+
+  if (!scores.length) return 46;
+  return clampPercent(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+}
+
 function marketBaselineScore(player: TrendingPlayer): number | null {
   const rankScore = scoreFromRank(
     player.currentPositionRank || player.weeklyEcr?.bestPositionRank || player.weeklyEcr?.bestRankEcr,
@@ -193,6 +255,24 @@ function marketBaselineScore(player: TrendingPlayer): number | null {
   const scores = [rankScore, valueScore, trendScore].filter((score): score is number => score !== null);
   if (!scores.length) return null;
   return clampPercent(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+}
+
+function baselineForPlayerDetails(
+  details: PlayerDetails,
+  valueMode?: "dynasty" | "redraft" | "keeper" | "unknown" | null
+): AIDecisionBaseline {
+  const rankScore = scoreFromRank(currentPlayerRank(details, valueMode), details.position);
+  const valueScore = scoreFromValue(currentPlayerValue(details, valueMode));
+  const score = rankScore ?? valueScore ?? null;
+  return {
+    kind: "market-default",
+    label: valueMode === "redraft" ? "current-season market default" : "dynasty market default",
+    score,
+    source: rankScore !== null ? "current rank" : valueScore !== null ? "stored player value" : "missing player market",
+    detail: score === null
+      ? "No player rank/value baseline was available for this archetype read."
+      : `Baseline score ${formatBaselineLabel(score)} from ${rankScore !== null ? "rank" : "stored value"}.`,
+  };
 }
 
 function formatBaselineLabel(value: number | null): string {
@@ -541,6 +621,7 @@ function makePredictionKey(input: {
   entityId?: string | null;
   season?: string | null;
   week?: number | null;
+  managerArchetype?: string | null;
 }) {
   return [
     input.surface,
@@ -651,7 +732,10 @@ function buildEvent(input: {
       baselineValue: counterfactual?.baseline.score ?? null,
       feedbackSource: "system",
     },
-    metadata: input.metadata,
+    metadata: {
+      valueMode: input.valueMode || "unknown",
+      ...input.metadata,
+    },
   };
 }
 
@@ -698,8 +782,21 @@ function eventFromQueueItem(input: {
   manager?: string | null;
   season?: string | null;
   week?: number | null;
+  managerArchetype?: string | null;
 }) {
   const action = actionFromQueueItem(input.item);
+  const sharpnessSignal = input.item.signals.find(signal =>
+    /\b(sleepy|casual|average|sharp|shark tank|shark-tank)\b/i.test(signal)
+  );
+  const sharpnessScore = sharpnessSignal
+    ? Number(sharpnessSignal.match(/(\d{1,3})%/)?.[1])
+    : null;
+  const sharpnessLabel = sharpnessSignal
+    ? sharpnessSignal.replace(/\s+\d{1,3}%.*$/, "").trim()
+    : null;
+  const sharpnessTier = sharpnessLabel
+    ? sharpnessLabel.toLowerCase().replace(/\s+/g, "-")
+    : null;
   const counterfactual = buildCounterfactual({
     aiScore: input.item.confidence,
     baseline: baselineForQueueItem(input.item),
@@ -732,6 +829,7 @@ function eventFromQueueItem(input: {
       snapshotFact({ key: "rawDecision", label: "Raw decision", value: input.item.decision, source: "AI action queue" }),
       snapshotFact({ key: "baseline", label: "Counterfactual baseline", value: formatBaselineLabel(counterfactual.baseline.score), source: counterfactual.baseline.source }),
       snapshotFact({ key: "sourceHealthCount", label: "Source health rows", value: input.item.sourceHealth.length, source: "AI receipts" }),
+      snapshotFact({ key: "queueSignals", label: "Queue signals", value: input.item.signals.join(" · "), source: "AI action queue" }),
     ],
     counterfactual,
     whyThisFired: input.item.why,
@@ -741,6 +839,11 @@ function eventFromQueueItem(input: {
       label: input.item.label,
       actionText: input.item.action,
       changeTriggers: input.item.changeTriggers,
+      queueSignals: input.item.signals,
+      leagueSharpnessLabel: sharpnessLabel,
+      leagueSharpnessScore: Number.isFinite(sharpnessScore) ? sharpnessScore : null,
+      leagueSharpnessTier: sharpnessTier,
+      managerArchetype: input.managerArchetype || null,
     },
   });
 }
@@ -756,6 +859,7 @@ function eventFromRecommendation(input: {
   manager?: string | null;
   season?: string | null;
   week?: number | null;
+  managerArchetype?: string | null;
 }) {
   const surface: AIEvidenceSurface = input.source === "waiver" ? "waiver" : "trade";
   const fallbackAction: AIEvidenceAction = input.source === "waiver" ? "pickup" : "trade";
@@ -796,6 +900,7 @@ function eventFromRecommendation(input: {
         recommendationType: input.recommendation.type,
         actionText: input.recommendation.action,
         source: input.source,
+        managerArchetype: input.managerArchetype || null,
         ...faabMetadata,
       },
     });
@@ -833,6 +938,7 @@ function eventFromRecommendation(input: {
       recommendationType: input.recommendation.type,
       actionText: input.recommendation.action,
       source: input.source,
+      managerArchetype: input.managerArchetype || null,
       ...faabMetadata,
     },
   });
@@ -974,6 +1080,155 @@ function eventFromScheduleRow(input: {
   });
 }
 
+function actionFromPlayerArchetype(key: string): AIEvidenceAction {
+  if (key === "schedule-streamer") return "stream";
+  if (key === "volume-spike" || key === "post-hype-breakout") return "start";
+  if (key === "depth-chart-promotion" || key === "protected-runway") return "stash";
+  if (key === "market-trap" || key === "fragile-veteran") return "avoid";
+  return "watch";
+}
+
+function decisionFromPlayerArchetype(key: string, score: number): ClientAIPredictionDecision {
+  if (key === "market-trap" || key === "fragile-veteran") return "dont";
+  if (key === "thin-role-read") return "watch";
+  if (score >= 62) return "do";
+  return "watch";
+}
+
+function sourceTraceFromPlayerDetails(details: PlayerDetails): AISourceTrace[] {
+  const traces: Array<AISourceTrace | null> = [
+    details.playerCohort?.calibration ? {
+      label: "Player cohort calibration",
+      status: details.playerCohort.calibration.evidenceGrade === "blocked" ? "limited" : "loaded",
+      detail: details.playerCohort.calibration.note,
+    } : null,
+    details.playerSituationDelta ? {
+      label: "Player situation delta",
+      status:
+        details.playerSituationDelta.freshness.grade === "fresh" ||
+        details.playerSituationDelta.freshness.grade === "usable"
+          ? "loaded"
+          : details.playerSituationDelta.freshness.grade === "stale"
+            ? "stale"
+            : "missing",
+      detail: details.playerSituationDelta.summary,
+    } : null,
+    details.schedule ? {
+      label: "DraftSharks schedule profile",
+      status: "loaded",
+      detail: details.schedule.scheduleTier || null,
+    } : null,
+    details.valueProfile ? {
+      label: "Stored player value",
+      status: "loaded",
+      detail: currentPlayerRank(details) ? `Rank ${currentPlayerRank(details)}.` : null,
+    } : null,
+  ];
+
+  return traces.filter((trace): trace is AISourceTrace => Boolean(trace));
+}
+
+function playerDetailSoftPenalties(details: PlayerDetails): AIEvidencePenalty[] {
+  return [
+    ...(details.playerCohort?.calibration?.cautionFlags || []),
+    ...(details.playerSituationDelta?.cautionFlags || []),
+  ].slice(0, 6).map((label) => ({
+    label,
+    points: 6,
+  }));
+}
+
+function eventFromPlayerDetails(input: {
+  playerId: string;
+  details: PlayerDetails;
+  reportRunKey: string;
+  createdAt: string;
+  valueMode?: "dynasty" | "redraft" | "keeper" | "unknown" | null;
+  leagueId?: string | null;
+  manager?: string | null;
+  season?: string | null;
+  week?: number | null;
+}): ClientAIPredictionEvent | null {
+  const name = cleanText(input.details.fullName) || cleanText(input.details.playerCohort?.name) || input.playerId;
+  const position = cleanText(input.details.position || input.details.playerCohort?.position);
+  const archetype = buildPlayerActionArchetypeRead({
+    playerName: name,
+    position,
+    details: input.details,
+  });
+  if (!archetype) return null;
+
+  const rawScore = scoreFromPlayerDetails(input.details, input.valueMode);
+  const action = actionFromPlayerArchetype(archetype.key);
+  const confidenceCap = Math.min(
+    100,
+    input.details.playerCohort?.calibration?.confidenceCap ?? 100,
+    input.details.playerSituationDelta?.freshness?.grade === "stale" ? 66 : 100,
+    input.details.playerSituationDelta?.freshness?.grade === "missing" ? 52 : 100,
+  );
+  const finalScore = Math.min(rawScore, confidenceCap);
+  const missingEvidence = [
+    ...(input.details.playerCohort?.calibration?.missingSignals || []),
+    ...(input.details.playerSituationDelta?.missingSignals || []),
+  ].slice(0, 8);
+  const counterfactual = buildCounterfactual({
+    aiScore: finalScore,
+    baseline: baselineForPlayerDetails(input.details, input.valueMode),
+    blocked: false,
+  });
+
+  return buildEvent({
+    reportRunKey: input.reportRunKey,
+    createdAt: input.createdAt,
+    valueMode: input.valueMode,
+    leagueId: input.leagueId,
+    manager: input.manager,
+    season: input.season,
+    week: input.week,
+    surface: "player-detail",
+    action,
+    decision: decisionFromPlayerArchetype(archetype.key, finalScore),
+    entityType: "player",
+    entityId: input.details.playerId || input.playerId,
+    entityName: name,
+    finalScore,
+    confidenceCap,
+    confidenceCapReason:
+      confidenceCap < 100
+        ? input.details.playerCohort?.calibration?.note || input.details.playerSituationDelta?.freshness?.note || "Player-detail evidence caps confidence."
+        : null,
+    evidence: archetype.receipts.length ? archetype.receipts : [archetype.note],
+    missingEvidence,
+    hardBlockers: [],
+    softPenalties: playerDetailSoftPenalties(input.details),
+    sourceTrace: sourceTraceFromPlayerDetails(input.details),
+    decisionSnapshotFacts: [
+      snapshotFact({ key: "position", label: "Position", value: position, source: "player detail" }),
+      snapshotFact({ key: "team", label: "Team", value: input.details.team || null, source: "player detail" }),
+      snapshotFact({ key: "archetype", label: "Archetype", value: archetype.label, source: "player-detail AI" }),
+      snapshotFact({ key: "outcomeBucket", label: "Cohort bucket", value: input.details.playerCohort?.outcomeBucket || null, source: "player cohort" }),
+      snapshotFact({ key: "situationAction", label: "Situation action", value: input.details.playerSituationDelta?.action || null, source: "situation delta" }),
+      snapshotFact({ key: "currentRank", label: "Current rank", value: currentPlayerRank(input.details, input.valueMode), source: "stored value snapshot" }),
+      snapshotFact({ key: "baseline", label: "Counterfactual baseline", value: formatBaselineLabel(counterfactual.baseline.score), source: counterfactual.baseline.source }),
+    ],
+    counterfactual,
+    whyThisFired: archetype.note,
+    metadata: {
+      source: "player-detail-archetype",
+      position,
+      team: input.details.team || null,
+      archetypeKey: archetype.key,
+      archetypeLabel: archetype.label,
+      archetypeTone: archetype.tone,
+      outcomeBucket: input.details.playerCohort?.outcomeBucket || null,
+      situationAction: input.details.playerSituationDelta?.action || null,
+      situationPrimaryLabel: input.details.playerSituationDelta?.primaryLabel || null,
+      currentValue: currentPlayerValue(input.details, input.valueMode),
+      currentPositionRank: currentPlayerRank(input.details, input.valueMode),
+    },
+  });
+}
+
 export function buildAIPredictionEventsForReport(input: BuildAIPredictionEventsForReportInput): ClientAIPredictionEvent[] {
   const reportData = input.reportData;
   if (!reportData) return [];
@@ -984,9 +1239,11 @@ export function buildAIPredictionEventsForReport(input: BuildAIPredictionEventsF
   const mode: AutopilotMode = valueMode === "redraft" ? "redraft" : "dynasty";
   const createdAt = getReportCreatedAt(reportData, input.createdAt);
   const reportRunKey = getReportRunKey(reportData, input.leagueId);
+  const valueProfileKey = getReportValueProfileKey(reportData);
   const season = reportData.leagueDiagnostics?.currentSeason || null;
   const week = reportData.leagueDiagnostics?.currentWeek || null;
   const manager = input.manager || reportData.viewerManager || null;
+  const managerArchetype = getManagerArchetypeFromReport(reportData, manager);
   const events: ClientAIPredictionEvent[] = [];
 
   try {
@@ -994,6 +1251,7 @@ export function buildAIPredictionEventsForReport(input: BuildAIPredictionEventsF
       reportData,
       mode,
       fallback: AUTOPILOT_MOCK_DATA[mode],
+      leagueId: input.leagueId,
     });
     events.push(
       ...autopilot.actionQueue
@@ -1007,6 +1265,7 @@ export function buildAIPredictionEventsForReport(input: BuildAIPredictionEventsF
           manager: manager || autopilot.focusManager,
           season,
           week,
+          managerArchetype,
         })),
       ...autopilot.waivers
         .slice(0, 4)
@@ -1021,6 +1280,7 @@ export function buildAIPredictionEventsForReport(input: BuildAIPredictionEventsF
           manager: manager || autopilot.focusManager,
           season,
           week,
+          managerArchetype,
         })),
       ...autopilot.trades
         .slice(0, 4)
@@ -1035,6 +1295,7 @@ export function buildAIPredictionEventsForReport(input: BuildAIPredictionEventsF
           manager: manager || autopilot.focusManager,
           season,
           week,
+          managerArchetype,
         })),
     );
   } catch {
@@ -1100,13 +1361,43 @@ export function buildAIPredictionEventsForReport(input: BuildAIPredictionEventsF
     // Calibration should never block the report view.
   }
 
+  try {
+    const playerDetailEvents = Object.entries(reportData.playerDetailsById || {})
+      .map(([playerId, details]) => eventFromPlayerDetails({
+        playerId,
+        details,
+        reportRunKey,
+        createdAt,
+        valueMode,
+        leagueId: input.leagueId,
+        manager,
+        season,
+        week,
+      }))
+      .filter((event): event is ClientAIPredictionEvent => Boolean(event))
+      .sort((a, b) => b.finalScore - a.finalScore)
+      .slice(0, 6);
+    events.push(...playerDetailEvents);
+  } catch {
+    // Calibration should never block the report view.
+  }
+
   const byEventId = new Map<string, ClientAIPredictionEvent>();
   events.forEach(event => {
     if (!event.eventId || byEventId.has(event.eventId)) return;
     byEventId.set(event.eventId, event);
   });
 
-  return Array.from(byEventId.values()).slice(0, 24);
+  return Array.from(byEventId.values())
+    .slice(0, 32)
+    .map(event => ({
+      ...event,
+      metadata: {
+        valueMode,
+        valueProfileKey,
+        ...event.metadata,
+      },
+    }));
 }
 
 export function getAIPredictionEventBatchSignature(events: ClientAIPredictionEvent[]): string {

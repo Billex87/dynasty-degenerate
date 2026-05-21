@@ -15,10 +15,11 @@
 - Description: "Stop guessing. Start dominating. Dynasty Degenerates gives you the unfair advantage with deep KTC analysis, trade profit tracking, and AI-powered projections."
 
 #### Input Section
-- Label: "Enter Your Sleeper League ID"
-- Helper text: "In the Sleeper app, open your league → go to General Settings → scroll to the bottom to find your League ID."
-- Input field with placeholder showing: "1312139584427012096"
-- Button: "Illegally Scraping All Data" (orange background)
+- Label: "Enter Your Sleeper Username"
+- Helper text: "We will map your Sleeper leagues, show your cross-league player portfolio, then let you choose the report to run."
+- Input field with placeholder showing: "Sleeper username"
+- Button: "Run Degenerate Analysis" (orange background)
+- Post-lookup panel: "Fantasy Portfolio" with player search, league exposure, league icons, and inline "Choose Your League" cards.
 
 #### Features Grid (3 columns)
 1. **League Overview**

@@ -1010,6 +1010,32 @@
   min-width: 42rem;
 }
 
+.admin-manager-personality-table {
+  min-width: 72rem;
+}
+
+.admin-manager-personality-table td:nth-child(5) {
+  max-width: 20rem;
+}
+
+.admin-manager-personality-table td:first-child em {
+  display: inline-flex;
+  margin-top: 0.35rem;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 999px;
+  padding: 0.12rem 0.38rem;
+  color: #cffafe;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.admin-manager-personality-table .admin-ai-readout-chip-row {
+  justify-content: flex-start;
+}
+
 .admin-schedule-health-table th,
 .admin-schedule-health-table td {
   text-align: center;
@@ -1635,6 +1661,46 @@
   text-align: center;
 }
 
+.admin-league-sharpness-hero {
+  display: grid;
+  gap: 0.72rem;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(135deg, rgba(8, 47, 73, 0.64), rgba(15, 23, 42, 0.56)),
+    repeating-linear-gradient(90deg, rgba(34, 211, 238, 0.08) 0 1px, transparent 1px 16px);
+  padding: 0.82rem;
+}
+
+.admin-league-sharpness-hero > div:first-child {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.admin-league-sharpness-hero span {
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.admin-league-sharpness-hero strong {
+  color: #fff7ed;
+  font-family: var(--font-athletic);
+  font-size: clamp(2.2rem, 7vw, 4rem);
+  font-weight: 950;
+  line-height: 0.9;
+}
+
+.admin-league-sharpness-hero p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  font-weight: 820;
+  line-height: 1.35;
+}
+
 .admin-ai-surface-registry {
   display: grid;
   gap: 0.72rem;
@@ -2178,6 +2244,25 @@
   padding: 0.58rem;
 }
 
+.admin-traffic-row-button {
+  width: 100%;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.admin-traffic-row-button:hover,
+.admin-traffic-row-button:focus-visible {
+  border-color: rgba(34, 211, 238, 0.36);
+  background: rgba(15, 23, 42, 0.82);
+  transform: translateY(-1px);
+  outline: none;
+}
+
 .admin-traffic-row-error {
   border-color: rgba(251, 113, 133, 0.2);
 }
@@ -2200,6 +2285,75 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.45rem;
+}
+
+.admin-outcome-memory {
+  display: grid;
+  gap: 0.85rem;
+  border-top: 1px solid rgba(34, 211, 238, 0.14);
+  padding: 0.85rem;
+}
+
+.admin-outcome-memory-head {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(135deg, rgba(8, 47, 73, 0.46), rgba(15, 23, 42, 0.62)),
+    repeating-linear-gradient(90deg, rgba(34, 211, 238, 0.07) 0 1px, transparent 1px 18px);
+  padding: 0.85rem;
+}
+
+.admin-outcome-memory-head > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.admin-outcome-memory-head span {
+  color: #67e8f9;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.admin-outcome-memory-head strong {
+  color: #fff7ed;
+  font-size: clamp(1rem, 2.4vw, 1.35rem);
+  font-weight: 950;
+  line-height: 1.05;
+}
+
+.admin-outcome-memory-head p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.74rem;
+  font-weight: 780;
+  line-height: 1.35;
+}
+
+.admin-outcome-memory-grid {
+  border-top: 0;
+  padding: 0;
+}
+
+.admin-outcome-memory-ledger {
+  grid-column: span 2;
+}
+
+@media (max-width: 760px) {
+  .admin-outcome-memory-head {
+    display: grid;
+  }
+
+  .admin-outcome-memory-ledger {
+    grid-column: auto;
+  }
 }
 
 .admin-traffic-row strong,
@@ -3081,7 +3235,7 @@
 
   .home-header {
     border-bottom: 1px solid rgba(249, 115, 22, 0.18);
-    padding: clamp(0.85rem, 2vw, 1.35rem) clamp(1rem, 3vw, 2rem) !important;
+    padding: clamp(0rem, 0.14vw, 0.12rem) clamp(1rem, 3vw, 2rem) !important;
   }
 
   .home-header-inner {

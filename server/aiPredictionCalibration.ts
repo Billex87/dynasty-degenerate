@@ -113,8 +113,10 @@ export type AIPredictionReliabilityGroupBy =
   | 'label'
   | 'decision'
   | 'sourceAgreement'
+  | 'leagueSharpness'
   | 'league'
   | 'manager'
+  | 'managerArchetype'
   | 'leagueFormat'
   | 'counterfactual'
   | 'realizedEdge';
@@ -238,7 +240,13 @@ export type AICalibrationAdjustmentScope =
   | 'surfaceActionLeagueFormat'
   | 'surfaceActionCounterfactual'
   | 'surfaceActionRealizedEdge'
-  | 'surfaceManager';
+  | 'surfaceManager'
+  | 'surfaceLeague'
+  | 'surfaceActionLeague'
+  | 'leagueSharpness'
+  | 'surfaceActionLeagueSharpness'
+  | 'managerArchetype'
+  | 'surfaceActionManagerArchetype';
 
 export type AICalibrationAdjustment = {
   key: string;
@@ -269,12 +277,63 @@ export type AICalibrationAdjustmentProfile = {
   adjustments: AICalibrationAdjustment[];
 };
 
+export type AIOutcomeLedgerRow = {
+  eventId: string;
+  predictionKey: string;
+  createdAt: string;
+  updatedAt?: string | null;
+  leagueId?: string | null;
+  manager?: string | null;
+  surface: AIEvidenceSurface;
+  action: AIEvidenceAction;
+  module: string;
+  decision: AIPredictionDecision;
+  entityType: AIPredictionEvent['entityType'];
+  entityName?: string | null;
+  label: AIConfidenceLabel;
+  finalScore: number;
+  confidenceCap: number;
+  outcomeStatus: AIPredictionOutcomeStatus;
+  feedbackSource?: AIPredictionOutcome['feedbackSource'];
+  sourceAgreement: AISourceAgreementState;
+  counterfactualStatus: AICounterfactualStatus | 'missing-baseline';
+  baselineLabel?: string | null;
+  baselineScore: number | null;
+  realizedEdgeStatus?: string | null;
+  realizedEdge: number | null;
+  sharpnessLabel?: string | null;
+  sharpnessScore: number | null;
+  sharpnessTier?: string | null;
+  verdict: 'pending' | 'worked' | 'missed' | 'ignored' | 'blocked';
+  evidencePreview: string[];
+  missingEvidence: string[];
+  blockers: string[];
+  why: string;
+};
+
+export type AIOutcomeMemorySummary = {
+  schemaVersion: 1;
+  generatedFrom: 'ai-prediction-events';
+  generatedAt: string;
+  eventCount: number;
+  scoredCount: number;
+  pendingCount: number;
+  ledger: AIOutcomeLedgerRow[];
+  confidenceBuckets: AIPredictionReliabilityBucket[];
+  moduleScorecards: AIPredictionReliabilityBucket[];
+  sharpnessBuckets: AIPredictionReliabilityBucket[];
+  automaticAdjustments: AICalibrationAdjustment[];
+};
+
 export type ApplyAICalibrationAdjustmentInput = {
   profile: AICalibrationAdjustmentProfile;
   surface: AIEvidenceSurface;
   action: AIEvidenceAction;
   label: AIConfidenceLabel;
   sourceAgreementState?: AISourceAgreementState | null;
+  leagueId?: string | null;
+  leagueSharpnessTier?: string | null;
+  managerArchetype?: string | null;
   finalScore: number;
   confidenceCap?: number | null;
 };
@@ -515,12 +574,54 @@ export function buildSourceAgreementRead(signals: AISourceAgreementSignal[]): AI
 
 function eventGroupValue(event: AIPredictionEvent, groupBy: AIPredictionReliabilityGroupBy): string {
   if (groupBy === 'sourceAgreement') return event.sourceAgreement?.state || 'unknown';
+  if (groupBy === 'leagueSharpness') return getLeagueSharpnessBucket(event).tier || 'unknown';
   if (groupBy === 'league') return event.leagueId || 'global';
   if (groupBy === 'manager') return event.manager || 'unknown';
+  if (groupBy === 'managerArchetype') return cleanText(event.metadata?.managerArchetype) || cleanText(event.metadata?.managerPersonalityArchetype) || 'unknown';
   if (groupBy === 'leagueFormat') return event.decisionSnapshot?.valueMode || String(event.metadata?.valueMode || 'unknown');
   if (groupBy === 'counterfactual') return event.counterfactual?.status || 'missing-baseline';
   if (groupBy === 'realizedEdge') return event.outcome.realizedEdge?.status || 'unresolved';
   return String(event[groupBy] || 'unknown');
+}
+
+function getQueueSignals(event: AIPredictionEvent): string[] {
+  const raw = event.metadata?.queueSignals;
+  if (Array.isArray(raw)) {
+    return raw.map(item => cleanText(item)).filter((item): item is string => Boolean(item));
+  }
+  const text = cleanText(raw);
+  return text ? [text] : [];
+}
+
+function getLeagueSharpnessBucket(event: AIPredictionEvent): {
+  tier: string | null;
+  label: string | null;
+  score: number | null;
+} {
+  const metadataTier = cleanText(event.metadata?.leagueSharpnessTier);
+  const metadataLabel = cleanText(event.metadata?.leagueSharpnessLabel);
+  const metadataScore = numeric(event.metadata?.leagueSharpnessScore);
+  if (metadataTier || metadataLabel || metadataScore !== null) {
+    return {
+      tier: metadataTier || metadataLabel?.toLowerCase().replace(/\s+/g, '-') || null,
+      label: metadataLabel || metadataTier,
+      score: metadataScore,
+    };
+  }
+
+  const signal = getQueueSignals(event).find(value =>
+    /\b(sleepy|casual|average|sharp|shark tank|shark-tank)\b/i.test(value)
+  );
+  if (!signal) return { tier: null, label: null, score: null };
+
+  const score = numeric(signal.match(/(\d{1,3})%/)?.[1]);
+  const label = signal.replace(/\s+\d{1,3}%.*$/, '').trim();
+  const tier = label.toLowerCase().replace(/\s+/g, '-');
+  return {
+    tier,
+    label,
+    score,
+  };
 }
 
 function bucketRecommendation(input: {
@@ -914,6 +1015,12 @@ function adjustmentScopeForGroupBy(groupBy: AIPredictionReliabilityGroupBy[]): A
   if (key === 'surface|action|counterfactual') return 'surfaceActionCounterfactual';
   if (key === 'surface|action|realizedEdge') return 'surfaceActionRealizedEdge';
   if (key === 'surface|manager') return 'surfaceManager';
+  if (key === 'surface|league') return 'surfaceLeague';
+  if (key === 'surface|action|league') return 'surfaceActionLeague';
+  if (key === 'leagueSharpness') return 'leagueSharpness';
+  if (key === 'surface|action|leagueSharpness') return 'surfaceActionLeagueSharpness';
+  if (key === 'managerArchetype') return 'managerArchetype';
+  if (key === 'surface|action|managerArchetype') return 'surfaceActionManagerArchetype';
   return 'global';
 }
 
@@ -1012,6 +1119,12 @@ export function buildAICalibrationAdjustmentProfile(
     ['surface', 'action', 'counterfactual'],
     ['surface', 'action', 'realizedEdge'],
     ['surface', 'manager'],
+    ['surface', 'league'],
+    ['surface', 'action', 'league'],
+    ['leagueSharpness'],
+    ['surface', 'action', 'leagueSharpness'],
+    ['managerArchetype'],
+    ['surface', 'action', 'managerArchetype'],
   ];
 
   const adjustmentsByKey = new Map<string, AICalibrationAdjustment>();
@@ -1039,11 +1152,113 @@ export function buildAICalibrationAdjustmentProfile(
   };
 }
 
+function getOutcomeVerdict(status: AIPredictionOutcomeStatus): AIOutcomeLedgerRow['verdict'] {
+  if (status === 'hit') return 'worked';
+  if (status === 'miss') return 'missed';
+  if (status === 'push') return 'ignored';
+  if (status === 'blocked') return 'blocked';
+  return 'pending';
+}
+
+function getOutcomeModule(event: AIPredictionEvent): string {
+  if (event.surface === 'autopilot') {
+    const source = cleanText(event.metadata?.source);
+    if (source === 'waiver') return 'Action Queue · Waiver';
+    if (source === 'trade') return 'Action Queue · Trade';
+    if (source === 'lineup') return 'Action Queue · Lineup';
+    return 'Action Queue';
+  }
+  if (event.surface === 'waiver') return 'Waiver AI';
+  if (event.surface === 'trade') return 'Trade AI';
+  if (event.surface === 'player-detail') return 'Player Modal AI';
+  if (event.surface === 'schedule') return 'Matchup AI';
+  if (event.surface === 'owner-intel') return 'Owner Intel AI';
+  if (event.surface === 'rankings') return 'Rankings AI';
+  if (event.surface === 'overview') return 'Overview AI';
+  return event.surface;
+}
+
+function buildOutcomeLedgerRow(event: AIPredictionEvent): AIOutcomeLedgerRow {
+  const sharpness = getLeagueSharpnessBucket(event);
+  return {
+    eventId: event.eventId,
+    predictionKey: event.predictionKey,
+    createdAt: event.createdAt,
+    updatedAt: cleanText((event as AIPredictionEvent & { updatedAt?: string | null }).updatedAt),
+    leagueId: event.leagueId || null,
+    manager: event.manager || null,
+    surface: event.surface,
+    action: event.action,
+    module: getOutcomeModule(event),
+    decision: event.decision,
+    entityType: event.entityType,
+    entityName: event.entityName || null,
+    label: event.label,
+    finalScore: event.finalScore,
+    confidenceCap: event.confidenceCap,
+    outcomeStatus: event.outcome.status,
+    feedbackSource: event.outcome.feedbackSource || null,
+    sourceAgreement: event.sourceAgreement?.state || 'unknown',
+    counterfactualStatus: event.counterfactual?.status || 'missing-baseline',
+    baselineLabel: event.counterfactual?.baseline.label || null,
+    baselineScore: event.counterfactual?.baseline.score ?? event.outcome.baselineValue ?? null,
+    realizedEdgeStatus: event.outcome.realizedEdge?.status || null,
+    realizedEdge: event.outcome.realizedEdge?.realizedEdge ?? null,
+    sharpnessLabel: sharpness.label,
+    sharpnessScore: sharpness.score,
+    sharpnessTier: sharpness.tier,
+    verdict: getOutcomeVerdict(event.outcome.status),
+    evidencePreview: event.evidence.slice(0, 3),
+    missingEvidence: event.missingEvidence.slice(0, 3),
+    blockers: event.hardBlockers.slice(0, 3),
+    why: event.whyThisFired,
+  };
+}
+
+export function buildAIOutcomeMemorySummary(
+  events: AIPredictionEvent[],
+  options: { limit?: number } = {}
+): AIOutcomeMemorySummary {
+  const limit = Math.max(1, Math.min(Number(options.limit) || 50, 200));
+  const global = summarizeAIPredictionReliability(events, { groupBy: ['surface'] }).buckets[0];
+  const adjustmentProfile = buildAICalibrationAdjustmentProfile(events, { limit: 12 });
+  const confidenceBuckets = summarizeAIPredictionReliability(events, { groupBy: ['label'] }).buckets
+    .filter(bucket => bucket.key !== 'all');
+  const moduleScorecards = summarizeAIPredictionReliability(events, { groupBy: ['surface', 'action'] }).buckets
+    .filter(bucket => bucket.key !== 'all')
+    .slice(0, 16);
+  const sharpnessBuckets = summarizeAIPredictionReliability(events, { groupBy: ['leagueSharpness'] }).buckets
+    .filter(bucket => bucket.key !== 'all' && bucket.group.leagueSharpness !== 'unknown');
+
+  return {
+    schemaVersion: 1,
+    generatedFrom: 'ai-prediction-events',
+    generatedAt: new Date().toISOString(),
+    eventCount: events.length,
+    scoredCount: global.scoredCount,
+    pendingCount: global.pendingCount,
+    ledger: events.slice(0, limit).map(buildOutcomeLedgerRow),
+    confidenceBuckets,
+    moduleScorecards,
+    sharpnessBuckets,
+    automaticAdjustments: adjustmentProfile.adjustments
+      .filter(adjustment =>
+        adjustment.recommendation === 'lower-confidence' ||
+        adjustment.recommendation === 'raise-confidence' ||
+        adjustment.recommendation === 'review-model'
+      )
+      .slice(0, 8),
+  };
+}
+
 function getAdjustmentGroupValue(input: ApplyAICalibrationAdjustmentInput, key: string): string {
   if (key === 'surface') return input.surface;
   if (key === 'action') return input.action;
   if (key === 'label') return input.label;
   if (key === 'sourceAgreement') return input.sourceAgreementState || 'unknown';
+  if (key === 'league') return input.leagueId || 'global';
+  if (key === 'leagueSharpness') return input.leagueSharpnessTier || 'unknown';
+  if (key === 'managerArchetype') return input.managerArchetype || 'unknown';
   return 'unknown';
 }
 
@@ -1055,6 +1270,16 @@ function adjustmentSpecificity(adjustment: AICalibrationAdjustment): number {
   return Object.keys(adjustment.group).length;
 }
 
+function adjustmentFallbackPriority(adjustment: AICalibrationAdjustment): number {
+  if (adjustment.group.manager) return 600;
+  if (adjustment.group.league) return 500;
+  if (adjustment.group.managerArchetype) return 400;
+  if (adjustment.group.leagueSharpness) return 300;
+  if (adjustment.group.leagueFormat) return 220;
+  if (adjustment.scope === 'global') return 0;
+  return 100;
+}
+
 export function findAICalibrationAdjustment(
   input: ApplyAICalibrationAdjustmentInput
 ): AICalibrationAdjustment | null {
@@ -1062,6 +1287,7 @@ export function findAICalibrationAdjustment(
     .filter(adjustment => adjustment.scoreAdjustment !== 0 || adjustment.confidenceCap !== null)
     .filter(adjustment => matchesAdjustment(input, adjustment))
     .sort((a, b) =>
+      adjustmentFallbackPriority(b) - adjustmentFallbackPriority(a) ||
       adjustmentSpecificity(b) - adjustmentSpecificity(a) ||
       Math.abs(b.scoreAdjustment) - Math.abs(a.scoreAdjustment) ||
       b.scoredCount - a.scoredCount

@@ -23,12 +23,27 @@ export type AIPredictionResolvedPlayerStat = {
   baselineFantasyPoints?: number | null;
   replacementFantasyPoints?: number | null;
   started?: boolean | null;
+  week?: number | null;
+};
+
+export type AIPredictionResolvedValueMovement = {
+  playerId?: string | null;
+  playerName?: string | null;
+  baselineDate?: string | null;
+  followUpDate?: string | null;
+  baselineValue?: number | null;
+  followUpValue?: number | null;
+  valueDelta?: number | null;
+  valueDeltaPct?: number | null;
+  sourceCount?: number | null;
+  source?: string | null;
 };
 
 export type AIPredictionOutcomeResolverContext = {
   resolvedAt?: string | Date | null;
   transactions?: AIPredictionResolvedTransaction[];
   playerStats?: AIPredictionResolvedPlayerStat[];
+  valueMovements?: AIPredictionResolvedValueMovement[];
 };
 
 function cleanText(value: unknown): string | null {
@@ -224,6 +239,77 @@ function realizedEdgeOutcomeStatus(event: AIPredictionEvent, actual: number, bas
   return edge >= 0 ? 'hit' : 'miss';
 }
 
+function eventText(event: AIPredictionEvent): string {
+  return [
+    event.action,
+    event.decision,
+    event.surface,
+    event.metadata?.recommendationType,
+    event.metadata?.actionText,
+    event.metadata?.archetypeKey,
+    event.metadata?.archetypeLabel,
+    event.whyThisFired,
+    ...event.evidence,
+  ].map(value => cleanText(value)).filter(Boolean).join(' ').toLowerCase();
+}
+
+function isNegativePlayerRead(event: AIPredictionEvent): boolean {
+  const text = eventText(event);
+  return Boolean(
+    event.action === 'sit' ||
+    event.action === 'avoid' ||
+    event.decision === 'dont' ||
+    /\b(sell|sell-high|fade|avoid|sit|bench|do not chase|don't chase|market trap|fragile|role risk|trap)\b/i.test(text)
+  );
+}
+
+function isPositiveMarketRead(event: AIPredictionEvent): boolean {
+  const text = eventText(event);
+  return Boolean(
+    event.action === 'pickup' ||
+    event.action === 'stash' ||
+    event.action === 'start' ||
+    /\b(buy|buy-low|add|stash|start|volume spike|protected runway|post-hype|breakout|promotion|undervalued)\b/i.test(text)
+  );
+}
+
+function isMarketValueRead(event: AIPredictionEvent): boolean {
+  const text = eventText(event);
+  return Boolean(
+    event.surface === 'player-detail' ||
+    /\b(buy|buy-low|sell|sell-high|hold|avoid|do not chase|don't chase|market|value|trap|stash|breakout|protected runway|fragile)\b/i.test(text)
+  );
+}
+
+function isFirmNoActionRead(event: AIPredictionEvent): boolean {
+  return Boolean(
+    event.action === 'hold' ||
+    event.action === 'avoid' ||
+    event.decision === 'dont' ||
+    /\b(hold|do not chase|don't chase|avoid|reject|no action)\b/i.test(eventText(event))
+  );
+}
+
+function findPlayerStat(event: AIPredictionEvent, context: AIPredictionOutcomeResolverContext): AIPredictionResolvedPlayerStat | null {
+  return (context.playerStats || []).find(row => sameEntity(event, row)) || null;
+}
+
+function findValueMovement(event: AIPredictionEvent, context: AIPredictionOutcomeResolverContext): AIPredictionResolvedValueMovement | null {
+  return (context.valueMovements || []).find(row => sameEntity(event, row)) || null;
+}
+
+function findRelatedTransaction(
+  event: AIPredictionEvent,
+  context: AIPredictionOutcomeResolverContext,
+  types: AIPredictionResolvedTransaction['type'][]
+): AIPredictionResolvedTransaction | null {
+  return (context.transactions || []).find(transaction =>
+    types.includes(transaction.type) &&
+    sameEntity(event, transaction) &&
+    sameManager(event, transaction.manager)
+  ) || null;
+}
+
 function realizedEdgeForEvent(input: {
   event: AIPredictionEvent;
   actualValue?: number | null;
@@ -307,6 +393,111 @@ function resolvePickupOrStash(event: AIPredictionEvent, context: AIPredictionOut
   });
 }
 
+function resolvePlayerPerformanceRead(
+  event: AIPredictionEvent,
+  context: AIPredictionOutcomeResolverContext,
+  source: string
+): AIPredictionOutcome | null {
+  const stat = findPlayerStat(event, context);
+  if (!stat) return null;
+
+  const actual = numeric(stat.fantasyPoints);
+  if (actual === null) return null;
+  const baseline = resolvedFantasyBaseline(event, stat);
+  const negativeRead = isNegativePlayerRead(event);
+  const cleared = negativeRead ? actual <= baseline : actual >= baseline;
+  const startedText =
+    stat.started === true ? ' The player was started.' :
+    stat.started === false ? ' The player was not started, so this also grades whether the ignored read was directionally right.' :
+    '';
+  const note = negativeRead
+    ? `${event.action === 'sit' ? 'Sit' : 'Avoid/don\'t-chase'} read ${cleared ? 'was supported' : 'missed'} against the actual-result baseline.${startedText}`
+    : `${event.action === 'stream' ? 'Stream' : event.action === 'start' ? 'Start' : 'Player'} read ${cleared ? 'beat' : 'missed'} the actual-result baseline.${startedText}`;
+
+  return outcome(
+    cleared ? 'hit' : 'miss',
+    context,
+    note,
+    {
+      actualValue: actual,
+      baselineValue: baseline,
+      realizedEdge: realizedEdgeForEvent({
+        event,
+        actualValue: negativeRead ? baseline : actual,
+        baselineValue: negativeRead ? actual : baseline,
+        source,
+        note,
+      }),
+    }
+  );
+}
+
+function resolveValueMovementRead(event: AIPredictionEvent, context: AIPredictionOutcomeResolverContext): AIPredictionOutcome | null {
+  if (!isMarketValueRead(event)) return null;
+  const movement = findValueMovement(event, context);
+  if (!movement) return null;
+
+  const baseline = numeric(movement.baselineValue);
+  const followUp = numeric(movement.followUpValue);
+  const delta = numeric(movement.valueDelta) ?? (baseline !== null && followUp !== null ? followUp - baseline : null);
+  if (baseline === null || followUp === null || delta === null) return null;
+
+  const pct = numeric(movement.valueDeltaPct) ?? (baseline > 0 ? (delta / baseline) * 100 : null);
+  const minMeaningfulMove = Math.max(75, Math.round(baseline * 0.04));
+  const movedUp = delta >= minMeaningfulMove;
+  const movedDown = delta <= -minMeaningfulMove;
+  const negativeRead = isNegativePlayerRead(event);
+  const positiveRead = isPositiveMarketRead(event);
+  const expired = isAIPredictionExpired({ expiresAt: event.expiresAt || event.decay?.expiresAt, now: context.resolvedAt });
+
+  if (!movedUp && !movedDown) {
+    if (!expired) {
+      return {
+        ...event.outcome,
+        status: 'pending',
+        note: `Value movement for ${event.entityName || 'this player'} is not meaningful yet (${delta >= 0 ? '+' : ''}${Math.round(delta)}).`,
+      };
+    }
+    const note = `Value-movement window expired without a meaningful move (${delta >= 0 ? '+' : ''}${Math.round(delta)} value).`;
+    return outcome('push', context, note, {
+      actualValue: followUp,
+      baselineValue: baseline,
+      realizedEdge: buildAIRealizedEdge({
+        predictedEdge: event.counterfactual?.edge ?? null,
+        actualValue: followUp,
+        baselineValue: baseline,
+        baselineKind: baselineKind(event),
+        source: movement.source || 'value:snapshot-movement',
+        note,
+        status: 'matched-baseline',
+      }),
+    });
+  }
+
+  const hit = negativeRead ? movedDown : positiveRead ? movedUp : movedUp;
+  const direction = delta >= 0 ? `gained ${Math.round(delta)}` : `lost ${Math.abs(Math.round(delta))}`;
+  const pctText = pct === null ? '' : ` (${pct >= 0 ? '+' : ''}${Math.round(pct * 10) / 10}%)`;
+  const note = `${event.entityName || 'Player'} ${direction} value${pctText} from ${movement.baselineDate || 'baseline'} to ${movement.followUpDate || 'follow-up'}; ${negativeRead ? 'negative/sell/avoid reads want value to fall or fail to rise' : 'positive/buy reads want value to rise'}.`;
+
+  return outcome(
+    hit ? 'hit' : 'miss',
+    context,
+    note,
+    {
+      actualValue: followUp,
+      baselineValue: baseline,
+      realizedEdge: buildAIRealizedEdge({
+        predictedEdge: event.counterfactual?.edge ?? null,
+        actualValue: negativeRead ? baseline : followUp,
+        baselineValue: negativeRead ? followUp : baseline,
+        baselineKind: baselineKind(event),
+        source: movement.source || 'value:snapshot-movement',
+        note,
+      }),
+    }
+  );
+}
+
 function resolveTrade(event: AIPredictionEvent, context: AIPredictionOutcomeResolverContext): AIPredictionOutcome | null {
   const relatedTrade = (context.transactions || []).find(transaction => {
     if (transaction.type !== 'trade') return false;
@@ -352,52 +543,48 @@ function resolveTrade(event: AIPredictionEvent, context: AIPredictionOutcomeReso
 }
 
 function resolveStartSitOrStream(event: AIPredictionEvent, context: AIPredictionOutcomeResolverContext): AIPredictionOutcome | null {
-  const stat = (context.playerStats || []).find(row => sameEntity(event, row));
-  if (!stat) return null;
+  return resolvePlayerPerformanceRead(
+    event,
+    context,
+    event.action === 'stream' ? 'stream:player-stats' : 'lineup:player-stats'
+  );
+}
 
-  const actual = numeric(stat.fantasyPoints);
-  if (actual === null) return null;
-  const baseline = resolvedFantasyBaseline(event, stat);
+function resolveHoldOrNoAction(event: AIPredictionEvent, context: AIPredictionOutcomeResolverContext): AIPredictionOutcome | null {
+  if (!isFirmNoActionRead(event)) return null;
 
-  if (event.action === 'sit' || event.action === 'avoid') {
-    const badGame = actual <= baseline;
-    const note = badGame ? 'Avoid/sit read was supported by the actual result.' : 'Avoid/sit read missed because the player beat the baseline.';
-    return outcome(
-      badGame ? 'hit' : 'miss',
-      context,
-      note,
-      {
-        actualValue: actual,
-        baselineValue: baseline,
-        realizedEdge: realizedEdgeForEvent({
-          event,
-          actualValue: baseline,
-          baselineValue: actual,
-          source: 'lineup:player-stats',
-          note,
-        }),
-      }
-    );
+  const actedAgainstRead = findRelatedTransaction(event, context, ['add', 'drop', 'trade']);
+  if (actedAgainstRead) {
+    const performance = resolvePlayerPerformanceRead(event, context, `no-action:${actedAgainstRead.type}`);
+    if (performance) return performance;
+
+    return {
+      ...event.outcome,
+      status: 'pending',
+      note: `A related ${actedAgainstRead.type} happened after the no-action read; waiting for production or value evidence before grading it.`,
+    };
   }
 
-  const cleared = actual >= baseline;
-  const note = cleared ? 'Start/stream read beat the actual-result baseline.' : 'Start/stream read missed the actual-result baseline.';
-  return outcome(
-    cleared ? 'hit' : 'miss',
-    context,
-    note,
-    {
-      actualValue: actual,
-      baselineValue: baseline,
-      realizedEdge: realizedEdgeForEvent({
-        event,
-        actualValue: actual,
-        baselineValue: baseline,
-        source: event.action === 'stream' ? 'stream:player-stats' : 'lineup:player-stats',
+  if (isAIPredictionExpired({ expiresAt: event.expiresAt || event.decay?.expiresAt, now: context.resolvedAt })) {
+    const note = event.action === 'hold'
+      ? 'Hold/no-action read was followed through until the recommendation expired.'
+      : 'Do-not-chase read expired without a matching action against it.';
+    return outcome('hit', context, note, {
+      actualValue: 1,
+      baselineValue: 0,
+      realizedEdge: buildAIRealizedEdge({
+        predictedEdge: event.counterfactual?.edge ?? null,
+        actualValue: 1,
+        baselineValue: 0,
+        baselineKind: baselineKind(event),
+        source: 'no-action:expiration',
         note,
+        status: 'action-only',
       }),
-    }
-  );
+    });
+  }
+
+  return null;
 }
 
 export function resolveAIPredictionOutcome(
@@ -411,14 +598,22 @@ export function resolveAIPredictionOutcome(
 
   const resolved =
     event.action === 'pickup' || event.action === 'stash'
-      ? resolvePickupOrStash(event, context)
+      ? resolvePickupOrStash(event, context) || resolveValueMovementRead(event, context)
       : event.action === 'trade'
         ? resolveTrade(event, context)
         : event.action === 'start' || event.action === 'sit' || event.action === 'stream' || event.action === 'avoid'
-          ? resolveStartSitOrStream(event, context)
-          : null;
+          ? resolveStartSitOrStream(event, context) || resolveValueMovementRead(event, context)
+          : event.action === 'watch' || event.action === 'hold'
+            ? resolvePlayerPerformanceRead(event, context, 'player-detail:player-stats') || resolveValueMovementRead(event, context) || resolveHoldOrNoAction(event, context)
+            : null;
 
   if (resolved) return resolved;
+
+  const noActionResolved = resolveHoldOrNoAction(event, context);
+  if (noActionResolved) return noActionResolved;
+
+  const valueResolved = resolveValueMovementRead(event, context);
+  if (valueResolved) return valueResolved;
 
   if (isAIPredictionExpired({ expiresAt: event.expiresAt || event.decay?.expiresAt, now: context.resolvedAt })) {
     return outcome('push', context, 'Prediction expired before enough outcome evidence was available.', {

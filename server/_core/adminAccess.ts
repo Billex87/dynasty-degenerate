@@ -4,6 +4,12 @@ const ADMIN_PERMISSION_ENV_KEYS = [
   "ADMIN_PERMISSIONS",
 ] as const;
 
+const DEFAULT_ADMIN_IDENTIFIERS = [
+  "mynameisbillex",
+  "zojozo",
+  "awwqq",
+] as const;
+
 export function normalizeAdminIdentifier(value?: string | null): string {
   return value?.trim().toLowerCase() || "";
 }
@@ -20,7 +26,10 @@ function getAdminPermissionSet(): Set<string> {
   const configuredAdmins = ADMIN_PERMISSION_ENV_KEYS.flatMap((key) =>
     parseAdminPermissionList(process.env[key])
   );
-  return new Set(configuredAdmins);
+  return new Set([
+    ...DEFAULT_ADMIN_IDENTIFIERS.map(normalizeAdminIdentifier),
+    ...configuredAdmins,
+  ]);
 }
 
 export function hasAdminPermissionIdentifier(

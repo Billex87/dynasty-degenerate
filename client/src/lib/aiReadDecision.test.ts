@@ -36,14 +36,14 @@ describe("buildAIReadDecision", () => {
     expect(decision.detail).toContain("already rostered");
   });
 
-  it("keeps warning and mid-confidence reads as watch-only", () => {
+  it("keeps warning and mid-confidence reads as do-not-force decisions", () => {
     const decision = buildAIReadDecision({
       confidence: 63,
       confidenceNote: "Schedule source is partial.",
       severity: "warn",
     });
 
-    expect(decision.label).toBe("Watch only");
+    expect(decision.label).toBe("Don't force it");
     expect(decision.tone).toBe("watch");
     expect(decision.status).toBe("Capped · 63%");
   });
@@ -58,14 +58,14 @@ describe("buildAIReadDecision", () => {
     expect(decision.tone).toBe("thin");
   });
 
-  it("keeps unscored context panels watch-only when they still have receipts", () => {
+  it("keeps unscored context panels as do-not-force decisions when they still have receipts", () => {
     const decision = buildAIReadDecision({
       confidence: null,
       severity: "info",
       hasEvidenceHints: true,
     });
 
-    expect(decision.label).toBe("Watch only");
+    expect(decision.label).toBe("Don't force it");
     expect(decision.tone).toBe("watch");
     expect(decision.status).toBe("Context only");
   });

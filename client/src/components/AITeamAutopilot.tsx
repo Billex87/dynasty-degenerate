@@ -593,11 +593,13 @@ function renderAutopilotHeadline(headline: string, manager?: string | null) {
 
 export default function AITeamAutopilot({
   reportData,
+  leagueId,
   leagueName,
   leagueFormat,
   leagueValueMode,
 }: {
   reportData?: ReportData;
+  leagueId?: string | null;
   leagueName?: string;
   leagueFormat?: string;
   leagueValueMode?: LeagueValueMode;
@@ -616,7 +618,7 @@ export default function AITeamAutopilot({
     const fallback = AUTOPILOT_MOCK_DATA[mode];
     try {
       return normalizeAutopilotData(
-        buildAutopilotData({ reportData, mode, fallback }),
+        buildAutopilotData({ reportData, mode, fallback, leagueId }),
         fallback,
         mode,
       );

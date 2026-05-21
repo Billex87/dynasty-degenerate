@@ -168,6 +168,7 @@ function shouldRenderAIReadPanel({
   const isBinaryDecision =
     label.includes('do this') ||
     label.includes('do not') ||
+    label.includes("don't") ||
     label.includes('insufficient') ||
     label.includes('no move') ||
     label.includes('blocked');

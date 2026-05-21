@@ -6,7 +6,7 @@ Redraft rankings are built separately from dynasty and devy rankings. Dynasty bo
 
 - FantasyPros API: used when `FANTASYPROS_API_KEY` is configured. Provides scoring-aware draft ECR for `PPR`, `HALF`, and `STD`.
 - Fantasy Nerds API: used when `FANTASY_NERDS_API_KEY` is configured. Provides scoring-aware draft rankings and ADP from the official API.
-- Flock Best Ball: uses Flock Fantasy `BEST_BALL` rankings as a shared market-style redraft signal across scoring formats.
+- Flock Best Ball: uses Flock Fantasy `BEST_BALL` rankings as a shared market-style redraft signal across scoring formats. Flock also publishes redraft Superflex Best Ball at `https://flockfantasy.com/rankings?format=best_ball_sf`; the loader supports it for future SF redraft profiles, but the current app redraft profiles are PPR/Half/Standard 1QB.
 - MyFantasyLeague public API: uses `TYPE=adp`, `TYPE=playerRanks`, and `TYPE=players` JSON exports. No key required.
 - ESPN Fantasy JSON endpoint: uses the public league-default `lm-api-reads.fantasy.espn.com` player info endpoint. This is not formally documented by ESPN, so it is weighted below the official/public exports.
 - Fleaflicker official API: uses `FetchPlayerListing` sorted by draft ranking. Requires `FLEAFLICKER_LEAGUE_ID` because Fleaflicker ranks are league-contextual.

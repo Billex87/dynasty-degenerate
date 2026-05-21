@@ -4,11 +4,25 @@ This checklist keeps AI features useful, distinct, and traceable. A new readout 
 
 ## Global Rules
 
-- [ ] Every major readout has a clear user decision: start, sit, hold, shop, buy, sell, stash, drop, add, trade, monitor, or ignore.
-- [ ] Every major readout includes a source trace: value, age, role, draft capital, schedule, manager tendency, league context, and source freshness where available.
-- [ ] Every confidence number has a reason and drops when source coverage, identity matching, historical data, or league memory is thin.
-- [ ] Every fallback state says what is missing instead of pretending a projection, schedule, or transaction signal exists.
-- [ ] No readout duplicates another tab's owned conclusion; secondary mentions must answer a different question.
+- [x] Every major readout has a clear user decision: start, sit, hold, shop, buy, sell, stash, drop, add, trade, monitor, or ignore.
+- [x] Every major readout includes a source trace: value, age, role, draft capital, schedule, manager tendency, league context, and source freshness where available.
+- [x] Every confidence number has a reason and drops when source coverage, identity matching, historical data, or league memory is thin.
+- [x] Every fallback state says what is missing instead of pretending a projection, schedule, or transaction signal exists.
+- [x] No readout duplicates another tab's owned conclusion; secondary mentions must answer a different question.
+
+## Surface Ownership Audit
+
+- [x] `OverviewAIPulse` owns the league-level story and the single best cross-report action only.
+- [x] `AI Autopilot` owns the ranked action queue; lower-ranked reads are receipts, not competing top calls.
+- [x] `Waiver Intelligence` owns add/drop and bid/priority decisions.
+- [x] `Matchup Edge` owns schedule, streamer, kicker, D/ST, and start/sit confidence.
+- [x] `Player Detail Modal` owns player-specific buy/sell/hold, role, and cohort evidence.
+- [x] `Owner Intel` owns one manager-level best move; roster, market, notes, and suggestion context render as receipts/modules instead of extra AI cards.
+- [x] `RankingsMarketRead` owns board-wide market context; individual player reads live in the player modal.
+- [x] `TradeBrowserRead` owns completed-trade ledger context.
+- [x] `TradeFinderGenerator` owns active package generation; partner rows now show receipts instead of one AI card per partner.
+- [x] `LeaguePowerRankings` owns ordering only; per-manager expanded rows now show receipts instead of one AI card per manager.
+- [x] `LeagueExploits` owns exploit inventory only; exploit cards now show receipts instead of one AI card per exploit.
 
 ## Overview
 

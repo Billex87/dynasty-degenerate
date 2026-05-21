@@ -186,7 +186,7 @@ export function getVoicedAIActionDecisionCopy(
     if (decision === "do") return "Action cleared";
     if (decision === "blocked") return "Blocked";
     if (decision === "hold") return "No forced move";
-    return "Watch only";
+    return "Don't force it";
   }
 
   if (mode === "roast") {

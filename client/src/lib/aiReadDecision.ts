@@ -52,12 +52,12 @@ function normalizeDecision(decision: string | AIReadDecision): AIReadDecision {
     };
   }
 
-  return {
-    ...decision,
-    label: cleanText(decision.label) || "Watch only",
-    detail: clampDecisionDetail(decision.detail),
-    tone: decision.tone || "watch",
-    status: cleanText(decision.status) || "Decision",
+    return {
+      ...decision,
+      label: cleanText(decision.label) || "Don't force it",
+      detail: clampDecisionDetail(decision.detail),
+      tone: decision.tone || "watch",
+      status: cleanText(decision.status) || "Decision",
   };
 }
 
@@ -96,7 +96,7 @@ function getEvidenceDecision(read: NonNullable<AIReadDecisionInput["evidenceRead
   }
 
   return {
-    label: "Watch only",
+    label: "Don't force it",
     detail,
     tone: "watch",
     status: `${read.label} · ${read.finalScore}%`,
@@ -123,7 +123,7 @@ export function buildAIReadDecision(input: AIReadDecisionInput): AIReadDecision 
   if (confidence === null) {
     if (input.hasEvidenceHints && severity !== "warn") {
       return {
-        label: "Watch only",
+        label: "Don't force it",
         detail: confidenceDetail || "Context is present, but this read has no scored confidence attached.",
         tone: "watch",
         status: "Context only",
@@ -149,7 +149,7 @@ export function buildAIReadDecision(input: AIReadDecisionInput): AIReadDecision 
 
   if (severity === "warn" || confidence < 68) {
     return {
-      label: "Watch only",
+      label: "Don't force it",
       detail: confidenceDetail || "Useful signal, but not strong enough to force an action.",
       tone: "watch",
       status: `Capped · ${confidence}%`,

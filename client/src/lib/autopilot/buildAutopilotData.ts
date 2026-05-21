@@ -3,6 +3,8 @@ import { getShortTermMatchupOutlook } from '@shared/matchupWindows';
 import { evaluateAIEvidence, getAIEvidenceLeagueContextFromDiagnostics, getAIEvidenceReceiptItems } from '@shared/aiEvidenceEngine';
 import type { AIEvidenceAction, AIEvidenceMode, AIEvidenceSurface, AIConfidenceLabel } from '@shared/aiEvidenceEngine';
 import { buildAIEvidenceLeagueActivityContext } from '@shared/leagueActivityContext';
+import { buildLeagueSharpnessProfile } from '@shared/leagueSharpness';
+import type { LeagueSharpnessProfile } from '@shared/leagueSharpness';
 import type {
   ManagerRosterIntelligence,
   MatchupPreview,
@@ -59,6 +61,7 @@ type AutopilotBuildInput = {
   reportData?: ReportData;
   mode: AutopilotMode;
   fallback: AutopilotData;
+  leagueId?: string | null;
 };
 
 type ReportCalibrationSourceAgreement = 'aligned' | 'split' | 'conflicted' | 'thin' | 'missing' | 'unknown';
@@ -748,7 +751,7 @@ function buildDirection(
     situationCopy,
     topWaiver ? `Check waivers for ${topWaiver.name}; it is the strongest available fit in the current report data.` : null,
     tendencyProfile.historyDepthScore >= 62 ? `Use ${tendencyProfile.label.toLowerCase()} behavior in confidence weighting; this read has enough history to matter.` : null,
-    portfolio && mode === 'dynasty' ? `Use ${portfolio.count2026 + portfolio.count2027} tracked future picks as leverage, not throw-ins.` : null,
+    portfolio && mode === 'dynasty' ? `Use ${portfolio.futurePicks?.length || portfolio.count2026 + portfolio.count2027 + (portfolio.count2028 || 0)} tracked future picks as leverage, not throw-ins.` : null,
     ...fallback.actionPlan,
   ], 3);
 
@@ -897,6 +900,25 @@ function applyReportCalibrationToRecommendation(
   source: AIActionQueueSource,
   card: AutopilotRecommendation,
 ): AutopilotRecommendation {
+  if (card.evidenceRead?.calibrationAdjustment) {
+    const adjustment = card.evidenceRead.calibrationAdjustment;
+    return {
+      ...card,
+      risk: card.confidence < 58 ? 'High' : card.risk,
+      reasons: dedupeStrings([...card.reasons, `Calibration: ${adjustment.reason}`], 5),
+      signals: dedupeStrings([...card.signals, 'Outcome-calibrated'], 5),
+      calibration: {
+        baseConfidence: adjustment.baseFinalScore,
+        adjustedConfidence: card.confidence,
+        confidenceCap: card.evidenceRead.confidenceCap,
+        reason: adjustment.reason,
+        priority: adjustment.priority === 'danger' || adjustment.priority === 'warn' || adjustment.priority === 'good'
+          ? adjustment.priority
+          : 'info',
+      },
+    };
+  }
+
   const action = inferRecommendationCalibrationAction(source, card);
   const baseConfidence = clampPercent(card.confidence);
   const baseCap = getAiConfidenceCap(data, manager);
@@ -1284,7 +1306,7 @@ function getQueueLabel(decision: AIActionQueueItem['decision']) {
   if (decision === 'do') return 'Do this now';
   if (decision === 'blocked') return 'Do not do this';
   if (decision === 'hold') return 'No forced move';
-  return 'Watch only';
+  return "Don't force it";
 }
 
 function getQueueTone(decision: AIActionQueueItem['decision'], recommendation?: AutopilotRecommendation): AutopilotTone {
@@ -1308,10 +1330,41 @@ function getQueueRisk(recommendation: AutopilotRecommendation, decision: AIActio
   return `Risk ${recommendation.risk}; upside ${recommendation.upside}.`;
 }
 
+function getLeagueSharpnessQueueCopy(
+  sharpness: LeagueSharpnessProfile | null | undefined,
+  source: AIActionQueueSource,
+): string | null {
+  if (!sharpness) return null;
+  if (source === 'trade') {
+    if (sharpness.tier === 'shark-tank' || sharpness.tier === 'sharp') {
+      return `${sharpness.label}: send clean or expect the room to move first.`;
+    }
+    if (sharpness.tier === 'sleepy') {
+      return `${sharpness.label}: do not overpay just to create action.`;
+    }
+  }
+  if (source === 'waiver') {
+    if (sharpness.actionBias === 'overpay-or-pass') {
+      return `${sharpness.label}: obvious adds need conviction or a hard pass.`;
+    }
+    if (sharpness.actionBias === 'attack') {
+      return `${sharpness.label}: act early on backed waiver edges.`;
+    }
+    if (sharpness.actionBias === 'wait') {
+      return `${sharpness.label}: patience beats chase bids.`;
+    }
+  }
+  if (source === 'lineup' && sharpness.confidence !== 'thin') {
+    return `${sharpness.label}: lineup reads use league context but still need role/news proof.`;
+  }
+  return `${sharpness.label}: ${sharpness.note}`;
+}
+
 function buildQueueChangeTriggers(
   recommendation: AutopilotRecommendation,
   source: AIActionQueueSource,
   decision: AIActionQueueItem['decision'],
+  sharpness?: LeagueSharpnessProfile | null,
 ): string[] {
   const evidence = recommendation.evidenceRead;
   const unhealthyTrace = evidence?.sourceTrace?.find((trace) =>
@@ -1329,7 +1382,7 @@ function buildQueueChangeTriggers(
           ? 'If partner need, roster surplus, or value spread changes, do not force the trade.'
           : 'A cleaner action with stronger evidence would replace this hold call.';
   const scheduleTrigger = recommendation.signals.some((signal) => /schedule|matchup|stream/i.test(signal))
-    ? 'A stale or rough DraftSharks schedule window would downgrade this to watch only.'
+    ? "A stale or rough DraftSharks schedule window would downgrade this to don't force it."
     : null;
   const decisionTrigger =
     decision === 'do'
@@ -1345,6 +1398,9 @@ function buildQueueChangeTriggers(
     evidence?.confidenceCapReason ? `Resolve confidence cap: ${evidence.confidenceCapReason}.` : null,
     evidence?.missingEvidence?.[0] ? `Add missing evidence: ${evidence.missingEvidence[0]}` : null,
     unhealthyTrace ? `Refresh source: ${unhealthyTrace.label}.` : null,
+    sharpness?.confidence === 'thin' ? 'Add more league behavior before letting sharpness change the recommendation.' : null,
+    sharpness?.tier === 'sleepy' ? 'A spike in league activity would raise urgency.' : null,
+    sharpness?.tier === 'sharp' || sharpness?.tier === 'shark-tank' ? 'A quieter league market would lower urgency.' : null,
     sourceTrigger,
     scheduleTrigger,
     decisionTrigger,
@@ -1388,7 +1444,7 @@ function buildRosterDominoEffects(
     return dedupeStrings([
       partnerMatch ? `${partnerMatch[1].trim()} is the first manager to test, not a must-accept counterparty.` : 'The trade domino starts with partner fit, not generic market value.',
       'Check whether the return actually upgrades a starter, pick tier, or roster weakness.',
-      'If the counter creates a new lineup hole, the trade drops back to watch only.',
+      "If the counter creates a new lineup hole, don't force it.",
     ], 4);
   }
 
@@ -1402,6 +1458,8 @@ function buildRecommendationQueueItem(
   recommendation: AutopilotRecommendation,
   source: AIActionQueueSource,
   order: number,
+  sharpness?: LeagueSharpnessProfile | null,
+  mode?: AutopilotMode,
 ): Omit<AIActionQueueItem, 'rank'> & { score: number } | null {
   const evidenceScore = recommendation.evidenceRead?.finalScore;
   const confidence = clampPercent(evidenceScore === undefined
@@ -1424,6 +1482,12 @@ function buildRecommendationQueueItem(
   const receipts = evidence
     ? getAIEvidenceReceiptItems(evidence)
     : recommendation.reasons;
+  const sharpnessScoreAdjustment =
+    mode === 'redraft' && source === 'trade' && sharpness?.actionBias === 'wait'
+      ? -14
+      : mode === 'redraft' && source === 'trade' && sharpness?.tier === 'casual'
+        ? -6
+        : 0;
 
   if (!recommendation.player || !recommendation.action) return null;
 
@@ -1443,16 +1507,18 @@ function buildRecommendationQueueItem(
     missingEvidence: evidence?.missingEvidence || [],
     sourceHealth: formatQueueSourceTrace(recommendation),
     receipts: dedupeStrings([
+      getLeagueSharpnessQueueCopy(sharpness, source),
       ...receipts,
       recommendation.calibration?.reason ? `Calibration: ${recommendation.calibration.reason}` : null,
     ], 4),
-    changeTriggers: buildQueueChangeTriggers(recommendation, source, decision),
+    changeTriggers: buildQueueChangeTriggers(recommendation, source, decision, sharpness),
     dominoEffects: buildRosterDominoEffects(recommendation, source, decision),
     signals: dedupeStrings([
+      sharpness ? `${sharpness.label} ${sharpness.score}%` : null,
       ...recommendation.signals,
       recommendation.calibration ? 'Outcome-calibrated' : null,
     ], 4),
-    score: confidence + decisionWeight[decision] + sourceWeight[source] - order,
+    score: confidence + decisionWeight[decision] + sourceWeight[source] - order + sharpnessScoreAdjustment,
   };
 }
 
@@ -1508,17 +1574,21 @@ function buildAIActionQueue({
   lineup,
   waivers,
   trades,
+  sharpness,
+  mode,
 }: {
+  mode: AutopilotMode;
   direction: AutopilotData['direction'];
   weeklyPlan?: WeeklyActionPlan;
   lineup: AutopilotRecommendation[];
   waivers: AutopilotRecommendation[];
   trades: AutopilotRecommendation[];
+  sharpness?: LeagueSharpnessProfile | null;
 }): AIActionQueueItem[] {
   const candidates = [
-    ...waivers.map((recommendation, index) => buildRecommendationQueueItem(recommendation, 'waiver', index)),
-    ...lineup.map((recommendation, index) => buildRecommendationQueueItem(recommendation, 'lineup', index)),
-    ...trades.map((recommendation, index) => buildRecommendationQueueItem(recommendation, 'trade', index)),
+    ...waivers.map((recommendation, index) => buildRecommendationQueueItem(recommendation, 'waiver', index, sharpness, mode)),
+    ...lineup.map((recommendation, index) => buildRecommendationQueueItem(recommendation, 'lineup', index, sharpness, mode)),
+    ...trades.map((recommendation, index) => buildRecommendationQueueItem(recommendation, 'trade', index, sharpness, mode)),
   ]
     .filter((item): item is Omit<AIActionQueueItem, 'rank'> & { score: number } => Boolean(item))
     .sort((a, b) => b.score - a.score);
@@ -1860,6 +1930,7 @@ function buildFuturePickTrajectory(data: ReportData, manager: string): FuturePic
     { label: 'Now', value: currentValue },
     { label: '2026', value: portfolio.value2026 || 0 },
     { label: '2027', value: portfolio.value2027 || 0 },
+    { label: '2028', value: portfolio.value2028 || 0 },
   ].filter((point) => point.value > 0);
   const likelyRookieRange = picks[0]?.rookieTier || projectedSlots[0] || 'Future rookie tier will sharpen once pick slots move with standings.';
 
@@ -2000,7 +2071,7 @@ function getFaabSuggestion(confidence: number, mode: AutopilotMode) {
   return mode === 'redraft' ? 'FAAB 3-6%' : 'FAAB 1-4%';
 }
 
-function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manager: string, fallback: AutopilotRecommendation[]): AutopilotRecommendation[] {
+function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manager: string, fallback: AutopilotRecommendation[], leagueId?: string | null): AutopilotRecommendation[] {
   const intel = findManagerIntel(data, manager);
   const dropCandidate = intel?.droppablePlayers?.[0] || null;
   const rawCandidates = collectWaiverCandidates(data, mode, intel);
@@ -2082,6 +2153,9 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
           isStrongStart: Boolean(matchupOutlook?.isStrongStart),
           missingReason: 'No stored matchup window is attached to this streamer read.',
         },
+        calibrationProfile: data.aiCalibrationAdjustmentProfile,
+        calibrationManager: manager,
+        calibrationLeagueId: leagueId,
       });
       return { player, score, rank, weeklyEcrRead, weeklyEcrTraceRead, evidenceRead };
     })
@@ -2434,7 +2508,7 @@ function buildScheduleTodo(data: ReportData, mode: AutopilotMode): string[] {
   ];
 }
 
-export function buildAutopilotData({ reportData, mode, fallback }: AutopilotBuildInput): AutopilotData {
+export function buildAutopilotData({ reportData, mode, fallback, leagueId }: AutopilotBuildInput): AutopilotData {
   if (!reportData) return fallback;
 
   const focusManager = getFocusManager(reportData, fallback);
@@ -2442,11 +2516,12 @@ export function buildAutopilotData({ reportData, mode, fallback }: AutopilotBuil
   const direction = buildDirection(reportData, mode, focusManager, fallback.direction, managerTendency);
   const lineup = capRecommendationCards(reportData, focusManager, buildLineupRecommendations(reportData, mode, focusManager, fallback.lineup), 'lineup');
   const weeklyPlan = capWeeklyActionPlan(reportData, focusManager, buildWeeklyActionPlan(reportData, mode, focusManager, lineup, fallback.weeklyPlan));
-  const waivers = capRecommendationCards(reportData, focusManager, buildWaiverRecommendations(reportData, mode, focusManager, fallback.waivers), 'waiver');
+  const waivers = capRecommendationCards(reportData, focusManager, buildWaiverRecommendations(reportData, mode, focusManager, fallback.waivers, leagueId), 'waiver');
   const trades = capRecommendationCards(reportData, focusManager, buildTradeRecommendations(reportData, mode, focusManager, fallback.trades), 'trade');
   const projections = capPlayerProjections(reportData, focusManager, buildPlayerProjections(reportData, mode, focusManager, fallback.projections));
   const weeklyRecap = buildWeeklyRecapRead(weeklyPlan, waivers, trades, mode, focusManager);
-  const actionQueue = buildAIActionQueue({ direction, weeklyPlan, lineup, waivers, trades });
+  const sharpness = buildLeagueSharpnessProfile(reportData);
+  const actionQueue = buildAIActionQueue({ mode, direction, weeklyPlan, lineup, waivers, trades, sharpness });
   const rejections = buildAIRejections({ data: reportData, actionQueue });
   const marketAnomalies = buildMarketAnomalyReads(reportData, mode, focusManager);
   const reportCard = buildAIReportCardRead({

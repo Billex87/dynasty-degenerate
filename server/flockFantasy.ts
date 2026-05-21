@@ -175,11 +175,9 @@ export async function fetchFlockFantasyBestBallValues(options: ValueBlendOptions
 }
 
 export async function loadFlockFantasyValueProfiles(): Promise<Record<FlockFormat, Record<string, FlockFantasyValue>>> {
-  const [superflex, oneQb, prospectsSf, prospects, bestBall, bestBallSf] = await Promise.all([
+  const [superflex, oneQb, bestBall, bestBallSf] = await Promise.all([
     fetchFlockFantasyRankings('SUPERFLEX'),
     fetchFlockFantasyRankings('ONEQB'),
-    fetchFlockFantasyRankings('PROSPECTS_SF'),
-    fetchFlockFantasyRankings('PROSPECTS'),
     fetchFlockFantasyRankings('BEST_BALL'),
     fetchFlockFantasyRankings('best_ball_sf'),
   ]);
@@ -187,8 +185,8 @@ export async function loadFlockFantasyValueProfiles(): Promise<Record<FlockForma
   return {
     SUPERFLEX: superflex,
     ONEQB: oneQb,
-    PROSPECTS_SF: prospectsSf,
-    PROSPECTS: prospects,
+    PROSPECTS_SF: {},
+    PROSPECTS: {},
     BEST_BALL: bestBall,
     best_ball_sf: bestBallSf,
   };

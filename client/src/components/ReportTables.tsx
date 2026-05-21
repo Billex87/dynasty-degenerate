@@ -8675,6 +8675,17 @@ export function OwnerIntelMatrix({
           ],
         })
       : [];
+  const selectedHighSignalAiSuggestions = selectedAiSuggestions.filter(
+    card => card.tone === "good" || card.tone === "danger"
+  );
+  const selectedPrimaryAiSuggestions = (
+    selectedHighSignalAiSuggestions.length
+      ? selectedHighSignalAiSuggestions
+      : selectedAiSuggestions
+  ).slice(0, 2);
+  const selectedHeldBackAiSuggestions = selectedAiSuggestions.filter(
+    card => !selectedPrimaryAiSuggestions.includes(card)
+  );
   const selectedActionNotes = selectedRow
     ? isRedraft
       ? buildRedraftActionNotes(selectedRow)
@@ -8961,21 +8972,6 @@ export function OwnerIntelMatrix({
                   <OwnerIntelPcbRoutes />
                   <div className="owner-intel-read-grid owner-intel-read-grid-pcb">
                     <AIReadPanel
-                      title={isRedraft ? "Roster Read" : "Dynasty Roster Read"}
-                      body={selectedRosterRead}
-                      decision={{
-                        label: "Watch only",
-                        detail: "Roster shape is context for the actual move; do not treat it as a transaction by itself.",
-                        tone: "watch",
-                        status: "Context only",
-                      }}
-                      traceItems={selectedRosterTraceItems}
-                      backgroundVariant="roster"
-                      severity="info"
-                      className="owner-intel-read-wide"
-                    />
-
-                    <AIReadPanel
                       title={isRedraft ? "Best Move" : "Dynasty Best Move"}
                       body={selectedBestMove}
                       decision={{
@@ -8989,107 +8985,70 @@ export function OwnerIntelMatrix({
                       severity="info"
                     />
 
-                    <AIReadPanel
-                      title={
-                        isRedraft ? "Starter / Bench Context" : "Market / Picks"
-                      }
-                      body={selectedTradeDraftProfile}
-                      decision={{
-                        label: "Watch only",
-                        detail: "Use this as deal context; the Best Move panel owns the action call.",
-                        tone: "watch",
-                        status: "Context only",
-                      }}
-                      traceItems={selectedMarketTraceItems}
-                      backgroundVariant="market"
-                      severity="warn"
-                    />
+                    <details className="ai-read-trace owner-intel-held-back-ai owner-intel-read-wide">
+                      <summary className="ai-read-trace-kicker">
+                        Roster receipts <span>{selectedRosterTraceItems.length + 1} receipts</span>
+                      </summary>
+                      <ul className="ai-read-trace-list">
+                        <li>{selectedRosterRead}</li>
+                        {selectedRosterTraceItems.map(item => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </details>
 
-                    {selectedAiSuggestions.map(card => {
-                      const titleKey = card.title.toLowerCase();
-                      const panelVariant = card.wide
-                        ? "monthly"
-                        : titleKey.includes("trade")
-                          ? "trade"
-                          : titleKey.includes("pick") ||
-                              titleKey.includes("market") ||
-                              titleKey.includes("leverage")
-                            ? "market"
-                            : titleKey.includes("offer") ||
-                                titleKey.includes("filter")
-                              ? "waiver"
-                              : titleKey.includes("churn")
-                                ? "lineup"
-                                : titleKey.includes("risk")
-                                  ? "draft"
-                                  : titleKey.includes("guardrail") ||
-                                      titleKey.includes("core")
-                                    ? "league"
-                                    : "blueprint";
+                    <details className="ai-read-trace owner-intel-held-back-ai owner-intel-read-wide">
+                      <summary className="ai-read-trace-kicker">
+                        Market receipts <span>{selectedMarketTraceItems.length + 1} receipts</span>
+                      </summary>
+                      <ul className="ai-read-trace-list">
+                        <li>{selectedTradeDraftProfile}</li>
+                        {selectedMarketTraceItems.map(item => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </details>
 
-                      const panelSeverity =
-                        card.tone === "danger"
-                          ? "danger"
-                          : card.tone === "warn"
-                            ? "warn"
-                            : card.tone === "good"
-                              ? "good"
-                              : "info";
-                      const cardDecision =
-                        card.tone === "danger"
-                          ? {
-                              label: "Do not force it",
-                              detail: card.copy,
-                              tone: "stop" as const,
-                              status: "Guardrail",
-                            }
-                          : card.tone === "warn"
-                            ? {
-                                label: "Watch only",
-                                detail: card.copy,
-                                tone: "watch" as const,
-                                status: "Caution",
-                              }
-                            : {
-                                label: "Do this",
-                                detail: card.copy,
-                                tone: "go" as const,
-                                status: "Action lane",
-                              };
-
-                      return (
-                        <AIReadPanel
-                          key={`${card.title}-${card.copy}`}
-                          title={card.title}
-                          body={card.copy}
-                          decision={cardDecision}
-                          traceItems={[
-                            `Owner profile: ${selectedRow.identity || 'returned owner identity'}.`,
-                            `Timeline: ${selectedRow.timeline || selectedTeamType || 'unknown'}.`,
-                            selectedOverviewRow ? `Value rank #${selectedOverviewRow.rank_value}.` : 'No league value rank returned.',
-                            `Signal source: ${card.title}.`,
-                          ]}
-                          backgroundVariant={panelVariant}
-                          severity={panelSeverity}
-                          className={getAiNeuralSurfaceClass(
-                            card.theme || "neutral",
-                            `owner-intel-ai-card owner-intel-ai-card-${card.tone} ${card.theme ? `owner-intel-ai-theme-${card.theme}` : ""} ${card.wide ? "owner-intel-read-wide" : ""}`
-                          )}
-                        />
-                      );
-                    })}
+                    {selectedAiSuggestions.length > 0 ? (
+                      <details className="ai-read-trace owner-intel-held-back-ai owner-intel-read-wide">
+                        <summary className="ai-read-trace-kicker">
+                          Supporting AI receipts{" "}
+                          <span>
+                            {selectedAiSuggestions.length} receipt
+                            {selectedAiSuggestions.length === 1
+                              ? ""
+                              : "s"}
+                          </span>
+                        </summary>
+                        <ul className="ai-read-trace-list">
+                          {selectedPrimaryAiSuggestions.map(card => (
+                            <li key={`${card.title}-${card.copy}`}>
+                              <strong>{card.title}:</strong> {card.copy}
+                            </li>
+                          ))}
+                          {selectedHeldBackAiSuggestions.map(card => (
+                            <li key={`${card.title}-${card.copy}`}>
+                              <strong>{card.title}:</strong> {card.copy}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    ) : null}
 
                     {selectedRow ? (
-                      <AIReadPanel
-                        title={isRedraft ? "Lineup Notes" : "Dynasty AI Notes"}
-                        backgroundVariant="monthly"
-                        severity="info"
+                      <section
                         className={getAiNeuralSurfaceClass(
                           "neutral",
-                          "owner-intel-wild-notes"
+                          "owner-intel-wild-notes owner-intel-read-wide owner-intel-receipt-module"
                         )}
-                        body={
-                          <div className="ai-notes-feature-shell">
+                      >
+                        <div className="owner-intel-receipt-heading">
+                          <span>
+                            {isRedraft ? "Lineup Notes" : "Dynasty Notes"}
+                          </span>
+                          <strong>Receipts only</strong>
+                        </div>
+                        <div className="ai-notes-feature-shell">
                           <svg
                             className="ai-notes-feature-rail"
                             viewBox="0 0 100 24"
@@ -9180,8 +9139,7 @@ export function OwnerIntelMatrix({
                             })}
                           </div>
                         </div>
-                        }
-                      />
+                      </section>
                     ) : null}
                   </div>
                 </div>

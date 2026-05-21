@@ -63,6 +63,73 @@ describe("AI prediction event builder", () => {
     )).toBe(true);
   });
 
+  it("stores player-detail archetype reads for outcome calibration", () => {
+    const events = buildAIPredictionEventsForReport({
+      leagueId: "13000000000000",
+      createdAt: "2026-09-01T00:00:00.000Z",
+      reportData: {
+        leagueDiagnostics: {
+          currentSeason: "2026",
+          currentWeek: 1,
+          valueMode: "dynasty",
+        },
+        playerDetailsById: {
+          p1: {
+            playerId: "p1",
+            fullName: "Vacated Volume",
+            position: "WR",
+            team: "BUF",
+            valueProfile: {
+              dynastyValue: 5200,
+              dynastyPositionRank: "WR18",
+            },
+            playerSituationDelta: {
+              playerId: "p1",
+              name: "Vacated Volume",
+              position: "WR",
+              score: 82,
+              confidence: 80,
+              primaryLabel: "vacated-opportunity",
+              labels: ["vacated-opportunity"],
+              action: "buy",
+              summary: "Targets opened up in this room.",
+              trace: ["Vacated opportunity opened a role."],
+              missingSignals: [],
+              cautionFlags: [],
+              components: [],
+              freshness: {
+                grade: "fresh",
+                score: 90,
+                signals: ["fresh roster room"],
+                note: "Fresh role signal.",
+              },
+              dynamicSignals: [],
+            },
+          },
+        },
+      } as any,
+    });
+
+    const playerDetailEvent = events.find(event => event.surface === "player-detail");
+    expect(playerDetailEvent).toMatchObject({
+      action: "start",
+      entityId: "p1",
+      entityName: "Vacated Volume",
+      metadata: {
+        source: "player-detail-archetype",
+        valueMode: "dynasty",
+        valueProfileKey: "12_sf_ppr_base",
+        archetypeKey: "volume-spike",
+        archetypeLabel: "Volume spike",
+      },
+      decisionSnapshot: {
+        facts: expect.arrayContaining([
+          expect.objectContaining({ key: "archetype", value: "Volume spike" }),
+        ]),
+      },
+    });
+  });
+
   it("does not emit fake calibration events when report data is missing", () => {
     expect(buildAIPredictionEventsForReport({ reportData: null })).toEqual([]);
   });

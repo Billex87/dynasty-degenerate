@@ -48,9 +48,9 @@ const PROSPECT_SOURCE_LABELS: Record<ProspectSourceKey, string> = {
 };
 
 const PROSPECT_SOURCE_NOTES: Record<ProspectSourceKey, string> = {
-  fantasyProsDevy: 'Expert devy ECR/rank source for college and rookie-class ordering.',
-  flock: 'Prospect and rookie market/rank source from Flock Fantasy.',
-  ktc: 'Market signal from KTC devy/prospect profile values when available.',
+  fantasyProsDevy: 'Expert devy ECR/rank source for college and rookie-class ordering from https://www.fantasypros.com/nfl/rankings/devy-overall.php.',
+  flock: 'Disabled because Flock Fantasy does not publish a devy board.',
+  ktc: 'Market signal from KTC devy/prospect profile values at https://keeptradecut.com/devy-rankings.',
   prospectArchive: 'Stored scouting archive rank/rating context; kept below market and rank sources.',
 };
 
@@ -63,10 +63,10 @@ const PROSPECT_SOURCE_SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 export const PROSPECT_SOURCE_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'devy-source-snapshots');
 
 export const BASE_PROSPECT_SOURCE_WEIGHTS: ProspectSourceWeights = {
-  fantasyProsDevy: 0.35,
-  flock: 0.25,
-  ktc: 0.30,
-  prospectArchive: 0.10,
+  fantasyProsDevy: 0.40,
+  flock: 0,
+  ktc: 0.45,
+  prospectArchive: 0.15,
 };
 
 function isDisabledValue(value?: string | null): boolean {
@@ -353,7 +353,9 @@ export function buildProspectSourceDiagnostics(
   sourceTrust: ProspectSourceTrustMap = {},
   previousSourceTrust: ProspectSourceTrustMap = {},
 ): RankingSourceDiagnostic[] {
-  return annotateDiagnosticsWithTrustHistory((Object.keys(BASE_PROSPECT_SOURCE_WEIGHTS) as ProspectSourceKey[]).map((source) => {
+  return annotateDiagnosticsWithTrustHistory((Object.keys(BASE_PROSPECT_SOURCE_WEIGHTS) as ProspectSourceKey[])
+    .filter((source) => BASE_PROSPECT_SOURCE_WEIGHTS[source] > 0 || Object.keys(sourceMaps[source] || {}).length > 0)
+    .map((source) => {
     const rows = sourceMaps[source] || {};
     const trust = sourceTrust[source] || null;
     const rowCount = Object.keys(rows).length;

@@ -597,9 +597,11 @@ export interface PickPortfolio {
   manager: string;
   value2026: number;
   value2027: number;
+  value2028?: number;
   count2025: number;
   count2026: number;
   count2027: number;
+  count2028?: number;
   value2025: number;
   totalValue: number;
   ownPicks: number;
@@ -1713,7 +1715,13 @@ export type ReportAICalibrationAdjustmentScope =
   | 'surfaceActionLeagueFormat'
   | 'surfaceActionCounterfactual'
   | 'surfaceActionRealizedEdge'
-  | 'surfaceManager';
+  | 'surfaceManager'
+  | 'surfaceLeague'
+  | 'surfaceActionLeague'
+  | 'leagueSharpness'
+  | 'surfaceActionLeagueSharpness'
+  | 'managerArchetype'
+  | 'surfaceActionManagerArchetype';
 
 export interface ReportAICalibrationAdjustment {
   key: string;
@@ -1763,12 +1771,18 @@ export interface ServerReportDeltaRead {
   changes: ServerReportDeltaChange[];
 }
 
+export type LeagueWaiverMode = 'faab' | 'priority' | 'unknown';
+
 export interface LeagueDiagnostics {
   teamCount: number;
   valueMode: LeagueValueMode;
   qbFormat?: 'one_qb' | 'superflex' | 'two_qb' | 'unknown';
   currentSeason?: string;
   currentWeek?: number | null;
+  waiverMode?: LeagueWaiverMode;
+  waiverModeLabel?: string;
+  waiverType?: number | null;
+  waiverBudget?: number | null;
   playoffWeekStart?: number | null;
   playoffWeeks?: number[];
   championshipWeek?: number | null;

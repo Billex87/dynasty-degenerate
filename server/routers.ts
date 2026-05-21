@@ -2009,6 +2009,81 @@ function buildLeagueRosterValueRankings(
     }));
 }
 
+function getRosterPortfolioPlayerRefs(roster: any) {
+  const refs = [
+    ...(Array.isArray(roster?.players)
+      ? roster.players.map((playerId: string) => ({ playerId, rosterSpot: 'active' as const }))
+      : []),
+    ...(Array.isArray(roster?.taxi)
+      ? roster.taxi.map((playerId: string) => ({ playerId, rosterSpot: 'taxi' as const }))
+      : []),
+    ...(Array.isArray(roster?.reserve)
+      ? roster.reserve.map((playerId: string) => ({ playerId, rosterSpot: 'reserve' as const }))
+      : []),
+  ];
+  const seen = new Set<string>();
+  return refs.filter((ref) => {
+    const playerId = String(ref.playerId || '').trim();
+    if (!playerId || seen.has(playerId)) return false;
+    seen.add(playerId);
+    ref.playerId = playerId;
+    return true;
+  });
+}
+
+function buildUserRosterPortfolioPlayers(
+  roster: any,
+  players: Record<string, any>,
+  ktcValues: KTCValues,
+  leagueValueMode: LeagueValueMode
+) {
+  const refs = getRosterPortfolioPlayerRefs(roster);
+  const playerIds = refs.map((ref) => ref.playerId);
+  const valueProfilesById = buildPlayerValueProfileMap(playerIds, players, ktcValues, leagueValueMode);
+
+  return refs
+    .map((ref) => {
+      const player = players[ref.playerId];
+      if (!player) return null;
+      const name = getPlayerName(ref.playerId, players);
+      const position = typeof player.position === 'string' && player.position.trim()
+        ? player.position.trim().toUpperCase()
+        : null;
+      const team = typeof player.team === 'string' && player.team.trim()
+        ? player.team.trim().toUpperCase()
+        : null;
+      const value = getPlayerValueForLeagueMode(
+        ref.playerId,
+        players,
+        ktcValues,
+        leagueValueMode,
+        valueProfilesById
+      );
+      const positionRank = getPlayerPositionRankForLeagueMode(
+        ref.playerId,
+        players,
+        ktcValues,
+        leagueValueMode,
+        valueProfilesById
+      );
+
+      return {
+        playerId: ref.playerId,
+        name,
+        position,
+        team,
+        value,
+        positionRank,
+        rosterSpot: ref.rosterSpot,
+      };
+    })
+    .filter((player): player is NonNullable<typeof player> => Boolean(player))
+    .sort((a, b) => {
+      if (b.value !== a.value) return b.value - a.value;
+      return a.name.localeCompare(b.name);
+    });
+}
+
 async function fetchSleeperJson<T = any>(url: string): Promise<T | null> {
   try {
     const response = await fetchUserLoadResponse(url, "Sleeper API load");
@@ -4289,9 +4364,11 @@ function buildPickPortfolios(
       value2025: valueForYear('2025'),
       value2026: valueForYear('2026') + futureValueForYear('2026'),
       value2027: valueForYear('2027') + futureValueForYear('2027'),
+      value2028: valueForYear('2028') + futureValueForYear('2028'),
       count2025: picksForYear('2025').length,
       count2026: picksForYear('2026').length + futureForYear('2026').length,
       count2027: picksForYear('2027').length + futureForYear('2027').length,
+      count2028: picksForYear('2028').length + futureForYear('2028').length,
       totalValue,
       ownPicks,
       acquiredPicks,
@@ -5900,13 +5977,16 @@ export const appRouter = router({
           const leagueValueMode = getLeagueValueMode(leagueInfo);
           const ktcValues = await getLeagueValues(leagueInfo);
           const powerRankings = buildLeagueRosterValueRankings(safeRosters, players, ktcValues, leagueValueMode);
+          const rosterPlayers = viewerRoster
+            ? buildUserRosterPortfolioPlayers(viewerRoster, players, ktcValues, leagueValueMode)
+            : [];
           const fallbackManagerName = normalizeManagerName(input.displayName || username);
           const standingsRank = currentStandings.find((row) => row.rosterId === viewerRosterId)?.rank
             ?? currentStandings.find((row) => row.manager === fallbackManagerName)?.rank
             ?? null;
           const powerRank = powerRankings.find((row) => row.rosterId === viewerRosterId)?.rank ?? null;
 
-          return { leagueId, standingsRank, powerRank };
+          return { leagueId, standingsRank, powerRank, rosterPlayers };
         }));
 
         return { ranks };
@@ -6338,6 +6418,8 @@ export const appRouter = router({
 
           const viewerManager = input.viewerUserId ? userIdToManagerMap[input.viewerUserId] || null : null;
           const currentStandings = buildCurrentStandings(rosters, rosterUserMap);
+          const currentWaiverType = Number(leagueInfo.settings?.waiver_type);
+          const currentWaiverBudget = Number(leagueInfo.settings?.waiver_budget);
 
           const currentSeasonData = {
             label: currentSeasonLabel,
@@ -6351,6 +6433,8 @@ export const appRouter = router({
             taxiSlots: Number(leagueInfo.settings?.taxi_slots || 0),
             scoringSettings: leagueInfo.scoring_settings || {},
             currentWeek: currentScheduleWeek,
+            waiverType: Number.isFinite(currentWaiverType) ? currentWaiverType : null,
+            waiverBudget: Number.isFinite(currentWaiverBudget) ? currentWaiverBudget : null,
             playoffWeekStart,
             playoffWeeks,
             valueBlendProfileKey: leagueValueProfileKey,
@@ -6562,7 +6646,11 @@ export const appRouter = router({
             tradedPicks,
             ktcValues,
             draftRounds: Number(leagueInfo.settings?.draft_rounds || 5),
-            seasons: [currentSeason, String(Number(currentSeason) + 1)],
+            seasons: [
+              currentSeason,
+              String(Number(currentSeason) + 1),
+              String(Number(currentSeason) + 2),
+            ],
             draftSlotsBySeason,
             totalTeams: Number(leagueInfo.total_rosters || rosters.length || 0),
           });
