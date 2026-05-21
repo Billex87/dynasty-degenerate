@@ -11095,14 +11095,14 @@ export default function Home() {
 
   useEffect(() => {
     if (
-      !canOpenAdminToolsEntry ||
+      !hasAdminPermissions ||
       !reportData ||
       isAdminPassphraseVerifiedForSession
     )
       return;
     setAdminPassphrase("");
     setIsAdminAccessModalOpen(true);
-  }, [canOpenAdminToolsEntry, isAdminPassphraseVerifiedForSession, reportData]);
+  }, [hasAdminPermissions, isAdminPassphraseVerifiedForSession, reportData]);
 
   useEffect(() => {
     if (
