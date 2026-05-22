@@ -11743,7 +11743,7 @@ export default function Home() {
     </Dialog>
   );
 
-  if (reportData) {
+  if (reportData && !analysisCompleteMessage) {
     const leagueValueMode = normalizeLeagueValueMode(
       reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode
     );
@@ -12967,14 +12967,13 @@ export default function Home() {
         </ManagerChampionshipProvider>
         {adminAccessDialog}
         {adminUnlockDialog}
-        {loadingDialog}
       </>
     );
   }
 
   return (
     <>
-      <div className="home-shell min-h-screen flex flex-col premium-fx-host">
+      <div className="home-shell min-h-screen flex flex-col premium-fx-host" style={reportData && analysisCompleteMessage ? { opacity: 0 } : undefined}>
         <HomeHeaderChrome onBrandClick={handleStartOver} />
         <main className="home-main flex-1 flex flex-col items-center justify-center px-1 sm:px-6 py-8 sm:py-16">
           <div
