@@ -114,24 +114,23 @@ export function LoadingAnimation({
       <LoadingSceneBackdrop isActive={!isLoadingResolved} managerAnchors={managerAnchors} />
       <div className="loading-tron-backdrop analysis-loading-tron analysis-loading-loader-kit" aria-hidden="true" />
 
-      <div className="loading-modal-header">
-        <span className="loading-modal-bolt" aria-hidden="true">
-          {leagueLogo ? (
-            <img src={leagueLogo} alt="" className="loading-modal-league-icon" />
-          ) : (
-            <Zap />
-          )}
-        </span>
-        <div className="loading-modal-league-copy">
-          <p className="loading-league-name loading-gradient-text">
-            {leagueName || 'Your League'}
-          </p>
-          {leagueFormat ? <p className="loading-subtitle">{leagueFormat}</p> : null}
+      {!isLoadingResolved && (
+        <div className="loading-modal-header">
+          <span className="loading-modal-bolt" aria-hidden="true">
+            {leagueLogo ? (
+              <img src={leagueLogo} alt="" className="loading-modal-league-icon" />
+            ) : (
+              <Zap />
+            )}
+          </span>
+          <div className="loading-modal-league-copy">
+            <p className="loading-league-name loading-gradient-text">
+              {leagueName || 'Your League'}
+            </p>
+            {leagueFormat ? <p className="loading-subtitle">{leagueFormat}</p> : null}
+          </div>
         </div>
-      </div>
-      {isLoadingResolved ? (
-        <p className="loading-status-line">Report locked and loaded.</p>
-      ) : null}
+      )}
 
       {!isLoadingResolved && activeStep ? (
         <div

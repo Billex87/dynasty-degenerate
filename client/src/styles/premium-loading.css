@@ -226,7 +226,7 @@
   z-index: 1000;
   overflow: hidden;
   pointer-events: none;
-  opacity: 0.42;
+  opacity: 0.92;
   transition: opacity 420ms ease;
 }
 
@@ -549,7 +549,7 @@
   }
 
   .dd-loading-scene-backdrop {
-    opacity: 0.68;
+    opacity: 0.92;
   }
 
   .analysis-loading-dialog-loading .analysis-loading-modal-body,

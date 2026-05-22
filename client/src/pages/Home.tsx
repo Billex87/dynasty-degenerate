@@ -10414,15 +10414,16 @@ export default function Home() {
     setAnalysisCompleteMessage(null);
     setLoadingTransitionPhase("loading");
     setIsLoading(true);
-
-    if (knownLeague) return;
+    setLoadingManagerAnchors([]);
 
     try {
       const league = await leaguePreviewMutation.mutateAsync({
         leagueId: nextLeagueId,
       });
       if (activeAnalysisLeagueIdRef.current !== league.leagueId) return;
-      setPendingAnalysisLeague(getAnalysisLeaguePreview(league));
+      if (!knownLeague) {
+        setPendingAnalysisLeague(getAnalysisLeaguePreview(league));
+      }
       if (league.managerAnchors?.length) {
         setLoadingManagerAnchors(league.managerAnchors);
       }

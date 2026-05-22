@@ -57,8 +57,8 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: clamp(2.15rem, 4vw, 3rem);
-  height: clamp(2.15rem, 4vw, 3rem);
+  width: clamp(6.45rem, 12vw, 9rem);
+  height: clamp(6.45rem, 12vw, 9rem);
   opacity: var(--anchor-opacity, 0);
   transform:
     translate3d(var(--anchor-x, 50vw), var(--anchor-y, 50vh), 0)
@@ -72,13 +72,13 @@
 }
 
 .loader-kit-backdrop__manager-anchors[data-density="compact"] .loader-kit-backdrop__manager-anchor {
-  width: clamp(1.95rem, 3.3vw, 2.7rem);
-  height: clamp(1.95rem, 3.3vw, 2.7rem);
+  width: clamp(5.85rem, 9.9vw, 8.1rem);
+  height: clamp(5.85rem, 9.9vw, 8.1rem);
 }
 
 .loader-kit-backdrop__manager-anchors[data-density="dense"] .loader-kit-backdrop__manager-anchor {
-  width: clamp(1.75rem, 2.9vw, 2.45rem);
-  height: clamp(1.75rem, 2.9vw, 2.45rem);
+  width: clamp(5.25rem, 8.7vw, 7.35rem);
+  height: clamp(5.25rem, 8.7vw, 7.35rem);
 }
 
 .loader-kit-backdrop__manager-node,
@@ -239,14 +239,14 @@
 
 @media (max-width: 700px) {
   .loader-kit-backdrop__manager-anchor {
-    width: 1.9rem;
-    height: 1.9rem;
+    width: 5.7rem;
+    height: 5.7rem;
   }
 
   .loader-kit-backdrop__manager-anchors[data-density="compact"] .loader-kit-backdrop__manager-anchor,
   .loader-kit-backdrop__manager-anchors[data-density="dense"] .loader-kit-backdrop__manager-anchor {
-    width: 1.55rem;
-    height: 1.55rem;
+    width: 4.65rem;
+    height: 4.65rem;
   }
 }
 
