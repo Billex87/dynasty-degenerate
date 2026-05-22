@@ -1682,7 +1682,16 @@
     grid-template-columns: 1fr !important;
   }
 
+  .owner-intel-dialog .ai-read-panel-r3f .ai-read-body .ai-notes-module-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.72rem !important;
+  }
+
   .manager-command-dialog .ai-notes-feature-shell {
+    padding: 0.45rem 0.1rem 0;
+  }
+
+  .owner-intel-dialog .ai-notes-feature-shell {
     padding: 0.45rem 0.1rem 0;
   }
 
@@ -1690,8 +1699,25 @@
     opacity: 0.36;
   }
 
+  .owner-intel-dialog .ai-notes-feature-rail {
+    opacity: 0.36;
+  }
+
   .manager-command-dialog .ai-notes-module {
     min-height: auto;
+  }
+
+  .owner-intel-dialog .ai-notes-module {
+    min-height: auto;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 0.72rem;
+    padding: 0.88rem 0.92rem;
+  }
+
+  .owner-intel-dialog .ai-notes-module p {
+    font-size: 0.88rem !important;
+    line-height: 1.38 !important;
   }
 
   .manager-command-dialog .ai-panel-flow-trace {
