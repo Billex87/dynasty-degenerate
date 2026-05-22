@@ -2851,6 +2851,8 @@
   .manager-command-dialog .manager-command-taxi .manager-command-tile-grid,
   .manager-command-dialog .manager-intel-player-grid,
   .owner-intel-dialog .owner-intel-player-grid,
+  .owner-intel-dialog .owner-intel-full-rank-grid,
+  .owner-intel-dialog .owner-intel-heat-grid,
   .starter-modal .starter-grid,
   .starter-modal .starter-compact-grid,
   .manager-draft-modal .manager-draft-player-grid {
@@ -2864,9 +2866,20 @@
   .manager-command-dialog .manager-command-taxi .manager-command-player-tile,
   .manager-command-dialog .manager-intel-player,
   .owner-intel-dialog .manager-intel-player,
+  .owner-intel-dialog .owner-intel-heat-pill,
   .starter-modal .starter-player-tile,
   .manager-draft-modal .rookie-player-tile {
     max-width: none !important;
+  }
+
+  .owner-intel-dialog .manager-command-modal-inner,
+  .owner-intel-dialog .manager-command-body,
+  .owner-intel-dialog .owner-intel-full-rank-panel,
+  .owner-intel-dialog .owner-intel-full-rank-grid,
+  .owner-intel-dialog .owner-intel-heat-grid {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
   }
 
   .manager-command-dialog .manager-command-swap-grid,
