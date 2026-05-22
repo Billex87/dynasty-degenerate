@@ -3897,16 +3897,20 @@
   }
 
   .home-header-inner {
-    min-height: 4.8rem !important;
+    min-height: 4.25rem !important;
+  }
+
+  .home-header {
+    padding-block: 0.28rem !important;
   }
 
   .home-header-logo-wrap {
-    height: 4.25rem !important;
+    height: 4.1rem !important;
   }
 
   .home-header-logo {
-    height: 4rem !important;
-    max-width: min(19rem, 74vw) !important;
+    height: 3.85rem !important;
+    max-width: min(19.5rem, 76vw) !important;
   }
 
   .home-title {

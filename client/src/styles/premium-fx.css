@@ -312,44 +312,63 @@
 
 .loading-football-track .loading-football {
   z-index: 6;
-  width: 1.28rem;
-  height: 0.78rem;
-  border-color: rgba(255, 247, 237, 0.62);
+  width: 2.5rem;
+  height: 1.72rem;
+  border: 0;
   background:
-    linear-gradient(
-      90deg,
-      transparent 10%,
-      rgba(255, 247, 237, 0.74) 11%,
-      rgba(255, 247, 237, 0.74) 14%,
-      transparent 15%,
-      transparent 85%,
-      rgba(255, 247, 237, 0.74) 86%,
-      rgba(255, 247, 237, 0.74) 89%,
-      transparent 90%
-    ),
-    linear-gradient(
-      90deg,
-      transparent 43%,
-      rgba(255, 247, 237, 0.9) 44%,
-      rgba(255, 247, 237, 0.9) 56%,
-      transparent 57%
-    ),
-    radial-gradient(circle at 32% 34%, rgba(251, 191, 36, 0.5), transparent 34%),
-    linear-gradient(135deg, #6f341a, #c96a2a 48%, #3b1b0f 88%);
-  box-shadow:
-    0 0 0.2rem rgba(255, 247, 237, 0.44) inset,
-    0 0 0.95rem rgba(251, 146, 60, 0.62),
-    0 0 1.45rem rgba(34, 211, 238, 0.28);
-  animation: loading-football-pass 1.4s linear infinite;
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.34), transparent 20%),
+    radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.22), transparent 58%);
+  box-shadow: none;
+  animation: loading-helmet-impact-core 1.4s linear infinite;
 }
 
 .loading-football-track .loading-football-shadow {
   z-index: 0;
-  width: 1.15rem;
-  height: 0.22rem;
-  background: rgba(0, 0, 0, 0.7);
-  filter: blur(3px);
-  animation: loading-football-shadow 1.4s linear infinite;
+  width: 1.35rem;
+  height: 0.26rem;
+  background: rgba(0, 0, 0, 0.64);
+  filter: blur(2px);
+  animation: loading-helmet-shadow 1.4s linear infinite;
+}
+
+.loading-football-track .loading-football::before,
+.loading-football-track .loading-football::after {
+  position: absolute;
+  top: 50%;
+  width: 1.18rem;
+  height: 1.06rem;
+  border-radius: 48% 54% 50% 46% / 56% 56% 42% 42%;
+  content: "";
+  pointer-events: none;
+  transform-origin: 50% 50%;
+}
+
+.loading-football-track .loading-football::before {
+  left: 50%;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.24), transparent 28%),
+    linear-gradient(135deg, #2dd4bf 0%, #0f766e 48%, #062f2b 100%);
+  border: 1px solid rgba(103, 232, 249, 0.45);
+  box-shadow:
+    inset 0 0 0.2rem rgba(255, 255, 255, 0.18),
+    0 0 0.65rem rgba(34, 211, 238, 0.38),
+    0 0 0.8rem rgba(251, 146, 60, 0.18);
+  transform: translate(calc(-50% - 1.7rem), -50%) rotate(-14deg);
+  animation: loading-helmet-left-charge 1.4s linear infinite;
+}
+
+.loading-football-track .loading-football::after {
+  left: 50%;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.24), transparent 28%),
+    linear-gradient(135deg, #fb923c 0%, #f97316 48%, #4c1d0c 100%);
+  border: 1px solid rgba(251, 191, 36, 0.42);
+  box-shadow:
+    inset 0 0 0.2rem rgba(255, 255, 255, 0.16),
+    0 0 0.65rem rgba(251, 146, 60, 0.38),
+    0 0 0.8rem rgba(34, 211, 238, 0.16);
+  transform: translate(calc(-50% + 1.7rem), -50%) rotate(14deg);
+  animation: loading-helmet-right-charge 1.4s linear infinite;
 }
 
 .loading-success-card {
@@ -564,10 +583,7 @@
   }
 }
 
-/* Smooth football pass — constant horizontal velocity, full-height
-   parabolic arc, steady spin. Peaks at top of the track. Y values
-   from y = 3.02 - 2.97 * 4t(1-t), peaking at 50% / 0.05rem.
-   Rotation is constant 0→1440deg (2 full rotations). No scale change. */
+/* Helmet clash: the left and right shells meet in the middle, then fade. */
 @keyframes loading-football-pass {
   0% {
     opacity: 0;
@@ -612,6 +628,66 @@
   }
 }
 
+@keyframes loading-helmet-left-charge {
+  0% {
+    opacity: 0;
+    transform: translate(calc(-50% - 4.6rem), -50%) rotate(-20deg) scale(0.78);
+  }
+  12% {
+    opacity: 1;
+  }
+  44% {
+    transform: translate(calc(-50% - 1.2rem), -50%) rotate(-9deg) scale(0.98);
+  }
+  70% {
+    transform: translate(calc(-50% - 0.2rem), -50%) rotate(4deg) scale(1.04);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + 0.9rem), -50%) rotate(12deg) scale(0.88);
+  }
+}
+
+@keyframes loading-helmet-right-charge {
+  0% {
+    opacity: 0;
+    transform: translate(calc(-50% + 4.6rem), -50%) rotate(20deg) scale(0.78);
+  }
+  12% {
+    opacity: 1;
+  }
+  44% {
+    transform: translate(calc(-50% + 1.2rem), -50%) rotate(9deg) scale(0.98);
+  }
+  70% {
+    transform: translate(calc(-50% + 0.2rem), -50%) rotate(-4deg) scale(1.04);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% - 0.9rem), -50%) rotate(-12deg) scale(0.88);
+  }
+}
+
+@keyframes loading-helmet-impact-core {
+  0%,
+  16% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  44% {
+    opacity: 1;
+    transform: scale(0.94);
+  }
+  68% {
+    opacity: 0.92;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.24);
+  }
+}
+
 @keyframes loading-football-shadow {
   0% {
     opacity: 0;
@@ -630,6 +706,27 @@
   100% {
     opacity: 0;
     transform: translate3d(calc(100cqw - 1.28rem), 0, 0) scaleX(0.58);
+  }
+}
+
+@keyframes loading-helmet-shadow {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scaleX(0.5);
+  }
+  12% {
+    opacity: 0.28;
+  }
+  50% {
+    opacity: 0.12;
+    transform: translate3d(calc(50cqw - 0.56rem), -0.02rem, 0) scaleX(0.34);
+  }
+  88% {
+    opacity: 0.32;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(100cqw - 1.28rem), 0, 0) scaleX(0.5);
   }
 }
 

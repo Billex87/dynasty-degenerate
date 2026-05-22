@@ -9725,12 +9725,36 @@ body {
 
 .home-find-leagues-button,
 .home-analyze-button {
-  border-color: rgba(244, 160, 32, 0.38) !important;
+  border-color: rgba(255, 183, 77, 0.58) !important;
   border-radius: 0.625rem !important;
-  background: linear-gradient(135deg, #f4a020, #e85a10) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 38%),
+    linear-gradient(135deg, #ffb33b 0%, #f97316 45%, #d94b0a 100%) !important;
   color: #ffffff !important;
   font-weight: 800 !important;
-  box-shadow: 0 4px 20px rgba(244, 160, 32, 0.3) !important;
+  text-shadow: 0 1px 1px rgba(87, 35, 4, 0.42);
+  box-shadow:
+    0 14px 30px rgba(232, 90, 16, 0.34),
+    0 0 28px rgba(244, 160, 32, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34) !important;
+}
+
+.home-find-leagues-button:hover:not(:disabled),
+.home-analyze-button:hover:not(:disabled) {
+  border-color: rgba(255, 210, 120, 0.76) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 38%),
+    linear-gradient(135deg, #ffc857 0%, #fb7a18 44%, #e85a10 100%) !important;
+  box-shadow:
+    0 16px 36px rgba(232, 90, 16, 0.42),
+    0 0 34px rgba(244, 160, 32, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42) !important;
+}
+
+.home-find-leagues-button:disabled,
+.home-analyze-button:disabled {
+  opacity: 0.72;
+  cursor: wait;
 }
 
 .home-feature-card {
@@ -10424,22 +10448,13 @@ body {
   padding-bottom: 0.34rem !important;
   border-bottom-color: rgba(0, 200, 232, 0.26) !important;
   background:
-    radial-gradient(circle at 18% 50%, rgba(0, 200, 232, 0.13), transparent 20rem),
-    radial-gradient(circle at 76% 42%, rgba(232, 90, 16, 0.14), transparent 18rem),
-    linear-gradient(90deg, rgba(2, 6, 23, 0.94), rgba(3, 12, 22, 0.82), rgba(2, 6, 23, 0.94)),
-    rgba(2, 6, 23, 0.72) !important;
+    linear-gradient(90deg, rgba(2, 6, 23, 0.82), rgba(2, 6, 23, 0.68)),
+    rgba(2, 6, 23, 0.52) !important;
   backdrop-filter: blur(18px);
 }
 
 .home-header::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(0, 200, 232, 0.18), transparent 32rem),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 42%);
-  opacity: 0.9;
+  content: none;
 }
 
 .home-header > * {
@@ -10655,7 +10670,8 @@ body {
   background:
     radial-gradient(circle at 100% 0%, rgba(244, 160, 32, 0.2), transparent 34%),
     linear-gradient(145deg, rgba(10, 16, 25, 0.9), rgba(3, 8, 14, 0.74)) !important;
-  padding: clamp(1.15rem, 2vw, 1.65rem) !important;
+  gap: 0.72rem;
+  padding: clamp(0.98rem, 1.75vw, 1.35rem) !important;
 }
 
 .home-hero-dashboard .home-analyze-card .home-field-label {
@@ -10673,6 +10689,10 @@ body {
 .home-hero-dashboard .home-analyze-button {
   min-height: 3.15rem;
   font-size: 0.96rem;
+}
+
+.home-hero-dashboard .home-id-divider {
+  margin-block: 0.05rem;
 }
 
 .home-hero-dashboard .home-feature-grid {

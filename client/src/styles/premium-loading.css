@@ -160,6 +160,13 @@
   border-radius: 1rem;
   overflow: hidden !important;
   padding: 0 !important;
+  background:
+    radial-gradient(circle at 14% 8%, rgba(255, 106, 0, 0.16), transparent 30%),
+    radial-gradient(circle at 88% 2%, rgba(0, 212, 219, 0.16), transparent 34%),
+    linear-gradient(145deg, rgba(3, 8, 18, 0.97), rgba(2, 6, 23, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(125, 247, 255, 0.12),
+    0 24px 78px rgba(0, 0, 0, 0.44);
 }
 
 .analysis-loading-panel > .loading-tron-backdrop {
@@ -168,7 +175,7 @@
   z-index: 0 !important;
   border: 0 !important;
   border-radius: inherit !important;
-  opacity: 0.92;
+  opacity: 0.32;
   transform: translateZ(0);
 }
 
@@ -184,11 +191,11 @@
 }
 
 .analysis-loading-tron.ai-surface-r3f::before {
-  opacity: 0.38;
+  opacity: 0.14;
 }
 
 .analysis-loading-tron.ai-surface-r3f::after {
-  opacity: 0.2;
+  opacity: 0.08;
 }
 
 .analysis-loading-loader-kit {
@@ -196,6 +203,7 @@
     radial-gradient(circle at 12% 8%, rgba(255, 106, 0, 0.24), transparent 32%),
     radial-gradient(circle at 88% 2%, rgba(0, 212, 219, 0.24), transparent 34%),
     linear-gradient(145deg, rgba(2, 8, 18, 0.62), rgba(1, 13, 24, 0.46) 48%, rgba(2, 6, 23, 0.6)) !important;
+  opacity: 0.42;
 }
 
 .analysis-loading-loader-kit::before {
@@ -218,7 +226,7 @@
   z-index: 1000;
   overflow: hidden;
   pointer-events: none;
-  opacity: 0.98;
+  opacity: 0.42;
   transition: opacity 420ms ease;
 }
 
@@ -308,7 +316,7 @@
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.025),
     0 0 1.2rem rgba(0, 212, 219, 0.05);
-  backdrop-filter: blur(10px) saturate(1.12);
+  backdrop-filter: none;
 }
 
 .analysis-loading-dialog-success .loading-step-list,

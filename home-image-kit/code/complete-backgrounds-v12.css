@@ -1,0 +1,138 @@
+/*
+Dynasty Degens Complete Background Kit v12
+
+Complete replacement kit:
+- viewport hero backgrounds
+- long/page backgrounds
+- mobile-inline DD/player backgrounds
+- crisp electric floor continuation backgrounds
+
+All assets are JPG for high-resolution background performance.
+Recommended repo path:
+public/brand/backgrounds/
+*/
+
+.dd-hero-bg {
+  background-color: #06090F;
+  background-image:
+    linear-gradient(90deg, rgba(6,9,15,.88), rgba(6,9,15,.18) 58%, rgba(6,9,15,.34)),
+    url('/brand/backgrounds/viewport/jpg/desktop-wide-1920x900.jpg');
+  background-size: cover;
+  background-position: right top;
+  background-repeat: no-repeat;
+}
+
+.dd-page-bg {
+  min-height: 100vh;
+  background-color: #06090F;
+  background-image:
+    linear-gradient(180deg, rgba(6,9,15,0.00), rgba(6,9,15,0.10) 34%, rgba(6,9,15,0.74) 100%),
+    url('/brand/backgrounds/long/jpg/desktop-wide-long-1920x3200.jpg'),
+    url('/brand/backgrounds/continuation/jpg/crisp-floor-continuation-desktop-1920x2600.jpg');
+  background-size: 100% auto, 100% auto, 100% auto;
+  background-position: right top, right top, center 3200px;
+  background-repeat: no-repeat, no-repeat, repeat-y;
+}
+
+.dd-continuation-bg,
+.dd-table-continuation-bg,
+.dd-expanded-table-bg {
+  background-color: #06090F;
+  background-image:
+    linear-gradient(180deg, rgba(6,9,15,0.02), rgba(6,9,15,0.36)),
+    url('/brand/backgrounds/continuation/jpg/crisp-floor-continuation-desktop-1920x2600.jpg');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: repeat-y;
+}
+
+@media (min-width: 2200px) {
+  .dd-hero-bg {
+    background-image:
+      linear-gradient(90deg, rgba(6,9,15,.88), rgba(6,9,15,.18) 58%, rgba(6,9,15,.34)),
+      url('/brand/backgrounds/viewport/jpg/ultrawide-desktop-2560x1200.jpg');
+  }
+
+  .dd-page-bg {
+    background-image:
+      linear-gradient(180deg, rgba(6,9,15,0.00), rgba(6,9,15,0.10) 34%, rgba(6,9,15,0.74) 100%),
+      url('/brand/backgrounds/long/jpg/ultrawide-long-2560x3400.jpg'),
+      url('/brand/backgrounds/continuation/jpg/crisp-floor-continuation-ultrawide-2560x2600.jpg');
+    background-position: right top, right top, center 3400px;
+  }
+}
+
+@media (max-width: 1500px) {
+  .dd-hero-bg {
+    background-image:
+      linear-gradient(90deg, rgba(6,9,15,.88), rgba(6,9,15,.18) 58%, rgba(6,9,15,.34)),
+      url('/brand/backgrounds/viewport/jpg/laptop-1366x768.jpg');
+  }
+
+  .dd-page-bg {
+    background-image:
+      linear-gradient(180deg, rgba(6,9,15,0.00), rgba(6,9,15,0.10) 34%, rgba(6,9,15,0.74) 100%),
+      url('/brand/backgrounds/long/jpg/laptop-long-1366x2600.jpg'),
+      url('/brand/backgrounds/continuation/jpg/crisp-floor-continuation-desktop-1920x2600.jpg');
+    background-position: right top, right top, center 2600px;
+  }
+}
+
+@media (max-width: 1200px) and (orientation: landscape) {
+  .dd-hero-bg {
+    background-image:
+      linear-gradient(90deg, rgba(6,9,15,.82), rgba(6,9,15,.22) 60%, rgba(6,9,15,.38)),
+      url('/brand/backgrounds/viewport/jpg/tablet-landscape-1280x800.jpg');
+  }
+
+  .dd-page-bg {
+    background-image:
+      linear-gradient(180deg, rgba(6,9,15,0.00), rgba(6,9,15,0.10) 34%, rgba(6,9,15,0.74) 100%),
+      url('/brand/backgrounds/long/jpg/tablet-landscape-long-1280x2400.jpg'),
+      url('/brand/backgrounds/continuation/jpg/crisp-floor-continuation-tablet-landscape-1280x2000.jpg');
+    background-position: right top, right top, center 2400px;
+  }
+}
+
+@media (max-width: 900px) and (orientation: portrait) {
+  .dd-hero-bg {
+    background-image:
+      linear-gradient(90deg, rgba(6,9,15,.72), rgba(6,9,15,.20)),
+      url('/brand/backgrounds/viewport/jpg/tablet-portrait-768x1024-right-locked.jpg');
+  }
+
+  .dd-page-bg {
+    background-image:
+      linear-gradient(180deg, rgba(6,9,15,0.00), rgba(6,9,15,0.10) 34%, rgba(6,9,15,0.74) 100%),
+      url('/brand/backgrounds/long/jpg/tablet-portrait-long-768x2600.jpg'),
+      url('/brand/backgrounds/continuation/jpg/crisp-floor-continuation-tablet-portrait-768x2200.jpg');
+    background-position: right top, right top, center 2600px;
+  }
+}
+
+@media (max-width: 520px) {
+  .dd-hero-bg {
+    background-image:
+      linear-gradient(180deg, rgba(6,9,15,.06), rgba(6,9,15,.32) 72%, rgba(6,9,15,.72)),
+      url('/brand/backgrounds/mobile-inline/jpg/mobile-inline-dd-behind-helmet-430x980.jpg');
+    background-position: center top;
+  }
+
+  .dd-page-bg {
+    background-image:
+      linear-gradient(180deg, rgba(6,9,15,.04), rgba(6,9,15,.18) 30%, rgba(6,9,15,.74) 100%),
+      url('/brand/backgrounds/mobile-inline/jpg/mobile-inline-dd-behind-helmet-page-430x3400.jpg'),
+      url('/brand/backgrounds/continuation/jpg/crisp-floor-continuation-mobile-430x2600.jpg');
+    background-size: 100% auto, 100% auto, 100% auto;
+    background-position: center top, center top, center 3400px;
+    background-repeat: no-repeat, no-repeat, repeat-y;
+  }
+
+  .dd-continuation-bg,
+  .dd-table-continuation-bg,
+  .dd-expanded-table-bg {
+    background-image:
+      linear-gradient(180deg, rgba(6,9,15,0.02), rgba(6,9,15,0.36)),
+      url('/brand/backgrounds/continuation/jpg/crisp-floor-continuation-mobile-430x2600.jpg');
+  }
+}

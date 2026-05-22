@@ -1,0 +1,7 @@
+{
+  "kit": "dynasty-degens-complete-background-kit-v12",
+  "format": "jpg",
+  "purpose": "Full replacement background kit with viewport, long, mobile-inline, and crisp floor continuation assets.",
+  "css": "code/complete-backgrounds-v12.css",
+  "codexPrompt": "codex-prompts/CODEX_COMPLETE_BACKGROUND_KIT_V12.md"
+}

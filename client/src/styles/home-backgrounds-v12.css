@@ -1,0 +1,282 @@
+/*
+  Dynasty Degens home background kit v12.
+  Loaded last so these viewport-specific crops win over older hero overrides.
+*/
+
+.home-shell {
+  background-color: #06090f !important;
+  background-image: url("/brand/backgrounds/viewport/jpg/desktop-1920x1080.jpg") !important;
+  background-position: 58% top !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+}
+
+.home-shell::before,
+.home-shell::after {
+  display: none !important;
+}
+
+.home-shell .home-hero-dashboard .home-title {
+  text-shadow: none !important;
+}
+
+.home-shell .home-hero-dashboard .home-title span {
+  text-shadow: none !important;
+}
+
+.home-shell .home-hero-dashboard .home-title span.home-title-primary {
+  filter:
+    drop-shadow(0 2px 1px rgba(0, 0, 0, 0.92))
+    drop-shadow(0 4px 7px rgba(0, 0, 0, 0.86))
+    drop-shadow(0 11px 22px rgba(0, 0, 0, 0.66))
+    drop-shadow(0 0 22px rgba(0, 200, 232, 0.3)) !important;
+}
+
+.home-shell .home-hero-dashboard .home-title span.home-title-accent {
+  background-image: linear-gradient(90deg, #c2410c 0%, #fb923c 18%, #fed7aa 48%, #fb923c 76%, #c2410c 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: none !important;
+  filter:
+    drop-shadow(0 2px 1px rgba(0, 0, 0, 0.92))
+    drop-shadow(0 4px 7px rgba(0, 0, 0, 0.86))
+    drop-shadow(0 11px 22px rgba(0, 0, 0, 0.66))
+    drop-shadow(0 0 24px rgba(249, 115, 22, 0.44)) !important;
+}
+
+.home-shell .home-hero-dashboard .home-feature-card {
+  border: 1px solid rgba(0, 200, 232, 0.24) !important;
+  background: rgba(8, 16, 26, 0.52) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.home-shell .home-hero-dashboard .home-feature-card::before {
+  content: none !important;
+}
+
+.home-shell .home-hero-dashboard .home-analyze-card {
+  border: 1px solid rgba(0, 200, 232, 0.28) !important;
+  background: rgba(6, 12, 20, 0.58) !important;
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.45),
+    0 0 42px rgba(232, 90, 16, 0.16) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+@media (min-width: 1800px) and (max-width: 2199px) {
+  .home-shell {
+    background-image: url("/brand/backgrounds/viewport/jpg/desktop-wide-1920x900.jpg") !important;
+    background-position: 62% top !important;
+    background-size: cover !important;
+  }
+}
+
+@media (min-width: 2200px) {
+  .home-shell {
+    background-image: url("/brand/backgrounds/viewport/jpg/ultrawide-desktop-2560x1200.jpg") !important;
+    background-position: right top !important;
+    background-size: cover !important;
+  }
+}
+
+@media (min-width: 1550px) and (max-width: 1799px) {
+  .home-shell {
+    background-image: url("/brand/backgrounds/viewport/jpg/desktop-1920x1080.jpg") !important;
+    background-position: 60% top !important;
+    background-size: cover !important;
+  }
+}
+
+@media (min-width: 1350px) and (max-width: 1549px) {
+  .home-shell {
+    background-image: url("/brand/backgrounds/viewport/jpg/laptop-1366x768.jpg") !important;
+    background-position: 64% top !important;
+    background-size: cover !important;
+  }
+}
+
+@media (min-width: 1150px) and (max-width: 1349px) {
+  .home-shell {
+    background-image: url("/brand/backgrounds/viewport/jpg/tablet-landscape-1280x800.jpg") !important;
+    background-position: 66% top !important;
+    background-size: cover !important;
+  }
+}
+
+@media (max-width: 1149px) and (orientation: landscape) {
+  .home-shell {
+    background-image: url("/brand/backgrounds/viewport/jpg/tablet-landscape-1280x800.jpg") !important;
+    background-position: center top !important;
+    background-size: cover !important;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1100px) and (orientation: portrait) {
+  .home-shell {
+    background-image: url("/brand/backgrounds/viewport/jpg/tablet-1024x1366-right-locked.jpg") !important;
+    background-position: right top !important;
+    background-size: cover !important;
+  }
+}
+
+@media (min-width: 700px) and (max-width: 899px) and (orientation: portrait) {
+  .home-shell {
+    background-image: url("/brand/backgrounds/viewport/jpg/tablet-portrait-768x1024-right-locked.jpg") !important;
+    background-position: right top !important;
+    background-size: cover !important;
+  }
+}
+
+@media (max-width: 699px) and (orientation: portrait) {
+  .home-shell {
+    background-image: url("/brand/backgrounds/viewport/jpg/tablet-portrait-768x1024-right-locked.jpg") !important;
+    background-position: center 7rem !important;
+    background-repeat: no-repeat !important;
+    background-size: 160% auto !important;
+  }
+
+  .home-shell .home-main.home-main {
+    overflow-x: hidden;
+    padding: 1.35rem 0.9rem 0.15rem !important;
+  }
+
+  .home-shell .home-footer.home-footer {
+    padding-top: 0.25rem !important;
+  }
+
+  .home-shell .home-hero-dashboard {
+    justify-items: center;
+    margin-inline: auto !important;
+  }
+
+  .home-shell .home-hero-dashboard .home-hero-copy,
+  .home-shell .home-hero-dashboard .home-analyze-card,
+  .home-shell .home-hero-dashboard .home-feature-grid {
+    width: min(100%, 24.75rem) !important;
+    max-width: calc(100vw - 2rem) !important;
+    margin-inline: auto !important;
+  }
+
+  .home-shell .home-hero-dashboard .home-hero-copy {
+    padding-top: 1.15rem;
+    padding-bottom: clamp(21.25rem, 48vh, 24rem);
+  }
+
+  .home-shell .home-hero-dashboard .home-analyze-card {
+    position: static;
+    top: auto;
+    z-index: 2;
+    width: min(100%, 24.75rem) !important;
+  }
+
+  .home-shell .home-hero-dashboard .home-analyze-card .home-field-label,
+  .home-shell .home-hero-dashboard .home-analyze-card .home-field-helper {
+    display: none !important;
+  }
+
+  .home-shell .home-hero-dashboard .home-feature-grid {
+    display: grid !important;
+    width: min(100%, 24.75rem) !important;
+    max-width: calc(100vw - 2rem) !important;
+    margin-top: 0.4rem !important;
+    margin-inline: auto !important;
+    gap: 0.75rem !important;
+    overflow: visible;
+    padding: 0 !important;
+    transform: none !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .home-shell .home-hero-dashboard .home-feature-card {
+    display: grid;
+    align-content: start;
+    gap: 0.55rem;
+    flex: none;
+    width: auto !important;
+    min-height: 7.9rem;
+    border: 1px solid rgba(0, 200, 232, 0.24) !important;
+    background: rgba(8, 16, 26, 0.52) !important;
+    box-shadow: none !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 0.78rem 0.9rem 0.92rem !important;
+  }
+
+  .home-shell .home-hero-dashboard .home-feature-card::before {
+    content: none !important;
+  }
+
+  .home-shell .home-hero-dashboard .home-feature-card > * {
+    position: static;
+  }
+
+  .home-shell .home-hero-dashboard .home-feature-heading {
+    flex-direction: column !important;
+    justify-content: flex-start;
+    gap: 0.42rem;
+    margin-bottom: 0;
+  }
+
+  .home-shell .home-hero-dashboard .home-feature-heading > div {
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 0.65rem;
+  }
+
+  .home-shell .home-hero-dashboard .home-feature-heading svg {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+
+  .home-shell .home-hero-dashboard .home-feature-card h3 {
+    font-size: 0.83rem;
+    line-height: 1.05;
+    text-align: center;
+  }
+
+  .home-shell .home-hero-dashboard .home-feature-card p {
+    max-width: 100%;
+    margin-inline: auto;
+    font-size: 0.76rem !important;
+    line-height: 1.34;
+    text-align: center;
+    -webkit-line-clamp: 3;
+  }
+
+  .home-shell .home-hero-dashboard .home-title {
+    display: flex;
+    width: fit-content !important;
+    max-width: calc(100vw - 2rem) !important;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.18em;
+    font-size: clamp(1.78rem, 7.45vw, 2.18rem) !important;
+    line-height: 0.9 !important;
+    white-space: nowrap;
+    margin-inline: auto !important;
+  }
+
+  .home-shell .home-hero-dashboard .home-title span {
+    white-space: nowrap !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-shell .home-hero-dashboard .home-feature-card {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 399px) and (orientation: portrait) {
+  .home-shell {
+    background-image: url("/brand/backgrounds/viewport/jpg/tablet-portrait-768x1024-right-locked.jpg") !important;
+    background-position: center top !important;
+    background-size: 160% auto !important;
+  }
+}
