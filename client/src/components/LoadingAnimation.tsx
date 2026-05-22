@@ -1,7 +1,38 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Sparkles, Zap } from 'lucide-react';
 import type { LoaderManagerAnchor } from './LoaderKitBackdrop';
+
+const STEP_DATA_RANGES: Record<string, [number, number]> = {
+  sleeper:  [0,       1_200],
+  league:   [1_200,   8_400],
+  ktc:      [8_400,   34_000],
+  dynasty:  [34_000,  72_000],
+  csv:      [72_000,  118_000],
+  final:    [118_000, 142_000],
+};
+
+function useDataCounter(activeStepId: string, isActive: boolean) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!isActive) return;
+    const [start, end] = STEP_DATA_RANGES[activeStepId] ?? [0, 1000];
+    setCount(start);
+    let current = start;
+    const target = end * 0.88;
+    const steps = 55;
+    const base = (target - start) / steps;
+    const iv = setInterval(() => {
+      current += base + Math.random() * base * 0.35;
+      if (current >= target) { clearInterval(iv); return; }
+      setCount(Math.round(current));
+    }, 28);
+    return () => clearInterval(iv);
+  }, [activeStepId, isActive]);
+
+  return count;
+}
 
 const LoaderKitBackdrop = lazy(() => import('./LoaderKitBackdrop'));
 
@@ -77,12 +108,26 @@ export function LoadingAnimation({
   managerAnchors?: LoaderManagerAnchor[];
 }) {
   const [steps, setSteps] = useState<LoadingStep[]>(() => createInitialLoadingSteps());
+  const [isFlashing, setIsFlashing] = useState(false);
+  const prevCompletedRef = useRef(0);
   const isLoadingResolved = isComplete || phase !== 'loading';
   const activeStep = steps.find(step => step.status === 'loading') || steps[steps.length - 1];
   const activeStepLabel = activeStep?.id === 'final'
     ? 'Finalizing'
     : activeStep?.label.replace(/\.\.\.$/, '') || '';
   const isCompactFinalizing = activeStep?.id === 'final';
+  const completedCount = steps.filter(s => s.status === 'complete').length;
+  const dataCount = useDataCounter(activeStep?.id ?? 'sleeper', !isLoadingResolved);
+
+  useEffect(() => {
+    if (completedCount > prevCompletedRef.current && completedCount > 0) {
+      setIsFlashing(true);
+      const t = setTimeout(() => setIsFlashing(false), 700);
+      prevCompletedRef.current = completedCount;
+      return () => clearTimeout(t);
+    }
+    prevCompletedRef.current = completedCount;
+  }, [completedCount]);
 
   useEffect(() => {
     if (isLoadingResolved) {
@@ -109,10 +154,11 @@ export function LoadingAnimation({
   }, [isLoadingResolved]);
 
   return (
-    <div className="loading-panel analysis-loading-panel">
+    <div className={`loading-panel analysis-loading-panel${isFlashing ? ' loading-panel-flash' : ''}`}>
       <LoadingLetterbox isComplete={isLoadingResolved} />
       <LoadingSceneBackdrop isActive={!isLoadingResolved} managerAnchors={managerAnchors} />
       <div className="loading-tron-backdrop analysis-loading-tron analysis-loading-loader-kit" aria-hidden="true" />
+
 
       {!isLoadingResolved && (
         <div className="loading-modal-header">
@@ -134,12 +180,16 @@ export function LoadingAnimation({
 
       {!isLoadingResolved && activeStep ? (
         <div
+          key={activeStep.id}
           className={`loading-mobile-status${isCompactFinalizing ? ' loading-mobile-status-finalizing' : ''}`}
           role="status"
           aria-live="polite"
         >
           <span className="loading-mobile-status-copy">{activeStepLabel}</span>
-          <span className="loading-mobile-finalizing-track" aria-hidden="true">
+          <span className="loading-data-counter" aria-hidden="true">
+            {dataCount.toLocaleString()} data points analyzed
+          </span>
+          <span className="loading-mobile-progress-track" aria-hidden="true">
             <span className="loading-finalizing-beam" />
             <span className="loading-finalizing-node loading-finalizing-node-a" />
             <span className="loading-finalizing-node loading-finalizing-node-b" />
@@ -208,18 +258,14 @@ export function LoadingAnimation({
             );
           })}
 
-          <p className="text-slate-500 text-xs mt-1 text-center">
-            {steps.filter(s => s.status === 'complete').length} of {steps.length} steps complete
-          </p>
-
-          <div className="w-full mt-1">
-            <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-              <div
-                className="loading-progress-fill h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${(steps.filter(s => s.status === 'complete').length / steps.length) * 100}%`
-                }}
-              />
+          <div className="loading-progress-bar-wrap" aria-hidden="true">
+            <div
+              className="loading-progress-fill"
+              style={{
+                width: `${(steps.filter(s => s.status === 'complete').length / steps.length) * 100}%`
+              }}
+            >
+              <span className="loading-progress-shimmer" />
             </div>
           </div>
         </div>

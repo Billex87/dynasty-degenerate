@@ -11551,7 +11551,6 @@ export default function Home() {
   );
   const loadingSuccessCardClassName = [
     "loading-success-card",
-    "loading-success-card-static",
     analysisCompleteMessage?.leagueLogo ? "loading-success-card-logo" : "",
   ]
     .filter(Boolean)
@@ -11610,15 +11609,6 @@ export default function Home() {
               className={loadingSuccessCardClassName}
               role="status"
               aria-live="polite"
-              style={{
-                opacity: 1,
-                transform: "translate(-50%, -50%)",
-                filter: "none",
-                backdropFilter: "none",
-                animation: "none",
-                background:
-                  "linear-gradient(145deg, rgba(8, 13, 24, 0.98), rgba(2, 6, 23, 0.98))",
-              }}
             >
               <span
                 className="loading-success-impact-core"
@@ -11646,9 +11636,6 @@ export default function Home() {
                 >
                   {analysisCompleteMessage.leagueName || "League report"}
                 </h2>
-                <div className="loading-success-bar" aria-hidden="true">
-                  <span />
-                </div>
               </div>
             </div>
           )}

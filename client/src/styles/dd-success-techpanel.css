@@ -46,6 +46,9 @@
   border-radius: 0.62rem !important;
   padding: clamp(0.42rem, 1.2vw, 0.66rem) clamp(1rem, 2vw, 1.45rem) !important;
   font-size: clamp(1.18rem, 2.2vw, 2.05rem) !important;
+  position: relative !important;
+  z-index: 10 !important;
+  transform: translateZ(72px) !important;
 }
 
 .loading-success-card .loading-success-kicker svg {
@@ -56,6 +59,9 @@
 .loading-success-card .loading-success-icon {
   height: clamp(7rem, 15vw, 10.2rem) !important;
   width: clamp(7rem, 15vw, 10.2rem) !important;
+  margin-top: -2rem !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
 .loading-success-card h2,
