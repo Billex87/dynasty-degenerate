@@ -468,7 +468,7 @@ function AIReadTrace({
       onToggle={event => setIsOpen(event.currentTarget.open)}
     >
       <summary className="ai-read-trace-kicker">
-        {label} <span>{items.length} receipts</span>
+        {label} <span>{items.length} signals</span>
       </summary>
       {isOpen && (
         <ul className="ai-read-trace-list">

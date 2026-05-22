@@ -304,6 +304,10 @@
   margin: -0.1rem 0 0.06rem;
 }
 
+.loading-mobile-status {
+  display: none;
+}
+
 .loading-step-list {
   padding: 0 0.05rem 0.02rem;
 }
@@ -525,6 +529,127 @@
   .loading-finalizing-track {
     left: 10.6rem;
     right: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  [data-slot="dialog-content"].analysis-loading-dialog-loading,
+  .analysis-loading-dialog-loading,
+  .ddlp__current-modal-shell {
+    width: min(calc(100vw - 2rem), 24rem) !important;
+    max-width: min(calc(100vw - 2rem), 24rem) !important;
+    animation: none !important;
+  }
+
+  .analysis-loading-overlay {
+    background:
+      radial-gradient(circle at 18% 12%, rgba(249, 115, 22, 0.14), transparent 34%),
+      radial-gradient(circle at 82% 18%, rgba(34, 211, 238, 0.12), transparent 34%),
+      rgba(2, 6, 23, 0.42) !important;
+  }
+
+  .dd-loading-scene-backdrop {
+    opacity: 0.68;
+  }
+
+  .analysis-loading-dialog-loading .analysis-loading-modal-body,
+  .ddlp__current-modal-shell .analysis-loading-modal-body,
+  .analysis-loading-modal-body {
+    min-height: 12.75rem !important;
+    padding: 0.72rem !important;
+  }
+
+  .analysis-loading-panel {
+    gap: 0.62rem;
+    background:
+      radial-gradient(circle at 12% 8%, rgba(255, 106, 0, 0.14), transparent 30%),
+      radial-gradient(circle at 88% 2%, rgba(0, 212, 219, 0.14), transparent 34%),
+      linear-gradient(145deg, rgba(3, 8, 18, 0.82), rgba(2, 6, 23, 0.78)) !important;
+  }
+
+  .analysis-loading-panel > .loading-tron-backdrop,
+  .analysis-loading-loader-kit {
+    opacity: 0.58;
+  }
+
+  .loading-modal-header {
+    gap: 0.24rem;
+    padding: 0.44rem 0.5rem 0.08rem;
+  }
+
+  .loading-modal-bolt {
+    height: 3.05rem;
+    width: 3.05rem;
+  }
+
+  .loading-league-name {
+    font-size: clamp(0.98rem, 4.8vw, 1.18rem);
+  }
+
+  .loading-subtitle {
+    font-size: clamp(0.62rem, 3vw, 0.74rem);
+  }
+
+  .loading-mobile-status {
+    position: relative;
+    display: grid;
+    min-height: 2.95rem;
+    align-items: center;
+    overflow: hidden;
+    border: 1px solid rgba(125, 247, 255, 0.2);
+    border-radius: 0.88rem;
+    background:
+      radial-gradient(circle at 4% 50%, rgba(0, 212, 219, 0.16), transparent 28%),
+      linear-gradient(135deg, rgba(4, 12, 28, 0.76), rgba(2, 6, 23, 0.56));
+    padding: 0.66rem 0.78rem;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+      0 0 1.25rem rgba(0, 212, 219, 0.06);
+  }
+
+  .loading-mobile-status-finalizing {
+    border-color: rgba(255, 180, 106, 0.34);
+    background:
+      radial-gradient(circle at 9% 50%, rgba(255, 180, 106, 0.2), transparent 25%),
+      radial-gradient(circle at 92% 50%, rgba(0, 212, 219, 0.17), transparent 30%),
+      linear-gradient(135deg, rgba(5, 18, 32, 0.84), rgba(2, 6, 23, 0.66));
+  }
+
+  .loading-mobile-status-copy {
+    position: relative;
+    z-index: 3;
+    min-width: 0;
+    color: #67e8f9;
+    font-size: clamp(0.78rem, 3.7vw, 0.94rem);
+    font-weight: 900;
+    line-height: 1.12;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow:
+      0 2px 7px rgba(0, 0, 0, 0.92),
+      0 0 12px rgba(34, 211, 238, 0.16);
+    white-space: nowrap;
+  }
+
+  .loading-mobile-status-finalizing .loading-mobile-status-copy {
+    color: #ffb46a;
+  }
+
+  .loading-mobile-finalizing-track {
+    position: absolute;
+    inset: 0.34rem 0.62rem 0.34rem 7.9rem;
+    z-index: 2;
+    overflow: hidden;
+    border-radius: 999px;
+    opacity: 0.92;
+    pointer-events: none;
+    mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  }
+
+  .analysis-loading-dialog-loading .loading-step-list,
+  .ddlp__current-modal-shell .loading-step-list,
+  .loading-step-list {
+    display: none !important;
   }
 }
 

@@ -52,7 +52,7 @@ const initialLoadingSteps: LoadingStep[] = [
   { id: 'ktc', label: 'Cooking the market value books', status: 'pending' },
   { id: 'dynasty', label: 'Interrogating the dynasty market', status: 'pending' },
   { id: 'csv', label: 'Generating your illegal advantage', status: 'pending' },
-  { id: 'final', label: 'Finalizing report...', status: 'pending' },
+  { id: 'final', label: 'Finalizing', status: 'pending' },
 ];
 
 function createInitialLoadingSteps() {
@@ -78,6 +78,11 @@ export function LoadingAnimation({
 }) {
   const [steps, setSteps] = useState<LoadingStep[]>(() => createInitialLoadingSteps());
   const isLoadingResolved = isComplete || phase !== 'loading';
+  const activeStep = steps.find(step => step.status === 'loading') || steps[steps.length - 1];
+  const activeStepLabel = activeStep?.id === 'final'
+    ? 'Finalizing'
+    : activeStep?.label.replace(/\.\.\.$/, '') || '';
+  const isCompactFinalizing = activeStep?.id === 'final';
 
   useEffect(() => {
     if (isLoadingResolved) {
@@ -126,6 +131,24 @@ export function LoadingAnimation({
       </div>
       {isLoadingResolved ? (
         <p className="loading-status-line">Report locked and loaded.</p>
+      ) : null}
+
+      {!isLoadingResolved && activeStep ? (
+        <div
+          className={`loading-mobile-status${isCompactFinalizing ? ' loading-mobile-status-finalizing' : ''}`}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="loading-mobile-status-copy">{activeStepLabel}</span>
+          {isCompactFinalizing ? (
+            <span className="loading-mobile-finalizing-track" aria-hidden="true">
+              <span className="loading-finalizing-beam" />
+              <span className="loading-finalizing-node loading-finalizing-node-a" />
+              <span className="loading-finalizing-node loading-finalizing-node-b" />
+              <span className="loading-finalizing-node loading-finalizing-node-c" />
+            </span>
+          ) : null}
+        </div>
       ) : null}
 
       {!isLoadingResolved && (

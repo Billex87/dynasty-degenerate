@@ -139,7 +139,7 @@
   - [x] Feed admin-gated manager personality labels into Trade War Room negotiation context without showing them to normal users.
 - [x] Build a first-pass league sharpness score from roster quality, transaction volume, waiver behavior, draft discipline, trade frequency, lineup optimization, inactive managers, and source/sample depth so recommendations adjust between casual, average, and sharp leagues.
   - [x] Feed league sharpness into the shared AI evidence layer so sharp leagues raise urgency and sleepy leagues cap chase behavior.
-  - [x] Add an admin-only League Sharpness Score diagnostic panel with signal receipts and confidence.
+  - [x] Add an admin-only League Sharpness Score diagnostic panel with source signals and confidence.
 - [ ] Add unified outcome memory for every AI recommendation type: waiver add, cut, stash, start/sit, trade offer, trade reject, buy-low, sell-high, draft pick, streamer, and prospect read. Store the recommendation, evidence, confidence, result window, eventual outcome, and whether the model should learn from it.
   - [x] Add Outcome Memory 2.0 admin diagnostics with an AI outcome ledger, confidence-bucket accuracy, module scorecards, sharpness calibration, and automatic confidence-adjustment rows.
   - [x] Persist Action Queue sharpness tags into prediction-event metadata so sharpness buckets can be calibrated after outcomes resolve.
@@ -147,15 +147,15 @@
   - [x] Add value-snapshot outcome facts so sell-high/buy-low calls can grade from post-call value movement even when no trade or same-week player-stat fact exists.
   - [ ] Extend value-movement outcome facts into redraft-specific value history once the redraft Draft Coach/player-modal wiring consumes `redraft-value-trends-v1.json` in runtime calibration.
 - [ ] Expand player archetype prediction beyond value rank: volume spike, depth-chart promotion, injury-away backup, schedule streamer, age-cliff risk, post-hype breakout, empty-calorie producer, market trap, role loss, target-earner, touchdown-dependent scorer, and fragile-value veteran.
-  - [x] Add first-pass player action archetype labels to Player Modal AI reads and Waiver Intelligence receipts using situation delta, schedule, cohort, comp, draft-capital, and availability context.
+  - [x] Add first-pass player action archetype labels to Player Modal AI reads and Waiver Intelligence signals using situation delta, schedule, cohort, comp, draft-capital, and availability context.
 - [ ] Apply hard confidence caps everywhere based on missing data: no projections, no schedule, no current role, no recent usage, no manager history, thin source count, stale source snapshot, redraft/dynasty mismatch, missing ownership status, or insufficient resolved outcomes.
   - [x] Feed stored AI calibration adjustment profiles back into the shared evidence engine so future waiver, schedule, and autopilot reads can inherit earned confidence caps and outcome-memory penalties.
   - [x] Thread report-level calibration profiles into Player Detail Modal AI reads so player-specific buy/sell/hold and archetype confidence can inherit outcome-memory caps.
 - [ ] Collapse noisy AI surfaces into one personalized command center that shows only binary action reads: add this, do not chase this, send this trade, reject this trade, start this player, stash this player, cut this player, or no action because evidence is thin.
-  - [x] Tighten generic AI watch/readout language into binary decision copy (`Do this`, `Do not do this`, `Don't force it`, or insufficient evidence) so secondary cards read as action receipts instead of extra competing advice.
-  - [x] Run the first visible AI surface audit and reduce Owner Intel from a stack of competing AI cards to one primary Best Move, compact context reads, capped high-signal suggestion cards, and a held-back receipt drawer for lower-priority reads.
-  - [x] Run the cross-tab AI surface ownership audit and demote repeated per-row AI cards in Trade Partner Finder, League Power Rankings, and League Exploits into receipt drawers so those lists stop competing with their owning AI surfaces.
-  - [x] Finish the Owner Intel cleanup so the modal has one true AI card (`Best Move`) and all roster, market, suggestion, and notes context is rendered as receipts/modules.
+  - [x] Tighten generic AI watch/readout language into binary decision copy (`Do this`, `Do not do this`, `Don't force it`, or insufficient evidence) so secondary cards read as support signals instead of extra competing advice.
+  - [x] Run the first visible AI surface audit, then restore Owner Intel Lab to separate roster, best-move, market/picks, suggestion, and AI-notes cards because that presentation feels smarter for manager intel.
+  - [x] Run the cross-tab AI surface ownership audit and demote repeated per-row AI cards in Trade Partner Finder, League Power Rankings, and League Exploits into signal drawers so those lists stop competing with their owning AI surfaces.
+  - [x] Keep Owner Intel Lab evidence-led while showing multiple AI readouts instead of hiding roster, market, suggestion, and notes context behind support modules.
 - [ ] Build league-wide prediction backtests for FAAB patterns, draft paths, trade activity, waiver volume, start/sit decisions, prospect stashes, and roster-construction choices so confidence only rises when prior predictions actually beat simple baselines.
 - [x] Add age/value curves so AI can tell whether a player is early, normal, or late relative to their position's typical peak and decline window.
 - [x] Add an offline player-season outcome builder from nflverse stats so production seasons can be labeled as first-season, progression, breakout, sustain, regression, collapse, or low-signal without putting raw modeling data on pages.
@@ -183,8 +183,8 @@
 - [x] Add deeper first-pass historical outcome buckets such as breakout, sustain, regression, collapse, low-signal, and late-career rebound, then map historical player-seasons into those buckets for calibration.
 - [x] Add a first-pass player cohort signal engine with position age phases, market-vs-production deltas, current outcome buckets, confidence gating, same-position peer rows, and explanation traces without adding provider calls.
 - [x] Add offline player-cohort backtesting against historical seasons to measure archetype sample size, positive rate, regression/collapse risk, median next-year movement, and failure modes; see `docs/player-season-outcome-model.md`.
-- [x] Publish compact player-cohort calibration receipts so player AI reads can cite historical sample size, failure risk, and median next-year movement without loading raw modeling rows or example players at runtime.
-- [x] Add admin-only player receipt audit diagnostics so visible/internal historical receipts, display reasons, bucket summaries, and bad-read guardrails can be reviewed before stronger AI copy ships.
+- [x] Publish compact player-cohort calibration signals so player AI reads can cite historical sample size, failure risk, and median next-year movement without loading raw modeling rows or example players at runtime.
+- [x] Add admin-only player signal audit diagnostics so visible/internal historical signals, display reasons, bucket summaries, and bad-read guardrails can be reviewed before stronger AI copy ships.
 - [x] Add player-value framing language: `Market Price` for the weighted source value, `Degen Read` for the context layer, `Degen Gap` for the directional adjustment, and `Confidence` for source trust.
 - [x] Add full-rankings value confidence visibility and sorting so users can separate high-trust prices from thin market reads.
 - [ ] Backtest every new heuristic against historical seasons to measure false positives, false negatives, and calibration drift before exposing it in readouts; start from `docs/player-season-outcome-model.md`.
@@ -193,22 +193,22 @@
 - [x] Add confidence gating so thin, noisy, or conflicting signals reduce certainty instead of forcing a strong read.
 - [x] Add player-cohort calibration metadata so every player AI read carries an evidence grade, confidence cap, strong-read eligibility flag, missing-signal list, and caution flags before the UI can present it as a high-confidence take.
 - [x] Add a shared AI evidence engine with one evidence shape for readouts: evidence, missing evidence, hard blockers, soft penalties, confidence cap, source trace, final score, confidence label, and why-this-fired copy.
-- [x] Route Waiver Intelligence and Autopilot waiver actions through the shared evidence engine first, with binary action language, receipt details, live transaction blocking, redraft/current-season gating, D/ST schedule penalties, and no fallback to generic mock advice when real evidence blocks a card.
+- [x] Route Waiver Intelligence and Autopilot waiver actions through the shared evidence engine first, with binary action language, signal details, live transaction blocking, redraft/current-season gating, D/ST schedule penalties, and no fallback to generic mock advice when real evidence blocks a card.
 - [x] Wire Matchup Edge / schedule reads into the shared AI evidence engine so streamer, kicker, D/ST, and start/sit copy cannot exceed schedule-source freshness or matchup-window confidence.
-- [x] Wire Player Modal AI reads into the shared AI evidence engine so cohort, situation-delta, source-confidence, schedule, and value-history receipts use the same vocabulary.
+- [x] Wire Player Modal AI reads into the shared AI evidence engine so cohort, situation-delta, source-confidence, schedule, and value-history signals use the same vocabulary.
 - [x] Wire Owner Intel / Team Breakdown reads into the shared AI evidence engine so manager-level copy stays evidence-led and avoids repeating weaker table-local conclusions.
 - [x] Wire Rankings market reads into the shared AI evidence engine so source-count, source-spread, stale-source, redraft/dynasty, and roster-ownership guardrails are enforced before confident copy renders.
 - [x] Wire Trade Browser / Trade War Room reads into the shared AI evidence engine so package suggestions collapse to the strongest actionable read instead of listing several weak alternatives.
 - [x] Wire Overview AI Pulse into the shared AI evidence engine last so it summarizes the strongest proven decisions only and never invents extra AI cards for empty or thin tables.
-- [x] Add a shared AI decision presentation layer so readouts lead with `Do this`, `Don't force it`, `Do not do this`, or `Insufficient evidence`, keep receipts collapsed, and cap Owner Intel suggestions to the strongest visible cards.
+- [x] Add a shared AI decision presentation layer so readouts lead with `Do this`, `Don't force it`, `Do not do this`, or `Insufficient evidence`, keep support signals collapsed, and keep Owner Intel suggestions visible as distinct AI cards.
 - [x] Add a unified AI Action Queue for Overview and Autopilot so the product surfaces one ranked best move, demotes weaker reads to watch/hold, and says `No move is best` when confidence is capped.
 - [x] Add `What changes this` triggers to AI Action Queue reads so users can see which blocker, stale source, missing evidence, roster change, schedule swing, or partner-fit change would flip the recommendation.
-- [x] Add an admin AI Decision Log so action ownership, hidden/data-only reads, duplicate-readout policy, missing evidence, blockers, source receipts, and `What changes this` triggers are reviewable without adding more user-facing cards.
+- [x] Add an admin AI Decision Log so action ownership, hidden/data-only reads, duplicate-readout policy, missing evidence, blockers, source signals, and `What changes this` triggers are reviewable without adding more user-facing cards.
 - [x] Collapse Assistant Feature Radar from many local AI cards into one owner action queue plus evidence modules, so supporting panels stop acting like separate recommendations.
 - [x] Add AI Action Queue decision memory so the top move can say whether it changed since the last tracked read.
 - [x] Add compact confidence-history sparklines and source-conflict checks to the AI Action Queue and admin Decision Log.
 - [x] Add local post-action outcome tracking for AI queue recommendations so done/skipped calls can be reviewed.
-- [x] Add quiet-mode gating so low-value AI readouts hide unless they have a binary decision or a missing-evidence/source-health receipt.
+- [x] Add quiet-mode gating so low-value AI readouts hide unless they have a binary decision or a missing-evidence/source-health signal.
 - [x] Add league-context modifiers for dynasty, redraft, superflex, and format-specific scoring so the logic stays format-aware.
 - [x] Create anomaly rules for unusual cases like age-curve outliers, late breakouts, injury comebacks, small-sample spikes, and role-driven production jumps.
 - [x] Build a reusable comparison layer that can answer "who has this player most resembled historically at the same age, usage, and value?" for deeper AI readouts.
@@ -706,11 +706,11 @@
 - [x] Add AI Read visual language with dark Tron/blueprint styling, glowing border, schematic details, confidence meter, and neon chips
 - [x] Add AI Read placements across overview, manager/team cards, player detail modal, rankings, draft history, trade history, and premium command-center modules
 - [x] Add AI Read action language such as roster read, market signal, trade window, lineup leak, waiver opportunity, league exploit, and monthly blueprint
-- [x] Add AI Read decision bands with evidence-derived action labels, confidence/receipt status, and concise change-trigger detail so users see the call before the explanation.
-- [x] Add the shared AI Action Queue to Overview and AI Autopilot so the app shows one highest-ranked move first, with why, risk, blocker/missing-evidence context, and source-health receipts.
-- [x] Add `What changes this` receipts to the AI Action Queue so confident reads explain the exact conditions that would downgrade, block, or replace the current call.
+- [x] Add AI Read decision bands with evidence-derived action labels, confidence/source-signal status, and concise change-trigger detail so users see the call before the explanation.
+- [x] Add the shared AI Action Queue to Overview and AI Autopilot so the app shows one highest-ranked move first, with why, risk, blocker/missing-evidence context, and source-health signals.
+- [x] Add `What changes this` signals to the AI Action Queue so confident reads explain the exact conditions that would downgrade, block, or replace the current call.
 - [x] Add an AI Surface Registry/noise governor so one surface owns the action call, supporting reads stay context-only, unbacked reads stay hidden/data-only, and duplicate AI surfaces are marked for merge/removal.
-- [x] Collapse the visible AI Action Queue to one decision by default and hold lower-ranked alternates back as receipts/source-table context instead of showing multiple competing recommendations.
+- [x] Collapse the visible AI Action Queue to one decision by default and hold lower-ranked alternates back as source-signal context instead of showing multiple competing recommendations.
 
 ### Completed Premium Feature Modules
 - [x] Monthly Team Blueprint report

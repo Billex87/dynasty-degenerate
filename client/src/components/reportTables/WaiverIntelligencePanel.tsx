@@ -632,6 +632,52 @@ function createWaiverBidHistoryItem({
   };
 }
 
+export function buildWaiverValueCards({
+  data,
+  isRedraft,
+  prioritizeDefense,
+  omittedCandidateIds,
+}: {
+  data: NonNullable<ReportData["waiverIntelligence"]>;
+  isRedraft: boolean;
+  prioritizeDefense: boolean;
+  omittedCandidateIds: Set<string>;
+}): Array<{ label: string; player: TrendingPlayer }> {
+  const baseCards = [
+    { label: "Highest Available", player: data.highestKtcAvailable },
+    ...Object.entries(data.bestAvailableByPosition)
+      .filter(([pos]) => !(prioritizeDefense && pos === "DEF"))
+      .map(([pos, player]) => ({
+        label: `Best ${pos}`,
+        player,
+      })),
+    ...(isRedraft
+      ? []
+      : data.bestTaxiStashes.slice(0, 2).map((player, index) => ({
+          label: `Taxi Stash ${index + 1}`,
+          player,
+        }))),
+  ].filter((card): card is { label: string; player: TrendingPlayer } => {
+    const playerId = card.player?.player_id;
+    if (!playerId) return false;
+    return !omittedCandidateIds.has(playerId);
+  });
+
+  if (!prioritizeDefense) return baseCards;
+
+  const defenseCard = data.bestAvailableByPosition.DEF;
+  if (!defenseCard || omittedCandidateIds.has(defenseCard.player_id)) {
+    return baseCards;
+  }
+
+  const reordered = [
+    { label: "Best DEF", player: defenseCard },
+    ...baseCards.filter(card => card.player.player_id !== defenseCard.player_id),
+  ];
+
+  return reordered;
+}
+
 type WaiverSpecialTeamsPosition =
   (typeof WAIVER_SPECIAL_TEAMS_POSITIONS)[number];
 type WaiverManagerPlayer = NonNullable<
@@ -2887,24 +2933,12 @@ export default function WaiverIntelligencePanel({
       .filter(candidate => candidate.action === "omit")
       .map(candidate => candidate.player_id)
   );
-  const baseCards = [
-    { label: "Highest Available", player: data.highestKtcAvailable },
-    ...Object.entries(data.bestAvailableByPosition).map(([pos, player]) => ({
-      label: `Best ${pos}`,
-      player,
-    })),
-    ...(isRedraft
-      ? []
-      : data.bestTaxiStashes.slice(0, 2).map((player, index) => ({
-          label: `Taxi Stash ${index + 1}`,
-          player,
-        }))),
-  ].filter((card): card is { label: string; player: TrendingPlayer } => {
-    const playerId = card.player?.player_id;
-    if (!playerId) return false;
-    return !omittedCandidateIds.has(playerId);
+  const cards = buildWaiverValueCards({
+    data,
+    isRedraft,
+    prioritizeDefense: Boolean(recommendationContext.defensePairingPlan?.add.length),
+    omittedCandidateIds,
   });
-  const cards = baseCards;
   const waiverActionPlans = storedActionPlans
     .filter(plan => plan.kind === "waiver")
     .filter(plan => !leagueId || !plan.leagueId || plan.leagueId === leagueId)

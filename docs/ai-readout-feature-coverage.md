@@ -13,16 +13,16 @@ This checklist keeps AI features useful, distinct, and traceable. A new readout 
 ## Surface Ownership Audit
 
 - [x] `OverviewAIPulse` owns the league-level story and the single best cross-report action only.
-- [x] `AI Autopilot` owns the ranked action queue; lower-ranked reads are receipts, not competing top calls.
+- [x] `AI Autopilot` owns the ranked action queue; lower-ranked reads are support signals, not competing top calls.
 - [x] `Waiver Intelligence` owns add/drop and bid/priority decisions.
 - [x] `Matchup Edge` owns schedule, streamer, kicker, D/ST, and start/sit confidence.
 - [x] `Player Detail Modal` owns player-specific buy/sell/hold, role, and cohort evidence.
-- [x] `Owner Intel` owns one manager-level best move; roster, market, notes, and suggestion context render as receipts/modules instead of extra AI cards.
+- [x] `Owner Intel` shows separate manager-level AI reads again: roster read, best move, market/picks, suggestion cards, and AI notes. Each read stays evidence-backed and uses the shared decision language.
 - [x] `RankingsMarketRead` owns board-wide market context; individual player reads live in the player modal.
 - [x] `TradeBrowserRead` owns completed-trade ledger context.
-- [x] `TradeFinderGenerator` owns active package generation; partner rows now show receipts instead of one AI card per partner.
-- [x] `LeaguePowerRankings` owns ordering only; per-manager expanded rows now show receipts instead of one AI card per manager.
-- [x] `LeagueExploits` owns exploit inventory only; exploit cards now show receipts instead of one AI card per exploit.
+- [x] `TradeFinderGenerator` owns active package generation; partner rows now show support signals instead of one AI card per partner.
+- [x] `LeaguePowerRankings` owns ordering only; per-manager expanded rows now show support signals instead of one AI card per manager.
+- [x] `LeagueExploits` owns exploit inventory only; exploit cards now show support signals instead of one AI card per exploit.
 
 ## Overview
 

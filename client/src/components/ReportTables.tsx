@@ -643,7 +643,7 @@ function getTradeGapVerdict(gap: number) {
   if (gap < 2750)
     return { label: "Veto Bait", className: "trade-gap-verdict-fire" };
   if (gap < 3000)
-    return { label: "Receipts Needed", className: "trade-gap-verdict-fire" };
+    return { label: "Explain That", className: "trade-gap-verdict-fire" };
   if (gap < 3500)
     return { label: "Crime Scene", className: "trade-gap-verdict-nuclear" };
   if (gap < 4000)
@@ -8675,17 +8675,6 @@ export function OwnerIntelMatrix({
           ],
         })
       : [];
-  const selectedHighSignalAiSuggestions = selectedAiSuggestions.filter(
-    card => card.tone === "good" || card.tone === "danger"
-  );
-  const selectedPrimaryAiSuggestions = (
-    selectedHighSignalAiSuggestions.length
-      ? selectedHighSignalAiSuggestions
-      : selectedAiSuggestions
-  ).slice(0, 2);
-  const selectedHeldBackAiSuggestions = selectedAiSuggestions.filter(
-    card => !selectedPrimaryAiSuggestions.includes(card)
-  );
   const selectedActionNotes = selectedRow
     ? isRedraft
       ? buildRedraftActionNotes(selectedRow)
@@ -8972,6 +8961,23 @@ export function OwnerIntelMatrix({
                   <OwnerIntelPcbRoutes />
                   <div className="owner-intel-read-grid owner-intel-read-grid-pcb">
                     <AIReadPanel
+                      title={isRedraft ? "Roster Read" : "Dynasty Roster Read"}
+                      body={selectedRosterRead}
+                      decision={{
+                        label: "Watch",
+                        detail:
+                          "Roster shape is context for the actual move; do not treat it as a transaction by itself.",
+                        tone: "watch",
+                        status: "Context read",
+                      }}
+                      traceLabel="Why this fired"
+                      traceItems={selectedRosterTraceItems}
+                      backgroundVariant="roster"
+                      severity="info"
+                      className="owner-intel-read-wide"
+                    />
+
+                    <AIReadPanel
                       title={isRedraft ? "Best Move" : "Dynasty Best Move"}
                       body={selectedBestMove}
                       decision={{
@@ -8985,161 +8991,202 @@ export function OwnerIntelMatrix({
                       severity="info"
                     />
 
-                    <details className="ai-read-trace owner-intel-held-back-ai owner-intel-read-wide">
-                      <summary className="ai-read-trace-kicker">
-                        Roster receipts <span>{selectedRosterTraceItems.length + 1} receipts</span>
-                      </summary>
-                      <ul className="ai-read-trace-list">
-                        <li>{selectedRosterRead}</li>
-                        {selectedRosterTraceItems.map(item => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </details>
+                    <AIReadPanel
+                      title={
+                        isRedraft ? "Starter / Bench Context" : "Market / Picks"
+                      }
+                      body={selectedTradeDraftProfile}
+                      decision={{
+                        label: "Watch",
+                        detail:
+                          "Use this as deal context; the Best Move panel owns the action call.",
+                        tone: "watch",
+                        status: "Context read",
+                      }}
+                      traceLabel="Why this fired"
+                      traceItems={selectedMarketTraceItems}
+                      backgroundVariant="market"
+                      severity="warn"
+                    />
 
-                    <details className="ai-read-trace owner-intel-held-back-ai owner-intel-read-wide">
-                      <summary className="ai-read-trace-kicker">
-                        Market receipts <span>{selectedMarketTraceItems.length + 1} receipts</span>
-                      </summary>
-                      <ul className="ai-read-trace-list">
-                        <li>{selectedTradeDraftProfile}</li>
-                        {selectedMarketTraceItems.map(item => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </details>
+                    {selectedAiSuggestions.map(card => {
+                      const titleKey = card.title.toLowerCase();
+                      const panelVariant = card.wide
+                        ? "monthly"
+                        : titleKey.includes("trade")
+                          ? "trade"
+                          : titleKey.includes("pick") ||
+                              titleKey.includes("market") ||
+                              titleKey.includes("leverage")
+                            ? "market"
+                            : titleKey.includes("offer") ||
+                                titleKey.includes("filter")
+                              ? "waiver"
+                              : titleKey.includes("churn")
+                                ? "lineup"
+                                : titleKey.includes("risk")
+                                  ? "draft"
+                                  : titleKey.includes("guardrail") ||
+                                      titleKey.includes("core")
+                                    ? "league"
+                                    : "blueprint";
 
-                    {selectedAiSuggestions.length > 0 ? (
-                      <details className="ai-read-trace owner-intel-held-back-ai owner-intel-read-wide">
-                        <summary className="ai-read-trace-kicker">
-                          Supporting AI receipts{" "}
-                          <span>
-                            {selectedAiSuggestions.length} receipt
-                            {selectedAiSuggestions.length === 1
-                              ? ""
-                              : "s"}
-                          </span>
-                        </summary>
-                        <ul className="ai-read-trace-list">
-                          {selectedPrimaryAiSuggestions.map(card => (
-                            <li key={`${card.title}-${card.copy}`}>
-                              <strong>{card.title}:</strong> {card.copy}
-                            </li>
-                          ))}
-                          {selectedHeldBackAiSuggestions.map(card => (
-                            <li key={`${card.title}-${card.copy}`}>
-                              <strong>{card.title}:</strong> {card.copy}
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    ) : null}
+                      const panelSeverity =
+                        card.tone === "danger"
+                          ? "danger"
+                          : card.tone === "warn"
+                            ? "warn"
+                            : card.tone === "good"
+                              ? "good"
+                              : "info";
+                      const cardDecision =
+                        card.tone === "danger"
+                          ? {
+                              label: "Do not force it",
+                              detail: card.copy,
+                              tone: "stop" as const,
+                              status: "Guardrail",
+                            }
+                          : card.tone === "warn"
+                            ? {
+                                label: "Watch",
+                                detail: card.copy,
+                                tone: "watch" as const,
+                                status: "Caution",
+                              }
+                            : {
+                                label: "Do this",
+                                detail: card.copy,
+                                tone: "go" as const,
+                                status: "Action lane",
+                              };
+
+                      return (
+                        <AIReadPanel
+                          key={`${card.title}-${card.copy}`}
+                          title={card.title}
+                          body={card.copy}
+                          decision={cardDecision}
+                          traceLabel="Why this fired"
+                          traceItems={[
+                            `Owner profile: ${selectedRow.identity || 'returned owner identity'}.`,
+                            `Timeline: ${selectedRow.timeline || selectedTeamType || 'unknown'}.`,
+                            selectedOverviewRow ? `Value rank #${selectedOverviewRow.rank_value}.` : 'No league value rank returned.',
+                            `Signal source: ${card.title}.`,
+                          ]}
+                          backgroundVariant={panelVariant}
+                          severity={panelSeverity}
+                          className={getAiNeuralSurfaceClass(
+                            card.theme || "neutral",
+                            `owner-intel-ai-card owner-intel-ai-card-${card.tone} ${card.theme ? `owner-intel-ai-theme-${card.theme}` : ""} ${card.wide ? "owner-intel-read-wide" : ""}`
+                          )}
+                        />
+                      );
+                    })}
 
                     {selectedRow ? (
-                      <section
+                      <AIReadPanel
+                        title={isRedraft ? "Lineup Notes" : "Dynasty AI Notes"}
+                        backgroundVariant="monthly"
+                        severity="info"
                         className={getAiNeuralSurfaceClass(
                           "neutral",
-                          "owner-intel-wild-notes owner-intel-read-wide owner-intel-receipt-module"
+                          "owner-intel-wild-notes"
                         )}
-                      >
-                        <div className="owner-intel-receipt-heading">
-                          <span>
-                            {isRedraft ? "Lineup Notes" : "Dynasty Notes"}
-                          </span>
-                          <strong>Receipts only</strong>
-                        </div>
-                        <div className="ai-notes-feature-shell">
-                          <svg
-                            className="ai-notes-feature-rail"
-                            viewBox="0 0 100 24"
-                            preserveAspectRatio="none"
-                            aria-hidden="true"
-                            focusable="false"
-                          >
-                            <path
-                              className="ai-notes-feature-route ai-notes-feature-route-cyan ai-notes-feature-route-primary"
-                              d="M1 17.5 H13 L17 13.25 H29 L33 10.5 H48 L53 13.25 H67 L72 17.5 H99"
-                            />
-                            <path
-                              className="ai-notes-feature-route ai-notes-feature-route-cyan ai-notes-feature-route-secondary"
-                              d="M2 5.5 H18 L22 8.25 H39 L43 6 H58 L62 8.75 H79 L83 5.75 H98"
-                            />
-                            <path
-                              className="ai-notes-feature-route ai-notes-feature-route-amber ai-notes-feature-route-tertiary"
-                              d="M5 20.5 H21 V18.25 H35 L39 15.5 H61 L65 18.25 H78 V20.5 H96"
-                            />
-                            <path
-                              className="ai-notes-feature-route ai-notes-feature-route-amber ai-notes-feature-route-corner"
-                              d="M9 2.75 H24 V5.25 H35 M65 5.25 H76 V2.75 H91"
-                            />
-                            <circle
-                              className="ai-notes-feature-node ai-notes-feature-node-cyan"
-                              cx="17"
-                              cy="13.25"
-                              r="0.7"
-                            />
-                            <circle
-                              className="ai-notes-feature-node ai-notes-feature-node-cyan"
-                              cx="33"
-                              cy="10.5"
-                              r="0.65"
-                            />
-                            <circle
-                              className="ai-notes-feature-node ai-notes-feature-node-cyan"
-                              cx="53"
-                              cy="13.25"
-                              r="0.72"
-                            />
-                            <circle
-                              className="ai-notes-feature-node ai-notes-feature-node-cyan"
-                              cx="72"
-                              cy="17.5"
-                              r="0.65"
-                            />
-                            <circle
-                              className="ai-notes-feature-node ai-notes-feature-node-amber"
-                              cx="39"
-                              cy="15.5"
-                              r="0.62"
-                            />
-                            <circle
-                              className="ai-notes-feature-node ai-notes-feature-node-amber"
-                              cx="65"
-                              cy="18.25"
-                              r="0.68"
-                            />
-                            <circle
-                              className="ai-notes-feature-node ai-notes-feature-node-amber"
-                              cx="83"
-                              cy="5.75"
-                              r="0.6"
-                            />
-                          </svg>
+                        body={
+                          <div className="ai-notes-feature-shell">
+                            <svg
+                              className="ai-notes-feature-rail"
+                              viewBox="0 0 100 24"
+                              preserveAspectRatio="none"
+                              aria-hidden="true"
+                              focusable="false"
+                            >
+                              <path
+                                className="ai-notes-feature-route ai-notes-feature-route-cyan ai-notes-feature-route-primary"
+                                d="M1 17.5 H13 L17 13.25 H29 L33 10.5 H48 L53 13.25 H67 L72 17.5 H99"
+                              />
+                              <path
+                                className="ai-notes-feature-route ai-notes-feature-route-cyan ai-notes-feature-route-secondary"
+                                d="M2 5.5 H18 L22 8.25 H39 L43 6 H58 L62 8.75 H79 L83 5.75 H98"
+                              />
+                              <path
+                                className="ai-notes-feature-route ai-notes-feature-route-amber ai-notes-feature-route-tertiary"
+                                d="M5 20.5 H21 V18.25 H35 L39 15.5 H61 L65 18.25 H78 V20.5 H96"
+                              />
+                              <path
+                                className="ai-notes-feature-route ai-notes-feature-route-amber ai-notes-feature-route-corner"
+                                d="M9 2.75 H24 V5.25 H35 M65 5.25 H76 V2.75 H91"
+                              />
+                              <circle
+                                className="ai-notes-feature-node ai-notes-feature-node-cyan"
+                                cx="17"
+                                cy="13.25"
+                                r="0.7"
+                              />
+                              <circle
+                                className="ai-notes-feature-node ai-notes-feature-node-cyan"
+                                cx="33"
+                                cy="10.5"
+                                r="0.65"
+                              />
+                              <circle
+                                className="ai-notes-feature-node ai-notes-feature-node-cyan"
+                                cx="53"
+                                cy="13.25"
+                                r="0.72"
+                              />
+                              <circle
+                                className="ai-notes-feature-node ai-notes-feature-node-cyan"
+                                cx="72"
+                                cy="17.5"
+                                r="0.65"
+                              />
+                              <circle
+                                className="ai-notes-feature-node ai-notes-feature-node-amber"
+                                cx="39"
+                                cy="15.5"
+                                r="0.62"
+                              />
+                              <circle
+                                className="ai-notes-feature-node ai-notes-feature-node-amber"
+                                cx="65"
+                                cy="18.25"
+                                r="0.68"
+                              />
+                              <circle
+                                className="ai-notes-feature-node ai-notes-feature-node-amber"
+                                cx="83"
+                                cy="5.75"
+                                r="0.6"
+                              />
+                            </svg>
 
-                          <div className="ai-notes-module-grid">
-                            {selectedActionRailCards.map(card => {
-                              const NoteIcon = card.Icon;
+                            <div className="ai-notes-module-grid">
+                              {selectedActionRailCards.map(card => {
+                                const NoteIcon = card.Icon;
 
-                              return (
-                                <section
-                                  key={card.note}
-                                  className={`ai-notes-module ai-notes-module-${card.tone}`}
-                                >
-                                  <span
-                                    className="ai-notes-module-icon"
-                                    aria-hidden="true"
+                                return (
+                                  <section
+                                    key={card.note}
+                                    className={`ai-notes-module ai-notes-module-${card.tone}`}
                                   >
-                                    <NoteIcon />
-                                  </span>
-                                  <p>
-                                    <strong>{card.title}:</strong> {card.copy}
-                                  </p>
-                                </section>
-                              );
-                            })}
+                                    <span
+                                      className="ai-notes-module-icon"
+                                      aria-hidden="true"
+                                    >
+                                      <NoteIcon />
+                                    </span>
+                                    <p>
+                                      <strong>{card.title}:</strong> {card.copy}
+                                    </p>
+                                  </section>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      </section>
+                        }
+                      />
                     ) : null}
                   </div>
                 </div>

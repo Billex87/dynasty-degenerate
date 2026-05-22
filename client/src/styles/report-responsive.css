@@ -12922,6 +12922,58 @@
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
   }
+
+  .report-shell .waiver-intel-recommendation-banner,
+  .report-shell .waiver-ai-target-strip-head {
+    text-align: left !important;
+  }
+
+  .report-shell .waiver-ai-target-strip-head {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  .report-shell .waiver-ai-target-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .report-shell .waiver-ai-target-card {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0.66rem !important;
+    padding: 0.76rem !important;
+  }
+
+  .report-shell .waiver-ai-target-verdict {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  .report-shell .waiver-ai-target-facts {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .report-shell .waiver-ai-target-save {
+    width: 100% !important;
+    min-width: 0 !important;
+    justify-self: stretch !important;
+  }
+
+  .report-shell .waiver-defense-pairing-head {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .report-shell .waiver-defense-pairing-head em {
+    justify-self: start !important;
+  }
+
+  .report-shell .waiver-defense-pairing-lanes {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .report-shell .waiver-defense-pairing-lanes strong {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
 }
 
 .value-board__mobile-primary {
@@ -15502,6 +15554,15 @@
 }
 
 @media (max-width: 767px) {
+  .report-shell .report-header-mobile-logo {
+    width: 3.2rem !important;
+    height: 3.2rem !important;
+  }
+
+  .report-shell .report-header-mobile-brand-lockup {
+    width: 3.2rem !important;
+  }
+
   .report-shell .report-overview-hero {
     min-height: 0 !important;
   }
@@ -15553,5 +15614,33 @@
   .report-shell .report-overview-metrics .dashboard-balance-graph {
     grid-row: auto !important;
     grid-column: 1 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .report-shell .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview {
+    display: flex !important;
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 0.38rem !important;
+    margin-top: 0.08rem !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip {
+    display: inline-flex !important;
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    max-width: min(100%, 11.5rem) !important;
+  }
+
+  .report-shell .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip:nth-child(n + 3) {
+    display: inline-flex !important;
+  }
+
+  .report-shell .draft-analysis-stack .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip:nth-child(n + 4),
+  .report-shell .draft-year-card-grid .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip:nth-child(n + 5) {
+    display: none !important;
   }
 }

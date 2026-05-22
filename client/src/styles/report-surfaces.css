@@ -10276,23 +10276,6 @@ body {
   padding-right: 0.1rem;
 }
 
-.home-league-card-cta {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  min-height: 1.45rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgba(244, 160, 32, 0.14);
-  padding: 0.2rem 0.6rem;
-  color: #fed7aa;
-  font-size: 0.62rem;
-  font-weight: 950;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
 @media (min-width: 1024px) {
   .home-portfolio-shell {
     grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);

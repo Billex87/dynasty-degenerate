@@ -12,6 +12,7 @@ import {
   buildWaiverRecommendationContext,
   buildWaiverDefensePairingPlan,
   buildWaiverOutcomeLearning,
+  buildWaiverValueCards,
   getWaiverPlanOutcomeRead,
 } from "./WaiverIntelligencePanel";
 
@@ -436,5 +437,42 @@ describe("waiver recommendation evidence gate", () => {
     });
 
     expect(context.recommendations.map(recommendation => recommendation.player.name)).not.toContain("Dynasty Only Stash");
+  });
+});
+
+describe("waiver value card ordering", () => {
+  it("promotes the defense slot when a defense pairing is present", () => {
+    const cards = buildWaiverValueCards({
+      data: {
+        highestKtcAvailable: {
+          player_id: "qb1",
+          name: "Aaron Rodgers",
+          pos: "QB",
+          team: "NYJ",
+          owner: null,
+          count: 0,
+          ktcValue: 1200,
+          currentPositionRank: "QB12",
+        },
+        bestAvailableByPosition: {
+          QB: null,
+          RB: null,
+          WR: null,
+          TE: null,
+          K: null,
+          DEF: defensePlayer("def1", "Green Bay Packers", "GB"),
+        },
+        bestTaxiStashes: [],
+      } as NonNullable<ReportData["waiverIntelligence"]>,
+      isRedraft: false,
+      prioritizeDefense: true,
+      omittedCandidateIds: new Set(),
+    });
+
+    expect(cards.slice(0, 2).map(card => card.label)).toEqual([
+      "Best DEF",
+      "Highest Available",
+    ]);
+    expect(cards[0]?.player.name).toBe("Green Bay Packers");
   });
 });

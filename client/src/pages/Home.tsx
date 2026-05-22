@@ -2857,27 +2857,52 @@ function HomeBrandLockup() {
   );
 }
 
-function HomeHeaderBrandLockup() {
+function HomeHeaderBrandLockup({
+  onBrandClick,
+}: {
+  onBrandClick?: () => void;
+}) {
+  const content = (
+    <img
+      src={DYNASTY_LOGO_SRC}
+      alt="Dynasty Degenerates"
+      width={720}
+      height={200}
+      decoding="async"
+      className="home-header-logo"
+    />
+  );
+
+  if (onBrandClick) {
+    return (
+      <button
+        type="button"
+        className="home-header-logo-wrap cursor-pointer border-0 bg-transparent p-0"
+        onClick={onBrandClick}
+        aria-label="Return to Dynasty Degenerates home"
+      >
+        {content}
+      </button>
+    );
+  }
+
   return (
     <div className="home-header-logo-wrap" aria-label="Dynasty Degenerates">
-      <img
-        src={DYNASTY_LOGO_SRC}
-        alt="Dynasty Degenerates"
-        width={720}
-        height={200}
-        decoding="async"
-        className="home-header-logo"
-      />
+      {content}
     </div>
   );
 }
 
-function HomeHeaderChrome() {
+function HomeHeaderChrome({
+  onBrandClick,
+}: {
+  onBrandClick?: () => void;
+}) {
   return (
     <header className="home-header md:hidden">
       <HeaderCssLights className="dd-home-header-css-lights" />
       <div className="home-header-inner max-w-7xl mx-auto px-4">
-        <HomeHeaderBrandLockup />
+        <HomeHeaderBrandLockup onBrandClick={onBrandClick} />
         <div className="home-header-right-slot" aria-hidden="true" />
       </div>
     </header>
@@ -4993,6 +5018,13 @@ function getLeagueCardFormatClassName(format: string): string {
   return "home-league-card-format";
 }
 
+function getLeagueInfoDisplay(format: string): string {
+  return format
+    .replace(/\b(\d+)-Team\b/gi, "$1 Team")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function LeaguePickerCard({
   league,
   onSelect,
@@ -5003,6 +5035,9 @@ function LeaguePickerCard({
   const desktopFormat =
     league.format || `${league.totalRosters || "?"}-Team Dynasty`;
   const mobileFormat = league.mobileFormat || desktopFormat;
+  const desktopLeagueInfo = getLeagueInfoDisplay(desktopFormat);
+  const mobileLeagueInfo = getLeagueInfoDisplay(mobileFormat);
+  const hasRankInfo = Boolean(league.powerRank || league.standingsRank);
 
   return (
     <button
@@ -5033,44 +5068,49 @@ function LeaguePickerCard({
             </span>
           )}
         </span>
-        <span className="home-league-card-body">
-          <span
-            className={getLeagueCardNameClassName(league.name)}
-            aria-label={league.name}
-            title={league.name}
-          >
-            {league.name}
-          </span>
+        <span
+          className={getLeagueCardNameClassName(league.name)}
+          aria-label={league.name}
+          title={league.name}
+        >
+          {league.name}
         </span>
       </div>
-      <span
-        className={`${getLeagueCardFormatClassName(desktopFormat)} home-league-card-format-desktop`}
-        title={desktopFormat}
-      >
-        {desktopFormat}
-      </span>
-      <span
-        className={`${getLeagueCardFormatClassName(mobileFormat)} home-league-card-format-mobile`}
-        title={mobileFormat}
-      >
-        {mobileFormat}
-      </span>
-      <span
-        className="home-league-card-ranks"
-        aria-label={`${league.name} current league standing and power rank`}
-      >
-        {league.powerRank ? (
-          <span className="home-league-pill home-league-pill-power">
-            Power #{league.powerRank}
+
+      <span className="home-league-card-meta">
+        {hasRankInfo ? (
+          <span
+            className="home-league-card-ranks"
+            aria-label={`${league.name} current league standing and power rank`}
+          >
+            {league.powerRank ? (
+              <span className="home-league-pill home-league-pill-power">
+                Power #{league.powerRank}
+              </span>
+            ) : null}
+            {league.standingsRank ? (
+              <span className="home-league-pill home-league-pill-standings">
+                Standings #{league.standingsRank}
+              </span>
+            ) : null}
           </span>
-        ) : null}
-        {league.standingsRank ? (
-          <span className="home-league-pill home-league-pill-standings">
-            Standings #{league.standingsRank}
-          </span>
-        ) : null}
+        ) : (
+          <>
+            <span
+              className={`${getLeagueCardFormatClassName(desktopLeagueInfo)} home-league-card-format-desktop`}
+              title={desktopLeagueInfo}
+            >
+              {desktopLeagueInfo}
+            </span>
+            <span
+              className={`${getLeagueCardFormatClassName(mobileLeagueInfo)} home-league-card-format-mobile`}
+              title={mobileLeagueInfo}
+            >
+              {mobileLeagueInfo}
+            </span>
+          </>
+        )}
       </span>
-      <span className="home-league-card-cta">Attack League</span>
     </button>
   );
 }
@@ -11770,20 +11810,30 @@ export default function Home() {
                   {/* Left: Brand */}
                   <div className="report-header-brand min-w-0">
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                      <div
-                        className={`report-header-mobile-brand-lockup md:hidden ${hasAdminPermissions ? "report-header-mobile-brand-lockup-admin" : ""}`}
+                      <button
+                        type="button"
+                        className={`report-header-mobile-brand-lockup cursor-pointer border-0 bg-transparent p-0 md:hidden ${hasAdminPermissions ? "report-header-mobile-brand-lockup-admin" : ""}`}
+                        onClick={handleAnalyzeAnotherLeague}
+                        aria-label="Open league picker or return home"
                       >
                         <img
                           src={DYNASTY_MOBILE_REPORT_LOGO_SRC}
                           alt="Dynasty Degenerates"
                           className="report-header-mobile-logo"
                         />
-                      </div>
-                      <img
-                        src={DYNASTY_REPORT_HEADER_LOGO_SRC}
-                        alt="Dynasty Degenerates"
-                        className="report-header-logo report-header-logo-left hidden md:block"
-                      />
+                      </button>
+                      <button
+                        type="button"
+                        className="report-header-logo-button hidden cursor-pointer border-0 bg-transparent p-0 md:block"
+                        onClick={handleAnalyzeAnotherLeague}
+                        aria-label="Open league picker or return home"
+                      >
+                        <img
+                          src={DYNASTY_REPORT_HEADER_LOGO_SRC}
+                          alt="Dynasty Degenerates"
+                          className="report-header-logo report-header-logo-left"
+                        />
+                      </button>
                     </div>
                   </div>
 
@@ -12920,7 +12970,7 @@ export default function Home() {
   return (
     <>
       <div className="home-shell min-h-screen flex flex-col premium-fx-host">
-        <HomeHeaderChrome />
+        <HomeHeaderChrome onBrandClick={handleStartOver} />
         <main className="home-main flex-1 flex flex-col items-center justify-center px-1 sm:px-6 py-8 sm:py-16">
           <div
             className={`home-hero home-hero-dashboard w-full max-w-3xl space-y-8 sm:space-y-12${showHomePortfolioPanel ? " home-hero-dashboard-portfolio" : ""}`}
