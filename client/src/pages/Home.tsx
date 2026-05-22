@@ -40,7 +40,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Users,
-  Zap,
   TrendingUp,
   TrendingDown,
   BarChart3,
@@ -51,6 +50,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
+import type { LoaderManagerAnchor } from "@/components/LoaderKitBackdrop";
 import { HeaderCssLights } from "@/components/HeaderCssLights";
 import { AITronSurface, type AITronTheme } from "@/components/AITronSurface";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -58,7 +58,6 @@ import {
   PremiumFxLayer,
   type PremiumFxVariant,
 } from "@/components/PremiumFxLayer";
-const SuccessCard3D = lazy(() => import("@/components/SuccessCard3D"));
 import { SupportButton } from "@/components/SupportButton";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { ManagerChampionshipProvider } from "@/components/ManagerChampionships";
@@ -297,7 +296,7 @@ const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
 const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 850;
 const REPORT_SUCCESS_KICK_MS = 900;
 const SLEEPER_ID_PATTERN = /^\d{8,24}$/;
-const SHOW_LEGACY_LEAGUE_ID_LOGIN = false;
+const SHOW_LEGACY_LEAGUE_ID_LOGIN = true;
 const SHOW_ASSISTANT_FEATURE_RADAR =
   String(
     import.meta.env.VITE_SHOW_ASSISTANT_FEATURE_RADAR || "true"
@@ -324,32 +323,6 @@ type ReportLoadTelemetryEvent = {
   payloadVersion: string;
   createdAt: string;
 };
-
-type NavigatorPerformanceHints = Navigator & {
-  connection?: {
-    saveData?: boolean;
-  };
-  deviceMemory?: number;
-};
-
-function shouldRenderSuccessCard3D() {
-  if (typeof window === "undefined") return false;
-  if (new URLSearchParams(window.location.search).get("preview") === "success") {
-    return true;
-  }
-  const navigatorHints = window.navigator as NavigatorPerformanceHints;
-  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-    return false;
-  }
-  if (navigatorHints.connection?.saveData) return false;
-  if (
-    typeof navigatorHints.deviceMemory === "number" &&
-    navigatorHints.deviceMemory <= 4
-  ) {
-    return false;
-  }
-  return window.innerWidth >= 768;
-}
 
 function readAdminPassphraseVerifiedForSession() {
   if (typeof window === "undefined") return false;
@@ -2556,6 +2529,18 @@ function getReportManagerNames(
   );
 }
 
+function buildLoadingManagerAnchors(
+  reportData: ReportData | null,
+  viewerManager?: string | null
+): LoaderManagerAnchor[] {
+  if (!reportData) return [];
+
+  return getReportManagerNames(reportData, viewerManager).map(manager => ({
+    id: manager,
+    avatarUrl: reportData.managerAvatars?.[manager] || null,
+  }));
+}
+
 function rememberCachedSleeperLeagueShortcut({
   users,
   user,
@@ -2869,6 +2854,33 @@ function HomeBrandLockup() {
         className="home-footer-mobile-icon"
       />
     </div>
+  );
+}
+
+function HomeHeaderBrandLockup() {
+  return (
+    <div className="home-header-logo-wrap" aria-label="Dynasty Degenerates">
+      <img
+        src={DYNASTY_LOGO_SRC}
+        alt="Dynasty Degenerates"
+        width={720}
+        height={200}
+        decoding="async"
+        className="home-header-logo"
+      />
+    </div>
+  );
+}
+
+function HomeHeaderChrome() {
+  return (
+    <header className="home-header md:hidden">
+      <HeaderCssLights className="dd-home-header-css-lights" />
+      <div className="home-header-inner max-w-7xl mx-auto px-4">
+        <HomeHeaderBrandLockup />
+        <div className="home-header-right-slot" aria-hidden="true" />
+      </div>
+    </header>
   );
 }
 
@@ -10172,16 +10184,23 @@ export default function Home() {
   const [ownerIntelSortMode, setOwnerIntelSortMode] =
     useState<OwnerIntelSortMode>("dynasty");
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingManagerAnchors, setLoadingManagerAnchors] = useState<
+    LoaderManagerAnchor[]
+  >([]);
   const [isReportRefreshing, setIsReportRefreshing] = useState(false);
   const [analysisCompleteMessage, setAnalysisCompleteMessage] = useState<{
     leagueName: string;
     leagueFormat: string;
     leagueLogo: string | null;
   } | null>(null);
+  const [previewLoadingLoopTick, setPreviewLoadingLoopTick] = useState(0);
+  const previewMode =
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("preview");
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const previewMode = new URLSearchParams(window.location.search).get('preview');
     if (previewMode === 'loading' || previewMode === 'success') {
       setIsLoading(true);
       const previewLeague = {
@@ -10197,6 +10216,30 @@ export default function Home() {
         setPendingAnalysisLeague(previewLeague);
         setAnalysisCompleteMessage(null);
       }
+      return;
+    }
+
+    if (previewMode === "loading-loop") {
+      const previewLeague = {
+        leagueName: "The Fantasy Degenerates",
+        leagueFormat: "12-Team Dynasty SF PPR TEP",
+        leagueLogo: "/favicon-32x32.png",
+      };
+      setIsLoading(true);
+      setLoadingTransitionPhase("loading");
+      setPendingAnalysisLeague(previewLeague);
+      setAnalysisCompleteMessage(null);
+      setPreviewLoadingLoopTick(0);
+
+      const timer = window.setInterval(() => {
+        setLoadingTransitionPhase("loading");
+        setIsLoading(true);
+        setPendingAnalysisLeague(previewLeague);
+        setAnalysisCompleteMessage(null);
+        setPreviewLoadingLoopTick(tick => tick + 1);
+      }, 8800);
+
+      return () => window.clearInterval(timer);
     }
   }, []);
 
@@ -10460,6 +10503,7 @@ export default function Home() {
         setReportData(data.reportData);
         setLoadingTransitionPhase("done");
         setIsLoading(false);
+        setLoadingManagerAnchors([]);
         setAnalysisCompleteMessage(null);
         setPendingAnalysisLeague(null);
         activeAnalysisLeagueIdRef.current = null;
@@ -10496,6 +10540,7 @@ export default function Home() {
         () => {
           setLoadingTransitionPhase("done");
           setIsLoading(false);
+          setLoadingManagerAnchors([]);
           setAnalysisCompleteMessage(null);
           setPendingAnalysisLeague(null);
           activeAnalysisLeagueIdRef.current = null;
@@ -10525,6 +10570,7 @@ export default function Home() {
       activeAnalysisLeagueIdRef.current = null;
       setLoadingTransitionPhase("loading");
       setIsLoading(false);
+      setLoadingManagerAnchors([]);
       showMutationErrorToast(error);
     },
   });
@@ -10679,6 +10725,7 @@ export default function Home() {
       toast.success(
         `Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? "" : "s"}`
       );
+      setIsLeaguePickerOpen(true);
     },
     onError: error => {
       showMutationErrorToast(error);
@@ -10925,6 +10972,9 @@ export default function Home() {
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
     clearBrowserReportCache(nextLeagueId);
+    setLoadingManagerAnchors(
+      buildLoadingManagerAnchors(reportData, reportData?.viewerManager ?? null)
+    );
     setReportData(null);
     void beginAnalysisLoading(nextLeagueId).finally(() => {
       if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
@@ -11008,6 +11058,7 @@ export default function Home() {
     setAnalysisCompleteMessage(null);
     setPendingAnalysisLeague(null);
     setLoadingTransitionPhase("loading");
+    setLoadingManagerAnchors([]);
     setReportData(null);
     setLeagueId("");
     setSleeperUsername("");
@@ -11043,7 +11094,6 @@ export default function Home() {
   const handleAnalyzeLeagueOption = async (nextLeagueId: string) => {
     setIsLeaguePickerOpen(false);
     clearBrowserReportCache(nextLeagueId);
-    setReportData(null);
     await handleAnalyze(nextLeagueId);
   };
 
@@ -11077,6 +11127,7 @@ export default function Home() {
     Boolean(viewerUserId) &&
     userLeagueRanksMutation.isPending &&
     !homePortfolioRows.length;
+  const showHomePortfolioPanel = false;
   const hasAuthenticatedAdminPermissions = canViewAdminTelemetryForUser(
     authQuery.data
   );
@@ -11381,6 +11432,73 @@ export default function Home() {
     </Dialog>
   );
 
+  const leaguePickerDialog = orderedUserLeagues.length ? (
+    <Dialog open={isLeaguePickerOpen} onOpenChange={setIsLeaguePickerOpen}>
+      <DialogContent className="league-switch-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-2xl">
+        <DialogHeader className="league-switch-header text-center sm:text-center">
+          <DialogTitle className="athletic-headline text-3xl text-orange-400">
+            Pick Another League
+          </DialogTitle>
+          <DialogDescription className="league-switch-description text-cyan-100/70">
+            <span className="league-switch-signed-in-line">
+              <span>Signed in as</span>
+              <span className="league-switch-user-chip">
+                {activeCachedSleeperUser?.avatarUrl ? (
+                  <img
+                    src={activeCachedSleeperUser.avatarUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="league-switch-user-avatar"
+                  />
+                ) : (
+                  <span
+                    className="league-switch-user-fallback"
+                    aria-hidden="true"
+                  >
+                    {(
+                      sleeperUsername ||
+                      activeCachedSleeperUser?.displayName ||
+                      "SA"
+                    )
+                      .trim()
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </span>
+                )}
+                <strong>
+                  {sleeperUsername ||
+                    activeCachedSleeperUser?.displayName ||
+                    "your Sleeper account"}
+                </strong>
+              </span>
+              <span>.</span>
+            </span>
+            <span>Choose one of your current Sleeper leagues.</span>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="home-league-picker league-switch-picker">
+          {orderedUserLeagues.map(league => (
+            <LeaguePickerCard
+              key={league.leagueId}
+              league={league}
+              onSelect={handleAnalyzeLeagueOption}
+            />
+          ))}
+        </div>
+        <DialogFooter className="league-switch-footer sm:justify-center">
+          <Button
+            type="button"
+            onClick={handleStartOver}
+            variant="outline"
+            className="league-switch-start-over-button border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
+          >
+            Back to Home
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ) : null;
+
   const loadingLeague =
     analysisCompleteMessage ||
     pendingAnalysisLeague ||
@@ -11396,9 +11514,8 @@ export default function Home() {
   );
   const loadingSuccessCardClassName = [
     "loading-success-card",
+    "loading-success-card-static",
     analysisCompleteMessage?.leagueLogo ? "loading-success-card-logo" : "",
-    loadingTransitionPhase === "reveal" ? "loading-success-card-reveal" : "",
-    loadingTransitionPhase === "kick" ? "loading-success-card-kick" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -11421,6 +11538,10 @@ export default function Home() {
       <DialogContent
         className={`analysis-loading-dialog analysis-loading-dialog-${loadingTransitionPhase} border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg`}
         overlayClassName={`analysis-loading-overlay analysis-loading-overlay-${loadingTransitionPhase}`}
+        style={{
+          filter: "none",
+          backdropFilter: "none",
+        }}
         showCloseButton={false}
         onEscapeKeyDown={event => event.preventDefault()}
         onPointerDownOutside={event => event.preventDefault()}
@@ -11439,23 +11560,29 @@ export default function Home() {
         </DialogHeader>
         <div className="analysis-loading-modal-body">
           <LoadingAnimation
+            key={previewMode === "loading-loop" ? `loading-loop-${previewLoadingLoopTick}` : "loading"}
             isComplete={Boolean(analysisCompleteMessage)}
             phase={loadingTransitionPhase}
             leagueName={loadingLeague?.leagueName}
             leagueFormat={loadingLeague?.leagueFormat}
             leagueLogo={loadingLeague?.leagueLogo}
+            managerAnchors={loadingManagerAnchors}
           />
           {analysisCompleteMessage && (
             <div
               className={loadingSuccessCardClassName}
               role="status"
               aria-live="polite"
+              style={{
+                opacity: 1,
+                transform: "translate(-50%, -50%)",
+                filter: "none",
+                backdropFilter: "none",
+                animation: "none",
+                background:
+                  "linear-gradient(145deg, rgba(8, 13, 24, 0.98), rgba(2, 6, 23, 0.98))",
+              }}
             >
-              {shouldRenderSuccessCard3D() && (
-                <Suspense fallback={null}>
-                  <SuccessCard3D exit={loadingTransitionPhase === "kick"} />
-                </Suspense>
-              )}
               <span
                 className="loading-success-impact-core"
                 aria-hidden="true"
@@ -12755,73 +12882,7 @@ export default function Home() {
             </ReportSectionAccordionProvider>
             </Tabs>
 
-            <Dialog
-              open={isLeaguePickerOpen}
-              onOpenChange={setIsLeaguePickerOpen}
-            >
-              <DialogContent className="league-switch-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-2xl">
-                <DialogHeader className="league-switch-header text-center sm:text-center">
-                  <DialogTitle className="athletic-headline text-3xl text-orange-400">
-                    Pick Another League
-                  </DialogTitle>
-                  <DialogDescription className="league-switch-description text-cyan-100/70">
-                    <span className="league-switch-signed-in-line">
-                      <span>Signed in as</span>
-                      <span className="league-switch-user-chip">
-                        {activeCachedSleeperUser?.avatarUrl ? (
-                          <img
-                            src={activeCachedSleeperUser.avatarUrl}
-                            alt=""
-                            aria-hidden="true"
-                            className="league-switch-user-avatar"
-                          />
-                        ) : (
-                          <span
-                            className="league-switch-user-fallback"
-                            aria-hidden="true"
-                          >
-                            {(
-                              sleeperUsername ||
-                              activeCachedSleeperUser?.displayName ||
-                              "SA"
-                            )
-                              .trim()
-                              .slice(0, 2)
-                              .toUpperCase()}
-                          </span>
-                        )}
-                        <strong>
-                          {sleeperUsername ||
-                            activeCachedSleeperUser?.displayName ||
-                            "your Sleeper account"}
-                        </strong>
-                      </span>
-                      <span>.</span>
-                    </span>
-                    <span>Choose one of your current Sleeper leagues.</span>
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="home-league-picker league-switch-picker">
-                  {orderedUserLeagues.map(league => (
-                    <LeaguePickerCard
-                      key={league.leagueId}
-                      league={league}
-                      onSelect={handleAnalyzeLeagueOption}
-                    />
-                  ))}
-                </div>
-                <DialogFooter className="league-switch-footer sm:justify-center">
-                  <Button
-                    type="button"
-                    onClick={handleStartOver}
-                    variant="outline"
-                    className="league-switch-start-over-button border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
-                  >
-                    Back to Home
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            {leaguePickerDialog}
 
             <Dialog
               open={isChangeLeagueModalOpen}
@@ -12870,18 +12931,23 @@ export default function Home() {
   return (
     <>
       <div className="home-shell min-h-screen flex flex-col premium-fx-host">
+        <HomeHeaderChrome />
         <main className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
           <div
-            className={`home-hero home-hero-dashboard w-full max-w-3xl space-y-8 sm:space-y-12${orderedUserLeagues.length ? " home-hero-dashboard-portfolio" : ""}`}
+            className={`home-hero home-hero-dashboard w-full max-w-3xl space-y-8 sm:space-y-12${showHomePortfolioPanel ? " home-hero-dashboard-portfolio" : ""}`}
           >
             {/* Main Title */}
             <div className="home-hero-copy space-y-3 sm:space-y-4 text-center">
               <h2
                 className="athletic-title home-title"
-                aria-label="Fuck fair. Win anyway."
+                aria-label="Fuck fair. Use AI."
               >
-                <span className="home-title-primary">FUCK FAIR.</span>
-                <span className="home-title-accent">WIN ANYWAY.</span>
+                <span className="home-title-primary" data-text="FUCK FAIR.">
+                  FUCK FAIR.
+                </span>
+                <span className="home-title-accent" data-text="USE AI">
+                  USE AI
+                </span>
               </h2>
               <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
                 Your league mates are guessing. You’re about to weaponize AI.
@@ -12892,13 +12958,12 @@ export default function Home() {
             </div>
 
             {/* Input Section */}
-            {!orderedUserLeagues.length ? (
-            <div className="home-analyze-card space-y-4 sm:space-y-6 p-4 sm:p-8">
+            <div className="home-analyze-card space-y-3 sm:space-y-4 p-4 sm:p-8">
               <div className="text-center">
-                <label className="home-field-label block text-sm font-semibold text-slate-200 mb-3">
-                  Enter Sleeper. Start Damage.
+                <label className="home-field-label block text-sm font-semibold text-slate-200 mb-2">
+                  Enter Sleeper. Start Winning.
                 </label>
-                <div className="home-username-row flex flex-col gap-2 sm:gap-3 w-full">
+                <div className="home-username-row flex flex-col gap-1.5 sm:flex-row sm:gap-2.5 w-full">
                   <div className="home-autocomplete-anchor flex-1 w-full sm:w-auto">
                     <Input
                       id="sleeper-username"
@@ -12940,18 +13005,14 @@ export default function Home() {
                     type="button"
                     onClick={handleFindLeagues}
                     disabled={userLeaguesMutation.isPending}
-                    className="home-analyze-button w-full h-12 shrink-0 rounded-lg border border-orange-400/40 bg-gradient-to-r from-orange-500 to-orange-600 px-5 font-bold text-white hover:from-orange-600 hover:to-orange-700"
+                    className="home-find-leagues-button h-12 w-full shrink-0 rounded-lg border border-orange-400/40 bg-gradient-to-r from-orange-500 to-orange-600 px-5 font-bold text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
                   >
-                    <Zap size={20} />
+                    <Bot size={20} />
                     {userLeaguesMutation.isPending
-                      ? "Finding Your Leagues..."
-                      : "Run The Damn Report"}
+                      ? "Finding Leagues..."
+                      : "Find Leagues"}
                   </Button>
                 </div>
-                <p className="home-field-helper text-xs text-slate-400 mt-2">
-                  We map your leagues, roast your roster, and point you at the
-                  easiest victims.
-                </p>
               </div>
 
               {SHOW_LEGACY_LEAGUE_ID_LOGIN ? (
@@ -12961,7 +13022,7 @@ export default function Home() {
                   </div>
 
                   <div className="text-center">
-                    <label className="home-field-label block text-sm font-semibold text-slate-200 mb-3">
+                    <label className="home-field-label block text-sm font-semibold text-slate-200 mb-2">
                       Enter Your Sleeper League ID
                     </label>
                     <div className="home-autocomplete-anchor w-full">
@@ -13002,10 +13063,6 @@ export default function Home() {
                         />
                       ) : null}
                     </div>
-                    <p className="home-field-helper text-xs text-slate-400 mt-2">
-                      In the Sleeper app, open your league → go to General
-                      Settings → scroll to the bottom to find your League ID.
-                    </p>
                   </div>
 
                   <Button
@@ -13013,26 +13070,26 @@ export default function Home() {
                     disabled={isLoading}
                     className="home-analyze-button w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-base gap-2 rounded-lg transition-all duration-200 shadow-lg"
                   >
-                    <Zap size={20} />
-                    Run The Damn Report
+                    <Bot size={20} />
+                    Run Degenerate Analysis
                   </Button>
                 </>
               ) : null}
             </div>
+
+            {showHomePortfolioPanel ? (
+              <HomePortfolioPanel
+                rows={homePortfolioRows}
+                filteredRows={filteredHomePortfolioRows}
+                leagues={orderedUserLeagues}
+                isLoading={isHomePortfolioLoading}
+                query={portfolioSearch}
+                onQueryChange={setPortfolioSearch}
+                onLeagueSelect={handleAnalyzeLeagueOption}
+              />
             ) : null}
 
-            <HomePortfolioPanel
-              rows={homePortfolioRows}
-              filteredRows={filteredHomePortfolioRows}
-              leagues={orderedUserLeagues}
-              isLoading={isHomePortfolioLoading}
-              query={portfolioSearch}
-              onQueryChange={setPortfolioSearch}
-              onLeagueSelect={handleAnalyzeLeagueOption}
-            />
-
             {/* Features Grid */}
-            {!orderedUserLeagues.length ? (
             <div className="home-feature-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-6">
               <div className="home-feature-card home-feature-green p-4 sm:p-6 space-y-3">
                 <div className="home-feature-heading">
@@ -13086,7 +13143,6 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            ) : null}
           </div>
         </main>
 
@@ -13095,6 +13151,7 @@ export default function Home() {
             <HomeFooterChrome showBrand={!isLoading} />
           </div>
         )}
+        {leaguePickerDialog}
         {clownEasterEggDialog}
       </div>
       {adminAccessDialog}

@@ -128,95 +128,94 @@ export function LoadingAnimation({
         <p className="loading-status-line">Report locked and loaded.</p>
       ) : null}
 
-      <div className="loading-step-list">
-        {steps.map((step) => {
-          const isFinalizing = step.id === 'final' && step.status === 'loading';
+      {!isLoadingResolved && (
+        <div className="loading-step-list">
+          {steps.map((step) => {
+            const isFinalizing = step.id === 'final' && step.status === 'loading';
 
-          return (
-            <div
-              key={step.id}
-              className={`loading-step flex items-center gap-4 loading-step-${step.status}${isFinalizing ? ' loading-step-finalizing' : ''}`}
-            >
-              <div className="loading-step-dot flex-shrink-0 w-12 h-12 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center relative">
-                {step.status === 'complete' ? (
-                  <div className="loading-step-complete w-full h-full rounded-full flex items-center justify-center">
-                    <Check className="w-6 h-6 text-white" />
-                    <Sparkles className="loading-step-spark loading-step-spark-a" aria-hidden="true" />
-                    <Sparkles className="loading-step-spark loading-step-spark-b" aria-hidden="true" />
-                  </div>
-                ) : isFinalizing ? (
-                  <div className="loading-finalizing-core" aria-hidden="true">
-                    <span className="loading-finalizing-core-ring loading-finalizing-core-ring-a" />
-                    <span className="loading-finalizing-core-ring loading-finalizing-core-ring-b" />
-                    <span className="loading-finalizing-core-node" />
-                  </div>
-                ) : step.status === 'loading' ? (
-                  <>
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-orange-500 to-cyan-400 opacity-0 animate-spin" />
-                    <div className="w-10 h-10 rounded-full bg-slate-950 flex items-center justify-center">
-                      <div className="w-6 h-6 rounded-full border-2 border-orange-500 border-t-cyan-300 animate-spin" />
+            return (
+              <div
+                key={step.id}
+                className={`loading-step flex items-center gap-4 loading-step-${step.status}${isFinalizing ? ' loading-step-finalizing' : ''}`}
+              >
+                <div className="loading-step-dot flex-shrink-0 w-12 h-12 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center relative">
+                  {step.status === 'complete' ? (
+                    <div className="loading-step-complete w-full h-full rounded-full flex items-center justify-center">
+                      <Check className="w-6 h-6 text-white" />
+                      <Sparkles className="loading-step-spark loading-step-spark-a" aria-hidden="true" />
+                      <Sparkles className="loading-step-spark loading-step-spark-b" aria-hidden="true" />
                     </div>
-                  </>
-                ) : (
-                  <div className="w-2 h-2 rounded-full bg-slate-600" />
+                  ) : isFinalizing ? (
+                    <div className="loading-finalizing-core" aria-hidden="true">
+                      <span className="loading-finalizing-core-ring loading-finalizing-core-ring-a" />
+                      <span className="loading-finalizing-core-ring loading-finalizing-core-ring-b" />
+                      <span className="loading-finalizing-core-node" />
+                    </div>
+                  ) : step.status === 'loading' ? (
+                    <>
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-orange-500 to-cyan-400 opacity-0 animate-spin" />
+                      <div className="w-10 h-10 rounded-full bg-slate-950 flex items-center justify-center">
+                        <div className="w-6 h-6 rounded-full border-2 border-orange-500 border-t-cyan-300 animate-spin" />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-2 h-2 rounded-full bg-slate-600" />
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <p className={`text-sm font-medium transition-colors ${
+                    step.status === 'complete' ? 'text-cyan-300' :
+                    step.status === 'loading' ? 'text-orange-300' :
+                    'text-slate-500'
+                  }`}>
+                    {step.label}
+                  </p>
+                </div>
+
+                {step.status === 'complete' && (
+                  <div className="text-cyan-300 text-sm font-medium">Done</div>
+                )}
+                {step.status === 'loading' && (
+                  isFinalizing ? (
+                    <div className="loading-finalizing-track" aria-hidden="true">
+                      <span className="loading-finalizing-beam" />
+                      <span className="loading-finalizing-node loading-finalizing-node-a" />
+                      <span className="loading-finalizing-node loading-finalizing-node-b" />
+                      <span className="loading-finalizing-node loading-finalizing-node-c" />
+                    </div>
+                  ) : (
+                    <div className="loading-football-track" aria-hidden="true">
+                      <span className="loading-football-contrail" />
+                      <svg className="loading-football-arc" viewBox="0 0 100 48" preserveAspectRatio="none" focusable="false">
+                        <path d="M 1.5 42 Q 50 7 98.5 42" />
+                      </svg>
+                      <span className="loading-football-shadow" />
+                      <span className="loading-football" />
+                    </div>
+                  )
                 )}
               </div>
+            );
+          })}
 
-              <div className="flex-1">
-                <p className={`text-sm font-medium transition-colors ${
-                  step.status === 'complete' ? 'text-cyan-300' :
-                  step.status === 'loading' ? 'text-orange-300' :
-                  'text-slate-500'
-                }`}>
-                  {step.label}
-                </p>
-              </div>
+          <p className="text-slate-500 text-xs mt-1 text-center">
+            {steps.filter(s => s.status === 'complete').length} of {steps.length} steps complete
+          </p>
 
-              {step.status === 'complete' && (
-                <div className="text-cyan-300 text-sm font-medium">Done</div>
-              )}
-              {step.status === 'loading' && (
-                isFinalizing ? (
-                  <div className="loading-finalizing-track" aria-hidden="true">
-                    <span className="loading-finalizing-beam" />
-                    <span className="loading-finalizing-node loading-finalizing-node-a" />
-                    <span className="loading-finalizing-node loading-finalizing-node-b" />
-                    <span className="loading-finalizing-node loading-finalizing-node-c" />
-                  </div>
-                ) : (
-                  <div className="loading-football-track" aria-hidden="true">
-                    <span className="loading-football-contrail" />
-                    <svg className="loading-football-arc" viewBox="0 0 100 48" preserveAspectRatio="none" focusable="false">
-                      <path d="M 1.5 42 Q 50 7 98.5 42" />
-                    </svg>
-                    <span className="loading-football-shadow" />
-                    <span className="loading-football" />
-                  </div>
-                )
-              )}
+          <div className="w-full mt-1">
+            <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="loading-progress-fill h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${(steps.filter(s => s.status === 'complete').length / steps.length) * 100}%`
+                }}
+              />
             </div>
-          );
-        })}
+          </div>
+        </div>
+      )}
 
-        {!isLoadingResolved && (
-          <>
-            <p className="text-slate-500 text-xs mt-1 text-center">
-              {steps.filter(s => s.status === 'complete').length} of {steps.length} steps complete
-            </p>
-
-            <div className="w-full mt-1">
-              <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className="loading-progress-fill h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${(steps.filter(s => s.status === 'complete').length / steps.length) * 100}%`
-                  }}
-                />
-              </div>
-            </div>
-          </>
-        )}
-      </div>
     </div>
   );
 }
