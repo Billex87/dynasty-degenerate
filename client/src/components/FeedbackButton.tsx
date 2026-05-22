@@ -153,8 +153,10 @@ export function FeedbackButton({
           className={`support-button feedback-button ${compact ? 'support-button-compact feedback-button-compact' : ''} ${className}`.trim()}
           onClick={() => setIsOpen(true)}
         >
+          <span className="feedback-button-copy">
+            {compact ? 'Got Ideas\nFor Us?' : 'Got Ideas For Us?'}
+          </span>
           <Lightbulb aria-hidden="true" className="support-button-icon" />
-          <span>{compact ? 'Got Ideas?' : 'Got Ideas For Us?'}</span>
         </button>
       ) : null}
 

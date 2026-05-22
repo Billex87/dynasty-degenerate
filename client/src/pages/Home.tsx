@@ -39,6 +39,9 @@ import {
   Bot,
   CheckCircle2,
   ChevronDown,
+  Crosshair,
+  Flame,
+  Gavel,
   Users,
   TrendingUp,
   TrendingDown,
@@ -46,7 +49,9 @@ import {
   Repeat2,
   ClipboardList,
   ListOrdered,
+  Radar,
   Search,
+  Swords,
 } from "lucide-react";
 import { toast } from "sonner";
 import { LoadingAnimation } from "@/components/LoadingAnimation";
@@ -2914,11 +2919,11 @@ function HomeFooterChrome({ showBrand = true }: { showBrand?: boolean }) {
     <div className="home-footer-inner home-footer-light-shell max-w-7xl mx-auto">
       <HeaderCssLights className="dd-footer-css-lights" />
       <div className="home-footer-slot home-footer-slot-left">
-        <SupportButton className="home-action-button" />
+        <SupportButton className="home-action-button" showExternalIcon={false} />
       </div>
       {showBrand && <HomeBrandLockup />}
       <div className="home-footer-slot home-footer-slot-right">
-        <FeedbackButton className="home-action-button" />
+        <FeedbackButton className="home-action-button" compact />
       </div>
     </div>
   );
@@ -12907,7 +12912,7 @@ export default function Home() {
                     </Button>
                   </div>
                   <div className="report-footer-secondary-actions">
-                    <SupportButton compact />
+                    <SupportButton compact showExternalIcon={false} />
                     <FeedbackButton
                       compact
                       leagueId={leagueId}
@@ -12973,26 +12978,32 @@ export default function Home() {
         <HomeHeaderChrome onBrandClick={handleStartOver} />
         <main className="home-main flex-1 flex flex-col items-center justify-center px-1 sm:px-6 py-8 sm:py-16">
           <div
-            className={`home-hero home-hero-dashboard w-full max-w-3xl space-y-8 sm:space-y-12${showHomePortfolioPanel ? " home-hero-dashboard-portfolio" : ""}`}
+            className={`home-hero home-hero-dashboard w-full max-w-3xl${showHomePortfolioPanel ? " home-hero-dashboard-portfolio" : ""}`}
           >
             {/* Main Title */}
             <div className="home-hero-copy space-y-3 sm:space-y-4 text-center">
               <h2
                 className="athletic-title home-title"
-                aria-label="Fuck fair. Use A.I."
+                aria-label="Fuck vibes. Use AI."
               >
-                <span className="home-title-primary" data-text="FUCK FAIR.">
-                  FUCK FAIR.
+                <span className="home-title-primary" data-text="FUCK VIBES.">
+                  FUCK VIBES...
                 </span>
-                <span className="home-title-accent" data-text="USE A.I.">
-                  USE A.I.
+                <span className="home-title-accent" data-text="USE AI.">
+                  USE AI.
                 </span>
               </h2>
               <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 mx-auto">
-                Your league mates are guessing. You’re about to weaponize AI.
-                <span className="home-subtitle-name"> Dynasty Degenerates</span>{" "}
-                finds roster cracks, trade windows, lineup leverage, and draft
-                value before the rest of your league realizes it got worked.
+                Your league mates are guessing.{" "}
+                <span className="home-subtitle-ai">WE'RE NOT.</span>
+              </p>
+              <p className="home-subtitle-detail">
+                We use AI to expose roster cracks,
+                <br />
+                trade windows, lineup leverage, and draft value before the rest
+                of your league realizes
+                <br />
+                they're playing for second place.
               </p>
             </div>
 
@@ -13116,6 +13127,24 @@ export default function Home() {
               ) : null}
             </div>
 
+            {!showHomePortfolioPanel ? (
+              <div className="home-weapons-callout">
+                <p className="home-weapons-callout-title">
+                  <span className="home-weapons-callout-blue">
+                    THESE AREN’T FEATURES.
+                  </span>
+                  <span className="home-weapons-callout-orange">
+                    THEY’RE WEAPONS.
+                  </span>
+                </p>
+                <p className="home-weapons-callout-copy">
+                  Run the scan. Find the weakness. Send the offer.
+                  <br />
+                  Make them regret inviting you.
+                </p>
+              </div>
+            ) : null}
+
             {showHomePortfolioPanel ? (
               <HomePortfolioPanel
                 rows={homePortfolioRows}
@@ -13129,57 +13158,111 @@ export default function Home() {
             ) : null}
 
             {/* Features Grid */}
-            <div className="home-feature-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-6">
-              <div className="home-feature-card home-feature-green p-4 sm:p-6 space-y-3">
-                <div className="home-feature-heading">
-                  <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                    <BarChart3 className="w-6 h-6 text-emerald-400" />
+            <div className="home-feature-carousel-window">
+              <div className="home-feature-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-6">
+                <div className="home-feature-card home-feature-green p-4 sm:p-6 space-y-3">
+                  <div className="home-feature-heading">
+                    <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
+                      <Flame className="w-6 h-6 text-red-400" />
+                    </div>
+                    <h3 className="font-semibold text-white">Roster Roast</h3>
                   </div>
-                  <h3 className="font-semibold text-white">Roster Roast</h3>
+                  <p className="text-sm text-slate-400">
+                    See who’s stacked, who’s cooked, and who’s one ACL away
+                    from rebuilding their trash ass team.
+                  </p>
                 </div>
-                <p className="text-sm text-slate-400">
-                  See who’s loaded, who’s fragile, and who’s one injury away
-                  from posting “anyone selling RBs?”
-                </p>
-              </div>
 
-              <div className="home-feature-card home-feature-blue p-4 sm:p-6 space-y-3">
-                <div className="home-feature-heading">
-                  <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="w-6 h-6 text-blue-400" />
+                <div className="home-feature-card home-feature-blue p-4 sm:p-6 space-y-3">
+                  <div className="home-feature-heading">
+                    <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                      <Crosshair className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <h3 className="font-semibold text-white">Trade Victims</h3>
                   </div>
-                  <h3 className="font-semibold text-white">Trade Victims</h3>
+                  <p className="text-sm text-slate-400">
+                    Find managers holding trash, fake depth, and players only
+                    podcasters really believe in.
+                  </p>
                 </div>
-                <p className="text-sm text-slate-400">
-                  Find managers holding stale names, panic assets, or depth
-                  they can’t use.
-                </p>
-              </div>
 
-              <div className="home-feature-card home-feature-purple p-4 sm:p-6 space-y-3">
-                <div className="home-feature-heading">
-                  <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                    <ListOrdered className="w-6 h-6 text-purple-400" />
+                <div className="home-feature-card home-feature-purple p-4 sm:p-6 space-y-3">
+                  <div className="home-feature-heading">
+                    <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                      <Swords className="w-6 h-6 text-purple-400" />
+                    </div>
+                    <h3 className="font-semibold text-white">Lineup Abuse</h3>
                   </div>
-                  <h3 className="font-semibold text-white">Lineup Abuse</h3>
+                  <p className="text-sm text-slate-400">
+                    Spot starter gaps and turn desperation into leverage plays
+                    before your league mates coffee hits.
+                  </p>
                 </div>
-                <p className="text-sm text-slate-400">
-                  Turn starter-room gaps into leverage before the matchup
-                  window closes.
-                </p>
-              </div>
 
-              <div className="home-feature-card home-feature-orange p-4 sm:p-6 space-y-3">
-                <div className="home-feature-heading">
-                  <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                    <ClipboardList className="w-6 h-6 text-orange-300" />
+                <div className="home-feature-card home-feature-orange p-4 sm:p-6 space-y-3">
+                  <div className="home-feature-heading">
+                    <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                      <Gavel className="w-6 h-6 text-orange-300" />
+                    </div>
+                    <h3 className="font-semibold text-white">Draft Punishment</h3>
                   </div>
-                  <h3 className="font-semibold text-white">Draft Punishment</h3>
+                  <p className="text-sm text-slate-400">
+                    Expose bad picks, wasted rookie value, and managers who let
+                    their girlfriends draft for them.
+                  </p>
                 </div>
-                <p className="text-sm text-slate-400">
-                  Expose draft mistakes, missed rookie value, and managers who
-                  punted capital into the sun.
-                </p>
+
+                <div className="home-feature-card home-feature-cyan p-4 sm:p-6 space-y-3">
+                  <div className="home-feature-heading">
+                    <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                      <Bot className="w-6 h-6 text-cyan-300" />
+                    </div>
+                    <h3 className="font-semibold text-white">AI League Bully</h3>
+                  </div>
+                  <p className="text-sm text-slate-400">
+                    Use AI to find weak rosters, bad offers, and managers one
+                    panic trade away from eternal shame.
+                  </p>
+                </div>
+
+                <div className="home-feature-card home-feature-amber p-4 sm:p-6 space-y-3">
+                  <div className="home-feature-heading">
+                    <div className="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                      <Radar className="w-6 h-6 text-amber-300" />
+                    </div>
+                    <h3 className="font-semibold text-white">Waiver Vultures</h3>
+                  </div>
+                  <p className="text-sm text-slate-400">
+                    Find overlooked players, panic drops, and free scraps
+                    before the rest of the idiots notice.
+                  </p>
+                </div>
+
+                <div className="home-feature-card home-feature-card-clone home-feature-green p-4 sm:p-6 space-y-3" aria-hidden="true">
+                  <div className="home-feature-heading">
+                    <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
+                      <Flame className="w-6 h-6 text-red-400" />
+                    </div>
+                    <h3 className="font-semibold text-white">Roster Roast</h3>
+                  </div>
+                  <p className="text-sm text-slate-400">
+                    See who’s stacked, who’s cooked, and who’s one ACL away
+                    from rebuilding their trash ass team.
+                  </p>
+                </div>
+
+                <div className="home-feature-card home-feature-card-clone home-feature-blue p-4 sm:p-6 space-y-3" aria-hidden="true">
+                  <div className="home-feature-heading">
+                    <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                      <Crosshair className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <h3 className="font-semibold text-white">Trade Victims</h3>
+                  </div>
+                  <p className="text-sm text-slate-400">
+                    Find managers holding trash, fake depth, and players only
+                    podcasters really believe in.
+                  </p>
+                </div>
               </div>
             </div>
           </div>

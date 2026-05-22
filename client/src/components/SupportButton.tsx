@@ -6,9 +6,10 @@ const DEFAULT_SUPPORT_LABEL = 'Buy Me A Coffee';
 type SupportButtonProps = {
   compact?: boolean;
   className?: string;
+  showExternalIcon?: boolean;
 };
 
-export function SupportButton({ compact = false, className = '' }: SupportButtonProps) {
+export function SupportButton({ compact = false, className = '', showExternalIcon = true }: SupportButtonProps) {
   const configuredUrl = String(import.meta.env.VITE_SUPPORT_URL || '').trim();
   const configuredLabel = String(import.meta.env.VITE_SUPPORT_LABEL || '').trim();
   const supportUrl = configuredUrl || DEFAULT_SUPPORT_URL;
@@ -22,8 +23,10 @@ export function SupportButton({ compact = false, className = '' }: SupportButton
       className={`support-button ${compact ? 'support-button-compact' : ''} ${className}`.trim()}
     >
       <Coffee aria-hidden="true" className="support-button-icon" />
-      <span>{compact ? 'Tip Jar' : label}</span>
-      <ExternalLink aria-hidden="true" className="support-button-external" />
+      <span>{compact ? 'Tip Jar' : label === DEFAULT_SUPPORT_LABEL ? 'Buy Me A\nCoffee' : label}</span>
+      {showExternalIcon ? (
+        <ExternalLink aria-hidden="true" className="support-button-external" />
+      ) : null}
     </a>
   );
 }

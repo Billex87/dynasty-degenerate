@@ -3868,6 +3868,15 @@
 
   .feedback-button .support-button-icon {
     color: #67e8f9;
+    width: 1.18rem;
+    height: 1.18rem;
+  }
+
+  .feedback-button-copy {
+    display: block;
+    white-space: pre-line;
+    text-align: center;
+    line-height: 1.02;
   }
 
   .feedback-button-compact {
