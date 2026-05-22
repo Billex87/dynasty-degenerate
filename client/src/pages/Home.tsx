@@ -11146,17 +11146,6 @@ export default function Home() {
 
   useEffect(() => {
     if (
-      !hasAdminPermissions ||
-      !reportData ||
-      isAdminPassphraseVerifiedForSession
-    )
-      return;
-    setAdminPassphrase("");
-    setIsAdminAccessModalOpen(true);
-  }, [hasAdminPermissions, isAdminPassphraseVerifiedForSession, reportData]);
-
-  useEffect(() => {
-    if (
       !hasAuthenticatedAdminPermissions ||
       !reportData ||
       !canViewAdminFeatureExpansion
@@ -11185,13 +11174,12 @@ export default function Home() {
   };
 
   const handleAdminToolsClick = () => {
-    if (canOpenAdminToolsEntry && !isAdminPassphraseVerifiedForSession) {
-      setAdminPassphrase("");
-      setIsAdminAccessModalOpen(true);
-      return;
-    }
-
     if (canOpenAdminToolsEntry) {
+      if (!isAdminPassphraseVerifiedForSession) {
+        setAdminPassphrase("");
+        setIsAdminAccessModalOpen(true);
+        return;
+      }
       handleAdminModeToggle();
       return;
     }
@@ -11635,7 +11623,7 @@ export default function Home() {
             Unlock Admin Tools
           </DialogTitle>
           <DialogDescription className="text-center text-slate-300">
-            Enter the passphrase you fuckin Degen
+            If you do not have the passphrase, stay in regular report view.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -11655,6 +11643,15 @@ export default function Home() {
           />
           <DialogFooter className="gap-2 sm:items-center sm:justify-center">
             <Button
+              type="submit"
+              disabled={!adminPassphrase.trim() || adminLoginMutation.isPending}
+              className="admin-unlock-primary-button w-full font-black sm:w-auto"
+            >
+              {adminLoginMutation.isPending
+                ? "Unlocking..."
+                : "Unlock Admin Tools"}
+            </Button>
+            <Button
               type="button"
               variant="outline"
               className="w-full border-slate-700 text-slate-200 hover:bg-slate-900 sm:w-auto"
@@ -11663,16 +11660,7 @@ export default function Home() {
                 setAdminPassphrase("");
               }}
             >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={!adminPassphrase.trim() || adminLoginMutation.isPending}
-              className="admin-unlock-primary-button w-full font-black sm:w-auto"
-            >
-              {adminLoginMutation.isPending
-                ? "Unlocking..."
-                : "Unlock Admin Tools"}
+              Stay in Regular View
             </Button>
           </DialogFooter>
         </form>
