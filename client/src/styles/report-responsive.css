@@ -3897,20 +3897,20 @@
   }
 
   .home-header-inner {
-    min-height: 4.25rem !important;
+    min-height: 5rem !important;
   }
 
   .home-header {
-    padding-block: 0.28rem !important;
+    padding-block: 0.06rem !important;
   }
 
   .home-header-logo-wrap {
-    height: 4.1rem !important;
+    height: 4.9rem !important;
   }
 
   .home-header-logo {
-    height: 3.85rem !important;
-    max-width: min(19.5rem, 76vw) !important;
+    height: 4.7rem !important;
+    max-width: min(22rem, 80vw) !important;
   }
 
   .home-title {
@@ -11513,13 +11513,12 @@
   }
 
   .report-shell .report-header-grid {
-    display: grid;
+    display: grid !important;
     grid-template-columns: minmax(4.9rem, 5.7rem) minmax(0, 1fr) !important;
-    grid-template-areas:
-      "brand league"
-      "tabs tabs";
-    gap: 0.65rem 0.55rem;
-    align-items: center;
+    grid-template-rows: auto auto !important;
+    grid-template-areas: "brand league" "tabs tabs" !important;
+    gap: 0.65rem 0.55rem !important;
+    align-items: center !important;
   }
 
   .report-shell .report-header-brand {
@@ -11536,8 +11535,8 @@
   }
 
   .report-shell .report-header-mobile-logo {
-    width: 5.25rem;
-    height: 5.25rem;
+    width: 4.25rem;
+    height: 4.25rem;
     max-width: none;
     object-fit: contain;
     object-position: left top;
@@ -12098,14 +12097,14 @@
 @media (max-width: 767px) {
   .report-shell .report-overview-metrics {
     display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 0;
     margin-top: 0.85rem;
     overflow: hidden;
   }
 
   .report-shell .report-overview-metrics .dashboard-balance-metric {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .report-shell .dashboard-metric-card {
@@ -13293,11 +13292,11 @@
   }
 
   .report-shell .report-overview-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 
   .report-shell .report-overview-metrics .dashboard-balance-metric {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .report-shell .report-overview-metrics .dashboard-balance-graph {
@@ -14424,7 +14423,7 @@
   .report-shell .overview-command-canvas {
     background:
       linear-gradient(180deg, rgba(3, 8, 12, 0.04) 0%, rgba(3, 8, 12, 0.16) 34rem, rgba(3, 8, 12, 0.52) 74rem, rgba(3, 8, 12, 0.9) 100%),
-      url("/brand/backgrounds/webp/page/page-bg-mobile-430x2800.webp") center top / 100% auto no-repeat,
+      url("/brand/backgrounds/webp/page/page-bg-mobile-430x2800.webp") center -9.5rem / 100% auto no-repeat,
       linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       rgba(3, 8, 16, 0.62) !important;
@@ -15464,9 +15463,82 @@
   .report-shell .overview-command-canvas {
     background-position:
       center,
-      center 21rem,
+      center -7.5rem,
       0 0,
       0 0,
       center !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .report-shell .report-header-grid {
+    grid-template-columns: minmax(4.9rem, 5.7rem) minmax(0, 1fr) !important;
+    grid-template-rows: auto auto !important;
+    grid-template-areas: "brand league" "tabs tabs" !important;
+    gap: 0.65rem 0.55rem !important;
+    align-items: center !important;
+  }
+
+  .report-shell .report-header-tabs.report-tabs {
+    grid-area: tabs !important;
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .report-shell .report-overview-hero {
+    min-height: 0 !important;
+  }
+
+  .report-shell .report-overview-hero::after {
+    background:
+      linear-gradient(90deg, rgba(3, 8, 12, 0.5) 0%, rgba(3, 8, 12, 0.24) 58%, rgba(3, 8, 12, 0.04) 100%),
+      transparent !important;
+  }
+
+  /* Center hero copy */
+  .report-shell .report-overview-hero-copy {
+    text-align: center !important;
+    justify-items: center !important;
+    max-width: 100% !important;
+    margin-inline: auto !important;
+  }
+
+  .report-shell .report-overview-hero-copy h1 {
+    justify-content: center !important;
+  }
+
+  .report-shell .report-overview-pills {
+    justify-content: center !important;
+    margin-inline: auto !important;
+  }
+
+  /* Center all metric tiles */
+  .report-shell .report-overview-metrics .dashboard-metric-card {
+    display: grid !important;
+    justify-items: center !important;
+    text-align: center !important;
+  }
+
+  /* Stack League Health tile vertically: label → circle → sublabel */
+  .report-shell .report-overview-metrics .dashboard-balance-metric {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto auto !important;
+    justify-items: center !important;
+    align-content: center !important;
+    gap: 0.18rem !important;
+  }
+
+  .report-shell .report-overview-metrics .dashboard-balance-metric > span,
+  .report-shell .report-overview-metrics .dashboard-balance-metric > em {
+    grid-column: 1 !important;
+  }
+
+  .report-shell .report-overview-metrics .dashboard-balance-graph {
+    grid-row: auto !important;
+    grid-column: 1 !important;
   }
 }

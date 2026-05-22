@@ -11802,6 +11802,7 @@ export default function Home() {
                   <TabsList
                     className={`${reportTabsClassName} ${canViewAutopilotTab ? "report-tabs-with-autopilot" : ""} report-header-tabs`}
                     data-active-tab={resolvedActiveTab}
+                    style={{ width: '100%' }}
                   >
                     <TabsTrigger
                       value="overview"
@@ -12932,7 +12933,7 @@ export default function Home() {
     <>
       <div className="home-shell min-h-screen flex flex-col premium-fx-host">
         <HomeHeaderChrome />
-        <main className="home-main flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-16">
+        <main className="home-main flex-1 flex flex-col items-center justify-center px-1 sm:px-6 py-8 sm:py-16">
           <div
             className={`home-hero home-hero-dashboard w-full max-w-3xl space-y-8 sm:space-y-12${showHomePortfolioPanel ? " home-hero-dashboard-portfolio" : ""}`}
           >
@@ -12940,16 +12941,16 @@ export default function Home() {
             <div className="home-hero-copy space-y-3 sm:space-y-4 text-center">
               <h2
                 className="athletic-title home-title"
-                aria-label="Fuck fair. Use AI."
+                aria-label="Fuck fair. Use A.I."
               >
                 <span className="home-title-primary" data-text="FUCK FAIR.">
                   FUCK FAIR.
                 </span>
-                <span className="home-title-accent" data-text="USE AI">
-                  USE AI
+                <span className="home-title-accent" data-text="USE A.I.">
+                  USE A.I.
                 </span>
               </h2>
-              <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto">
+              <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 mx-auto">
                 Your league mates are guessing. You’re about to weaponize AI.
                 <span className="home-subtitle-name"> Dynasty Degenerates</span>{" "}
                 finds roster cracks, trade windows, lineup leverage, and draft

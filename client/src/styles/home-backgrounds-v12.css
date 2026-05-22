@@ -135,7 +135,7 @@
 @media (max-width: 699px) and (orientation: portrait) {
   .home-shell {
     background-image: url("/brand/backgrounds/viewport/jpg/tablet-portrait-768x1024-right-locked.jpg") !important;
-    background-position: center 7rem !important;
+    background-position: center top !important;
     background-repeat: no-repeat !important;
     background-size: 160% auto !important;
   }
@@ -154,7 +154,6 @@
     margin-inline: auto !important;
   }
 
-  .home-shell .home-hero-dashboard .home-hero-copy,
   .home-shell .home-hero-dashboard .home-analyze-card,
   .home-shell .home-hero-dashboard .home-feature-grid {
     width: min(100%, 24.75rem) !important;
@@ -163,8 +162,16 @@
   }
 
   .home-shell .home-hero-dashboard .home-hero-copy {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-inline: auto !important;
+    row-gap: 0.2rem !important;
+    gap: 0.2rem !important;
+  }
+
+  .home-shell .home-hero-dashboard .home-hero-copy {
     padding-top: 1.15rem;
-    padding-bottom: clamp(21.25rem, 48vh, 24rem);
+    padding-bottom: clamp(10rem, 24vh, 14rem);
   }
 
   .home-shell .home-hero-dashboard .home-analyze-card {

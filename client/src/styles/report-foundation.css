@@ -16851,7 +16851,7 @@
     }
 
     .report-tabs {
-      width: 100%;
+      width: 100% !important;
       grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 0.22rem;
       margin-bottom: 1.1rem;

@@ -8476,6 +8476,7 @@ body {
     min-height: 18.5rem;
     padding: 1rem;
     background: transparent;
+    align-content: start;
   }
 
   .overview-command-canvas {
@@ -8488,7 +8489,7 @@ body {
   }
 
   .report-overview-hero-copy {
-    align-self: end;
+    align-self: start;
   }
 
   .report-overview-hero h1 {
@@ -10443,9 +10444,9 @@ body {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  height: clamp(6.3rem, 6.4vw, 7rem) !important;
+  height: clamp(5.6rem, 5.8vw, 6.2rem) !important;
   padding-top: 0 !important;
-  padding-bottom: 0.34rem !important;
+  padding-bottom: 0 !important;
   border-bottom-color: rgba(0, 200, 232, 0.26) !important;
   background:
     linear-gradient(90deg, rgba(2, 6, 23, 0.82), rgba(2, 6, 23, 0.68)),
@@ -10471,7 +10472,7 @@ body {
   min-height: 0 !important;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   justify-items: stretch;
-  align-items: end;
+  align-items: center;
   gap: clamp(1rem, 2vw, 1.65rem);
   padding-block: 0 !important;
 }
@@ -10512,14 +10513,14 @@ body {
 
 .home-header-logo-wrap {
   grid-column: 2;
-  align-self: end;
-  height: clamp(5.9rem, 6.1vw, 6.6rem) !important;
-  transform: translateY(0.12rem);
+  align-self: center;
+  height: clamp(5.4rem, 5.6vw, 6rem) !important;
+  transform: none;
 }
 
 .home-header-logo {
-  height: clamp(6rem, 6.2vw, 6.75rem) !important;
-  max-width: min(44rem, 54vw) !important;
+  height: clamp(7.4rem, 7.6vw, 8.2rem) !important;
+  max-width: min(50rem, 60vw) !important;
   filter:
     brightness(1.22)
     saturate(1.14)
@@ -10822,7 +10823,7 @@ body {
   }
 
   .home-main {
-    padding-inline: 1rem !important;
+    padding-inline: 0.25rem !important;
   }
 
   .home-footer-inner {
@@ -10860,20 +10861,24 @@ body {
   }
 
   .home-hero-dashboard .home-hero-copy {
+    width: 100% !important;
+    max-width: 100% !important;
+    justify-self: stretch !important;
     justify-items: center !important;
     text-align: center;
   }
 
   .home-hero-dashboard .home-title {
-    max-width: 23rem;
+    max-width: 100%;
     justify-items: center !important;
-    font-size: clamp(2.55rem, 12.4vw, 3.45rem) !important;
+    font-size: clamp(6.8rem, 30vw, 9.6rem) !important;
     line-height: 0.9;
     text-align: center;
   }
 
   .home-hero-dashboard .home-subtitle {
-    max-width: 22rem;
+    width: 100% !important;
+    max-width: 100% !important;
     font-size: 0.94rem !important;
     text-align: center;
   }
