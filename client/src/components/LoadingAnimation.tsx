@@ -140,14 +140,12 @@ export function LoadingAnimation({
           aria-live="polite"
         >
           <span className="loading-mobile-status-copy">{activeStepLabel}</span>
-          {isCompactFinalizing ? (
-            <span className="loading-mobile-finalizing-track" aria-hidden="true">
-              <span className="loading-finalizing-beam" />
-              <span className="loading-finalizing-node loading-finalizing-node-a" />
-              <span className="loading-finalizing-node loading-finalizing-node-b" />
-              <span className="loading-finalizing-node loading-finalizing-node-c" />
-            </span>
-          ) : null}
+          <span className="loading-mobile-finalizing-track" aria-hidden="true">
+            <span className="loading-finalizing-beam" />
+            <span className="loading-finalizing-node loading-finalizing-node-a" />
+            <span className="loading-finalizing-node loading-finalizing-node-b" />
+            <span className="loading-finalizing-node loading-finalizing-node-c" />
+          </span>
         </div>
       ) : null}
 
@@ -200,23 +198,12 @@ export function LoadingAnimation({
                   <div className="text-cyan-300 text-sm font-medium">Done</div>
                 )}
                 {step.status === 'loading' && (
-                  isFinalizing ? (
-                    <div className="loading-finalizing-track" aria-hidden="true">
-                      <span className="loading-finalizing-beam" />
-                      <span className="loading-finalizing-node loading-finalizing-node-a" />
-                      <span className="loading-finalizing-node loading-finalizing-node-b" />
-                      <span className="loading-finalizing-node loading-finalizing-node-c" />
-                    </div>
-                  ) : (
-                    <div className="loading-football-track" aria-hidden="true">
-                      <span className="loading-football-contrail" />
-                      <svg className="loading-football-arc" viewBox="0 0 100 48" preserveAspectRatio="none" focusable="false">
-                        <path d="M 1.5 42 Q 50 7 98.5 42" />
-                      </svg>
-                      <span className="loading-football-shadow" />
-                      <span className="loading-football" />
-                    </div>
-                  )
+                  <div className="loading-finalizing-track" aria-hidden="true">
+                    <span className="loading-finalizing-beam" />
+                    <span className="loading-finalizing-node loading-finalizing-node-a" />
+                    <span className="loading-finalizing-node loading-finalizing-node-b" />
+                    <span className="loading-finalizing-node loading-finalizing-node-c" />
+                  </div>
                 )}
               </div>
             );

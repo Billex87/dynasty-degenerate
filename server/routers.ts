@@ -5889,18 +5889,26 @@ export const appRouter = router({
           message: 'Too many league lookups. Please wait a few minutes and try again.',
         });
 
-        const leagueInfo = await fetchSleeperJson<any>(
-          `https://api.sleeper.app/v1/league/${input.leagueId}`
-        );
+        const [leagueInfo, users] = await Promise.all([
+          fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${input.leagueId}`),
+          fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${input.leagueId}/users`).catch(() => null),
+        ]);
 
         if (!leagueInfo?.league_id) {
           throw new Error('Invalid league ID');
         }
 
-        return toSleeperLeagueOption(
-          leagueInfo,
-          String(leagueInfo.season || new Date().getFullYear())
-        );
+        const managerAnchors = Array.isArray(users)
+          ? users.map((user: any) => ({
+              id: String(user.user_id || user.display_name || ''),
+              avatarUrl: getSleeperAvatarUrl(user.avatar),
+            })).filter(m => m.id)
+          : [];
+
+        return {
+          ...toSleeperLeagueOption(leagueInfo, String(leagueInfo.season || new Date().getFullYear())),
+          managerAnchors,
+        };
       }),
 
     reportCacheStatus: publicProcedure

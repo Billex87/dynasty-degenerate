@@ -10423,6 +10423,9 @@ export default function Home() {
       });
       if (activeAnalysisLeagueIdRef.current !== league.leagueId) return;
       setPendingAnalysisLeague(getAnalysisLeaguePreview(league));
+      if (league.managerAnchors?.length) {
+        setLoadingManagerAnchors(league.managerAnchors);
+      }
     } catch {
       // The full analysis request owns the user-facing error state.
     }
