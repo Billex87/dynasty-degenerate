@@ -4859,7 +4859,7 @@
     margin: 0;
     font-size: clamp(0.98rem, 3.6vw, 1.2rem);
     font-weight: 950;
-    line-height: 1.06;
+    line-height: 1.22;
     overflow-wrap: anywhere;
     text-shadow:
       0 2px 6px rgba(0, 0, 0, 0.95),
@@ -4870,6 +4870,7 @@
     font-family: Oswald, sans-serif;
     font-size: clamp(1.02rem, 3.8vw, 1.28rem);
     text-wrap: balance;
+    padding-bottom: 0.15em;
   }
 
   .loading-gradient-text.loading-league-name,
@@ -5397,12 +5398,13 @@
     font-size: clamp(1rem, 4.1vw, 1.34rem);
     font-weight: 950;
     letter-spacing: 0;
-    line-height: 1.04;
+    line-height: 1.2;
     overflow-wrap: break-word;
     text-align: center;
     text-wrap: balance;
     text-transform: none;
     white-space: normal;
+    padding-bottom: 0.15em;
     filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 1)) drop-shadow(0 0 13px rgba(0, 0, 0, 0.96));
     transform: translateZ(34px);
     backface-visibility: hidden;
@@ -5411,13 +5413,13 @@
   .loading-success-title-long {
     max-width: none;
     font-size: clamp(0.86rem, 3.45vw, 1.08rem);
-    line-height: 1.02;
+    line-height: 1.18;
   }
 
   .loading-success-title-compact {
     max-width: none;
     font-size: clamp(0.72rem, 2.9vw, 0.92rem);
-    line-height: 1.08;
+    line-height: 1.18;
   }
 
   .loading-success-format {

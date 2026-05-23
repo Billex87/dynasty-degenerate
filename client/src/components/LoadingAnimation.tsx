@@ -21,13 +21,13 @@ function useDataCounter(activeStepId: string, isActive: boolean) {
     setCount(start);
     let current = start;
     const target = end * 0.88;
-    const steps = 55;
+    const steps = 200;
     const base = (target - start) / steps;
     const iv = setInterval(() => {
       current += base + Math.random() * base * 0.35;
       if (current >= target) { clearInterval(iv); return; }
       setCount(Math.round(current));
-    }, 28);
+    }, 150);
     return () => clearInterval(iv);
   }, [activeStepId, isActive]);
 

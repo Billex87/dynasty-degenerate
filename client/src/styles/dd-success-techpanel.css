@@ -2,20 +2,56 @@
    Only restyles the existing markup — does not change copy or icons.
    Pairs with .loading-success-card markup in Home.tsx. */
 
-.loading-success-card {
-  /* 3D canvas inside provides the chrome — keep this container minimal */
-  width: min(calc(100vw - 2rem), 42.5rem) !important;
-  min-height: min(30.2rem, calc(100dvh - 5rem)) !important;
-  padding: clamp(1.45rem, 3vw, 2.35rem) clamp(1.2rem, 3vw, 2rem) !important;
-  border: 0 !important;
-  border-radius: 14px !important;
+/* Dialog becomes invisible in success state — the overlay already dims the page.
+   The card is the only visual element; this eliminates the "box inside a box" look. */
+.analysis-loading-dialog-success,
+[data-slot="dialog-content"].analysis-loading-dialog-success {
   background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  overflow: visible !important;
+}
+
+/* Success overlay: much darker than the loading overlay so the home page content
+   behind it doesn't bleed through and create a false "second panel" on mobile. */
+.analysis-loading-overlay-success {
+  background:
+    radial-gradient(circle at 20% 12%, rgba(0, 212, 219, 0.06), transparent 34%),
+    radial-gradient(circle at 80% 88%, rgba(255, 106, 0, 0.06), transparent 34%),
+    rgba(2, 4, 14, 0.88) !important;
+}
+
+.loading-success-card {
+  width: min(calc(100vw - 2rem), 42.5rem) !important;
+  min-height: min(33rem, calc(100dvh - 4rem)) !important;
+  padding: clamp(1.45rem, 3vw, 2.35rem) clamp(1.2rem, 3vw, 2rem) clamp(3rem, 5vw, 4rem) !important;
+  border: 1px solid rgba(125, 247, 255, 0.22) !important;
+  border-radius: 14px !important;
+  /* Rich dark background — the card IS the panel, not a card inside a panel */
+  background:
+    radial-gradient(circle at 20% 10%, rgba(0, 212, 219, 0.18), transparent 38%),
+    radial-gradient(circle at 82% 88%, rgba(255, 106, 0, 0.15), transparent 40%),
+    linear-gradient(145deg, rgba(6, 18, 28, 0.97), rgba(2, 6, 23, 0.99)) !important;
   box-shadow:
-    0 36px 80px rgba(0, 0, 0, 0.7),
-    0 0 64px rgba(0, 212, 219, 0.22),
-    0 0 46px rgba(255, 106, 0, 0.14) !important;
+    0 40px 90px rgba(0, 0, 0, 0.72),
+    0 0 0 1px rgba(125, 247, 255, 0.1) inset,
+    0 0 64px rgba(0, 212, 219, 0.2),
+    0 0 46px rgba(255, 106, 0, 0.12) !important;
   isolation: isolate;
   overflow: visible;
+}
+
+/* Give the modal body enough height so the centered card never clips */
+.analysis-loading-modal-body:has(.loading-success-card) {
+  min-height: min(35rem, calc(100dvh - 2rem)) !important;
+}
+
+/* Kill the loading panel behind the success card — it's a separate dark layer that
+   creates the "two panels" look. The card itself has the dark background now. */
+.analysis-loading-modal-body:has(.loading-success-card) .loading-panel,
+.analysis-loading-modal-body:has(.loading-success-card) .analysis-loading-panel {
+  display: none !important;
 }
 
 /* Hide the legacy stamp FX layer when 3D is active */
@@ -36,9 +72,13 @@
 .loading-success-scanline { display: none !important; }
 .loading-success-impact-core { display: none !important; }
 
+/* Flatten the 3D stack — no 3D canvas behind this card anymore, depth transforms
+   cause elements to bleed outside the card border. */
 .loading-success-copy {
-  min-height: min(25.25rem, calc(100dvh - 9rem)) !important;
+  min-height: min(26rem, calc(100dvh - 8rem)) !important;
   gap: clamp(1rem, 2.3vw, 1.5rem) !important;
+  transform: none !important;
+  backface-visibility: visible !important;
 }
 
 .loading-success-card .loading-success-kicker {
@@ -48,7 +88,7 @@
   font-size: clamp(1.18rem, 2.2vw, 2.05rem) !important;
   position: relative !important;
   z-index: 10 !important;
-  transform: translateZ(72px) !important;
+  transform: none !important;
 }
 
 .loading-success-card .loading-success-kicker svg {
@@ -62,6 +102,8 @@
   margin-top: -2rem !important;
   position: relative !important;
   z-index: 1 !important;
+  transform: none !important;
+  backface-visibility: visible !important;
 }
 
 .loading-success-card h2,
@@ -315,8 +357,8 @@
 @media (max-width: 640px) {
   .loading-success-card {
     width: min(calc(100vw - 1rem), 27rem) !important;
-    min-height: min(25rem, calc(100dvh - 3.5rem)) !important;
-    padding: 1.25rem 0.9rem !important;
+    min-height: min(27rem, calc(100dvh - 3rem)) !important;
+    padding: 1.25rem 0.9rem 2.5rem !important;
   }
 
   .loading-success-copy {

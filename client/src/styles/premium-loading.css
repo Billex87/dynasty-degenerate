@@ -275,7 +275,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 0.5rem 0.65rem 0.1rem;
+  padding: 0.5rem 0.65rem 0.5rem;
   text-align: center;
 }
 
@@ -373,6 +373,10 @@
 
 .loading-step-list {
   padding: 0 0.05rem 0.02rem;
+}
+
+.loading-step:not(.loading-step-finalizing) .loading-finalizing-track {
+  display: none !important;
 }
 
 .loading-step {
@@ -599,8 +603,10 @@
   [data-slot="dialog-content"].analysis-loading-dialog-loading,
   .analysis-loading-dialog-loading,
   .ddlp__current-modal-shell {
-    width: min(calc(100vw - 2rem), 24rem) !important;
-    max-width: min(calc(100vw - 2rem), 24rem) !important;
+    width: min(calc(100vw - 7rem), 17rem) !important;
+    max-width: min(calc(100vw - 7rem), 17rem) !important;
+    min-height: 0 !important;
+    height: auto !important;
     animation: none !important;
   }
 
@@ -618,7 +624,7 @@
   .analysis-loading-dialog-loading .analysis-loading-modal-body,
   .ddlp__current-modal-shell .analysis-loading-modal-body,
   .analysis-loading-modal-body {
-    min-height: 12.75rem !important;
+    min-height: 0 !important;
     padding: 0.72rem !important;
   }
 
@@ -632,12 +638,12 @@
 
   .analysis-loading-panel > .loading-tron-backdrop,
   .analysis-loading-loader-kit {
-    opacity: 0.58;
+    display: none !important;
   }
 
   .loading-modal-header {
     gap: 0.24rem;
-    padding: 0.44rem 0.5rem 0.08rem;
+    padding: 0.44rem 0.5rem 0.44rem;
   }
 
   .loading-modal-bolt {
@@ -662,15 +668,11 @@
     gap: 0.78rem;
     min-height: 5.2rem;
     overflow: hidden;
-    border: 1px solid rgba(125, 247, 255, 0.24);
-    border-radius: 0.88rem;
-    background:
-      radial-gradient(circle at 50% 20%, rgba(0, 212, 219, 0.14), transparent 60%),
-      linear-gradient(180deg, rgba(4, 12, 28, 0.82), rgba(2, 6, 23, 0.64));
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     padding: 1.1rem 1.4rem 0;
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.025),
-      0 0 2rem rgba(0, 212, 219, 0.1);
+    box-shadow: none;
     animation: loading-mobile-status-in 260ms ease-out both;
   }
 
@@ -680,11 +682,8 @@
   }
 
   .loading-mobile-status-finalizing {
-    border-color: rgba(255, 180, 106, 0.38);
-    background:
-      radial-gradient(circle at 50% 20%, rgba(255, 180, 106, 0.16), transparent 55%),
-      radial-gradient(circle at 50% 90%, rgba(0, 212, 219, 0.1), transparent 40%),
-      linear-gradient(180deg, rgba(5, 18, 32, 0.88), rgba(2, 6, 23, 0.7));
+    border-color: transparent;
+    background: transparent;
   }
 
   .loading-mobile-status-copy {

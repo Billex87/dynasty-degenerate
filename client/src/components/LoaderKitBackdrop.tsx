@@ -389,9 +389,10 @@ function LoaderKitCore({
         footballSpinRef.current.scale.setScalar(1);
       }
 
-      footballSpinRef.current.rotation.y = time * 0.64;
-      footballSpinRef.current.rotation.x = Math.sin(time * 0.46) * 0.045;
-      footballSpinRef.current.rotation.z = Math.sin(time * 0.33) * 0.08;
+      // Fast spiral spin on long axis (X), slow drift + precession wobble
+      footballSpinRef.current.rotation.x = time * 5.4;
+      footballSpinRef.current.rotation.y = time * 0.22 + Math.sin(time * 0.36) * 0.32;
+      footballSpinRef.current.rotation.z = Math.sin(time * 0.48) * 0.18 + 0.24;
     }
 
     if (counterFootballSpinRef.current) {
@@ -405,9 +406,10 @@ function LoaderKitCore({
         counterFootballSpinRef.current.scale.setScalar(0.58);
       }
 
-      counterFootballSpinRef.current.rotation.y = -time * 0.72 + Math.PI;
-      counterFootballSpinRef.current.rotation.x = -Math.sin(time * 0.46) * 0.045;
-      counterFootballSpinRef.current.rotation.z = -Math.sin(time * 0.33) * 0.08;
+      // Counter-spiral: opposite spin direction, slightly different drift
+      counterFootballSpinRef.current.rotation.x = -time * 4.8;
+      counterFootballSpinRef.current.rotation.y = -time * 0.28 + Math.PI + Math.sin(time * 0.41) * 0.26;
+      counterFootballSpinRef.current.rotation.z = Math.sin(time * 0.52) * 0.16 - 0.2;
     }
 
     if (managerAnchorNodeGroupRef.current) {
@@ -535,7 +537,7 @@ function LoaderKitCore({
 
 export default function LoaderKitBackdrop({ variant = "panel", managerAnchors }: LoaderKitBackdropProps) {
   const managerAnchorRefs = useRef<Array<HTMLSpanElement | null>>([]);
-  const visibleManagerAnchors = managerAnchors || [];
+  const visibleManagerAnchors = (managerAnchors || []).filter(a => a.avatarUrl);
   const managerAnchorSlots = useMemo(
     () => createManagerAnchorSlots(visibleManagerAnchors.length),
     [visibleManagerAnchors.length]
