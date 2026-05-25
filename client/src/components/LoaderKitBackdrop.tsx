@@ -1,6 +1,6 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import type { MutableRefObject } from "react";
+import type { CSSProperties, MutableRefObject } from "react";
 import * as THREE from "three";
 import "@/styles/loader-kit-backdrop.css";
 
@@ -24,6 +24,13 @@ type LoaderKitBackdropProps = {
 type ManagerAnchorSlot = {
   position: [number, number, number];
   tone: "cyan" | "orange";
+};
+
+type ManagerAnchorStyle = CSSProperties & {
+  "--anchor-x": string;
+  "--anchor-y": string;
+  "--anchor-scale": string;
+  "--anchor-opacity": string;
 };
 
 function createManagerAnchorRingSlots({
@@ -125,6 +132,38 @@ function createManagerAnchorSlots(managerCount: number): ManagerAnchorSlot[] {
   ];
 }
 
+function clampAnchorPosition(value: number) {
+  return Math.max(10, Math.min(90, value));
+}
+
+function getManagerAnchorFallbackStyle(
+  slot: ManagerAnchorSlot,
+  index: number,
+  count: number
+): ManagerAnchorStyle {
+  const [x, y, z] = slot.position;
+  const densityScale = count > 12 ? 0.9 : count > 8 ? 0.96 : 1;
+
+  return {
+    "--anchor-x": `${clampAnchorPosition(50 + x * 13.8)}%`,
+    "--anchor-y": `${clampAnchorPosition(50 - y * 17.5)}%`,
+    "--anchor-scale": `${densityScale + Math.max(0, z) * 0.08}`,
+    "--anchor-opacity": "0.9",
+  };
+}
+
+function getManagerAnchorScenePosition(
+  slot: ManagerAnchorSlot,
+  isCompactViewport: boolean
+) {
+  const [x, y, z] = slot.position;
+  if (!isCompactViewport) {
+    return new THREE.Vector3(x, y, z);
+  }
+
+  return new THREE.Vector3(x * 0.34, y * 0.92, z * 0.62);
+}
+
 function ManagerAnchors({
   anchors,
   anchorRefs,
@@ -153,6 +192,7 @@ function ManagerAnchors({
           <span
             key={anchor.id}
             className={`loader-kit-backdrop__manager-anchor loader-kit-backdrop__manager-anchor--${slot.tone}`}
+            style={getManagerAnchorFallbackStyle(slot, index, anchors.length)}
             ref={(node) => {
               anchorRefs.current[index] = node;
             }}
@@ -342,10 +382,15 @@ function LoaderKitCore({
   const sparksRef = useRef<Array<THREE.Mesh | null>>([]);
   const pointerRef = useRef({ x: 0, y: 0 });
   const projectedManagerPositionRef = useRef(new THREE.Vector3());
+  const viewportWidth = useThree(state => state.size.width);
+  const isCompactViewport = viewportWidth < 700;
 
   const managerAnchorPositions = useMemo(
-    () => managerAnchorSlots.map((slot) => new THREE.Vector3(...slot.position)),
-    [managerAnchorSlots]
+    () =>
+      managerAnchorSlots.map(slot =>
+        getManagerAnchorScenePosition(slot, isCompactViewport)
+      ),
+    [isCompactViewport, managerAnchorSlots]
   );
 
   const sparks = useMemo<SignalSpark[]>(
@@ -457,7 +502,9 @@ function LoaderKitCore({
           .project(camera);
         const anchorX = (projected.x * 0.5 + 0.5) * size.width;
         const anchorY = (-projected.y * 0.5 + 0.5) * size.height;
-        const stageScale = variant === "panel" ? 1.22 : 1.06;
+        const stageScale = variant === "panel"
+          ? isCompactViewport ? 0.96 : 1.22
+          : isCompactViewport ? 0.98 : 1.06;
         const scaledAnchorX = size.width / 2 + (anchorX - size.width / 2) * stageScale;
         const scaledAnchorY = size.height / 2 + (anchorY - size.height / 2) * stageScale;
         const depth = THREE.MathUtils.clamp((projected.z + 1) / 2, 0, 1);
@@ -466,7 +513,7 @@ function LoaderKitCore({
         anchorElement.style.setProperty("--anchor-x", `${scaledAnchorX}px`);
         anchorElement.style.setProperty("--anchor-y", `${scaledAnchorY}px`);
         anchorElement.style.setProperty("--anchor-scale", `${0.84 + (1 - depth) * 0.22}`);
-        anchorElement.style.setProperty("--anchor-opacity", `${opacity}`);
+        anchorElement.style.setProperty("--anchor-opacity", `${isCompactViewport ? Math.max(0.82, opacity) : opacity}`);
       }
     }
   });
