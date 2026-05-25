@@ -458,9 +458,9 @@ function LoaderKitCore({
     }
 
     if (managerAnchorNodeGroupRef.current) {
-      managerAnchorNodeGroupRef.current.rotation.y = -time * 0.28;
-      managerAnchorNodeGroupRef.current.rotation.x = Math.sin(time * 0.18) * 0.05;
-      managerAnchorNodeGroupRef.current.rotation.z = Math.sin(time * 0.14) * 0.035;
+      managerAnchorNodeGroupRef.current.rotation.y = -time * 0.48;
+      managerAnchorNodeGroupRef.current.rotation.x = Math.sin(time * 0.34) * 0.06;
+      managerAnchorNodeGroupRef.current.rotation.z = Math.sin(time * 0.26) * 0.045;
     }
 
     ringsRef.current.forEach((ring, index) => {
@@ -513,7 +513,7 @@ function LoaderKitCore({
         anchorElement.style.setProperty("--anchor-x", `${scaledAnchorX}px`);
         anchorElement.style.setProperty("--anchor-y", `${scaledAnchorY}px`);
         anchorElement.style.setProperty("--anchor-scale", `${0.84 + (1 - depth) * 0.22}`);
-        anchorElement.style.setProperty("--anchor-opacity", `${isCompactViewport ? Math.max(0.82, opacity) : opacity}`);
+        anchorElement.style.setProperty("--anchor-opacity", `${Math.max(0.9, opacity)}`);
       }
     }
   });
