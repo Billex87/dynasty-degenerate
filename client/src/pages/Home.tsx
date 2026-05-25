@@ -2546,6 +2546,13 @@ function buildLoadingManagerAnchors(
   }));
 }
 
+function buildPreviewLoadingManagerAnchors(count = 12): LoaderManagerAnchor[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `preview-manager-${index + 1}`,
+    avatarUrl: null,
+  }));
+}
+
 function rememberCachedSleeperLeagueShortcut({
   users,
   user,
@@ -10256,10 +10263,12 @@ export default function Home() {
       if (previewMode === 'success') {
         setLoadingTransitionPhase("success");
         setAnalysisCompleteMessage(previewLeague);
+        setLoadingManagerAnchors([]);
       } else {
         setLoadingTransitionPhase("loading");
         setPendingAnalysisLeague(previewLeague);
         setAnalysisCompleteMessage(null);
+        setLoadingManagerAnchors(buildPreviewLoadingManagerAnchors());
       }
       return;
     }
@@ -10274,6 +10283,7 @@ export default function Home() {
       setLoadingTransitionPhase("loading");
       setPendingAnalysisLeague(previewLeague);
       setAnalysisCompleteMessage(null);
+      setLoadingManagerAnchors(buildPreviewLoadingManagerAnchors());
       setPreviewLoadingLoopTick(0);
 
       const timer = window.setInterval(() => {
@@ -10281,6 +10291,7 @@ export default function Home() {
         setIsLoading(true);
         setPendingAnalysisLeague(previewLeague);
         setAnalysisCompleteMessage(null);
+        setLoadingManagerAnchors(buildPreviewLoadingManagerAnchors());
         setPreviewLoadingLoopTick(tick => tick + 1);
       }, 8800);
 
@@ -10394,7 +10405,8 @@ export default function Home() {
 
   const beginAnalysisLoading = async (
     nextLeagueId: string,
-    extraKnownLeagues: SleeperLeagueOption[] = []
+    extraKnownLeagues: SleeperLeagueOption[] = [],
+    initialManagerAnchors: LoaderManagerAnchor[] = []
   ) => {
     analysisModeRef.current = "blocking";
     activeAnalysisLeagueIdRef.current = nextLeagueId;
@@ -10414,7 +10426,7 @@ export default function Home() {
     setAnalysisCompleteMessage(null);
     setLoadingTransitionPhase("loading");
     setIsLoading(true);
-    setLoadingManagerAnchors([]);
+    setLoadingManagerAnchors(initialManagerAnchors);
 
     try {
       const league = await leaguePreviewMutation.mutateAsync({
@@ -10546,6 +10558,12 @@ export default function Home() {
         leagueFormat: data.leagueFormat,
         leagueLogo: data.leagueLogo,
       });
+      setLoadingManagerAnchors(
+        buildLoadingManagerAnchors(
+          data.reportData,
+          data.reportData.viewerManager ?? null
+        )
+      );
       updateReportTabUrl(activeTab, data.leagueId);
       if (data.reportCacheStatus === "hit") {
         setReportDataCacheVersion(REPORT_CACHE_DATA_VERSION);
@@ -11015,24 +11033,30 @@ export default function Home() {
       toast.error("Please enter a league ID");
       return;
     }
-    if (nextLeagueId !== leagueId.trim()) {
+    const isSameLeague = nextLeagueId === leagueId.trim();
+    const initialManagerAnchors = isSameLeague
+      ? buildLoadingManagerAnchors(
+          reportData,
+          reportData?.viewerManager ?? null
+        )
+      : [];
+    if (!isSameLeague) {
       setAdminViewerManager(null);
     }
     setLeagueId(nextLeagueId);
     rememberLeagueId(nextLeagueId);
     clearBrowserReportCache(nextLeagueId);
-    setLoadingManagerAnchors(
-      buildLoadingManagerAnchors(reportData, reportData?.viewerManager ?? null)
-    );
     setReportData(null);
-    void beginAnalysisLoading(nextLeagueId).finally(() => {
-      if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
-      analyzeMutation.mutate({
-        leagueId: nextLeagueId,
-        viewerUserId: getValidSleeperUserId(viewerUserId) || undefined,
-        liveRefresh: true,
-      });
-    });
+    void beginAnalysisLoading(nextLeagueId, [], initialManagerAnchors).finally(
+      () => {
+        if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
+        analyzeMutation.mutate({
+          leagueId: nextLeagueId,
+          viewerUserId: getValidSleeperUserId(viewerUserId) || undefined,
+          liveRefresh: true,
+        });
+      }
+    );
   };
 
   const handleFindLeagues = async () => {

@@ -537,7 +537,7 @@ function LoaderKitCore({
 
 export default function LoaderKitBackdrop({ variant = "panel", managerAnchors }: LoaderKitBackdropProps) {
   const managerAnchorRefs = useRef<Array<HTMLSpanElement | null>>([]);
-  const visibleManagerAnchors = (managerAnchors || []).filter(a => a.avatarUrl);
+  const visibleManagerAnchors = managerAnchors || [];
   const managerAnchorSlots = useMemo(
     () => createManagerAnchorSlots(visibleManagerAnchors.length),
     [visibleManagerAnchors.length]
