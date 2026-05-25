@@ -40,9 +40,7 @@ import type {
   TaxiTriageItem,
   TradeProposalSignal,
   TrendingPlayer,
-  WaiverBidHistoryRecord,
 } from "@shared/types";
-import { trpc } from "@/lib/trpc";
 import { PlayerNameWithHeadshot } from "./PlayerNameWithHeadshot";
 import { ManagerNameWithAvatar } from "./ManagerNameWithAvatar";
 import {
@@ -97,128 +95,6 @@ type ManagerCountRow = ReportData["managerPositionCounts"][number];
 type CountPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 
 const COUNT_POSITIONS: CountPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
-const WAIVER_BID_HISTORY_STORAGE_KEY =
-  "dynasty-degenerates:waiver-bid-history:v1";
-
-type StoredWaiverBidHistoryItem = WaiverBidHistoryRecord;
-
-function readJsonArrayFromStorage<T>(key: string): T[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as T[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeJsonArrayToStorage<T>(key: string, value: T[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Storage can be unavailable in private or restricted browser contexts.
-  }
-}
-
-function readStoredWaiverBidHistory(): StoredWaiverBidHistoryItem[] {
-  return readJsonArrayFromStorage<StoredWaiverBidHistoryItem>(
-    WAIVER_BID_HISTORY_STORAGE_KEY
-  );
-}
-
-function upsertStoredWaiverBidHistory(
-  item: StoredWaiverBidHistoryItem
-): StoredWaiverBidHistoryItem[] {
-  const next = [
-    item,
-    ...readStoredWaiverBidHistory().filter(
-      historyItem => historyItem.id !== item.id
-    ),
-  ].slice(0, 120);
-  writeJsonArrayToStorage(WAIVER_BID_HISTORY_STORAGE_KEY, next);
-  return next;
-}
-
-function mergeWaiverBidHistory(
-  ...groups: StoredWaiverBidHistoryItem[][]
-): StoredWaiverBidHistoryItem[] {
-  const byId = new Map<string, StoredWaiverBidHistoryItem>();
-  groups.flat().forEach(item => {
-    const existing = byId.get(item.id);
-    if (
-      !existing ||
-      (item.updatedAt || item.createdAt) >=
-        (existing.updatedAt || existing.createdAt)
-    ) {
-      byId.set(item.id, item);
-    }
-  });
-  return Array.from(byId.values())
-    .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
-    .slice(0, 150);
-}
-
-function useStoredWaiverBidHistory({ leagueId }: { leagueId?: string } = {}) {
-  const [storedWaiverBidHistory, setStoredWaiverBidHistory] = useState<
-    StoredWaiverBidHistoryItem[]
-  >(() => readStoredWaiverBidHistory());
-  const utils = trpc.useUtils();
-  const authQuery = trpc.auth.me.useQuery(undefined, {
-    retry: false,
-    refetchOnWindowFocus: false,
-    staleTime: 1000 * 60 * 5,
-  });
-  const canUseServerPersistence = Boolean(authQuery.data);
-  const serverBidHistoryQuery = trpc.actionPlans.listWaiverBidHistory.useQuery(
-    { leagueId },
-    {
-      enabled: canUseServerPersistence,
-      retry: false,
-      refetchOnWindowFocus: false,
-      staleTime: 1000 * 30,
-    }
-  );
-  const upsertBidHistoryMutation =
-    trpc.actionPlans.upsertWaiverBidHistory.useMutation({
-      onSuccess: async () => {
-        await utils.actionPlans.listWaiverBidHistory.invalidate({ leagueId });
-      },
-    });
-  const persistStoredWaiverBidHistory = (item: StoredWaiverBidHistoryItem) => {
-    const next = upsertStoredWaiverBidHistory({
-      ...item,
-      updatedAt: Date.now(),
-    });
-    setStoredWaiverBidHistory(next);
-    if (canUseServerPersistence) {
-      upsertBidHistoryMutation.mutate({
-        item: { ...item, updatedAt: Date.now() },
-      });
-    }
-  };
-  return {
-    storedWaiverBidHistory: mergeWaiverBidHistory(
-      storedWaiverBidHistory,
-      serverBidHistoryQuery.data?.bidHistory || []
-    ),
-    persistStoredWaiverBidHistory,
-  };
-}
-
-function parseFaabBidRange(label: string): { min: number; max: number } | null {
-  const values = (label.match(/\d+/g) || [])
-    .map(value => Number(value))
-    .filter(value => Number.isFinite(value) && value >= 0);
-  if (!values.length) return null;
-  return {
-    min: values[0],
-    max: values[1] ?? values[0],
-  };
-}
-
 export function buildPlayerModalData({
   playerId,
   playerName,

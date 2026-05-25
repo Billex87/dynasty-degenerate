@@ -83,6 +83,39 @@ describe('recommendation outcome inference', () => {
         reason: 'Only part of the recommended add/drop move was observed',
         after: 'expected_drop_completed_without_recommended_add',
         detectedFrom: 'transaction_history',
+        details: {
+          alternateAddPlayerId: 'player-c',
+          alternateAddPlayerName: 'Player C',
+        },
+      },
+    });
+  });
+
+  it('does not over-credit add recommendations when the player was already rostered', () => {
+    const outcome = evaluateRecommendationOutcome({
+      expectedAction: {
+        type: 'add_player',
+        playerIn: { id: 'player-a', name: 'Player A' },
+      },
+      previousRosterState: {
+        manager: 'Sample Manager',
+        rosterPlayerIds: ['player-a'],
+      },
+      currentRosterState: {
+        manager: 'Sample Manager',
+        rosterPlayerIds: ['player-a'],
+      },
+      now: '2026-09-02T12:00:00.000Z',
+    });
+
+    expect(outcome).toMatchObject({
+      status: 'unknown',
+      confidence: 36,
+      evidence: {
+        reason: 'Recommended add player was already on the roster before the observation window',
+        before: 'on_roster',
+        after: 'on_roster',
+        detectedFrom: 'roster_sync',
       },
     });
   });

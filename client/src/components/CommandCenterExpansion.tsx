@@ -21,7 +21,7 @@ import {
   Target,
   Users,
 } from 'lucide-react';
-import type { ActionPlanRecord, DraftPick, ManagerIntelPlayer, ManagerStarterPlayer, PlayerDetails, PlayerInfo, RankingPlayer, ReportData, TrendingPlayer, WeeklyMomentum } from '@shared/types';
+import type { DraftPick, ManagerIntelPlayer, ManagerStarterPlayer, PlayerDetails, PlayerInfo, RankingPlayer, ReportData, TrendingPlayer, WeeklyMomentum } from '@shared/types';
 import {
   evaluateAIEvidence,
   getAIEvidenceLeagueContextFromDiagnostics,
@@ -40,7 +40,6 @@ import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { isPlaceholderManagerName } from '@/lib/managerDisplay';
 import { getManagerProfileLabel } from '@/lib/managerProfileLabels';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
-import { trpc } from '@/lib/trpc';
 import { buildTradeValueCalibrationCoverage } from '@/lib/tradeValueCalibration';
 import {
   OVERVIEW_POSITIONS as POSITIONS,
@@ -88,7 +87,6 @@ type BlueprintTrendPoint = {
 const BLUEPRINT_TIERS = ['Elite', 'Championship', 'Contending', 'Reload', 'Rebuild'];
 const WATCH_ALERT_PREFERENCES_KEY = 'dynasty-degenerates:watch-alert-preferences:v1';
 const PORTFOLIO_SNAPSHOT_KEY = 'dynasty-degenerates:portfolio-snapshots:v1';
-const ACTION_PLAN_STORAGE_KEY = 'dynasty-degenerates:action-plans:v1';
 
 type WatchAlertPreferences = {
   riseThresholdPct: number;
@@ -668,169 +666,6 @@ function readPortfolioSnapshots(): PortfolioSnapshot[] {
 function writePortfolioSnapshots(snapshots: PortfolioSnapshot[]) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(PORTFOLIO_SNAPSHOT_KEY, JSON.stringify(snapshots.slice(0, 30)));
-}
-
-function readJsonArrayFromStorage<T>(key: string): T[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(key) || '[]');
-    return Array.isArray(parsed) ? parsed as T[] : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeJsonArrayToStorage<T>(key: string, value: T[]): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Storage can be unavailable in private or restricted browser contexts.
-  }
-}
-
-function readTrackedTradePlans(): ActionPlanRecord[] {
-  return mergeTrackedTradePlans(
-    readJsonArrayFromStorage<ActionPlanRecord>(ACTION_PLAN_STORAGE_KEY)
-  ).slice(0, 80);
-}
-
-function writeTrackedTradePlans(plans: ActionPlanRecord[]) {
-  const tradePlans = mergeTrackedTradePlans(plans).slice(0, 80);
-  const existingActionPlans = readJsonArrayFromStorage<ActionPlanRecord>(ACTION_PLAN_STORAGE_KEY);
-  const nonTradePlans = existingActionPlans.filter((plan) => plan?.kind !== 'trade');
-  const nextActionPlans = [...tradePlans, ...nonTradePlans]
-    .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
-    .slice(0, 100);
-  writeJsonArrayToStorage(ACTION_PLAN_STORAGE_KEY, nextActionPlans);
-}
-
-function upsertTrackedTradePlan(plan: ActionPlanRecord): ActionPlanRecord[] {
-  const next = [plan, ...readTrackedTradePlans().filter((item) => item.id !== plan.id)]
-    .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
-    .slice(0, 80);
-  writeTrackedTradePlans(next);
-  return next;
-}
-
-function mergeTrackedTradePlans(...groups: ActionPlanRecord[][]): ActionPlanRecord[] {
-  const byId = new Map<string, ActionPlanRecord>();
-  groups.flat().forEach((plan) => {
-    if (plan?.kind !== 'trade' || !plan.id) return;
-    const existing = byId.get(plan.id);
-    if (!existing || (plan.updatedAt || plan.createdAt) >= (existing.updatedAt || existing.createdAt)) {
-      byId.set(plan.id, plan);
-    }
-  });
-  return Array.from(byId.values())
-    .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
-    .slice(0, 100);
-}
-
-function getTradePlanId(
-  leagueId: string | undefined,
-  sourceManager: string,
-  targetManager: string,
-  targetPlayer?: ManagerIntelPlayer | null,
-): string {
-  return [
-    'trade',
-    leagueId || 'unknown-league',
-    normalizeNameKey(sourceManager),
-    normalizeNameKey(targetManager),
-    targetPlayer?.player_id || normalizeTradePlayerKey(targetPlayer?.name) || 'value-fit',
-  ].join(':');
-}
-
-type TradePlanOutcomeRead = {
-  status: Extract<ActionPlanRecord['status'], 'acted' | 'blocked' | 'stale'>;
-  source: 'trade-history' | 'proposal-signal' | 'aging-window';
-  evidenceSummary: string;
-};
-
-const TRADE_PLAN_STALE_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
-
-export function getTradePlanOutcomeRead(data: ReportData, plan: ActionPlanRecord, now = Date.now()): TradePlanOutcomeRead | null {
-  if (plan.kind !== 'trade' || ['acted', 'blocked', 'stale'].includes(plan.status)) return null;
-  const sourceManager = String(plan.payload?.sourceManager || plan.manager || '');
-  const targetManager = String(plan.payload?.targetManager || '');
-  const createdAt = Number(plan.createdAt || 0);
-  const completedTrade = (data.tradeHistory || []).find((trade) => {
-    const dateMs = Date.parse(trade.date);
-    const afterPlan = !createdAt || !Number.isFinite(dateMs) || dateMs >= createdAt - 86_400_000;
-    return afterPlan
-      && [trade.team_a, trade.team_b].some((manager) => normalizeNameKey(manager) === normalizeNameKey(sourceManager))
-      && [trade.team_a, trade.team_b].some((manager) => normalizeNameKey(manager) === normalizeNameKey(targetManager));
-  });
-  if (completedTrade) {
-    return {
-      status: 'acted',
-      source: 'trade-history',
-      evidenceSummary: `Completed trade found on ${completedTrade.date} between ${completedTrade.team_a} and ${completedTrade.team_b}.`,
-    };
-  }
-
-  const targetPlayerId = String(plan.payload?.targetPlayerId || plan.playerId || '');
-  const targetPlayerNameKey = normalizeTradePlayerKey(String(plan.payload?.targetPlayerName || ''));
-  const blockedSignal = (data.tradeProposalSignals || []).find((signal) => {
-    const dateMs = Date.parse(signal.date);
-    const afterPlan = !createdAt || !Number.isFinite(dateMs) || dateMs >= createdAt - 86_400_000;
-    const includesManagers = signal.managers.some((manager) => normalizeNameKey(manager) === normalizeNameKey(sourceManager))
-      && signal.managers.some((manager) => normalizeNameKey(manager) === normalizeNameKey(targetManager));
-    const includesPlayer = !targetPlayerId && !targetPlayerNameKey
-      ? true
-      : signal.playerIds.includes(targetPlayerId)
-        || signal.playerNames.some((name) => normalizeTradePlayerKey(name) === targetPlayerNameKey);
-    return afterPlan && includesManagers && includesPlayer && /declin|reject|cancel|veto|fail|expire/i.test(signal.status);
-  });
-  if (blockedSignal) {
-    return {
-      status: 'blocked',
-      source: 'proposal-signal',
-      evidenceSummary: `${blockedSignal.status || 'Non-complete'} proposal signal found on ${blockedSignal.date}.`,
-    };
-  }
-  const ageMs = createdAt ? now - createdAt : 0;
-  if (Number.isFinite(ageMs) && ageMs >= TRADE_PLAN_STALE_AFTER_MS) {
-    return {
-      status: 'stale',
-      source: 'aging-window',
-      evidenceSummary: 'No completed trade or blocked proposal signal appeared within 14 days of saving this read.',
-    };
-  }
-  return null;
-}
-
-function getTradePlanOutcomeStatus(data: ReportData, plan: ActionPlanRecord): ActionPlanRecord['status'] | null {
-  return getTradePlanOutcomeRead(data, plan)?.status || null;
-}
-
-export function buildTradeOutcomeLearning(plans: ActionPlanRecord[]) {
-  const tradePlans = plans.filter(plan => plan.kind === 'trade');
-  if (!tradePlans.length) return null;
-  const acted = tradePlans.filter(plan => plan.status === 'acted').length;
-  const blocked = tradePlans.filter(plan => plan.status === 'blocked').length;
-  const stale = tradePlans.filter(plan => plan.status === 'stale').length;
-  const open = tradePlans.length - acted - blocked - stale;
-  const completed = acted + blocked + stale;
-  const actedRate = completed ? Math.round((acted / completed) * 100) : null;
-  const strongestPattern = actedRate === null
-    ? 'Not enough outcomes yet'
-    : actedRate >= 60
-      ? 'Current trade reads are converting into completed ledger activity.'
-      : stale > acted && stale >= blocked
-        ? 'Saved reads are aging out; use smaller asks, clearer deadlines, or quieter managers.'
-      : blocked >= acted
-        ? 'Saved reads are meeting resistance; lower first asks or use smaller sweeteners.'
-        : 'Mixed outcomes; keep using manager-fit and resistance notes before pushing value.';
-  return {
-    acted,
-    blocked,
-    stale,
-    open,
-    actedRate,
-    strongestPattern,
-  };
 }
 
 function getFormatBadges(data: ReportData): string[] {
@@ -2296,104 +2131,13 @@ export function TeamBreakdownRecon({
 export function TradePartnerFinder({
   data,
   managerAvatars,
-  leagueId,
 }: {
   data: ReportData;
   managerAvatars?: ManagerAvatars;
-  leagueId?: string;
 }) {
   const managerOptions = getManagerOptions(data);
-  const [localTrackedTradePlans, setLocalTrackedTradePlans] = useState<ActionPlanRecord[]>(() => readTrackedTradePlans());
-  const utils = trpc.useUtils();
-  const authQuery = trpc.auth.me.useQuery(undefined, {
-    retry: false,
-    refetchOnWindowFocus: false,
-    staleTime: 1000 * 60 * 5,
-  });
-  const isServerPersistenceEnabled = Boolean(authQuery.data);
-  const serverTrackedTradePlansQuery = trpc.actionPlans.list.useQuery(
-    { leagueId },
-    {
-      enabled: isServerPersistenceEnabled,
-      retry: false,
-      refetchOnWindowFocus: false,
-      staleTime: 1000 * 30,
-    }
-  );
-  const upsertTrackedTradePlanMutation = trpc.actionPlans.upsert.useMutation({
-    onSuccess: async () => {
-      await utils.actionPlans.list.invalidate({ leagueId });
-    },
-  });
   const manager = getFocusedManager(data, managerOptions);
   const recommendations = useMemo(() => buildTradePartners(data, manager).slice(0, 8), [data, manager]);
-  const trackedTradePlans = useMemo(
-    () => mergeTrackedTradePlans(localTrackedTradePlans, serverTrackedTradePlansQuery.data?.plans || []),
-    [localTrackedTradePlans, serverTrackedTradePlansQuery.data?.plans]
-  );
-  const visibleTrackedTradePlans = trackedTradePlans.filter((plan) => (
-    (!leagueId || !plan.leagueId || plan.leagueId === leagueId)
-    && normalizeNameKey(String(plan.payload?.sourceManager || plan.manager || '')) === normalizeNameKey(manager)
-  ));
-
-  const persistTrackedTradePlan = (plan: ActionPlanRecord) => {
-    const planWithUpdatedAt = {
-      ...plan,
-      updatedAt: Date.now(),
-    };
-    setLocalTrackedTradePlans(upsertTrackedTradePlan(planWithUpdatedAt));
-    if (isServerPersistenceEnabled) {
-      upsertTrackedTradePlanMutation.mutate({ plan: planWithUpdatedAt });
-    }
-  };
-
-  useEffect(() => {
-    trackedTradePlans.forEach((plan) => {
-      const outcomeRead = getTradePlanOutcomeRead(data, plan);
-      if (!outcomeRead || outcomeRead.status === plan.status) return;
-      persistTrackedTradePlan({
-        ...plan,
-        status: outcomeRead.status,
-        summary: outcomeRead.status === 'acted'
-          ? `${plan.summary} Outcome: a completed trade with this manager is now in the ledger.`
-          : outcomeRead.status === 'blocked'
-            ? `${plan.summary} Outcome: a non-complete trade signal is now in the ledger.`
-            : `${plan.summary} Outcome: no matching completed or blocked trade signal appeared within 14 days.`,
-        payload: {
-          ...plan.payload,
-          outcomeStatus: outcomeRead.status,
-          outcomeSource: outcomeRead.source,
-          outcomeEvidenceSummary: outcomeRead.evidenceSummary,
-          outcomeCheckedAt: Date.now(),
-        },
-      });
-    });
-  }, [data, trackedTradePlans, isServerPersistenceEnabled]);
-  const tradeOutcomeLearning = buildTradeOutcomeLearning(visibleTrackedTradePlans);
-
-  const trackTradePlan = (recommendation: ReturnType<typeof buildTradePartners>[number]) => {
-    const plan: ActionPlanRecord = {
-      id: getTradePlanId(leagueId, manager, recommendation.manager, recommendation.theyOffer),
-      kind: 'trade',
-      leagueId,
-      manager,
-      playerId: recommendation.theyOffer?.player_id,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      title: `Trade read: ${recommendation.manager}`,
-      summary: recommendation.aiRead,
-      status: 'saved',
-      payload: {
-        sourceManager: manager,
-        targetManager: recommendation.manager,
-        targetPlayerId: recommendation.theyOffer?.player_id || null,
-        targetPlayerName: recommendation.theyOffer?.name || null,
-        confidence: recommendation.confidence,
-        resistanceNote: recommendation.resistanceRead.note,
-      },
-    };
-    persistTrackedTradePlan(plan);
-  };
 
   if (!managerOptions.length) {
     return <EmptyState className="command-module-empty" title="No managers found for trade partner matching" />;
@@ -2408,34 +2152,6 @@ export function TradePartnerFinder({
           avatarUrl={managerAvatars?.[manager]}
         />
       </div>
-      {visibleTrackedTradePlans.length > 0 && (
-        <div className="trade-outcome-strip" aria-label="Observed trade recommendation outcomes">
-          <span>Observed trade reads</span>
-          <em className="trade-outcome-sync-state">
-            {isServerPersistenceEnabled ? 'Synced' : 'Local fallback'}
-          </em>
-          {visibleTrackedTradePlans.slice(0, 4).map((plan) => (
-            <small key={plan.id} className={`trade-outcome-pill trade-outcome-pill-${plan.status}`}>
-              <strong>{String(plan.payload?.targetManager || plan.title)}</strong>
-              <em>{plan.status}</em>
-            </small>
-          ))}
-        </div>
-      )}
-      {tradeOutcomeLearning && (
-        <div className="trade-outcome-learning">
-          <span>Outcome learning</span>
-          <strong>
-            {tradeOutcomeLearning.actedRate === null
-              ? 'Learning'
-              : `${tradeOutcomeLearning.actedRate}% acted`}
-          </strong>
-          <p>{tradeOutcomeLearning.strongestPattern}</p>
-          <small>
-            {tradeOutcomeLearning.acted} acted / {tradeOutcomeLearning.blocked} blocked / {tradeOutcomeLearning.stale} stale / {tradeOutcomeLearning.open} open
-          </small>
-        </div>
-      )}
       <div className="trade-partner-grid balanced-tile-grid" style={getBalancedGridStyle(recommendations.length)}>
         {recommendations.map((recommendation) => (
           <article key={recommendation.manager} className="trade-partner-card">
@@ -2482,13 +2198,6 @@ export function TradePartnerFinder({
                 </li>
               </ul>
             </details>
-            <button
-              type="button"
-              className="command-secondary-action trade-partner-track-action"
-              onClick={() => trackTradePlan(recommendation)}
-            >
-              Save trade read
-            </button>
           </article>
         ))}
       </div>

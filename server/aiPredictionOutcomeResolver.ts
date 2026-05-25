@@ -128,7 +128,8 @@ function observedStatusToPredictionStatus(
   if (observed.status === 'observed_partially_completed') return 'push';
   if (observed.status === 'observed_ignored' || observed.status === 'observed_contradicted') return 'miss';
   if (observed.status === 'expired') return 'push';
-  if (observed.status === 'unknown' || observed.status === 'pending') return 'pending';
+  if (observed.status === 'unknown') return 'push';
+  if (observed.status === 'pending') return 'pending';
   return 'pending';
 }
 
@@ -139,6 +140,7 @@ function observedStatusToRealizedEdgeStatus(
   if (observed.status === 'observed_partially_completed') return 'matched-baseline';
   if (observed.status === 'observed_ignored' || observed.status === 'observed_contradicted') return 'trailed-baseline';
   if (observed.status === 'expired') return 'expired';
+  if (observed.status === 'unknown') return 'matched-baseline';
   return 'action-only';
 }
 
@@ -162,16 +164,20 @@ function resolveObservedRecommendationOutcome(
     now: context.resolvedAt,
     expiresAt: event.expiresAt || event.decay?.expiresAt || expectedAction.deadline || null,
   });
-  if (observed.status === 'pending' || observed.status === 'unknown') return null;
+  if (observed.status === 'pending') return null;
+  if (observed.status === 'unknown' && observed.evidence.detectedFrom === 'insufficient_data') return null;
   const status = observedStatusToPredictionStatus(observed);
 
+  const neutralOutcome = observed.status === 'expired' || observed.status === 'unknown';
   const actualValue =
     observed.status === 'observed_completed'
       ? 1
       : observed.status === 'observed_partially_completed'
         ? 0.5
-        : 0;
-  const baselineValue = status === 'push' ? 0.5 : 1;
+        : neutralOutcome
+          ? null
+          : 0;
+  const baselineValue = neutralOutcome ? null : status === 'push' ? 0.5 : 1;
   const resolved = outcome(status, context, observed.evidence.reason, {
     actualValue,
     baselineValue,

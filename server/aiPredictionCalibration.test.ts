@@ -383,7 +383,22 @@ describe('AI prediction calibration', () => {
       entityId: 'p1',
       finalScore: 84,
       label: 'priority',
-      outcome: { status: 'hit', feedbackSource: 'system' },
+      outcome: {
+        status: 'hit',
+        feedbackSource: 'system',
+        observedOutcome: {
+          status: 'observed_completed',
+          observedAt: '2026-09-02T00:00:00.000Z',
+          confidence: 92,
+          evidence: {
+            reason: 'Recommended player was added to roster',
+            playerId: 'p1',
+            before: 'not_on_roster',
+            after: 'on_roster',
+            detectedFrom: 'transaction_history',
+          },
+        },
+      },
       metadata: {
         source: 'waiver',
         leagueSharpnessTier: 'sharp',
@@ -426,7 +441,12 @@ describe('AI prediction calibration', () => {
       verdict: 'worked',
       sharpnessLabel: 'Sharp league',
       sharpnessScore: 78,
+      observedOutcomeStatus: 'observed_completed',
+      observedOutcomeConfidence: 92,
+      observedOutcomeDetectedFrom: 'transaction_history',
+      observedOutcomeReason: 'Recommended player was added to roster',
     });
+    expect(memory.ledger[0].evidencePreview[0]).toContain('Observed completed · 92% · transaction history');
     expect(memory.confidenceBuckets.find(bucket => bucket.group.label === 'priority')).toMatchObject({
       scoredCount: 2,
       hitRate: 50,

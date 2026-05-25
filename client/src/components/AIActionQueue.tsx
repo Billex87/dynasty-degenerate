@@ -213,7 +213,7 @@ function ActionOutcomeObserver({
       <div>
         <span>Outcome observer</span>
         <strong>Passive data sync</strong>
-        <em>{observedReads} recommendation read{observedReads === 1 ? '' : 's'} saved</em>
+        <em>{observedReads} recommendation read{observedReads === 1 ? '' : 's'} recorded automatically</em>
       </div>
       <p>{expectedCopy}</p>
     </div>

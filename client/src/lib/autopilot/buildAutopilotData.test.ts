@@ -359,7 +359,7 @@ describe('buildAutopilotData', () => {
 
     expect(data.managerTendency?.historyDepthScore).toBeGreaterThan(70);
     expect(data.managerTendency?.competitiveConsistencyScore).toBeGreaterThan(70);
-    expect(data.managerTendency?.signals).toEqual(expect.arrayContaining(['4 seasons tracked']));
+    expect(data.managerTendency?.signals).toEqual(expect.arrayContaining(['4 seasons observed']));
     expect(data.direction.confidence).toBeGreaterThan(84);
   });
 

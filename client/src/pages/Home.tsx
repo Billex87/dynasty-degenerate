@@ -8828,6 +8828,17 @@ function AdminAICalibrationPanel({
                         ? `${row.sharpnessLabel}${row.sharpnessScore !== null ? ` ${row.sharpnessScore}%` : ""}`
                         : "sharpness not tagged"} · {row.counterfactualStatus.replace(/-/g, " ")}
                     </em>
+                    {row.observedOutcomeStatus ? (
+                      <em>
+                        observed {row.observedOutcomeStatus.replace(/^observed_/, "").replace(/_/g, " ")}
+                        {row.observedOutcomeConfidence !== null
+                          ? ` · ${row.observedOutcomeConfidence}% confidence`
+                          : ""}
+                        {row.observedOutcomeDetectedFrom
+                          ? ` · ${row.observedOutcomeDetectedFrom.replace(/_/g, " ")}`
+                          : ""}
+                      </em>
+                    ) : null}
                     {row.evidencePreview.length ? (
                       <em>{row.evidencePreview.slice(0, 2).join(" · ")}</em>
                     ) : null}
@@ -12156,7 +12167,6 @@ export default function Home() {
                               <TradePartnerFinder
                                 data={reportDataForView}
                                 managerAvatars={reportData.managerAvatars}
-                                leagueId={leagueId}
                               />
                               <LeagueExploits
                                 data={reportDataForView}

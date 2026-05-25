@@ -158,6 +158,16 @@ function findTransaction(
   ) || null;
 }
 
+function findAlternateTransaction(
+  transactions: RecommendationTransactionFact[] | undefined,
+  type: RecommendationTransactionFact["type"],
+  expectedPlayer?: RecommendationPlayerRef | null,
+): RecommendationTransactionFact | null {
+  return (transactions || []).find((transaction) =>
+    transaction.type === type && !transactionMatches(transaction, type, expectedPlayer)
+  ) || null;
+}
+
 function evidence(input: {
   reason: string;
   player?: RecommendationPlayerRef | null;
@@ -279,11 +289,20 @@ function evaluateAdd(
       detectedFrom: "roster_sync",
     }));
   }
+  if (before === true && after === true) {
+    return observed(input, "unknown", 36, evidence({
+      reason: "Recommended add player was already on the roster before the observation window",
+      player,
+      before: "on_roster",
+      after: "on_roster",
+      detectedFrom: "roster_sync",
+    }));
+  }
   if (after === true) {
-    return observed(input, "observed_completed", 62, evidence({
+    return observed(input, "unknown", 40, evidence({
       reason: "Recommended player is on the current roster, but the prior roster snapshot was incomplete",
       player,
-      before: before === null ? "unknown" : "on_roster",
+      before: "unknown",
       after: "on_roster",
       detectedFrom: "roster_sync",
     }));
@@ -351,6 +370,24 @@ function evaluateDrop(
       detectedFrom: "roster_sync",
     }));
   }
+  if (before === false && after === false) {
+    return observed(input, "unknown", 36, evidence({
+      reason: "Recommended drop player was already off the roster before the observation window",
+      player,
+      before: "not_on_roster",
+      after: "not_on_roster",
+      detectedFrom: "roster_sync",
+    }));
+  }
+  if (before === null && after === false) {
+    return observed(input, "unknown", 40, evidence({
+      reason: "Recommended drop player is absent from the current roster, but the prior roster snapshot was incomplete",
+      player,
+      before: "unknown",
+      after: "not_on_roster",
+      detectedFrom: "roster_sync",
+    }));
+  }
   if (before === false && after === true) {
     return observed(input, "observed_contradicted", 64, evidence({
       reason: "Recommended drop player appeared on roster after sync",
@@ -383,8 +420,11 @@ function evaluateStart(
   const before = starterHadPrevious(input, player);
   const after = starterHasCurrent(input, player);
   if (after === true) {
-    return observed(input, "observed_completed", 86, evidence({
-      reason: "Recommended player is in a starting lineup slot",
+    const alreadyStarted = before === true;
+    return observed(input, "observed_completed", alreadyStarted ? 58 : 86, evidence({
+      reason: alreadyStarted
+        ? "Recommended player was already in a starting lineup slot before the observation window"
+        : "Recommended player is in a starting lineup slot",
       player,
       before: before === false ? "bench_or_not_started" : before === true ? "starter" : "unknown",
       after: "starter",
@@ -405,7 +445,7 @@ function evaluateStart(
     return observed(input, "observed_ignored", 76, evidence({
       reason: "Recommendation expired and the player was not started",
       player,
-      before: before === true ? "starter" : before === false ? "bench_or_not_started" : "unknown",
+      before: before === false ? "bench_or_not_started" : "unknown",
       after: "bench_or_not_started",
       detectedFrom: "lineup_sync",
     }));
@@ -432,8 +472,11 @@ function evaluateBench(
     }));
   }
   if (after === false) {
-    return observed(input, "observed_completed", 68, evidence({
-      reason: "Recommended bench player is not in the current starting lineup",
+    const alreadyBenched = before === false;
+    return observed(input, "observed_completed", alreadyBenched ? 58 : 68, evidence({
+      reason: alreadyBenched
+        ? "Recommended bench player was already out of the starting lineup before the observation window"
+        : "Recommended bench player is not in the current starting lineup",
       player,
       before: before === null ? "unknown" : "bench_or_not_started",
       after: "bench_or_not_started",
@@ -453,7 +496,7 @@ function evaluateBench(
     return observed(input, "observed_ignored", 76, evidence({
       reason: "Recommendation expired and the player stayed in the starting lineup",
       player,
-      before: before === false ? "bench_or_not_started" : "starter",
+      before: before === true ? "starter" : "unknown",
       after: "starter",
       detectedFrom: "lineup_sync",
     }));
@@ -531,6 +574,9 @@ function evaluateDropForAdd(input: RecommendationOutcomeEvaluationInput): Recomm
   }
 
   if (addDone || dropDone) {
+    const alternateAdd = !addDone
+      ? findAlternateTransaction(input.transactionHistory, "add", input.expectedAction?.playerIn)
+      : null;
     return observed(input, "observed_partially_completed", 76, evidence({
       reason: "Only part of the recommended add/drop move was observed",
       player: input.expectedAction?.playerIn,
@@ -542,6 +588,9 @@ function evaluateDropForAdd(input: RecommendationOutcomeEvaluationInput): Recomm
         droppedPlayerName: input.expectedAction?.playerOut?.name || null,
         addEvidence: add.evidence.reason,
         dropEvidence: drop.evidence.reason,
+        alternateAddPlayerId: alternateAdd?.playerId || null,
+        alternateAddPlayerName: alternateAdd?.playerName || null,
+        alternateAddOccurredAt: alternateAdd?.occurredAt || null,
       },
     }));
   }

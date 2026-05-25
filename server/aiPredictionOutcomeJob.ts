@@ -188,7 +188,7 @@ function buildRosterStateFacts(
   managerByRosterId: Map<string, string>
 ): RecommendationStateSnapshot[] {
   return rosters
-    .map((roster) => {
+    .map((roster): RecommendationStateSnapshot | null => {
       const rosterId = normalizeRosterId(roster.roster_id);
       const manager = rosterId ? managerByRosterId.get(rosterId) || null : null;
       if (!manager) return null;

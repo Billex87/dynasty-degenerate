@@ -70,9 +70,9 @@ import {
   normalizeTep,
   type ValueBlendOptions,
 } from "./valueBlend";
-import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, insertLoginAttempt, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertActionPlan, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertWaiverBidHistory } from "./db";
+import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, insertLoginAttempt, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
-import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget } from "../shared/types";
+import type { LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget } from "../shared/types";
 import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
 import type { AICounterfactualRead, AIDecisionSnapshot, AIPredictionDecayProfile, AIRealizedEdge } from "../shared/aiDecisionSnapshots";
 import type { RecommendationObservedOutcome } from "../shared/recommendationOutcome";
@@ -362,34 +362,6 @@ const sleeperUserIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter a
 const sleeperUsernameSchema = z.string().trim().min(1).max(64);
 const sleeperAuthTokenSchema = z.string().trim().min(1).max(4096);
 const valueTimelineWindowSchema = z.enum(['1m', '3m', '6m', '1y', 'all']);
-const actionPlanSchema = z.object({
-  id: z.string().min(1).max(256),
-  kind: z.enum(["lineup", "waiver", "trade"]),
-  leagueId: z.string().max(64).optional(),
-  manager: z.string().max(160).nullable().optional(),
-  playerId: z.string().max(64).optional(),
-  replacementPlayerId: z.string().max(64).optional(),
-  createdAt: z.number().finite(),
-  updatedAt: z.number().finite().optional(),
-  title: z.string().min(1).max(240),
-  summary: z.string().max(1200),
-  status: z.enum(["saved", "submitted", "copied", "opened", "won", "lost", "acted", "blocked", "stale"]),
-  payload: z.record(z.string(), z.unknown()),
-}) satisfies z.ZodType<ActionPlanRecord>;
-const waiverBidHistorySchema = z.object({
-  id: z.string().min(1).max(256),
-  leagueId: z.string().max(64).optional(),
-  manager: z.string().max(160).nullable().optional(),
-  playerId: z.string().min(1).max(64),
-  playerName: z.string().min(1).max(160),
-  position: z.string().min(1).max(8),
-  bidMin: z.number().int().min(0).max(1000),
-  bidMax: z.number().int().min(0).max(1000),
-  bidLabel: z.string().min(1).max(64),
-  source: z.enum(["league-history", "model", "submitted-plan"]),
-  createdAt: z.number().finite(),
-  updatedAt: z.number().finite().optional(),
-}) satisfies z.ZodType<WaiverBidHistoryRecord>;
 const aiSourceTraceSchema = z.object({
   label: z.string().min(1).max(240),
   status: z.enum(["loaded", "stale", "missing", "error", "limited"]).optional(),
@@ -5737,16 +5709,6 @@ export const appRouter = router({
 
         return { plans };
       }),
-    upsert: protectedProcedure
-      .input(z.object({ plan: actionPlanSchema }))
-      .mutation(async ({ input, ctx }) => {
-        const persisted = await upsertActionPlan({
-          userKey: getActionPlanUserKey(ctx.user),
-          plan: input.plan,
-        });
-
-        return { persisted, plan: input.plan };
-      }),
     listWaiverBidHistory: protectedProcedure
       .input(z.object({
         leagueId: z.string().max(64).optional(),
@@ -5761,16 +5723,6 @@ export const appRouter = router({
 
         return { bidHistory };
       }),
-    upsertWaiverBidHistory: protectedProcedure
-      .input(z.object({ item: waiverBidHistorySchema }))
-      .mutation(async ({ input, ctx }) => {
-        const persisted = await upsertWaiverBidHistory({
-          userKey: getActionPlanUserKey(ctx.user),
-          item: input.item,
-        });
-
-        return { persisted, item: input.item };
-    }),
   }),
 
   aiPredictions: router({

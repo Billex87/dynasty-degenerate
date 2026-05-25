@@ -481,8 +481,8 @@ function buildManagerTendencyProfile(data: ReportData, manager: string): Manager
           ? 'Thin history'
           : 'Balanced manager';
   const summary = historyDepthScore < 45
-    ? `${manager} has limited tracked history in this report, so Autopilot keeps confidence tighter until more manager behavior is available.`
-    : `${manager} shows ${label.toLowerCase()} tendencies across ${seasonsTracked || 'current'} tracked season${seasonsTracked === 1 ? '' : 's'}, ${tradeRows.length || tendency?.tradeCount || 0} trade signal${(tradeRows.length || tendency?.tradeCount || 0) === 1 ? '' : 's'}, and ${transactionRows.length} recent transaction${transactionRows.length === 1 ? '' : 's'}.`;
+    ? `${manager} has limited observed history in this report, so Autopilot keeps confidence tighter until more manager behavior is available.`
+    : `${manager} shows ${label.toLowerCase()} tendencies across ${seasonsTracked || 'current'} observed season${seasonsTracked === 1 ? '' : 's'}, ${tradeRows.length || tendency?.tradeCount || 0} trade signal${(tradeRows.length || tendency?.tradeCount || 0) === 1 ? '' : 's'}, and ${transactionRows.length} recent transaction${transactionRows.length === 1 ? '' : 's'}.`;
 
   return {
     manager,
@@ -494,7 +494,7 @@ function buildManagerTendencyProfile(data: ReportData, manager: string): Manager
     competitiveConsistencyScore,
     riskToleranceScore,
     signals: dedupeStrings([
-      seasonsTracked ? `${seasonsTracked} seasons tracked` : null,
+      seasonsTracked ? `${seasonsTracked} seasons observed` : null,
       tradeRows.length || tendency?.tradeCount ? `${tradeRows.length || tendency?.tradeCount} trade signals` : null,
       transactionRows.length ? `${transactionRows.length} recent moves` : null,
       tendency?.favoritePartner ? `Favorite partner ${tendency.favoritePartner}` : null,
@@ -1908,7 +1908,7 @@ function buildAIReportCardRead({
       status: adjustmentProfile
         ? `${adjustmentProfile.scoredCount} scored / ${adjustmentProfile.adjustments.length} adjustments`
         : calibrationStatus,
-      detail: topAdjustment?.reason || calibration?.note || 'Confidence still learns from saved predictions, outcomes, and admin feedback.',
+      detail: topAdjustment?.reason || calibration?.note || 'Confidence learns from observed prediction outcomes, provider data, and admin feedback.',
       tone: topAdjustment ? calibrationPriorityTone(topAdjustment.priority) : calibration?.status === 'ready' ? 'good' : calibration?.status === 'collecting' ? 'info' : 'warn',
     },
     {

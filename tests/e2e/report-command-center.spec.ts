@@ -652,22 +652,10 @@ test.describe("command center feature surfaces", () => {
       .first();
     await tradePartnerRead.evaluate(node => node.setAttribute("open", ""));
     await expect(tradePartnerRead.getByText("Why this fired")).toBeVisible();
-    await tradePartnerRead
-      .getByRole("button", { name: /Save trade read/i })
-      .click();
-    await expect(page.getByText("Observed trade reads")).toBeVisible();
-    const savedTradePlans = await page.evaluate(
-      () =>
-        JSON.parse(
-          window.localStorage.getItem("dynasty-degenerates:action-plans:v1") ||
-            "[]"
-        ) as Array<{ kind?: string; status?: string }>
-    );
-    expect(
-      savedTradePlans.some(
-        plan => plan.kind === "trade" && plan.status === "saved"
-      )
-    ).toBeTruthy();
+    await expect(
+      tradePartnerRead.getByRole("button", { name: /Save trade read/i })
+    ).toHaveCount(0);
+    await expect(page.getByText("Observed trade reads")).toHaveCount(0);
     await expect(page.locator(".league-exploit-card").first()).toBeVisible();
 
     const featureRadarSection = await openReportSection(page, "Assistant Feature Radar");
@@ -821,39 +809,10 @@ test.describe("command center feature surfaces", () => {
     await expect(
       page.getByRole("button", { name: /Open Sleeper/i })
     ).toHaveCount(0);
-    await page
-      .getByRole("button", { name: /Save plan/i })
-      .first()
-      .click();
     await expect(
-      page.getByRole("button", { name: /Plan saved/i }).first()
-    ).toBeVisible();
-    await expect(page.getByText("Waiver Plan History").first()).toBeVisible();
-    const submittedPlans = await page.evaluate(
-      () =>
-        JSON.parse(
-          window.localStorage.getItem("dynasty-degenerates:action-plans:v1") ||
-            "[]"
-        ) as Array<{ kind?: string; playerId?: string }>
-    );
-    expect(
-      submittedPlans.some(
-        plan => plan.kind === "waiver" && plan.playerId === "waiver1"
-      )
-    ).toBeTruthy();
-    const bidHistory = await page.evaluate(
-      () =>
-        JSON.parse(
-          window.localStorage.getItem(
-            "dynasty-degenerates:waiver-bid-history:v1"
-          ) || "[]"
-        ) as Array<{ playerId?: string; bidMax?: number }>
-    );
-    expect(
-      bidHistory.some(
-        item => item.playerId === "waiver1" && Number(item.bidMax) > 0
-      )
-    ).toBeTruthy();
+      page.getByRole("button", { name: /Save plan|Plan saved|Save watch/i })
+    ).toHaveCount(0);
+    await expect(page.getByText("Waiver Plan History").first()).toHaveCount(0);
 
     const desktopOverflow = await page.evaluate(() =>
       Math.max(

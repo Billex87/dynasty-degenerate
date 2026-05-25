@@ -45,84 +45,25 @@ describe("actionPlans router", () => {
     });
   });
 
-  it("accepts typed action plans when the database is unavailable", async () => {
+  it("keeps legacy action plans read-only when the database is unavailable", async () => {
     delete process.env.DATABASE_URL;
     const caller = appRouter.createCaller(createContext());
 
-    const result = await caller.actionPlans.upsert({
-      plan: {
-        id: "lineup:13000000000000:sample:starter:bench",
-        kind: "lineup",
-        leagueId: "13000000000000",
-        manager: "Sample Manager",
-        playerId: "starter",
-        replacementPlayerId: "bench",
-        createdAt: Date.parse("2026-05-11T12:00:00.000Z"),
-        title: "Starter -> Bench",
-        summary: "Bench has the better projection.",
-        status: "saved",
-        payload: {
-          starterOut: { playerId: "starter" },
-          replacements: [{ playerId: "bench", confidencePct: 76 }],
-        },
-      },
+    const result = await caller.actionPlans.list({
+      leagueId: "13000000000000",
     });
 
-    expect(result.persisted).toBe(false);
-    expect(result.plan.kind).toBe("lineup");
-    expect(result.plan.replacementPlayerId).toBe("bench");
+    expect(result.plans).toEqual([]);
   });
 
-  it("accepts observed trade recommendation outcomes when the database is unavailable", async () => {
+  it("keeps legacy waiver bid history read-only when the database is unavailable", async () => {
     delete process.env.DATABASE_URL;
     const caller = appRouter.createCaller(createContext());
 
-    const result = await caller.actionPlans.upsert({
-      plan: {
-        id: "trade:13000000000000:sample:rival:wr1",
-        kind: "trade",
-        leagueId: "13000000000000",
-        manager: "Sample Manager",
-        playerId: "wr1",
-        createdAt: Date.parse("2026-05-11T12:00:00.000Z"),
-        title: "Trade read: Rival",
-        summary: "Rival is a fit, but has declined this player before.",
-        status: "blocked",
-        payload: {
-          sourceManager: "Sample Manager",
-          targetManager: "Rival",
-          targetPlayerId: "wr1",
-          outcomeStatus: "blocked",
-        },
-      },
+    const result = await caller.actionPlans.listWaiverBidHistory({
+      leagueId: "13000000000000",
     });
 
-    expect(result.persisted).toBe(false);
-    expect(result.plan.kind).toBe("trade");
-    expect(result.plan.status).toBe("blocked");
-  });
-
-  it("accepts typed waiver bid history when the database is unavailable", async () => {
-    delete process.env.DATABASE_URL;
-    const caller = appRouter.createCaller(createContext());
-
-    const result = await caller.actionPlans.upsertWaiverBidHistory({
-      item: {
-        id: "waiver-bid:13000000000000:sample:wr1",
-        leagueId: "13000000000000",
-        manager: "Sample Manager",
-        playerId: "wr1",
-        playerName: "Waiver Receiver",
-        position: "WR",
-        bidMin: 7,
-        bidMax: 12,
-        bidLabel: "FAAB 7-12",
-        source: "submitted-plan",
-        createdAt: Date.parse("2026-05-11T12:00:00.000Z"),
-      },
-    });
-
-    expect(result.persisted).toBe(false);
-    expect(result.item.playerName).toBe("Waiver Receiver");
+    expect(result.bidHistory).toEqual([]);
   });
 });

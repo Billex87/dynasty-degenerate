@@ -297,6 +297,10 @@ export type AIOutcomeLedgerRow = {
   confidenceCap: number;
   outcomeStatus: AIPredictionOutcomeStatus;
   feedbackSource?: AIPredictionOutcome['feedbackSource'];
+  observedOutcomeStatus?: RecommendationObservedOutcome['status'] | null;
+  observedOutcomeConfidence?: number | null;
+  observedOutcomeDetectedFrom?: RecommendationObservedOutcome['evidence']['detectedFrom'] | null;
+  observedOutcomeReason?: string | null;
   sourceAgreement: AISourceAgreementState;
   counterfactualStatus: AICounterfactualStatus | 'missing-baseline';
   baselineLabel?: string | null;
@@ -1180,10 +1184,18 @@ function getOutcomeModule(event: AIPredictionEvent): string {
   return event.surface;
 }
 
+function formatObservedOutcomeStatus(value: string | null): string | null {
+  return value ? value.replace(/^observed_/, '').replace(/_/g, ' ') : null;
+}
+
 function buildOutcomeLedgerRow(event: AIPredictionEvent): AIOutcomeLedgerRow {
   const sharpness = getLeagueSharpnessBucket(event);
+  const observedOutcome = event.outcome.observedOutcome || null;
   const observedReason = cleanText(event.outcome.observedOutcome?.evidence.reason);
   const observedStatus = cleanText(event.outcome.observedOutcome?.status);
+  const observedStatusLabel = formatObservedOutcomeStatus(observedStatus);
+  const observedDetectedFrom = observedOutcome?.evidence.detectedFrom || null;
+  const observedConfidence = Number(observedOutcome?.confidence);
   return {
     eventId: event.eventId,
     predictionKey: event.predictionKey,
@@ -1202,6 +1214,10 @@ function buildOutcomeLedgerRow(event: AIPredictionEvent): AIOutcomeLedgerRow {
     confidenceCap: event.confidenceCap,
     outcomeStatus: event.outcome.status,
     feedbackSource: event.outcome.feedbackSource || null,
+    observedOutcomeStatus: observedOutcome?.status || null,
+    observedOutcomeConfidence: Number.isFinite(observedConfidence) ? observedConfidence : null,
+    observedOutcomeDetectedFrom: observedDetectedFrom,
+    observedOutcomeReason: observedReason,
     sourceAgreement: event.sourceAgreement?.state || 'unknown',
     counterfactualStatus: event.counterfactual?.status || 'missing-baseline',
     baselineLabel: event.counterfactual?.baseline.label || null,
@@ -1213,7 +1229,9 @@ function buildOutcomeLedgerRow(event: AIPredictionEvent): AIOutcomeLedgerRow {
     sharpnessTier: sharpness.tier,
     verdict: getOutcomeVerdict(event.outcome.status),
     evidencePreview: [
-      observedReason ? `Observed outcome${observedStatus ? ` ${observedStatus}` : ''}: ${observedReason}` : null,
+      observedReason
+        ? `Observed ${observedStatusLabel || 'outcome'}${Number.isFinite(observedConfidence) ? ` · ${observedConfidence}%` : ''}${observedDetectedFrom ? ` · ${observedDetectedFrom.replace(/_/g, ' ')}` : ''}: ${observedReason}`
+        : null,
       ...event.evidence,
     ].filter((value): value is string => Boolean(value)).slice(0, 3),
     missingEvidence: event.missingEvidence.slice(0, 3),

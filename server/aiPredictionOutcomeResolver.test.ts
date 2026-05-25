@@ -123,6 +123,39 @@ describe('AI prediction outcome resolver', () => {
     });
   });
 
+  it('stores neutral unknown observed outcomes when only the current roster state matches', () => {
+    const resolved = resolveAIPredictionOutcome(event({
+      metadata: {
+        expectedAction: {
+          type: 'add_player',
+          playerIn: { id: 'p1', name: 'Waiver Receiver' },
+        },
+      },
+    }), {
+      resolvedAt: '2026-09-02T00:00:00.000Z',
+      rosterStates: [
+        {
+          manager: 'Sample Manager',
+          rosterPlayerIds: ['p1'],
+          starterPlayerIds: [],
+        },
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      status: 'push',
+      actualValue: null,
+      baselineValue: null,
+      observedOutcome: {
+        status: 'unknown',
+        confidence: 40,
+        evidence: {
+          reason: 'Recommended player is on the current roster, but the prior roster snapshot was incomplete',
+        },
+      },
+    });
+  });
+
   it('waits to grade waiver pickups until production is available', () => {
     const resolved = resolveAIPredictionOutcome(event(), {
       transactions: [

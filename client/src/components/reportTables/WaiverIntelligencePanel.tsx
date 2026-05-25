@@ -1,13 +1,10 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import type {
-  ActionPlanRecord,
-  ActionPlanStatus,
   ManagerIntelPlayer,
   PlayerDetails,
   RecentTransactionPlayer,
   ReportData,
   TrendingPlayer,
-  WaiverBidHistoryRecord,
   WaiverWeeklyEcrSignal,
   WaiverWeeklyEcrTarget,
   WaiverWeeklyEcrWeek,
@@ -23,7 +20,6 @@ import {
   type AISourceTrace,
 } from "@shared/aiEvidenceEngine";
 import { buildAIEvidenceLeagueActivityContext } from "@shared/leagueActivityContext";
-import { trpc } from "@/lib/trpc";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
 import { TeamLogoPill } from "../TeamLogoPill";
 import { PlayerIdentityRow } from "../reportPrimitives";
@@ -100,392 +96,6 @@ function WaiverRankPill({
   );
 }
 
-const ACTION_PLAN_STORAGE_KEY = "dynasty-degenerates:action-plans:v1";
-const WAIVER_BID_HISTORY_STORAGE_KEY =
-  "dynasty-degenerates:waiver-bid-history:v1";
-
-type StoredActionPlanStatus = ActionPlanStatus;
-type StoredActionPlan = ActionPlanRecord;
-type StoredWaiverBidHistoryItem = WaiverBidHistoryRecord;
-
-function readJsonArrayFromStorage<T>(key: string): T[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as T[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeJsonArrayToStorage<T>(key: string, value: T[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Storage can be unavailable in private or restricted browser contexts.
-  }
-}
-
-function readStoredActionPlans(): StoredActionPlan[] {
-  return readJsonArrayFromStorage<StoredActionPlan>(ACTION_PLAN_STORAGE_KEY);
-}
-
-function upsertStoredActionPlan(plan: StoredActionPlan): StoredActionPlan[] {
-  const next = [
-    plan,
-    ...readStoredActionPlans().filter(item => item.id !== plan.id),
-  ].slice(0, 80);
-  writeJsonArrayToStorage(ACTION_PLAN_STORAGE_KEY, next);
-  return next;
-}
-
-function mergeActionPlans(...groups: StoredActionPlan[][]): StoredActionPlan[] {
-  const byId = new Map<string, StoredActionPlan>();
-  groups.flat().forEach(plan => {
-    const existing = byId.get(plan.id);
-    if (
-      !existing ||
-      (plan.updatedAt || plan.createdAt) >=
-        (existing.updatedAt || existing.createdAt)
-    ) {
-      byId.set(plan.id, plan);
-    }
-  });
-  return Array.from(byId.values())
-    .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
-    .slice(0, 100);
-}
-
-function useStoredActionPlans({ leagueId }: { leagueId?: string } = {}) {
-  const [storedActionPlans, setStoredActionPlans] = useState<
-    StoredActionPlan[]
-  >(() => readStoredActionPlans());
-  const utils = trpc.useUtils();
-  const authQuery = trpc.auth.me.useQuery(undefined, {
-    retry: false,
-    refetchOnWindowFocus: false,
-    staleTime: 1000 * 60 * 5,
-  });
-  const canUseServerPersistence = Boolean(authQuery.data);
-  const serverActionPlansQuery = trpc.actionPlans.list.useQuery(
-    { leagueId },
-    {
-      enabled: canUseServerPersistence,
-      retry: false,
-      refetchOnWindowFocus: false,
-      staleTime: 1000 * 30,
-    }
-  );
-  const upsertActionPlanMutation = trpc.actionPlans.upsert.useMutation({
-    onSuccess: async () => {
-      await utils.actionPlans.list.invalidate({ leagueId });
-    },
-  });
-  const persistStoredActionPlan = (plan: StoredActionPlan) => {
-    const next = upsertStoredActionPlan({ ...plan, updatedAt: Date.now() });
-    setStoredActionPlans(next);
-    if (canUseServerPersistence) {
-      upsertActionPlanMutation.mutate({
-        plan: { ...plan, updatedAt: Date.now() },
-      });
-    }
-  };
-  return {
-    storedActionPlans: mergeActionPlans(
-      storedActionPlans,
-      serverActionPlansQuery.data?.plans || []
-    ),
-    persistStoredActionPlan,
-    isServerPersistenceEnabled: canUseServerPersistence,
-  };
-}
-
-function readStoredWaiverBidHistory(): StoredWaiverBidHistoryItem[] {
-  return readJsonArrayFromStorage<StoredWaiverBidHistoryItem>(
-    WAIVER_BID_HISTORY_STORAGE_KEY
-  );
-}
-
-function upsertStoredWaiverBidHistory(
-  item: StoredWaiverBidHistoryItem
-): StoredWaiverBidHistoryItem[] {
-  const next = [
-    item,
-    ...readStoredWaiverBidHistory().filter(
-      historyItem => historyItem.id !== item.id
-    ),
-  ].slice(0, 120);
-  writeJsonArrayToStorage(WAIVER_BID_HISTORY_STORAGE_KEY, next);
-  return next;
-}
-
-function mergeWaiverBidHistory(
-  ...groups: StoredWaiverBidHistoryItem[][]
-): StoredWaiverBidHistoryItem[] {
-  const byId = new Map<string, StoredWaiverBidHistoryItem>();
-  groups.flat().forEach(item => {
-    const existing = byId.get(item.id);
-    if (
-      !existing ||
-      (item.updatedAt || item.createdAt) >=
-        (existing.updatedAt || existing.createdAt)
-    ) {
-      byId.set(item.id, item);
-    }
-  });
-  return Array.from(byId.values())
-    .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt))
-    .slice(0, 150);
-}
-
-function useStoredWaiverBidHistory({ leagueId }: { leagueId?: string } = {}) {
-  const [storedWaiverBidHistory, setStoredWaiverBidHistory] = useState<
-    StoredWaiverBidHistoryItem[]
-  >(() => readStoredWaiverBidHistory());
-  const utils = trpc.useUtils();
-  const authQuery = trpc.auth.me.useQuery(undefined, {
-    retry: false,
-    refetchOnWindowFocus: false,
-    staleTime: 1000 * 60 * 5,
-  });
-  const canUseServerPersistence = Boolean(authQuery.data);
-  const serverBidHistoryQuery = trpc.actionPlans.listWaiverBidHistory.useQuery(
-    { leagueId },
-    {
-      enabled: canUseServerPersistence,
-      retry: false,
-      refetchOnWindowFocus: false,
-      staleTime: 1000 * 30,
-    }
-  );
-  const upsertBidHistoryMutation =
-    trpc.actionPlans.upsertWaiverBidHistory.useMutation({
-      onSuccess: async () => {
-        await utils.actionPlans.listWaiverBidHistory.invalidate({ leagueId });
-      },
-    });
-  const persistStoredWaiverBidHistory = (item: StoredWaiverBidHistoryItem) => {
-    const next = upsertStoredWaiverBidHistory({
-      ...item,
-      updatedAt: Date.now(),
-    });
-    setStoredWaiverBidHistory(next);
-    if (canUseServerPersistence) {
-      upsertBidHistoryMutation.mutate({
-        item: { ...item, updatedAt: Date.now() },
-      });
-    }
-  };
-  return {
-    storedWaiverBidHistory: mergeWaiverBidHistory(
-      storedWaiverBidHistory,
-      serverBidHistoryQuery.data?.bidHistory || []
-    ),
-    persistStoredWaiverBidHistory,
-  };
-}
-
-function parseFaabBidRange(label: string): { min: number; max: number } | null {
-  const values = (label.match(/\d+/g) || [])
-    .map(value => Number(value))
-    .filter(value => Number.isFinite(value) && value >= 0);
-  if (!values.length) return null;
-  return {
-    min: values[0],
-    max: values[1] ?? values[0],
-  };
-}
-
-function formatActionPlanTimestamp(value?: number): string {
-  if (!value) return "Saved";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Saved";
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "2-digit",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function getActionPlanKindLabel(kind: StoredActionPlan["kind"]): string {
-  if (kind === "lineup") return "Lineup";
-  if (kind === "trade") return "Trade";
-  return "Waiver";
-}
-
-type WaiverPlanOutcomeRead = {
-  status: Extract<StoredActionPlanStatus, "won" | "lost">;
-  evidenceSummary: string;
-  aftermathSummary: string | null;
-  aftermathSignature: string;
-  valueDelta: number | null;
-};
-
-function getRecentTransactionPlayerValue(
-  player?: RecentTransactionPlayer | null
-): number | null {
-  if (!player) return null;
-  const value =
-    player.ktcValue ??
-    player.playerDetails?.valueProfile?.dynastyValue ??
-    player.playerDetails?.valueProfile?.seasonValue ??
-    player.playerDetails?.valueProfile?.balancedValue ??
-    null;
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.round(value)
-    : null;
-}
-
-export function getWaiverPlanOutcomeRead(
-  plan: StoredActionPlan,
-  recentTransactions?: ReportData["recentTransactions"]
-): WaiverPlanOutcomeRead | null {
-  if (
-    plan.kind !== "waiver" ||
-    !plan.playerId ||
-    (["won", "lost"].includes(plan.status) &&
-      plan.payload?.outcomeAftermathSignature)
-  )
-    return null;
-  const matchingAdd =
-    (recentTransactions || [])
-      .filter(
-        transaction => transaction.addedPlayer?.player_id === plan.playerId
-      )
-      .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))[0] || null;
-  if (!matchingAdd) return null;
-  const status =
-    normalizeManagerKey(matchingAdd.manager) === normalizeManagerKey(plan.manager)
-      ? "won"
-      : "lost";
-  const addedValue = getRecentTransactionPlayerValue(matchingAdd.addedPlayer);
-  const droppedValue = getRecentTransactionPlayerValue(
-    matchingAdd.droppedPlayer ||
-      (plan.payload?.dropCandidate as RecentTransactionPlayer | null)
-  );
-  const valueDelta =
-    addedValue !== null && droppedValue !== null
-      ? Math.round(addedValue - droppedValue)
-      : null;
-  const matchingAddDate = Date.parse(matchingAdd.date);
-  const laterDrop = (recentTransactions || []).find(transaction => {
-    const transactionDate = Date.parse(transaction.date);
-    return (
-      status === "won" &&
-      normalizeManagerKey(transaction.manager) === normalizeManagerKey(plan.manager) &&
-      transaction.droppedPlayer?.player_id === plan.playerId &&
-      Number.isFinite(transactionDate) &&
-      (!Number.isFinite(matchingAddDate) || transactionDate > matchingAddDate)
-    );
-  });
-  const aftermathSummary =
-    status === "lost"
-      ? `Lost to ${matchingAdd.manager}; use the competition read to decide whether the bid range was too light.`
-      : laterDrop
-        ? `${matchingAdd.addedPlayer?.name || "The add"} was later dropped on ${laterDrop.date}, so this claim looks like short-term churn.`
-        : valueDelta !== null
-          ? `Won claim with ${valueDelta >= 0 ? "+" : ""}${formatCompactValue(valueDelta)} value delta versus the recorded drop.`
-          : "Won claim; returned transactions did not include enough added/drop value for aftermath scoring.";
-  return {
-    status,
-    evidenceSummary: `${matchingAdd.type} add found on ${matchingAdd.date} for ${matchingAdd.addedPlayer?.name || "the saved player"}.`,
-    aftermathSummary,
-    aftermathSignature: [
-      status,
-      matchingAdd.id,
-      matchingAdd.droppedPlayer?.player_id || "no-drop",
-      laterDrop?.id || "held",
-      valueDelta ?? "no-delta",
-    ].join(":"),
-    valueDelta,
-  };
-}
-
-function getWaiverPlanOutcomeStatus(
-  plan: StoredActionPlan,
-  recentTransactions?: ReportData["recentTransactions"]
-): StoredActionPlanStatus | null {
-  return getWaiverPlanOutcomeRead(plan, recentTransactions)?.status || null;
-}
-
-export function buildWaiverOutcomeLearning(plans: StoredActionPlan[]) {
-  const waiverPlans = plans.filter(plan => plan.kind === "waiver");
-  if (!waiverPlans.length) return null;
-  const won = waiverPlans.filter(plan => plan.status === "won").length;
-  const lost = waiverPlans.filter(plan => plan.status === "lost").length;
-  const open = waiverPlans.length - won - lost;
-  const resolved = won + lost;
-  const winRate = resolved ? Math.round((won / resolved) * 100) : null;
-  const aftermathPlans = waiverPlans.filter(plan => plan.payload?.outcomeAftermathSummary);
-  const positiveAftermath = aftermathPlans.filter(plan => {
-    const delta = Number(plan.payload?.outcomeValueDelta);
-    return Number.isFinite(delta) && delta > 0;
-  }).length;
-  const churned = aftermathPlans.filter(plan =>
-    /later dropped|short-term churn/i.test(String(plan.payload?.outcomeAftermathSummary || ""))
-  ).length;
-  const read =
-    winRate === null
-      ? "Saved claims are waiting for returned transaction outcomes."
-      : churned > 0
-        ? "Some won claims churned back off the roster; tighten drop discipline before chasing similar adds."
-      : aftermathPlans.length && positiveAftermath >= aftermathPlans.length
-        ? "Resolved waiver claims are producing positive add/drop value deltas."
-      : winRate >= 65
-        ? "Recent saved waiver plans are clearing at a strong rate."
-        : lost >= won
-          ? "Recent saved waiver plans are losing too often; raise bid ranges or pivot to quieter players."
-          : "Waiver outcomes are mixed; use competition reads before submitting aggressive bids.";
-  return { won, lost, open, winRate, read, aftermathCount: aftermathPlans.length, positiveAftermath, churned };
-}
-
-function ActionPlanHistoryPanel({
-  plans,
-  isServerPersistenceEnabled,
-  title = "Action History",
-}: {
-  plans: StoredActionPlan[];
-  isServerPersistenceEnabled?: boolean;
-  title?: string;
-}) {
-  if (!plans.length) return null;
-
-  return (
-    <div className="action-plan-history-panel">
-      <div className="action-plan-history-head">
-        <div>
-          <span>Saved decisions</span>
-          <h4>{title}</h4>
-        </div>
-        <em>{isServerPersistenceEnabled ? "Synced" : "Local"}</em>
-      </div>
-      <div className="action-plan-history-list">
-        {plans.slice(0, 5).map(plan => (
-          <div
-            key={plan.id}
-            className={`action-plan-history-item action-plan-history-item-${plan.kind}`}
-          >
-            <div className="action-plan-history-copy">
-              <span>
-                {getActionPlanKindLabel(plan.kind)} • {plan.status}
-              </span>
-              <strong>{plan.title}</strong>
-              <p>{plan.summary}</p>
-              <small>
-                {formatActionPlanTimestamp(plan.updatedAt || plan.createdAt)}
-              </small>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 type WaiverPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 
 type WaiverRecommendation = {
@@ -534,103 +144,6 @@ const WAIVER_RECOMMENDATION_LIMIT = 2;
 const WAIVER_RECOMMENDATION_MINIMUM = 1;
 export const VALUE_BLEND_HISTORY_START_LABEL = "May 7, 2026";
 export const FIRST_FULL_BLEND_WEEK_LABEL = "May 12, 2026 after the 6 PM scrape";
-
-function getWaiverActionPlanId(
-  leagueId: string | undefined,
-  manager: string | null | undefined,
-  recommendation: WaiverRecommendation
-): string {
-  return [
-    "waiver",
-    leagueId || "unknown-league",
-    normalizeManagerKey(manager),
-    recommendation.player.player_id,
-  ].join(":");
-}
-
-function createWaiverActionPlan({
-  leagueId,
-  manager,
-  recommendation,
-  status,
-}: {
-  leagueId?: string;
-  manager?: string | null;
-  recommendation: WaiverRecommendation;
-  status: StoredActionPlanStatus;
-}): StoredActionPlan {
-  return {
-    id: getWaiverActionPlanId(leagueId, manager, recommendation),
-    kind: "waiver",
-    leagueId,
-    manager,
-    playerId: recommendation.player.player_id,
-    createdAt: Date.now(),
-    title: `Claim ${recommendation.player.name}`,
-    summary: `${recommendation.bidRangeLabel}; ${recommendation.dropCandidate ? `drop ${recommendation.dropCandidate.name}` : recommendation.claimPriority}.`,
-    status,
-    payload: {
-      player: {
-        playerId: recommendation.player.player_id,
-        name: recommendation.player.name,
-        position: recommendation.player.pos,
-      },
-      bidRangeLabel: recommendation.bidRangeLabel,
-      bidConfidencePct: recommendation.bidConfidencePct,
-      bidSource: recommendation.bidSource,
-      bidEvidenceLabel: recommendation.bidEvidenceLabel,
-      competitionRead: recommendation.competitionRead,
-      claimPriority: recommendation.claimPriority,
-      dropCandidate: recommendation.dropCandidate
-        ? {
-            playerId: recommendation.dropCandidate.player_id,
-            name: recommendation.dropCandidate.name,
-            position: recommendation.dropCandidate.pos,
-          }
-        : null,
-      dropAlternatives: recommendation.dropAlternatives.map(player => ({
-        playerId: player.player_id,
-        name: player.name,
-        position: player.pos,
-      })),
-      dropValueDelta: recommendation.dropValueDelta,
-      dropConfidencePct: recommendation.dropConfidencePct,
-      dropReason: recommendation.dropReason,
-      reason: recommendation.reason,
-    },
-  };
-}
-
-function createWaiverBidHistoryItem({
-  leagueId,
-  manager,
-  recommendation,
-}: {
-  leagueId?: string;
-  manager?: string | null;
-  recommendation: WaiverRecommendation;
-}): StoredWaiverBidHistoryItem | null {
-  const parsedRange = parseFaabBidRange(recommendation.bidRangeLabel);
-  if (!parsedRange) return null;
-  return {
-    id: [
-      "waiver-bid",
-      leagueId || "unknown-league",
-      normalizeManagerKey(manager),
-      recommendation.player.player_id,
-    ].join(":"),
-    leagueId,
-    manager,
-    playerId: recommendation.player.player_id,
-    playerName: recommendation.player.name,
-    position: recommendation.player.pos,
-    bidMin: parsedRange.min,
-    bidMax: parsedRange.max,
-    bidLabel: recommendation.bidRangeLabel,
-    source: "submitted-plan",
-    createdAt: Date.now(),
-  };
-}
 
 export function buildWaiverValueCards({
   data,
@@ -1685,7 +1198,7 @@ type WaiverBidSample = {
   manager?: string | null;
   date?: string | null;
   season?: string | null;
-  source: "sleeper-transaction" | "saved-plan";
+  source: "sleeper-transaction";
 };
 
 function getCurrentSeasonNumber(currentSeason?: string | null): number {
@@ -1748,30 +1261,6 @@ function buildTransactionBidSamples(
     }));
 }
 
-function buildStoredBidSamples(
-  storedWaiverBidHistory?: StoredWaiverBidHistoryItem[],
-  leagueId?: string
-): WaiverBidSample[] {
-  return (storedWaiverBidHistory || [])
-    .filter(
-      item =>
-        (!leagueId || !item.leagueId || item.leagueId === leagueId) &&
-        item.bidMax > 0
-    )
-    .map(item => ({
-      bid: Math.max(item.bidMin, item.bidMax),
-      pos: item.position || null,
-      manager: item.manager || null,
-      date: item.updatedAt
-        ? new Date(item.updatedAt).toISOString()
-        : item.createdAt
-          ? new Date(item.createdAt).toISOString()
-          : null,
-      season: null,
-      source: "saved-plan" as const,
-    }));
-}
-
 function describeBidSampleMix(
   samples: WaiverBidSample[],
   label: string,
@@ -1788,7 +1277,7 @@ function describeBidSampleMix(
   const parts = [
     currentCount ? `${currentCount} current-season` : null,
     lastSeasonCount ? `${lastSeasonCount} last-season` : null,
-    olderCount ? `${olderCount} older/saved` : null,
+    olderCount ? `${olderCount} older` : null,
   ].filter(Boolean);
 
   return `${samples.length} ${label} sample${samples.length === 1 ? "" : "s"}${parts.length ? ` (${parts.join(", ")})` : ""}`;
@@ -1810,25 +1299,18 @@ function isWaiverTaxiProfile(
 
 function getManagerWaiverBidSamples({
   manager,
-  leagueId,
   position,
   currentSeason,
   recentTransactions,
-  storedWaiverBidHistory,
 }: {
   manager?: string | null;
-  leagueId?: string;
   position?: string | null;
   currentSeason?: string | null;
   recentTransactions?: ReportData["recentTransactions"];
-  storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
 }) {
   const managerKey = normalizeManagerKey(manager);
-  const transactionBids = buildTransactionBidSamples(recentTransactions)
+  const samples = buildTransactionBidSamples(recentTransactions)
     .filter(sample => normalizeManagerKey(sample.manager) === managerKey);
-  const persistedBids = buildStoredBidSamples(storedWaiverBidHistory, leagueId)
-    .filter(sample => normalizeManagerKey(sample.manager) === managerKey);
-  const samples = [...transactionBids, ...persistedBids];
   const positionSamples = samples.filter(sample => sample.pos === position);
   return {
     positionSamples: expandBidSamplesByRecency(positionSamples, currentSeason),
@@ -1847,8 +1329,6 @@ function buildWaiverCompetitionRead({
   managerPositionCounts,
   positionDepth,
   recentTransactions,
-  storedWaiverBidHistory,
-  leagueId,
   currentSeason,
 }: {
   player: TrendingPlayer;
@@ -1857,8 +1337,6 @@ function buildWaiverCompetitionRead({
   managerPositionCounts?: ReportData["managerPositionCounts"];
   positionDepth?: ReportData["positionDepth"];
   recentTransactions?: ReportData["recentTransactions"];
-  storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
-  leagueId?: string;
   currentSeason?: string | null;
 }): WaiverCompetitionRead | null {
   const playerPosition = isWaiverPosition(player.pos) ? player.pos : null;
@@ -1899,11 +1377,9 @@ function buildWaiverCompetitionRead({
       const taxiCount = Number(positionCounts?.taxiPlayerCount || 0);
       const bidSamples = getManagerWaiverBidSamples({
         manager: intel.manager,
-        leagueId,
         position: playerPosition,
         currentSeason,
         recentTransactions,
-        storedWaiverBidHistory,
       });
       const averageBid = averagePositive(bidSamples.preferredSamples);
       const activityScore = Math.min(
@@ -1971,8 +1447,6 @@ function buildWaiverBidRead({
   score,
   competitionRead,
   recentTransactions,
-  storedWaiverBidHistory,
-  leagueId,
   leagueValueMode,
   currentSeason,
   leagueDiagnostics,
@@ -1981,8 +1455,6 @@ function buildWaiverBidRead({
   score: number;
   competitionRead?: WaiverCompetitionRead | null;
   recentTransactions?: ReportData["recentTransactions"];
-  storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
-  leagueId?: string;
   leagueValueMode: LeagueValueMode;
   currentSeason?: string | null;
   leagueDiagnostics?: ReportData["leagueDiagnostics"];
@@ -2015,10 +1487,7 @@ function buildWaiverBidRead({
     };
   }
 
-  const waiverBidSamples = [
-    ...buildTransactionBidSamples(recentTransactions),
-    ...buildStoredBidSamples(storedWaiverBidHistory, leagueId),
-  ];
+  const waiverBidSamples = buildTransactionBidSamples(recentTransactions);
   const positionBidSamples = waiverBidSamples.filter(sample => sample.pos === player.pos);
   const selectedBidSamples = positionBidSamples.length >= 2
     ? positionBidSamples
@@ -2489,7 +1958,6 @@ export function buildWaiverRecommendationContext({
   leagueDiagnostics,
   playerDetailsById,
   recentTransactions,
-  storedWaiverBidHistory,
   leagueValueMode: leagueValueModeInput,
   scheduleEdgeTargets,
   calibrationProfile,
@@ -2503,7 +1971,6 @@ export function buildWaiverRecommendationContext({
   leagueDiagnostics?: ReportData["leagueDiagnostics"];
   playerDetailsById?: PlayerDetailsById;
   recentTransactions?: ReportData["recentTransactions"];
-  storedWaiverBidHistory?: StoredWaiverBidHistoryItem[];
   leagueValueMode?: ReportData["leagueValueMode"];
   scheduleEdgeTargets?: ReportData["scheduleEdgeTargets"];
   calibrationProfile?: ReportData["aiCalibrationAdjustmentProfile"];
@@ -2682,8 +2149,6 @@ export function buildWaiverRecommendationContext({
         managerPositionCounts,
         positionDepth,
         recentTransactions,
-        storedWaiverBidHistory,
-        leagueId,
         currentSeason: leagueDiagnostics?.currentSeason,
       });
       const bidRead = buildWaiverBidRead({
@@ -2691,8 +2156,6 @@ export function buildWaiverRecommendationContext({
         score,
         competitionRead,
         recentTransactions,
-        storedWaiverBidHistory,
-        leagueId,
         leagueValueMode,
         currentSeason: leagueDiagnostics?.currentSeason,
         leagueDiagnostics,
@@ -2860,13 +2323,6 @@ export default function WaiverIntelligencePanel({
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(
     null
   );
-  const {
-    storedActionPlans,
-    persistStoredActionPlan,
-    isServerPersistenceEnabled,
-  } = useStoredActionPlans({ leagueId });
-  const { storedWaiverBidHistory, persistStoredWaiverBidHistory } =
-    useStoredWaiverBidHistory({ leagueId });
   if (!data) return null;
   const leagueValueMode = normalizeLeagueValueMode(
     leagueValueModeInput || leagueDiagnostics?.valueMode
@@ -2882,51 +2338,10 @@ export default function WaiverIntelligencePanel({
     leagueDiagnostics,
     playerDetailsById,
     recentTransactions,
-    storedWaiverBidHistory,
     leagueValueMode,
     scheduleEdgeTargets,
     calibrationProfile,
   });
-  React.useEffect(() => {
-    storedActionPlans
-      .filter(plan => plan.kind === "waiver")
-      .filter(plan => !leagueId || !plan.leagueId || plan.leagueId === leagueId)
-      .forEach(plan => {
-        const outcomeRead = getWaiverPlanOutcomeRead(
-          plan,
-          recentTransactions
-        );
-        if (
-          !outcomeRead ||
-          (outcomeRead.status === plan.status &&
-            plan.payload?.outcomeAftermathSignature ===
-              outcomeRead.aftermathSignature)
-        )
-          return;
-        persistStoredActionPlan({
-          ...plan,
-          status: outcomeRead.status,
-          summary:
-            outcomeRead.status === "won"
-              ? `${plan.summary} Outcome: your roster added this player. ${outcomeRead.aftermathSummary || ""}`.trim()
-              : `${plan.summary} Outcome: another manager added this player first. ${outcomeRead.aftermathSummary || ""}`.trim(),
-          payload: {
-            ...plan.payload,
-            outcomeStatus: outcomeRead.status,
-            outcomeEvidenceSummary: outcomeRead.evidenceSummary,
-            outcomeAftermathSummary: outcomeRead.aftermathSummary,
-            outcomeAftermathSignature: outcomeRead.aftermathSignature,
-            outcomeValueDelta: outcomeRead.valueDelta,
-            outcomeCheckedAt: Date.now(),
-          },
-        });
-      });
-  }, [
-    leagueId,
-    persistStoredActionPlan,
-    recentTransactions,
-    storedActionPlans,
-  ]);
   const aiTargetCards = recommendationContext.recommendations;
   const omittedCandidateIds = new Set(
     (data.omittedCandidates || [])
@@ -2939,17 +2354,6 @@ export default function WaiverIntelligencePanel({
     prioritizeDefense: Boolean(recommendationContext.defensePairingPlan?.add.length),
     omittedCandidateIds,
   });
-  const waiverActionPlans = storedActionPlans
-    .filter(plan => plan.kind === "waiver")
-    .filter(plan => !leagueId || !plan.leagueId || plan.leagueId === leagueId)
-    .filter(
-      plan =>
-        !viewerManager ||
-        normalizeManagerKey(plan.manager) === normalizeManagerKey(viewerManager)
-    )
-    .slice(0, 5);
-  const waiverOutcomeLearning = buildWaiverOutcomeLearning(waiverActionPlans);
-
   return (
     <div className="waiver-intel-panel">
       {recommendationContext.summary && (
@@ -3007,29 +2411,6 @@ export default function WaiverIntelligencePanel({
           </div>
         </div>
       )}
-      <ActionPlanHistoryPanel
-        plans={waiverActionPlans}
-        isServerPersistenceEnabled={isServerPersistenceEnabled}
-        title="Waiver Plan History"
-      />
-      {waiverOutcomeLearning && (
-        <div className="waiver-outcome-learning">
-          <span>Outcome learning</span>
-          <strong>
-            {waiverOutcomeLearning.winRate === null
-              ? "Learning"
-              : `${waiverOutcomeLearning.winRate}% won`}
-          </strong>
-          <p>{waiverOutcomeLearning.read}</p>
-          <small>
-            {waiverOutcomeLearning.won} won / {waiverOutcomeLearning.lost} lost /{" "}
-            {waiverOutcomeLearning.open} pending
-            {waiverOutcomeLearning.aftermathCount
-              ? ` / ${waiverOutcomeLearning.aftermathCount} aftermath read`
-              : ""}
-          </small>
-        </div>
-      )}
       {data.omittedCandidates?.length ? (
         <details className="waiver-intel-source-review">
           <summary>
@@ -3080,14 +2461,6 @@ export default function WaiverIntelligencePanel({
               const weeklyEcrSignal = recommendation.weeklyEcrSignal;
               const weeklyEcrRank = getWaiverWeeklyEcrBestRank(weeklyEcrSignal);
               const weeklyEcrWindow = formatWaiverWeeklyEcrWindow(weeklyEcrSignal);
-              const waiverPlanId = getWaiverActionPlanId(
-                leagueId,
-                viewerManager,
-                recommendation
-              );
-              const submittedPlan = storedActionPlans.some(
-                plan => plan.id === waiverPlanId && plan.kind === "waiver"
-              );
               const receiptItems = getAIEvidenceReceiptItems(
                 recommendation.evidenceRead
               );
@@ -3210,41 +2583,6 @@ export default function WaiverIntelligencePanel({
                         </ul>
                       </details>
                     )}
-                    <button
-                      type="button"
-                      className="waiver-intel-submit-plan waiver-ai-target-save"
-                      aria-pressed={submittedPlan}
-                      onClick={() => {
-                        persistStoredActionPlan(
-                          createWaiverActionPlan({
-                            leagueId,
-                            manager: viewerManager,
-                            recommendation,
-                            status: recommendation.evidenceRead.canAct
-                              ? "submitted"
-                              : "saved",
-                          })
-                        );
-                        const bidHistoryItem = createWaiverBidHistoryItem({
-                          leagueId,
-                          manager: viewerManager,
-                          recommendation,
-                        });
-                        if (bidHistoryItem)
-                          persistStoredWaiverBidHistory(bidHistoryItem);
-                      }}
-                    >
-                      {submittedPlan
-                        ? "Plan saved"
-                        : recommendation.evidenceRead.canAct
-                          ? "Save plan"
-                          : "Save watch"}
-                      <span>
-                        {recommendation.evidenceRead.finalScore}% evidence /{" "}
-                        {recommendation.bidConfidencePct}%{" "}
-                        {recommendation.bidSource === "priority" ? "priority read" : "bid"}
-                      </span>
-                    </button>
                   </div>
                 </article>
               );

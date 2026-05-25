@@ -2020,63 +2020,6 @@ export async function updateAiPredictionOutcome(input: {
   return true;
 }
 
-export async function upsertActionPlan(input: {
-  userKey: string;
-  plan: ActionPlanRecord;
-}): Promise<boolean> {
-  const sql = await getDb();
-  if (!sql) {
-    warnWhenDatabaseUnavailable("[Database] Cannot upsert action plan: database not available");
-    return false;
-  }
-
-  await sql`
-    INSERT INTO "actionPlans" (
-      "userKey",
-      "planId",
-      kind,
-      "leagueId",
-      manager,
-      "playerId",
-      "replacementPlayerId",
-      title,
-      summary,
-      status,
-      payload,
-      "createdAt",
-      "updatedAt"
-    )
-    VALUES (
-      ${input.userKey},
-      ${input.plan.id},
-      ${input.plan.kind},
-      ${input.plan.leagueId ?? null},
-      ${input.plan.manager ?? null},
-      ${input.plan.playerId ?? null},
-      ${input.plan.replacementPlayerId ?? null},
-      ${input.plan.title},
-      ${input.plan.summary},
-      ${input.plan.status},
-      ${JSON.stringify(input.plan.payload || {})},
-      ${new Date(input.plan.createdAt || Date.now())},
-      NOW()
-    )
-    ON CONFLICT ("userKey", "planId") DO UPDATE SET
-      kind = EXCLUDED.kind,
-      "leagueId" = EXCLUDED."leagueId",
-      manager = EXCLUDED.manager,
-      "playerId" = EXCLUDED."playerId",
-      "replacementPlayerId" = EXCLUDED."replacementPlayerId",
-      title = EXCLUDED.title,
-      summary = EXCLUDED.summary,
-      status = EXCLUDED.status,
-      payload = EXCLUDED.payload,
-      "updatedAt" = NOW()
-  `;
-
-  return true;
-}
-
 export async function listActionPlans(input: {
   userKey: string;
   leagueId?: string | null;
@@ -2133,63 +2076,6 @@ export async function listActionPlans(input: {
   return (result as Record<string, any>[])
     .map(normalizeActionPlanRow)
     .filter((plan): plan is ActionPlanRecord => Boolean(plan));
-}
-
-export async function upsertWaiverBidHistory(input: {
-  userKey: string;
-  item: WaiverBidHistoryRecord;
-}): Promise<boolean> {
-  const sql = await getDb();
-  if (!sql) {
-    warnWhenDatabaseUnavailable("[Database] Cannot upsert waiver bid history: database not available");
-    return false;
-  }
-
-  await sql`
-    INSERT INTO "waiverBidHistory" (
-      "userKey",
-      "historyId",
-      "leagueId",
-      manager,
-      "playerId",
-      "playerName",
-      position,
-      "bidMin",
-      "bidMax",
-      "bidLabel",
-      source,
-      "createdAt",
-      "updatedAt"
-    )
-    VALUES (
-      ${input.userKey},
-      ${input.item.id},
-      ${input.item.leagueId ?? null},
-      ${input.item.manager ?? null},
-      ${input.item.playerId},
-      ${input.item.playerName},
-      ${input.item.position},
-      ${input.item.bidMin},
-      ${input.item.bidMax},
-      ${input.item.bidLabel},
-      ${input.item.source},
-      ${new Date(input.item.createdAt || Date.now())},
-      NOW()
-    )
-    ON CONFLICT ("userKey", "historyId") DO UPDATE SET
-      "leagueId" = EXCLUDED."leagueId",
-      manager = EXCLUDED.manager,
-      "playerId" = EXCLUDED."playerId",
-      "playerName" = EXCLUDED."playerName",
-      position = EXCLUDED.position,
-      "bidMin" = EXCLUDED."bidMin",
-      "bidMax" = EXCLUDED."bidMax",
-      "bidLabel" = EXCLUDED."bidLabel",
-      source = EXCLUDED.source,
-      "updatedAt" = NOW()
-  `;
-
-  return true;
 }
 
 export async function listWaiverBidHistory(input: {

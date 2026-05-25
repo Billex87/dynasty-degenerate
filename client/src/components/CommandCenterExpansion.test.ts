@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ActionPlanRecord, ManagerIntelPlayer, ReportData, WeeklyMomentum } from '@shared/types';
-import { buildTradeOutcomeLearning, getBlueprintSignal, getTradePlanOutcomeRead } from './CommandCenterExpansion';
+import type { ManagerIntelPlayer, ReportData, WeeklyMomentum } from '@shared/types';
+import { getBlueprintSignal } from './CommandCenterExpansion';
 
 type ManagerIntelRow = NonNullable<ReportData['managerRosterIntelligence']>[number];
 
@@ -106,56 +106,6 @@ describe('getBlueprintSignal', () => {
     expect(getBlueprintSignal(core, intel({ youngCorePlayer: core, untouchablePlayers: [core] }), [], [])).toMatchObject({
       signal: 'hold',
       label: 'Core Hold',
-    });
-  });
-});
-
-describe('trade outcome learning', () => {
-  const basePlan: ActionPlanRecord = {
-    id: 'trade:league:bill:rival:wr1',
-    kind: 'trade',
-    leagueId: 'league',
-    manager: 'Bill',
-    playerId: 'wr1',
-    createdAt: Date.parse('2026-05-01T12:00:00.000Z'),
-    title: 'Trade read: Rival',
-    summary: 'Open with Rival.',
-    status: 'saved',
-    payload: {
-      sourceManager: 'Bill',
-      targetManager: 'Rival',
-      targetPlayerId: 'wr1',
-      targetPlayerName: 'Wide Receiver',
-    },
-  };
-
-  it('marks saved trade reads as stale when no ledger or proposal outcome arrives', () => {
-    const outcome = getTradePlanOutcomeRead(
-      { tradeHistory: [], tradeProposalSignals: [] } as unknown as ReportData,
-      basePlan,
-      Date.parse('2026-05-20T12:00:00.000Z')
-    );
-
-    expect(outcome).toMatchObject({
-      status: 'stale',
-      source: 'aging-window',
-    });
-  });
-
-  it('summarizes acted, blocked, stale, and open trade outcomes', () => {
-    const learning = buildTradeOutcomeLearning([
-      { ...basePlan, id: 'acted', status: 'acted' },
-      { ...basePlan, id: 'blocked', status: 'blocked' },
-      { ...basePlan, id: 'stale', status: 'stale' },
-      { ...basePlan, id: 'saved', status: 'saved' },
-    ]);
-
-    expect(learning).toMatchObject({
-      acted: 1,
-      blocked: 1,
-      stale: 1,
-      open: 1,
-      actedRate: 33,
     });
   });
 });
