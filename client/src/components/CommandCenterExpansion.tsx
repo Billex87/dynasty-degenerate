@@ -979,11 +979,12 @@ export function OverviewAIPulse({
   return (
     <AIReadPanel
       title={read.title}
-      subtitle="Narrative guide for the Overview stack; exact metrics stay with their owning tables."
+      subtitle="Compact direction only; exact metrics stay in the sections below."
       readType="League Exploit"
       confidence={evidenceRead.finalScore}
       confidenceNote={evidenceRead.confidenceCapReason ? `Confidence capped by ${evidenceRead.confidenceCapReason}.` : getAiConfidenceDisplayNote(data) || evidenceRead.whyThisFired}
       evidenceRead={evidenceRead}
+      hideDecision
       severity={evidenceRead.label === 'thin' ? 'warn' : evidenceRead.finalScore >= 76 ? 'info' : 'warn'}
       chips={[getEvidenceChip(evidenceRead), ...read.chips]}
       body={(
@@ -991,17 +992,19 @@ export function OverviewAIPulse({
           <p>{read.body}</p>
           <AIActionQueue
             items={actionQueue}
-            title="One Best Move"
-            subtitle="The Overview only surfaces the highest ranked AI action."
+            title="Top Action Signal"
+            subtitle="Overview summary only."
             compact
+            presentation="summary"
             className="overview-ai-action-queue"
             memoryKey={`overview:${mode}:${getManagerOptions(data).join('|') || 'league'}`}
             memoryContext="Overview AI Pulse"
             enableOutcomeObserver={false}
+            showSuppressedAlternates={false}
           />
         </>
       )}
-      traceItems={getAIEvidenceReceiptItems(evidenceRead)}
+      quietMode={false}
       backgroundVariant="league"
       className="overview-ai-pulse"
     />

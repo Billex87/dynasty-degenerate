@@ -566,6 +566,17 @@ function findManagerPlayerByIdentity(
   ].find((candidate) => getPlayerIdentityKey(candidate) === targetKey) || null;
 }
 
+function isCurrentStarter(
+  managerRow: ReportData['managerPositionCounts'][number] | null | undefined,
+  player?: AutopilotPlayerLike | null,
+): boolean {
+  if (!managerRow || !player) return false;
+  if ((managerRow.starterPlayers || []).some((candidate) => isSameAutopilotPlayer(candidate, player))) {
+    return true;
+  }
+  return getStarterSlotKeys(managerRow, player).length > 0;
+}
+
 function canReplaceStarterInKnownSlot({
   candidate,
   starter,
@@ -1027,26 +1038,39 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
 
   const mustStart = matchup?.mustStarts?.[0] || bestStarter || intel?.youngCorePlayer || intel?.lastSeasonStud;
   if (mustStart) {
+    const alreadyStarter = isCurrentStarter(managerPositionRow, mustStart);
     cards.push({
       id: `lineup-start-${mustStart.player_id || mustStart.name}`,
-      type: 'Start/Sit',
+      type: alreadyStarter ? 'Lineup baseline' : 'Start/Sit',
       playerId: mustStart.player_id || null,
       player: getPlayerName(mustStart),
       secondary: describePlayer(mustStart, mode) || undefined,
-      action: 'Start',
-      confidence: recommendationConfidence(matchup?.mustStarts?.length ? 70 : 62, [matchup, bestStarter, getAutopilotPlayerRank(mustStart, mode), getAutopilotPlayerValue(mustStart, mode)]),
+      action: alreadyStarter ? 'Keep started' : 'Start',
+      confidence: recommendationConfidence(
+        alreadyStarter ? 60 : matchup?.mustStarts?.length ? 70 : 62,
+        [matchup, bestStarter, getAutopilotPlayerRank(mustStart, mode), getAutopilotPlayerValue(mustStart, mode)],
+      ),
       risk: matchup?.boomBustRisks?.some((risk) => risk.player_id === mustStart.player_id) ? 'Medium' : 'Low',
       upside: (getAutopilotPlayerValue(mustStart, mode) || 0) > 5000 ? 'Elite' : 'High',
-      summary: matchup?.howToWin
-        ? shortenText(matchup.howToWin, 170) || `${getPlayerName(mustStart)} is the clearest weekly starter in this report.`
-        : `${getPlayerName(mustStart)} is the strongest currently identified starter profile for ${manager}.`,
+      summary: alreadyStarter
+        ? `${getPlayerName(mustStart)} is already in the starter set; this is roster confirmation, not a lineup move.`
+        : matchup?.howToWin
+          ? shortenText(matchup.howToWin, 170) || `${getPlayerName(mustStart)} is the clearest weekly starter in this report.`
+          : `${getPlayerName(mustStart)} is the strongest currently identified starter profile for ${manager}.`,
       reasons: dedupeStrings([
+        alreadyStarter ? 'Sleeper/projected starter data already has this player in a starter slot.' : null,
         matchup?.mustStarts?.length ? 'Matchup preview marks this as a must-start profile.' : 'Projected starter value is leading this roster read.',
         getAutopilotPlayerRank(mustStart, mode) ? `${getAutopilotPlayerRank(mustStart, mode)} rank supports the lineup call.` : null,
         mode === 'redraft' ? 'Redraft mode prioritizes bankable weekly points over future value.' : 'Dynasty mode still respects current lineup pressure when the roster can compete.',
       ], 3),
-      signals: dedupeStrings(['Starter value', matchup ? 'Matchup preview' : null, getAutopilotPlayerRank(mustStart, mode), mode === 'redraft' ? 'Season lens' : 'Dynasty lens'], 4),
-      expectedAction: {
+      signals: dedupeStrings([alreadyStarter ? 'Already starter' : 'Starter value', matchup ? 'Matchup preview' : null, getAutopilotPlayerRank(mustStart, mode), mode === 'redraft' ? 'Season lens' : 'Dynasty lens'], 4),
+      expectedAction: alreadyStarter ? {
+        type: 'hold',
+        playersInvolved: [toRecommendationPlayerRef(mustStart)].filter(Boolean) as RecommendationPlayerRef[],
+        expectedLineupChange: `No lineup change: ${getPlayerName(mustStart)} is already in a starter slot.`,
+        source: 'autopilot',
+        reason: 'Current starter data already satisfies this lineup read.',
+      } : {
         type: 'start_player',
         playerIn: toRecommendationPlayerRef(mustStart),
         playersInvolved: [toRecommendationPlayerRef(mustStart)].filter(Boolean) as RecommendationPlayerRef[],
@@ -1337,6 +1361,7 @@ function getQueueDecision(recommendation: AutopilotRecommendation): AIActionQueu
   const evidence = recommendation.evidenceRead;
   if (evidence?.hardBlockers?.length) return 'blocked';
   if (evidence && !evidence.canAct) return 'watch';
+  if (recommendation.expectedAction?.type === 'hold' || recommendation.queueEligible === false) return 'hold';
   if (recommendation.confidence >= 68) return 'do';
   if (recommendation.confidence >= 54) return 'watch';
   return 'hold';
@@ -1473,6 +1498,14 @@ function buildRosterDominoEffects(
   }
 
   if (source === 'lineup') {
+    if (decision === 'hold' || recommendation.expectedAction?.type === 'hold') {
+      return dedupeStrings([
+        'No lineup change is recommended from this read.',
+        'Keep the current starter baseline unless injury, role, weather, or lock-time news changes it.',
+        'Do not turn a starter confirmation into a separate roster move.',
+      ], 4);
+    }
+
     return dedupeStrings([
       overMatch ? `${overMatch[1].trim()} is the starter most likely to move to the bench.` : 'This only changes the lineup slot tied to the flagged starter.',
       'Verify injury, weather, role, and lock-time news before confirming the swap.',

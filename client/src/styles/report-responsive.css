@@ -6925,12 +6925,16 @@
   border-bottom: 1px solid color-mix(in srgb, var(--ai-read-border) 44%, rgba(255, 255, 255, 0.06));
 }
 
-.overview-ai-pulse,
 .rankings-ai-read,
 .trade-browser-ai-read,
 .draft-ai-read {
   width: min(100%, 62rem);
   margin-inline: auto;
+}
+
+.overview-ai-pulse {
+  width: 100%;
+  margin-inline: 0;
 }
 
 .command-expansion-stack {

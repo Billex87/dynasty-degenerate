@@ -225,6 +225,7 @@ export function AIActionQueue({
   title = 'AI Action Queue',
   subtitle = 'One ranked list. Act only when evidence clears the guardrails.',
   compact = false,
+  presentation = 'full',
   className,
   memoryKey,
   memoryContext,
@@ -236,6 +237,7 @@ export function AIActionQueue({
   title?: string;
   subtitle?: string;
   compact?: boolean;
+  presentation?: 'full' | 'summary';
   className?: string;
   memoryKey?: string;
   memoryContext?: string;
@@ -294,6 +296,44 @@ export function AIActionQueue({
     primary.action,
     primary.target,
   ].join('|');
+
+  if (presentation === 'summary') {
+    return (
+      <section
+        className={cn(
+          'ai-action-queue',
+          'ai-surface-r3f',
+          'ai-action-queue-tron',
+          'ai-action-queue-summary',
+          compact && 'ai-action-queue-compact',
+          `ai-action-queue-${primary.decision}`,
+          className,
+        )}
+        aria-label={title}
+      >
+        <AITronSurface
+          theme={tronTheme}
+          density="small"
+          routeKey={tronRouteKey}
+        />
+        <div className="ai-action-summary-row">
+          <div className="ai-action-summary-main">
+            <span>
+              <Icon className="h-4 w-4" aria-hidden="true" />
+              {getDecisionCopy(primary.decision)}
+            </span>
+            <strong>{primary.action}: {primary.target}</strong>
+            <p>{getVoicedAIActionDetail(primary.detail, primary.decision)}</p>
+          </div>
+          <div className="ai-action-summary-score" aria-label={`${primary.confidence}% confidence`}>
+            <strong>{primary.confidence}%</strong>
+            <span>{primary.source}</span>
+          </div>
+        </div>
+        <p className="ai-action-summary-risk">{primary.risk}</p>
+      </section>
+    );
+  }
 
   return (
     <section

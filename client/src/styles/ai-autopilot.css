@@ -326,6 +326,109 @@
   box-shadow: none;
 }
 
+.ai-action-queue-summary {
+  width: 100%;
+  margin: 0.68rem 0 0;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 0.72rem;
+  background:
+    linear-gradient(135deg, rgba(2, 6, 23, 0.76), rgba(8, 13, 31, 0.48)),
+    radial-gradient(circle at 0 0, color-mix(in srgb, var(--tone, var(--autopilot-info)) 12%, transparent), transparent 42%);
+  padding: 0.62rem 0.68rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.ai-action-queue-summary.ai-action-queue-compact {
+  border-width: 1px;
+  border-radius: 0.72rem;
+  padding: 0.62rem 0.68rem;
+}
+
+.ai-action-summary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.72rem;
+}
+
+.ai-action-summary-main {
+  display: grid;
+  min-width: 0;
+  gap: 0.22rem;
+}
+
+.ai-action-summary-main span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  color: var(--autopilot-cyan);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ai-action-summary-main strong {
+  color: #f8fafc;
+  font-size: clamp(0.92rem, 1.35vw, 1.08rem);
+  font-weight: 950;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.ai-action-summary-main p,
+.ai-action-summary-risk {
+  margin: 0;
+  color: rgba(203, 213, 225, 0.78);
+  font-size: 0.72rem;
+  font-weight: 780;
+  line-height: 1.28;
+}
+
+.ai-action-summary-main p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.ai-action-summary-score {
+  display: grid;
+  min-width: 4.4rem;
+  justify-items: end;
+  gap: 0.1rem;
+}
+
+.ai-action-summary-score strong {
+  color: var(--tone, var(--autopilot-info));
+  font-family: var(--font-athletic);
+  font-size: clamp(1.02rem, 1.8vw, 1.34rem);
+  font-weight: 1000;
+  line-height: 0.94;
+}
+
+.ai-action-summary-score span {
+  color: rgba(226, 232, 240, 0.58);
+  font-size: 0.52rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ai-action-summary-risk {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 0.42rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  padding-top: 0.42rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
 .ai-action-queue-head {
   display: flex;
   align-items: end;
@@ -2197,6 +2300,15 @@
 
   .ai-action-queue-compact {
     padding: 0.75rem 0 0;
+  }
+
+  .ai-action-summary-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ai-action-summary-score {
+    min-width: 0;
+    justify-items: start;
   }
 
   .autopilot-hero h2 {

@@ -192,12 +192,12 @@ export function buildOverviewPulseRead(data: ReportData): {
     ? `${manager} sets the starting lens for this Overview pass.`
     : "Run a league report with manager roster data to unlock team-specific reads.";
   const coverageLine = coverage.length
-    ? `This pulse is a narrative handoff across ${coverage.join(", ")} so the tables below can own the exact ranks, roster calls, and trade targets.`
-    : "This pulse is limited until the report returns enough league, roster, and market data for the tables below.";
+    ? `It checks ${coverage.join(", ")} and leaves exact ranks, roster calls, and trade targets to the sections below.`
+    : "It stays limited until league, roster, and market data all load.";
   const drillDownLine =
     leagueValueMode === "redraft"
-      ? "Read the stack as season direction first, weekly league ordering second, then roster maps and position counts for the actionable details."
-      : "Read the stack as dynasty direction first, league ordering second, then owner identity, roster maps, taxi calls, and position counts for the actionable details.";
+      ? "Use it as the season-direction header, not as a replacement for the weekly tables."
+      : "Use it as the dynasty-direction header, not as a replacement for owner, roster, and trade tables.";
 
   return {
     title: `${modeCopy.ownerTitle} Upgrade Path`,
@@ -218,7 +218,7 @@ export function buildOverviewPulseRead(data: ReportData): {
           }
         : null,
       leagueValueMode === "redraft" ? "Season lens" : "Dynasty lens",
-      "Narrative only",
+      "Overview only",
       hasRosterRecon
         ? "Drill-down ready"
         : { label: "Drill-down limited", tone: "warn" },

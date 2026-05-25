@@ -38,6 +38,12 @@ describe('buildAutopilotData', () => {
       'Trade leverage',
     ]);
     expect(data.lineup[0]?.player).toBe('Sample Quarterback');
+    expect(data.lineup[0]).toMatchObject({
+      action: 'Keep started',
+      expectedAction: {
+        type: 'hold',
+      },
+    });
     expect(data.waivers[0]?.player).toBe('Waiver Receiver');
     expect(data.trades.some((recommendation) => recommendation.player === 'Sample Runner')).toBe(true);
     expect(data.actionQueue[0]).toMatchObject({
@@ -51,6 +57,10 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.map((item) => item.source)).toEqual(
       expect.arrayContaining(['lineup', 'trade']),
     );
+    expect(data.actionQueue.find((item) => item.target === 'Sample Quarterback')).toMatchObject({
+      decision: 'hold',
+      action: 'Keep started',
+    });
     expect(data.rejections.length).toBeGreaterThan(0);
     expect(data.rejections.some((row) => /do not|force/i.test(row.action))).toBe(true);
     expect(data.marketAnomalies.map((row) => row.player)).toEqual(

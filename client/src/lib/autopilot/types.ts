@@ -31,6 +31,7 @@ export type AutopilotRecommendation = {
   evidenceRead?: AIEvidenceResult;
   expectedAction?: RecommendationExpectedAction | null;
   observedOutcome?: RecommendationObservedOutcome | null;
+  queueEligible?: boolean;
   calibration?: {
     baseConfidence: number;
     adjustedConfidence: number;
