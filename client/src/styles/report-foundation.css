@@ -4236,6 +4236,15 @@
     transform: translateY(-1px);
   }
 
+  .home-league-card-disabled,
+  .home-league-card-disabled:hover {
+    cursor: wait;
+    border-color: rgba(34, 211, 238, 0.14);
+    background: radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.12), transparent 42%), radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.12), transparent 44%), linear-gradient(135deg, rgba(15, 23, 42, 0.68), rgba(2, 6, 23, 0.56));
+    opacity: 0.74;
+    transform: none;
+  }
+
   .home-league-card-icon {
     width: clamp(2.55rem, 10vw, 3.15rem);
     height: clamp(2.55rem, 10vw, 3.15rem);
@@ -4309,6 +4318,22 @@
 
   .home-league-card-format-mobile {
     display: none;
+  }
+
+  .home-league-card-loading-intel {
+    display: inline-flex;
+    min-height: 1.28rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.52);
+    padding: 0.16rem 0.48rem;
+    color: rgba(103, 232, 249, 0.74);
+    font-size: clamp(0.54rem, 1.9vw, 0.66rem);
+    font-weight: 850;
+    line-height: 1;
+    white-space: nowrap;
   }
 
   .home-league-card-meta {

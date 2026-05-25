@@ -1000,6 +1000,15 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
+function buildManagerAnchorsFromSleeperUsers(users: unknown) {
+  return Array.isArray(users)
+    ? users.map((user: any) => ({
+        id: String(user.user_id || user.display_name || ''),
+        avatarUrl: getSleeperAvatarUrl(user.avatar),
+      })).filter(manager => manager.id)
+    : [];
+}
+
 const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v52';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v13';
 const LEAGUE_REPORT_CACHE_TTL_MS = getLeagueReportCacheTtlMs();
@@ -5897,12 +5906,7 @@ export const appRouter = router({
           throw new Error('Invalid league ID');
         }
 
-        const managerAnchors = Array.isArray(users)
-          ? users.map((user: any) => ({
-              id: String(user.user_id || user.display_name || ''),
-              avatarUrl: getSleeperAvatarUrl(user.avatar),
-            })).filter(m => m.id)
-          : [];
+        const managerAnchors = buildManagerAnchorsFromSleeperUsers(users);
 
         return {
           ...toSleeperLeagueOption(leagueInfo, String(leagueInfo.season || new Date().getFullYear())),
@@ -5992,8 +5996,9 @@ export const appRouter = router({
             ?? currentStandings.find((row) => row.manager === fallbackManagerName)?.rank
             ?? null;
           const powerRank = powerRankings.find((row) => row.rosterId === viewerRosterId)?.rank ?? null;
+          const managerAnchors = buildManagerAnchorsFromSleeperUsers(safeUsers);
 
-          return { leagueId, standingsRank, powerRank, rosterPlayers };
+          return { leagueId, standingsRank, powerRank, rosterPlayers, managerAnchors };
         }));
 
         return { ranks };

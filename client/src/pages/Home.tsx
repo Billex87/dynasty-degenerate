@@ -1392,11 +1392,12 @@ type SleeperLeagueOption = {
   standingsRank: number | null;
   powerRank: number | null;
   rosterPlayers?: PortfolioLeaguePlayer[];
+  managerAnchors?: LoaderManagerAnchor[];
 };
 
 type LeagueRankResult = Pick<
   SleeperLeagueOption,
-  "leagueId" | "standingsRank" | "powerRank" | "rosterPlayers"
+  "leagueId" | "standingsRank" | "powerRank" | "rosterPlayers" | "managerAnchors"
 >;
 
 type PortfolioLeaguePlayer = {
@@ -2220,6 +2221,11 @@ function normalizeLeagueOption(value: unknown): SleeperLeagueOption | null {
           .map(normalizePortfolioLeaguePlayer)
           .filter((player): player is PortfolioLeaguePlayer => Boolean(player))
       : undefined,
+    managerAnchors: Array.isArray(value.managerAnchors)
+      ? value.managerAnchors
+          .map(normalizeLoaderManagerAnchor)
+          .filter((anchor): anchor is LoaderManagerAnchor => Boolean(anchor))
+      : undefined,
   };
 }
 
@@ -2251,6 +2257,17 @@ function normalizePortfolioLeaguePlayer(
     positionRank:
       typeof value.positionRank === "string" ? value.positionRank : null,
     rosterSpot,
+  };
+}
+
+function normalizeLoaderManagerAnchor(value: unknown): LoaderManagerAnchor | null {
+  if (!isRecord(value) || typeof value.id !== "string" || !value.id.trim()) {
+    return null;
+  }
+
+  return {
+    id: value.id.trim(),
+    avatarUrl: typeof value.avatarUrl === "string" ? value.avatarUrl : null,
   };
 }
 
@@ -2399,6 +2416,9 @@ function mergeLeagueRanks(
       standingsRank: rank.standingsRank,
       powerRank: rank.powerRank,
       rosterPlayers: rank.rosterPlayers || league.rosterPlayers,
+      managerAnchors: Array.isArray(rank.managerAnchors)
+        ? rank.managerAnchors
+        : league.managerAnchors,
     };
   });
 }
@@ -5122,9 +5142,11 @@ function getLeagueInfoDisplay(format: string): string {
 function LeaguePickerCard({
   league,
   onSelect,
+  disabled = false,
 }: {
   league: SleeperLeagueOption;
   onSelect: (leagueId: string) => void;
+  disabled?: boolean;
 }) {
   const desktopFormat =
     league.format || `${league.totalRosters || "?"}-Team Dynasty`;
@@ -5136,9 +5158,13 @@ function LeaguePickerCard({
   return (
     <button
       type="button"
-      className="home-league-card"
+      className={`home-league-card${disabled ? " home-league-card-disabled" : ""}`}
       aria-label={`${league.name} ${desktopFormat}`}
-      onClick={() => onSelect(league.leagueId)}
+      disabled={disabled}
+      onClick={() => {
+        if (disabled) return;
+        onSelect(league.leagueId);
+      }}
     >
       {league.avatarUrl ? (
         <img
@@ -5189,20 +5215,26 @@ function LeaguePickerCard({
             ) : null}
           </span>
         ) : (
-          <>
-            <span
-              className={`${getLeagueCardFormatClassName(desktopLeagueInfo)} home-league-card-format-desktop`}
-              title={desktopLeagueInfo}
-            >
-              {desktopLeagueInfo}
+          disabled ? (
+            <span className="home-league-card-loading-intel">
+              Syncing managers
             </span>
-            <span
-              className={`${getLeagueCardFormatClassName(mobileLeagueInfo)} home-league-card-format-mobile`}
-              title={mobileLeagueInfo}
-            >
-              {mobileLeagueInfo}
-            </span>
-          </>
+          ) : (
+            <>
+              <span
+                className={`${getLeagueCardFormatClassName(desktopLeagueInfo)} home-league-card-format-desktop`}
+                title={desktopLeagueInfo}
+              >
+                {desktopLeagueInfo}
+              </span>
+              <span
+                className={`${getLeagueCardFormatClassName(mobileLeagueInfo)} home-league-card-format-mobile`}
+                title={mobileLeagueInfo}
+              >
+                {mobileLeagueInfo}
+              </span>
+            </>
+          )
         )}
       </span>
     </button>
@@ -10299,6 +10331,7 @@ export default function Home() {
   >(null);
   const [portfolioSearch, setPortfolioSearch] = useState("");
   const [userLeagues, setUserLeagues] = useState<SleeperLeagueOption[]>([]);
+  const [isLeagueIntelLoading, setIsLeagueIntelLoading] = useState(false);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [viewerUsername, setViewerUsername] = useState<string | null>(null);
   const [adminViewMode, setAdminViewMode] = useState<AdminViewMode | null>(
@@ -10881,24 +10914,62 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, leagueId, reportData, userLeagues, viewerUserId]);
 
+  function persistSleeperSessionLeagues(nextLeagues: SleeperLeagueOption[]) {
+    try {
+      const sleeperSession = localStorage.getItem(SLEEPER_SESSION_KEY);
+      if (!sleeperSession) return;
+      const parsed = JSON.parse(sleeperSession) as SleeperSession;
+      localStorage.setItem(
+        SLEEPER_SESSION_KEY,
+        JSON.stringify({
+          ...parsed,
+          leagues: nextLeagues,
+          savedAt: Date.now(),
+        } satisfies SleeperSession)
+      );
+    } catch {
+      // Enriched league cards are a convenience cache; the loader can still fetch preview data.
+    }
+  }
+
   const userLeagueRanksMutation = trpc.league.getUserLeagueRanks.useMutation({
     onSuccess: data => {
-      setUserLeagues(prev => mergeLeagueRanks(prev, data.ranks));
+      setUserLeagues(prev => {
+        const nextLeagues = mergeLeagueRanks(prev, data.ranks);
+        persistSleeperSessionLeagues(nextLeagues);
+        return nextLeagues;
+      });
+      setIsLeagueIntelLoading(false);
+    },
+    onError: () => {
+      setIsLeagueIntelLoading(false);
     },
   });
   const requestUserLeagueRanks = userLeagueRanksMutation.mutate;
 
   useEffect(() => {
-    if (!viewerUserId || !sleeperUsername || !userLeagues.length) return;
+    if (!viewerUserId || !sleeperUsername || !userLeagues.length) {
+      setIsLeagueIntelLoading(false);
+      return;
+    }
     const validViewerUserId = getValidSleeperUserId(viewerUserId);
-    if (!validViewerUserId) return;
+    if (!validViewerUserId) {
+      setIsLeagueIntelLoading(false);
+      return;
+    }
     if (
       userLeagues.every(
-        league => league.standingsRank != null && league.powerRank != null
+        league =>
+          league.standingsRank != null &&
+          league.powerRank != null &&
+          Array.isArray(league.managerAnchors)
       )
-    )
+    ) {
+      setIsLeagueIntelLoading(false);
       return;
+    }
 
+    setIsLeagueIntelLoading(true);
     requestUserLeagueRanks({
       username: sleeperUsername,
       userId: validViewerUserId,
@@ -10922,6 +10993,7 @@ export default function Home() {
         data.user?.hasAdminPermissions === true ||
         data.user?.isPrivilegedReportViewer === true;
       setUserLeagues(data.leagues);
+      setIsLeagueIntelLoading(Boolean(nextViewerUserId && data.leagues.length));
       setViewerUserId(nextViewerUserId);
       setViewerUsername(nextViewerIdentity);
       setAdminViewMode(null);
@@ -11198,7 +11270,14 @@ export default function Home() {
       return;
     }
     const isSameLeague = nextLeagueId === leagueId.trim();
-    const initialManagerAnchors = isSameLeague
+    const knownLeague = findKnownSleeperLeague(
+      nextLeagueId,
+      userLeagues,
+      cachedSleeperUsers
+    );
+    const initialManagerAnchors = knownLeague?.managerAnchors?.length
+      ? knownLeague.managerAnchors
+      : isSameLeague
       ? buildLoadingManagerAnchors(
           reportData,
           reportData?.viewerManager ?? null
@@ -11234,6 +11313,7 @@ export default function Home() {
       return;
     }
     setPortfolioSearch("");
+    setIsLeagueIntelLoading(false);
     userLeaguesMutation.mutate({ username: normalizedUsername });
   };
 
@@ -11242,6 +11322,7 @@ export default function Home() {
     setSleeperUsername("");
     setPortfolioSearch("");
     setUserLeagues([]);
+    setIsLeagueIntelLoading(false);
     setFocusedAutocomplete(null);
     setAdminViewMode(null);
     setAdminViewerManager(null);
@@ -11304,6 +11385,7 @@ export default function Home() {
     setLeagueLogo(null);
     setLeagueFormat("");
     setUserLeagues([]);
+    setIsLeagueIntelLoading(false);
     setViewerUserId(null);
     setViewerUsername(null);
     setAdminViewMode(null);
@@ -11351,6 +11433,8 @@ export default function Home() {
     userLeagues,
     activeCachedSleeperUser
   );
+  const isLeaguePickerIntelBusy =
+    isLeagueIntelLoading || userLeagueRanksMutation.isPending;
   const homePortfolioRows = useMemo(
     () => buildHomePortfolioRows(orderedUserLeagues),
     [orderedUserLeagues]
@@ -11698,7 +11782,11 @@ export default function Home() {
               </span>
               <span>.</span>
             </span>
-            <span>Choose one of your current Sleeper leagues.</span>
+            <span>
+              {isLeaguePickerIntelBusy
+                ? "Syncing rankings and manager icons."
+                : "Choose one of your current Sleeper leagues."}
+            </span>
           </DialogDescription>
         </DialogHeader>
         <div className="home-league-picker league-switch-picker">
@@ -11707,6 +11795,7 @@ export default function Home() {
               key={league.leagueId}
               league={league}
               onSelect={handleAnalyzeLeagueOption}
+              disabled={isLeaguePickerIntelBusy}
             />
           ))}
         </div>
