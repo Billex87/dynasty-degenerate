@@ -3,8 +3,6 @@ import type { AIActionQueueItem } from "@/lib/autopilot/types";
 export const AI_ACTION_MEMORY_STORAGE_KEY =
   "dynasty-degenerates:ai-action-memory:v1";
 
-export type AIActionOutcomeStatus = "done" | "skipped";
-
 export type AIActionSnapshot = {
   id: string;
   memoryKey: string;
@@ -45,22 +43,9 @@ export type AIActionConflict = {
   tone: "good" | "info" | "warn" | "danger";
 };
 
-export type AIActionOutcome = {
-  id: string;
-  memoryKey: string;
-  signature: string;
-  status: AIActionOutcomeStatus;
-  source: AIActionQueueItem["source"];
-  decision: AIActionQueueItem["decision"];
-  action: string;
-  target: string;
-  confidence: number;
-  recordedAt: number;
-};
-
 export type AIActionMemory = {
   history: AIActionSnapshot[];
-  outcomes: AIActionOutcome[];
+  outcomes: unknown[];
 };
 
 const EMPTY_MEMORY: AIActionMemory = {
@@ -153,7 +138,7 @@ export function describeAIActionChange(
       current,
       changed: false,
       confidenceDelta: 0,
-      summary: "First tracked decision for this queue.",
+      summary: "First observed decision for this queue.",
     };
   }
 
@@ -170,7 +155,7 @@ export function describeAIActionChange(
       current,
       changed: false,
       confidenceDelta,
-      summary: "Same recommendation as the previous tracked read.",
+      summary: "Same recommendation as the previous observed read.",
     };
   }
 
@@ -334,72 +319,6 @@ export function detectAIActionConflicts(item: AIActionQueueItem): AIActionConfli
   }
 
   return conflicts.slice(0, 4);
-}
-
-export function buildAIActionOutcome({
-  memoryKey,
-  item,
-  status,
-  now = Date.now(),
-}: {
-  memoryKey: string;
-  item: AIActionQueueItem;
-  status: AIActionOutcomeStatus;
-  now?: number;
-}): AIActionOutcome {
-  const signature = getAIActionSignature(item);
-  return {
-    id: `${stableKey(memoryKey)}-${stableKey(signature)}-${status}`,
-    memoryKey,
-    signature,
-    status,
-    source: item.source,
-    decision: item.decision,
-    action: item.action,
-    target: item.target,
-    confidence: item.confidence,
-    recordedAt: now,
-  };
-}
-
-export function upsertAIActionOutcome(
-  memory: AIActionMemory,
-  outcome: AIActionOutcome,
-  limit = 36
-): AIActionMemory {
-  return {
-    history: memory.history.slice(0, limit),
-    outcomes: [
-      outcome,
-      ...memory.outcomes.filter(item => item.id !== outcome.id),
-    ]
-      .sort((a, b) => b.recordedAt - a.recordedAt)
-      .slice(0, limit),
-  };
-}
-
-export function getAIActionOutcome(
-  memory: AIActionMemory,
-  memoryKey: string,
-  item: AIActionQueueItem
-): AIActionOutcome | null {
-  const signature = getAIActionSignature(item);
-  return memory.outcomes.find(
-    outcome => outcome.memoryKey === memoryKey && outcome.signature === signature
-  ) || null;
-}
-
-export function getAIActionOutcomeSummary(memory: AIActionMemory): {
-  done: number;
-  skipped: number;
-} {
-  return memory.outcomes.reduce(
-    (summary, outcome) => {
-      summary[outcome.status] += 1;
-      return summary;
-    },
-    { done: 0, skipped: 0 }
-  );
 }
 
 export function readAIActionMemory(): AIActionMemory {

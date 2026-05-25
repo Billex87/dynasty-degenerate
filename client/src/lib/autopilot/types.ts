@@ -1,4 +1,8 @@
 import type { AIEvidenceResult } from '@shared/aiEvidenceEngine';
+import type {
+  RecommendationExpectedAction,
+  RecommendationObservedOutcome,
+} from '@shared/recommendationOutcome';
 
 export type AutopilotMode = 'dynasty' | 'redraft';
 export type AutopilotTone = 'good' | 'info' | 'warn' | 'danger' | 'neutral';
@@ -13,7 +17,9 @@ export type AutopilotScore = {
 export type AutopilotRecommendation = {
   id: string;
   type: string;
+  playerId?: string | null;
   player: string;
+  secondaryPlayerId?: string | null;
   secondary?: string;
   action: string;
   confidence: number;
@@ -23,6 +29,8 @@ export type AutopilotRecommendation = {
   reasons: string[];
   signals: string[];
   evidenceRead?: AIEvidenceResult;
+  expectedAction?: RecommendationExpectedAction | null;
+  observedOutcome?: RecommendationObservedOutcome | null;
   calibration?: {
     baseConfidence: number;
     adjustedConfidence: number;
@@ -57,6 +65,8 @@ export type AIActionQueueItem = {
   changeTriggers: string[];
   dominoEffects?: string[];
   signals: string[];
+  expectedAction?: RecommendationExpectedAction | null;
+  observedOutcome?: RecommendationObservedOutcome | null;
 };
 
 export type AIRejectionRead = {

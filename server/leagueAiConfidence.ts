@@ -430,7 +430,7 @@ function buildLeagueAiConfidenceCalibration(data: ReportData, now = new Date()):
       ? 'Enough in-season league evidence exists to review and tune confidence thresholds against real outcomes.'
       : status === 'collecting'
         ? `Collecting in-season evidence for calibration (${observedSampleSize}/${targetSampleSize} observed samples).`
-        : `Calibration is waiting for the season window; current samples are tracked but thresholds should not be tightened before ${seasonStart.toISOString().slice(0, 10)}.`,
+        : `Calibration is waiting for the season window; current samples are observed but thresholds should not be tightened before ${seasonStart.toISOString().slice(0, 10)}.`,
   };
 }
 

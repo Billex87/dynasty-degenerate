@@ -653,10 +653,10 @@ test.describe("command center feature surfaces", () => {
     await tradePartnerRead.evaluate(node => node.setAttribute("open", ""));
     await expect(tradePartnerRead.getByText("Why this fired")).toBeVisible();
     await tradePartnerRead
-      .getByRole("button", { name: /Track trade read/i })
+      .getByRole("button", { name: /Save trade read/i })
       .click();
-    await expect(page.getByText("Tracked trade reads")).toBeVisible();
-    const trackedTradePlans = await page.evaluate(
+    await expect(page.getByText("Observed trade reads")).toBeVisible();
+    const savedTradePlans = await page.evaluate(
       () =>
         JSON.parse(
           window.localStorage.getItem("dynasty-degenerates:action-plans:v1") ||
@@ -664,8 +664,8 @@ test.describe("command center feature surfaces", () => {
         ) as Array<{ kind?: string; status?: string }>
     );
     expect(
-      trackedTradePlans.some(
-        plan => plan.kind === "trade" && plan.status === "tracked"
+      savedTradePlans.some(
+        plan => plan.kind === "trade" && plan.status === "saved"
       )
     ).toBeTruthy();
     await expect(page.locator(".league-exploit-card").first()).toBeVisible();
@@ -754,7 +754,7 @@ test.describe("command center feature surfaces", () => {
       await expect(
         aiReadoutSection.getByText(/Conflict check|Source health|Hard blocker|Missing evidence/i).first()
       ).toBeVisible();
-      await expect(aiReadoutSection.getByText("readouts tracked")).toBeVisible();
+      await expect(aiReadoutSection.getByText("readouts observed")).toBeVisible();
       await expect(aiReadoutSection.getByText("duplicate-risk flags", { exact: true })).toBeVisible();
       await expect(
         aiReadoutSection
@@ -771,7 +771,7 @@ test.describe("command center feature surfaces", () => {
         aiReadoutSection.getByText(/player situation reads have fresh or usable context/i)
       ).toBeVisible();
       await expect(
-        aiReadoutSection.getByText(/All tracked readout surfaces have confidence/i)
+        aiReadoutSection.getByText(/All observed readouts have confidence/i)
       ).toBeVisible();
       const hasReceiptAudit =
         (await page.getByText("Player Receipt Audit").count()) > 0;
@@ -1797,16 +1797,17 @@ test.describe("command center feature surfaces", () => {
     await expect(actionQueue.getByText("Roster domino")).toBeVisible();
     await expect(actionQueue.getByText("Source conflict check")).toBeVisible();
     await expect(actionQueue.getByText("Decision memory")).toBeVisible();
-    await expect(actionQueue.getByText("Outcome tracker")).toBeVisible();
-    await actionQueue.getByRole("button", { name: "Done" }).click();
-    const trackedAIOutcomes = await page.evaluate(() => {
+    await expect(actionQueue.getByText("Outcome observer")).toBeVisible();
+    await expect(actionQueue.getByText("Passive data sync")).toBeVisible();
+    await expect(actionQueue.getByRole("button", { name: "Done" })).toHaveCount(0);
+    const storedAIOutcomes = await page.evaluate(() => {
       const parsed = JSON.parse(
         window.localStorage.getItem("dynasty-degenerates:ai-action-memory:v1") ||
           "{\"outcomes\":[]}"
       ) as { outcomes?: Array<{ status?: string }> };
       return parsed.outcomes || [];
     });
-    expect(trackedAIOutcomes.some(outcome => outcome.status === "done")).toBeTruthy();
+    expect(storedAIOutcomes).toEqual([]);
     await expect(page.getByText("Depth Receiver").first()).toBeVisible();
     await expect(page.getByText("Sample Runner").first()).toBeVisible();
     await expect(page.getByText("Weekly Action Plan")).toBeVisible();

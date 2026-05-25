@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { gzipSync, gunzipSync } from "node:zlib";
 import type { InsertUser, User } from "../drizzle/schema";
-import type { ActionPlanRecord, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TradeProposalSignal, WaiverBidHistoryRecord } from "../shared/types";
+import type { ActionPlanRecord, ActionPlanStatus, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TradeProposalSignal, WaiverBidHistoryRecord } from "../shared/types";
 import type { AIPredictionEvent, AIPredictionOutcome } from "./aiPredictionCalibration";
 
 type SqlClient = ReturnType<typeof neon>;
@@ -1566,8 +1566,12 @@ export async function listMonthlyRosterBlueprintSnapshots(input: {
 function normalizeActionPlanRow(row: any): ActionPlanRecord | null {
   try {
     const kind = row.kind === "waiver" || row.kind === "trade" ? row.kind : "lineup";
-    const status = ["submitted", "copied", "opened", "tracked", "won", "lost", "acted", "blocked", "stale"].includes(row.status)
-      ? row.status
+    const rawStatus = String(row.status || "");
+    const allowedStatuses = new Set<ActionPlanStatus>(["saved", "submitted", "copied", "opened", "won", "lost", "acted", "blocked", "stale"]);
+    const status: ActionPlanStatus = rawStatus === "tracked"
+      ? "saved"
+      : allowedStatuses.has(rawStatus as ActionPlanStatus)
+        ? rawStatus as ActionPlanStatus
       : "saved";
     return {
       id: String(row.planId),

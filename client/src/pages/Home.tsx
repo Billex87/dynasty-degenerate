@@ -7250,7 +7250,7 @@ function AdminAIReadoutDiagnosticsSection({
         <div className="admin-ai-readout-summary">
           <span>
             <strong>{diagnostics.totalReadouts}</strong>
-            <em>tracked</em>
+            <em>observed</em>
           </span>
           <span>
             <strong>{diagnostics.missingConfidence}</strong>
@@ -7455,7 +7455,7 @@ function AdminAIReadoutDiagnosticsSection({
           </section>
         ) : (
           <p className="admin-ai-readout-clean">
-            All tracked readouts have confidence, trace, and no duplicate flags.
+            All observed readouts have confidence, trace, and no duplicate flags.
           </p>
         )}
       </div>

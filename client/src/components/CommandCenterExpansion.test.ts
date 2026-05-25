@@ -120,7 +120,7 @@ describe('trade outcome learning', () => {
     createdAt: Date.parse('2026-05-01T12:00:00.000Z'),
     title: 'Trade read: Rival',
     summary: 'Open with Rival.',
-    status: 'tracked',
+    status: 'saved',
     payload: {
       sourceManager: 'Bill',
       targetManager: 'Rival',
@@ -129,7 +129,7 @@ describe('trade outcome learning', () => {
     },
   };
 
-  it('marks old tracked trade reads as stale when no ledger or proposal outcome arrives', () => {
+  it('marks saved trade reads as stale when no ledger or proposal outcome arrives', () => {
     const outcome = getTradePlanOutcomeRead(
       { tradeHistory: [], tradeProposalSignals: [] } as unknown as ReportData,
       basePlan,
@@ -147,7 +147,7 @@ describe('trade outcome learning', () => {
       { ...basePlan, id: 'acted', status: 'acted' },
       { ...basePlan, id: 'blocked', status: 'blocked' },
       { ...basePlan, id: 'stale', status: 'stale' },
-      { ...basePlan, id: 'tracked', status: 'tracked' },
+      { ...basePlan, id: 'saved', status: 'saved' },
     ]);
 
     expect(learning).toMatchObject({

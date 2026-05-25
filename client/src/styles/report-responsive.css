@@ -14427,7 +14427,7 @@
 
 .report-shell .report-overview-hero {
   background:
-    url("/brand/backgrounds/webp/hero-crops/hero-crop-desktop-1920x1200.webp") center -3.5rem / cover no-repeat,
+    url("/brand/hero/background/webp/hero-bg-desktop-long-1920x1200.webp") center -3.5rem / cover no-repeat,
     rgba(3, 8, 16, 0.3) !important;
 }
 
@@ -14458,7 +14458,7 @@
   }
 
   .report-shell .report-overview-hero {
-    background-image: url("/brand/backgrounds/webp/hero-crops/hero-crop-laptop-1366x768.webp") !important;
+    background-image: url("/brand/hero/background/webp/hero-bg-laptop-1366x768.webp") !important;
     background-position: center -2.85rem !important;
   }
 }
@@ -14476,8 +14476,7 @@
   }
 
   .report-shell .report-overview-hero {
-    background-image: url("/brand/backgrounds/webp/hero-crops/hero-crop-tablet-portrait-768x1100.webp") !important;
-    background-position: center top !important;
+    background-image: none !important;
   }
 
   .report-shell .report-dashboard-spotlight::before {
@@ -14500,8 +14499,7 @@
 
   .report-shell .report-overview-hero {
     min-height: clamp(25rem, 112vw, 30rem);
-    background-image: url("/brand/backgrounds/webp/hero-crops/hero-crop-mobile-430x980.webp") !important;
-    background-position: center top !important;
+    background-image: none !important;
   }
 
   .report-shell .report-overview-hero::after {
@@ -14528,7 +14526,7 @@
 
   .report-shell .report-overview-hero {
     min-height: clamp(24rem, 112vw, 28rem);
-    background-image: url("/brand/backgrounds/webp/hero-crops/hero-crop-mobile-small-390x900.webp") !important;
+    background-image: none !important;
   }
 
   .report-shell .report-dashboard-spotlight::before {

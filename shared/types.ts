@@ -2063,7 +2063,7 @@ export interface SleeperDraftPick {
 }
 
 export type ActionPlanKind = 'lineup' | 'waiver' | 'trade';
-export type ActionPlanStatus = 'saved' | 'submitted' | 'copied' | 'opened' | 'tracked' | 'won' | 'lost' | 'acted' | 'blocked' | 'stale';
+export type ActionPlanStatus = 'saved' | 'submitted' | 'copied' | 'opened' | 'won' | 'lost' | 'acted' | 'blocked' | 'stale';
 
 export interface ActionPlanRecord {
   id: string;

@@ -57,6 +57,72 @@ describe('AI prediction outcome resolver', () => {
     });
   });
 
+  it('stores observed completed outcomes for structured add recommendations without waiting for production', () => {
+    const resolved = resolveAIPredictionOutcome(event({
+      metadata: {
+        expectedAction: {
+          type: 'waiver_add',
+          playerIn: { id: 'p1', name: 'Waiver Receiver' },
+        },
+      },
+    }), {
+      resolvedAt: '2026-09-02T00:00:00.000Z',
+      transactions: [
+        { type: 'add', playerId: 'p1', playerName: 'Waiver Receiver', manager: 'Sample Manager' },
+      ],
+      playerStats: [],
+    });
+
+    expect(resolved).toMatchObject({
+      status: 'hit',
+      note: 'Recommended player was added to roster',
+      observedOutcome: {
+        status: 'observed_completed',
+        confidence: 92,
+        evidence: {
+          detectedFrom: 'transaction_history',
+        },
+      },
+    });
+  });
+
+  it('stores observed ignored outcomes when a structured lineup swap expires untouched', () => {
+    const resolved = resolveAIPredictionOutcome(event({
+      surface: 'autopilot',
+      action: 'start',
+      entityType: 'lineup',
+      entityId: 'player-a',
+      entityName: 'Player A',
+      expiresAt: '2026-09-03T00:00:00.000Z',
+      metadata: {
+        expectedAction: {
+          type: 'swap_starter',
+          playerIn: { id: 'player-a', name: 'Player A' },
+          playerOut: { id: 'player-b', name: 'Player B' },
+        },
+      },
+    }), {
+      resolvedAt: '2026-09-04T00:00:00.000Z',
+      rosterStates: [
+        {
+          manager: 'Sample Manager',
+          rosterPlayerIds: ['player-a', 'player-b'],
+          starterPlayerIds: ['player-b'],
+        },
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      status: 'miss',
+      observedOutcome: {
+        status: 'observed_ignored',
+        evidence: {
+          after: 'original_starter_kept',
+        },
+      },
+    });
+  });
+
   it('waits to grade waiver pickups until production is available', () => {
     const resolved = resolveAIPredictionOutcome(event(), {
       transactions: [

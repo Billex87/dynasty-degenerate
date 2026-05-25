@@ -75,6 +75,7 @@ import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeas
 import type { ActionPlanRecord, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverBidHistoryRecord, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget } from "../shared/types";
 import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
 import type { AICounterfactualRead, AIDecisionSnapshot, AIPredictionDecayProfile, AIRealizedEdge } from "../shared/aiDecisionSnapshots";
+import type { RecommendationObservedOutcome } from "../shared/recommendationOutcome";
 
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
@@ -372,7 +373,7 @@ const actionPlanSchema = z.object({
   updatedAt: z.number().finite().optional(),
   title: z.string().min(1).max(240),
   summary: z.string().max(1200),
-  status: z.enum(["saved", "submitted", "copied", "opened", "tracked", "won", "lost", "acted", "blocked", "stale"]),
+  status: z.enum(["saved", "submitted", "copied", "opened", "won", "lost", "acted", "blocked", "stale"]),
   payload: z.record(z.string(), z.unknown()),
 }) satisfies z.ZodType<ActionPlanRecord>;
 const waiverBidHistorySchema = z.object({
@@ -399,6 +400,28 @@ const aiEvidencePenaltySchema = z.object({
   label: z.string().min(1).max(240),
   points: z.number().finite(),
 });
+const recommendationObservedOutcomeSchema = z.object({
+  status: z.enum([
+    "pending",
+    "observed_completed",
+    "observed_partially_completed",
+    "observed_ignored",
+    "observed_contradicted",
+    "expired",
+    "unknown",
+  ]),
+  observedAt: z.string().max(80).nullable().optional(),
+  confidence: z.number().int().min(0).max(100),
+  evidence: z.object({
+    reason: z.string().min(1).max(500),
+    playerId: z.string().max(128).nullable().optional(),
+    playerName: z.string().max(240).nullable().optional(),
+    before: z.string().max(120).nullable().optional(),
+    after: z.string().max(120).nullable().optional(),
+    detectedFrom: z.enum(["roster_sync", "lineup_sync", "transaction_history", "expiration", "insufficient_data"]),
+    details: z.record(z.string(), z.unknown()).optional(),
+  }),
+}) satisfies z.ZodType<RecommendationObservedOutcome>;
 const aiPredictionOutcomeSchema = z.object({
   status: z.enum(["hit", "miss", "push", "pending", "blocked"]),
   resolvedAt: z.string().max(80).nullable().optional(),
@@ -424,6 +447,7 @@ const aiPredictionOutcomeSchema = z.object({
   }).nullable().optional() satisfies z.ZodType<AIRealizedEdge | null | undefined>,
   feedbackSource: z.enum(["system", "user", "admin"]).nullable().optional(),
   note: z.string().max(1000).nullable().optional(),
+  observedOutcome: recommendationObservedOutcomeSchema.nullable().optional(),
 }) satisfies z.ZodType<AIPredictionOutcome>;
 const aiSourceAgreementReadSchema = z.any().nullable().optional() as z.ZodType<AISourceAgreementRead | null | undefined>;
 const aiDecisionBaselineSchema = z.object({

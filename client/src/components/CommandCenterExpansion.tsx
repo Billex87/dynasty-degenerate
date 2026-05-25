@@ -795,7 +795,7 @@ export function getTradePlanOutcomeRead(data: ReportData, plan: ActionPlanRecord
     return {
       status: 'stale',
       source: 'aging-window',
-      evidenceSummary: 'No completed trade or blocked proposal signal appeared within 14 days of tracking this read.',
+      evidenceSummary: 'No completed trade or blocked proposal signal appeared within 14 days of saving this read.',
     };
   }
   return null;
@@ -819,9 +819,9 @@ export function buildTradeOutcomeLearning(plans: ActionPlanRecord[]) {
     : actedRate >= 60
       ? 'Current trade reads are converting into completed ledger activity.'
       : stale > acted && stale >= blocked
-        ? 'Tracked reads are aging out; use smaller asks, clearer deadlines, or quieter managers.'
+        ? 'Saved reads are aging out; use smaller asks, clearer deadlines, or quieter managers.'
       : blocked >= acted
-        ? 'Tracked reads are meeting resistance; lower first asks or use smaller sweeteners.'
+        ? 'Saved reads are meeting resistance; lower first asks or use smaller sweeteners.'
         : 'Mixed outcomes; keep using manager-fit and resistance notes before pushing value.';
   return {
     acted,
@@ -1162,7 +1162,7 @@ export function OverviewAIPulse({
             className="overview-ai-action-queue"
             memoryKey={`overview:${mode}:${getManagerOptions(data).join('|') || 'league'}`}
             memoryContext="Overview AI Pulse"
-            enableOutcomeTracking={false}
+            enableOutcomeObserver={false}
           />
         </>
       )}
@@ -2382,7 +2382,7 @@ export function TradePartnerFinder({
       updatedAt: Date.now(),
       title: `Trade read: ${recommendation.manager}`,
       summary: recommendation.aiRead,
-      status: 'tracked',
+      status: 'saved',
       payload: {
         sourceManager: manager,
         targetManager: recommendation.manager,
@@ -2409,8 +2409,8 @@ export function TradePartnerFinder({
         />
       </div>
       {visibleTrackedTradePlans.length > 0 && (
-        <div className="trade-outcome-strip" aria-label="Tracked trade recommendation outcomes">
-          <span>Tracked trade reads</span>
+        <div className="trade-outcome-strip" aria-label="Observed trade recommendation outcomes">
+          <span>Observed trade reads</span>
           <em className="trade-outcome-sync-state">
             {isServerPersistenceEnabled ? 'Synced' : 'Local fallback'}
           </em>
@@ -2432,7 +2432,7 @@ export function TradePartnerFinder({
           </strong>
           <p>{tradeOutcomeLearning.strongestPattern}</p>
           <small>
-            {tradeOutcomeLearning.acted} acted / {tradeOutcomeLearning.blocked} blocked / {tradeOutcomeLearning.stale} stale / {tradeOutcomeLearning.open} still tracked
+            {tradeOutcomeLearning.acted} acted / {tradeOutcomeLearning.blocked} blocked / {tradeOutcomeLearning.stale} stale / {tradeOutcomeLearning.open} open
           </small>
         </div>
       )}
@@ -2487,7 +2487,7 @@ export function TradePartnerFinder({
               className="command-secondary-action trade-partner-track-action"
               onClick={() => trackTradePlan(recommendation)}
             >
-              Track trade read
+              Save trade read
             </button>
           </article>
         ))}

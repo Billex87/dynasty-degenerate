@@ -3222,7 +3222,7 @@ export default function WaiverIntelligencePanel({
                             recommendation,
                             status: recommendation.evidenceRead.canAct
                               ? "submitted"
-                              : "tracked",
+                              : "saved",
                           })
                         );
                         const bidHistoryItem = createWaiverBidHistoryItem({
@@ -3238,7 +3238,7 @@ export default function WaiverIntelligencePanel({
                         ? "Plan saved"
                         : recommendation.evidenceRead.canAct
                           ? "Save plan"
-                          : "Track only"}
+                          : "Save watch"}
                       <span>
                         {recommendation.evidenceRead.finalScore}% evidence /{" "}
                         {recommendation.bidConfidencePct}%{" "}

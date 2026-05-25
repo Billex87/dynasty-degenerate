@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAIConfidenceHistory,
-  buildAIActionOutcome,
   detectAIActionConflicts,
-  getAIActionOutcome,
   recordAIActionSnapshot,
-  upsertAIActionOutcome,
 } from "./aiActionMemory";
 import type { AIActionQueueItem } from "@/lib/autopilot/types";
 
@@ -97,19 +94,20 @@ describe("aiActionMemory", () => {
     expect(conflicts.some(conflict => conflict.tone === "danger")).toBe(true);
   });
 
-  it("tracks post-action outcomes by current recommendation signature", () => {
+  it("stores recommendation reads without requiring a manual outcome click", () => {
     const item = makeQueueItem();
-    const outcome = buildAIActionOutcome({
+    const result = recordAIActionSnapshot({
+      memory: { history: [], outcomes: [] },
       memoryKey: "autopilot",
+      context: "Autopilot",
       item,
-      status: "done",
       now: 5000,
     });
-    const memory = upsertAIActionOutcome({ history: [], outcomes: [] }, outcome);
 
-    expect(getAIActionOutcome(memory, "autopilot", item)).toMatchObject({
-      status: "done",
+    expect(result.memory.history[0]).toMatchObject({
       target: "Waiver Receiver",
+      action: "Add",
     });
+    expect(result.memory.outcomes).toEqual([]);
   });
 });

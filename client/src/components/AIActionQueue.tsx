@@ -1,14 +1,12 @@
 import {
   Activity,
   BadgeCheck,
-  CheckCircle2,
   CircleOff,
   Eye,
   GitCompareArrows,
   History,
   ListChecks,
   ShieldAlert,
-  XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AITronSurface, type AITronTheme } from '@/components/AITronSurface';
@@ -22,18 +20,13 @@ import {
   getVoicedSuppressedAIActionsCopy,
 } from '@/lib/aiVoice';
 import {
-  buildAIActionOutcome,
   buildAIConfidenceHistory,
   detectAIActionConflicts,
-  getAIActionOutcome,
-  getAIActionOutcomeSummary,
   readAIActionMemory,
   recordAIActionSnapshot,
-  upsertAIActionOutcome,
   writeAIActionMemory,
   type AIActionChange,
   type AIActionMemory,
-  type AIActionOutcomeStatus,
 } from '@/lib/aiActionMemory';
 
 function getDecisionIcon(decision: AIActionQueueItem['decision']) {
@@ -199,51 +192,30 @@ function ActionConflictPanel({
   );
 }
 
-function ActionOutcomeTracker({
+function ActionOutcomeObserver({
   item,
   memory,
   memoryKey,
-  onTrack,
 }: {
   item: AIActionQueueItem;
   memory: AIActionMemory;
   memoryKey: string;
-  onTrack: (status: AIActionOutcomeStatus) => void;
 }) {
-  const outcome = getAIActionOutcome(memory, memoryKey, item);
-  const summary = getAIActionOutcomeSummary(memory);
+  const observedReads = memory.history.filter(snapshot => snapshot.memoryKey === memoryKey).length;
+  const expectedAction = item.expectedAction;
+  const expectedCopy =
+    expectedAction?.expectedRosterChange ||
+    expectedAction?.expectedLineupChange ||
+    'Roster, lineup, waiver, and transaction updates are compared after each provider sync.';
 
   return (
-    <div className="ai-action-outcome-tracker" aria-label="AI action outcome tracker">
+    <div className="ai-action-outcome-tracker" aria-label="AI recommendation outcome observer">
       <div>
-        <span>Outcome tracker</span>
-        <strong>
-          {outcome
-            ? outcome.status === 'done'
-              ? 'Marked done'
-              : 'Marked skipped'
-            : 'Track this call'}
-        </strong>
-        <em>{summary.done} done · {summary.skipped} skipped</em>
+        <span>Outcome observer</span>
+        <strong>Passive data sync</strong>
+        <em>{observedReads} recommendation read{observedReads === 1 ? '' : 's'} saved</em>
       </div>
-      <div>
-        <button
-          type="button"
-          className={outcome?.status === 'done' ? 'is-active' : undefined}
-          onClick={() => onTrack('done')}
-        >
-          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-          Done
-        </button>
-        <button
-          type="button"
-          className={outcome?.status === 'skipped' ? 'is-active' : undefined}
-          onClick={() => onTrack('skipped')}
-        >
-          <XCircle className="h-4 w-4" aria-hidden="true" />
-          Skip
-        </button>
-      </div>
+      <p>{expectedCopy}</p>
     </div>
   );
 }
@@ -256,7 +228,7 @@ export function AIActionQueue({
   className,
   memoryKey,
   memoryContext,
-  enableOutcomeTracking = true,
+  enableOutcomeObserver = true,
   maxVisibleItems = 1,
   showSuppressedAlternates = true,
 }: {
@@ -267,7 +239,7 @@ export function AIActionQueue({
   className?: string;
   memoryKey?: string;
   memoryContext?: string;
-  enableOutcomeTracking?: boolean;
+  enableOutcomeObserver?: boolean;
   maxVisibleItems?: number;
   showSuppressedAlternates?: boolean;
 }) {
@@ -308,20 +280,6 @@ export function AIActionQueue({
       return result.memory;
     });
   }, [primarySignature, resolvedMemoryContext, resolvedMemoryKey]);
-
-  const handleTrackOutcome = (status: AIActionOutcomeStatus) => {
-    if (!primary) return;
-    setMemory(current => {
-      const outcome = buildAIActionOutcome({
-        memoryKey: resolvedMemoryKey,
-        item: primary,
-        status,
-      });
-      const next = upsertAIActionOutcome(current, outcome);
-      writeAIActionMemory(next);
-      return next;
-    });
-  };
 
   if (!primary) return null;
 
@@ -390,12 +348,11 @@ export function AIActionQueue({
         <QueueReceipts item={primary} compact={compact} />
         <ActionConflictPanel item={primary} compact={compact} />
         <ActionMemoryPanel change={change} points={confidencePoints} compact={compact} />
-        {enableOutcomeTracking && !compact && (
-          <ActionOutcomeTracker
+        {enableOutcomeObserver && !compact && (
+          <ActionOutcomeObserver
             item={primary}
             memory={memory}
             memoryKey={resolvedMemoryKey}
-            onTrack={handleTrackOutcome}
           />
         )}
       </article>

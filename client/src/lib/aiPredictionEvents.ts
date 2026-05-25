@@ -19,6 +19,11 @@ import {
   type AIPredictionDecayProfile,
   type AIRealizedEdge,
 } from "@shared/aiDecisionSnapshots";
+import type {
+  RecommendationExpectedAction,
+  RecommendationObservedOutcome,
+  RecommendationPlayerRef,
+} from "@shared/recommendationOutcome";
 import type { PlayerDetails, ReportData, TrendingPlayer, WaiverWeeklyEcrTarget } from "@shared/types";
 import { buildAutopilotData } from "@/lib/autopilot/buildAutopilotData";
 import { AUTOPILOT_MOCK_DATA } from "@/lib/autopilot/mockData";
@@ -89,6 +94,7 @@ export type ClientAIPredictionEvent = {
     realizedEdge?: AIRealizedEdge | null;
     feedbackSource?: "system" | "user" | "admin" | null;
     note?: string | null;
+    observedOutcome?: RecommendationObservedOutcome | null;
   };
   metadata?: Record<string, unknown>;
 };
@@ -342,6 +348,14 @@ function actionFromRecommendation(recommendation: AutopilotRecommendation, fallb
   if (/stream/.test(action)) return "stream";
   if (/pickup|add|claim|waiver/.test(action)) return "pickup";
   return fallback;
+}
+
+function primaryExpectedPlayer(expectedAction?: RecommendationExpectedAction | null): RecommendationPlayerRef | null {
+  if (!expectedAction) return null;
+  return expectedAction.playerIn
+    || expectedAction.playerOut
+    || expectedAction.playersInvolved?.find(Boolean)
+    || null;
 }
 
 function decisionFromEvidence(read: AIEvidenceResult, fallbackScore: number): ClientAIPredictionDecision {
@@ -785,6 +799,8 @@ function eventFromQueueItem(input: {
   managerArchetype?: string | null;
 }) {
   const action = actionFromQueueItem(input.item);
+  const expectedAction = input.item.expectedAction || null;
+  const primaryPlayer = primaryExpectedPlayer(expectedAction);
   const sharpnessSignal = input.item.signals.find(signal =>
     /\b(sleepy|casual|average|sharp|shark tank|shark-tank)\b/i.test(signal)
   );
@@ -814,8 +830,8 @@ function eventFromQueueItem(input: {
     action,
     decision: decisionFromQueueItem(input.item),
     entityType: input.item.source === "lineup" ? "lineup" : input.item.source === "trade" ? "trade" : "player",
-    entityId: input.item.id,
-    entityName: input.item.target,
+    entityId: primaryPlayer?.id || input.item.id,
+    entityName: primaryPlayer?.name || input.item.target,
     finalScore: input.item.confidence,
     confidenceCap: input.item.decision === "blocked" ? Math.min(input.item.confidence, 35) : 100,
     confidenceCapReason: input.item.blockers[0] || input.item.missingEvidence[0] || null,
@@ -844,6 +860,8 @@ function eventFromQueueItem(input: {
       leagueSharpnessScore: Number.isFinite(sharpnessScore) ? sharpnessScore : null,
       leagueSharpnessTier: sharpnessTier,
       managerArchetype: input.managerArchetype || null,
+      expectedAction,
+      playersInvolved: expectedAction?.playersInvolved || (primaryPlayer ? [primaryPlayer] : []),
     },
   });
 }
@@ -864,7 +882,9 @@ function eventFromRecommendation(input: {
   const surface: AIEvidenceSurface = input.source === "waiver" ? "waiver" : "trade";
   const fallbackAction: AIEvidenceAction = input.source === "waiver" ? "pickup" : "trade";
   const action = actionFromRecommendation(input.recommendation, fallbackAction);
-  const entityId = input.recommendation.id || `${input.source}-${input.index}`;
+  const expectedAction = input.recommendation.expectedAction || null;
+  const primaryPlayer = primaryExpectedPlayer(expectedAction);
+  const entityId = primaryPlayer?.id || input.recommendation.playerId || input.recommendation.id || `${input.source}-${input.index}`;
   const rawScore = input.recommendation.evidenceRead?.finalScore ?? input.recommendation.confidence;
   const faabMetadata = input.source === "waiver"
     ? parseFaabMetadata(input.recommendation.secondary)
@@ -887,7 +907,7 @@ function eventFromRecommendation(input: {
       action,
       entityType: input.source === "trade" ? "trade" : "player",
       entityId,
-      entityName: input.recommendation.player,
+      entityName: primaryPlayer?.name || input.recommendation.player,
       decisionSnapshotFacts: [
         snapshotFact({ key: "source", label: "Recommendation source", value: input.source, source: "AI Autopilot" }),
         snapshotFact({ key: "type", label: "Recommendation type", value: input.recommendation.type, source: "AI Autopilot" }),
@@ -901,6 +921,8 @@ function eventFromRecommendation(input: {
         actionText: input.recommendation.action,
         source: input.source,
         managerArchetype: input.managerArchetype || null,
+        expectedAction,
+        playersInvolved: expectedAction?.playersInvolved || (primaryPlayer ? [primaryPlayer] : []),
         ...faabMetadata,
       },
     });
@@ -919,7 +941,7 @@ function eventFromRecommendation(input: {
     decision: input.recommendation.confidence >= 58 ? "do" : "watch",
     entityType: input.source === "trade" ? "trade" : "player",
     entityId,
-    entityName: input.recommendation.player,
+    entityName: primaryPlayer?.name || input.recommendation.player,
     finalScore: input.recommendation.confidence,
     evidence: input.recommendation.reasons,
     missingEvidence: [],
@@ -939,6 +961,8 @@ function eventFromRecommendation(input: {
       actionText: input.recommendation.action,
       source: input.source,
       managerArchetype: input.managerArchetype || null,
+      expectedAction,
+      playersInvolved: expectedAction?.playersInvolved || (primaryPlayer ? [primaryPlayer] : []),
       ...faabMetadata,
     },
   });

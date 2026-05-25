@@ -5,6 +5,7 @@ import type { AIEvidenceAction, AIEvidenceMode, AIEvidenceSurface, AIConfidenceL
 import { buildAIEvidenceLeagueActivityContext } from '@shared/leagueActivityContext';
 import { buildLeagueSharpnessProfile } from '@shared/leagueSharpness';
 import type { LeagueSharpnessProfile } from '@shared/leagueSharpness';
+import type { RecommendationPlayerRef } from '@shared/recommendationOutcome';
 import type {
   ManagerRosterIntelligence,
   MatchupPreview,
@@ -250,6 +251,16 @@ function getPlayerLineupPosition(player?: AutopilotPlayerLike | null): string {
 
 function getPlayerAge(player?: AutopilotPlayerLike | null): number | null {
   return safeNumber(player?.age ?? player?.playerDetails?.age);
+}
+
+function toRecommendationPlayerRef(player?: AutopilotPlayerLike | null): RecommendationPlayerRef | null {
+  if (!player) return null;
+  return {
+    id: player.player_id || null,
+    name: getPlayerName(player),
+    position: getPlayerPosition(player),
+    team: player.playerDetails?.team || null,
+  };
 }
 
 function getAutopilotPlayerValue(player?: AutopilotPlayerLike | null, mode: AutopilotMode = 'dynasty') {
@@ -1019,6 +1030,7 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
     cards.push({
       id: `lineup-start-${mustStart.player_id || mustStart.name}`,
       type: 'Start/Sit',
+      playerId: mustStart.player_id || null,
       player: getPlayerName(mustStart),
       secondary: describePlayer(mustStart, mode) || undefined,
       action: 'Start',
@@ -1034,6 +1046,14 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
         mode === 'redraft' ? 'Redraft mode prioritizes bankable weekly points over future value.' : 'Dynasty mode still respects current lineup pressure when the roster can compete.',
       ], 3),
       signals: dedupeStrings(['Starter value', matchup ? 'Matchup preview' : null, getAutopilotPlayerRank(mustStart, mode), mode === 'redraft' ? 'Season lens' : 'Dynasty lens'], 4),
+      expectedAction: {
+        type: 'start_player',
+        playerIn: toRecommendationPlayerRef(mustStart),
+        playersInvolved: [toRecommendationPlayerRef(mustStart)].filter(Boolean) as RecommendationPlayerRef[],
+        expectedLineupChange: `${getPlayerName(mustStart)} should be in a starting lineup slot.`,
+        source: 'autopilot',
+        reason: matchup?.mustStarts?.length ? 'Matchup preview marks this as a must-start profile.' : 'Projected starter value is leading this roster read.',
+      },
       tone: 'good',
     });
   }
@@ -1043,7 +1063,9 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
     cards.push({
       id: `lineup-risk-${vulnerable.player_id || vulnerable.name}`,
       type: 'Bench Risk',
+      playerId: vulnerable.player_id || null,
       player: getPlayerName(vulnerable),
+      secondaryPlayerId: intel?.injuryInsurance?.player_id || null,
       secondary: intel?.injuryInsurance ? `cover: ${intel.injuryInsurance.name}` : describePlayer(vulnerable, mode) || undefined,
       action: 'Review before lock',
       confidence: recommendationConfidence(matchup?.vulnerableSpots?.length ? 68 : 58, [matchup, intel?.weakestStarter, intel?.injuryInsurance]),
@@ -1056,6 +1078,24 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
         mode === 'redraft' ? 'Short-term role certainty matters more than player name value.' : 'Do not force a low-ceiling veteran if the roster has a better value-growth path.',
       ], 3),
       signals: dedupeStrings(['Weak starter', matchup ? 'Matchup risk' : null, intel?.starterAvailability?.riskLevel ? `${intel.starterAvailability.riskLevel} availability` : null], 4),
+      expectedAction: intel?.injuryInsurance
+        ? {
+          type: 'swap_starter',
+          playerIn: toRecommendationPlayerRef(intel.injuryInsurance),
+          playerOut: toRecommendationPlayerRef(vulnerable),
+          playersInvolved: [toRecommendationPlayerRef(intel.injuryInsurance), toRecommendationPlayerRef(vulnerable)].filter(Boolean) as RecommendationPlayerRef[],
+          expectedLineupChange: `${intel.injuryInsurance.name} should start over ${getPlayerName(vulnerable)} if the review clears.`,
+          source: 'autopilot',
+          reason: `${getPlayerName(vulnerable)} is the first starter spot to pressure-test before lock.`,
+        }
+        : {
+          type: 'bench_player',
+          playerOut: toRecommendationPlayerRef(vulnerable),
+          playersInvolved: [toRecommendationPlayerRef(vulnerable)].filter(Boolean) as RecommendationPlayerRef[],
+          expectedLineupChange: `${getPlayerName(vulnerable)} should move out of the starting lineup if a better option clears.`,
+          source: 'autopilot',
+          reason: `${getPlayerName(vulnerable)} is the first starter spot to pressure-test before lock.`,
+        },
       tone: 'warn',
     });
   }
@@ -1518,6 +1558,8 @@ function buildRecommendationQueueItem(
       ...recommendation.signals,
       recommendation.calibration ? 'Outcome-calibrated' : null,
     ], 4),
+    expectedAction: recommendation.expectedAction || null,
+    observedOutcome: recommendation.observedOutcome || null,
     score: confidence + decisionWeight[decision] + sourceWeight[source] - order + sharpnessScoreAdjustment,
   };
 }
@@ -1564,6 +1606,13 @@ function buildNoForcedMoveQueueItem({
       'Keep the current roster baseline until one action beats the do-nothing counterfactual.',
     ], 3),
     signals: dedupeStrings(['No forced action', direction.label, weeklyPlan?.summary], 4),
+    expectedAction: {
+      type: 'hold',
+      playersInvolved: [],
+      expectedRosterChange: 'No roster, waiver, trade, or lineup change should be forced from this read.',
+      source: 'autopilot',
+      reason: direction.summary,
+    },
     score: 30,
   };
 }
@@ -2175,7 +2224,9 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
     return {
       id: `waiver-${player.player_id || player.name}`,
       type: 'Waiver',
+      playerId: player.player_id || null,
       player: player.name,
+      secondaryPlayerId: dropCandidate?.player_id || null,
       secondary: [getFaabSuggestion(confidence, mode), dropCandidate ? `drop ${dropCandidate.name}` : null].filter(Boolean).join(' | '),
       action: evidenceRead.canAct ? (index === 0 ? 'Priority add' : 'Add if available') : 'Monitor only',
       confidence,
@@ -2196,6 +2247,17 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       ], 4),
       signals: dedupeStrings([evidenceRead.label, 'Available', rank, matchupGuard.signal, weeklyEcrTraceRead ? 'Stored schedule trace' : weeklyEcrRead ? 'Schedule edge' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null, ...receiptItems.slice(0, 1)], 4),
       evidenceRead,
+      expectedAction: {
+        type: dropCandidate ? 'drop_for_add' : ['K', 'DEF'].includes(getPlayerLineupPosition(player)) ? 'stream_player' : 'waiver_add',
+        playerIn: toRecommendationPlayerRef(player),
+        playerOut: toRecommendationPlayerRef(dropCandidate),
+        playersInvolved: [toRecommendationPlayerRef(player), toRecommendationPlayerRef(dropCandidate)].filter(Boolean) as RecommendationPlayerRef[],
+        expectedRosterChange: dropCandidate
+          ? `${player.name} should be added and ${dropCandidate.name} should leave the roster.`
+          : `${player.name} should be added to the roster.`,
+        source: 'autopilot',
+        reason: evidenceRead.whyThisFired,
+      },
       tone: index === 0 ? 'good' : 'info',
     };
   });

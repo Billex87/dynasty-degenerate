@@ -6,6 +6,7 @@ import {
   type AIPredictionResolvedTransaction,
   type AIPredictionResolvedValueMovement,
 } from './aiPredictionOutcomeResolver';
+import type { RecommendationStateSnapshot } from '../shared/recommendationOutcome';
 import * as db from './db';
 import * as userLoadPolicy from './loadTimeProviderPolicy';
 import {
@@ -22,6 +23,10 @@ type SleeperUser = {
 type SleeperRoster = {
   roster_id?: string | number | null;
   owner_id?: string | number | null;
+  players?: string[] | null;
+  starters?: string[] | null;
+  reserve?: string[] | null;
+  taxi?: string[] | null;
   metadata?: {
     team_name?: string | null;
   } | null;
@@ -54,6 +59,7 @@ type LeagueOutcomeFacts = AIPredictionOutcomeResolverContext & {
   transactionFactCount: number;
   playerStatFactCount: number;
   valueMovementFactCount: number;
+  rosterStateFactCount: number;
 };
 
 export type AIPredictionOutcomeJobLeagueResult = {
@@ -63,6 +69,7 @@ export type AIPredictionOutcomeJobLeagueResult = {
   transactionFactCount: number;
   playerStatFactCount: number;
   valueMovementFactCount: number;
+  rosterStateFactCount: number;
   resolved: number;
   pending: number;
   failed: number;
@@ -174,6 +181,28 @@ function buildRosterManagerLookup(users: SleeperUser[], rosters: SleeperRoster[]
   });
 
   return managerByRosterId;
+}
+
+function buildRosterStateFacts(
+  rosters: SleeperRoster[],
+  managerByRosterId: Map<string, string>
+): RecommendationStateSnapshot[] {
+  return rosters
+    .map((roster) => {
+      const rosterId = normalizeRosterId(roster.roster_id);
+      const manager = rosterId ? managerByRosterId.get(rosterId) || null : null;
+      if (!manager) return null;
+      const rosterPlayerIds = (roster.players || []).map(String).filter(Boolean);
+      const starterPlayerIds = (roster.starters || []).map(String).filter(Boolean);
+      const benchPlayerIds = rosterPlayerIds.filter(playerId => !starterPlayerIds.includes(playerId));
+      return {
+        manager,
+        rosterPlayerIds,
+        starterPlayerIds,
+        benchPlayerIds,
+      };
+    })
+    .filter((row): row is RecommendationStateSnapshot => Boolean(row));
 }
 
 function getCounterpartyLabel(
@@ -450,6 +479,7 @@ async function fetchLeagueOutcomeFacts(leagueId: string, events: AIPredictionEve
   ]);
 
   const managerByRosterId = buildRosterManagerLookup(users || [], rosters || []);
+  const rosterStates = buildRosterStateFacts(rosters || [], managerByRosterId);
   const transactions = buildTransactionFacts(transactionsByWeek, managerByRosterId, defaultWaiverBudget, season);
   const playerStats = buildPlayerStatFacts(matchupsByWeek, weeks);
 
@@ -458,10 +488,12 @@ async function fetchLeagueOutcomeFacts(leagueId: string, events: AIPredictionEve
     transactions,
     playerStats,
     valueMovements,
+    rosterStates,
     weeks,
     transactionFactCount: transactions.length,
     playerStatFactCount: playerStats.length,
     valueMovementFactCount: valueMovements.length,
+    rosterStateFactCount: rosterStates.length,
   };
 }
 
@@ -515,6 +547,7 @@ export async function resolvePendingAIPredictionOutcomes(options: {
       transactionFactCount: 0,
       playerStatFactCount: 0,
       valueMovementFactCount: 0,
+      rosterStateFactCount: 0,
       resolved: 0,
       pending: 0,
       failed: 0,
@@ -528,6 +561,7 @@ export async function resolvePendingAIPredictionOutcomes(options: {
       leagueResult.transactionFactCount = facts.transactionFactCount;
       leagueResult.playerStatFactCount = facts.playerStatFactCount;
       leagueResult.valueMovementFactCount = facts.valueMovementFactCount;
+      leagueResult.rosterStateFactCount = facts.rosterStateFactCount;
 
       for (const event of leagueEvents) {
         const outcome = resolveAIPredictionOutcome(event, facts);

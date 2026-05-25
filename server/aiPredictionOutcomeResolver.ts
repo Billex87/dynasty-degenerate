@@ -1,5 +1,11 @@
 import type { AIPredictionEvent, AIPredictionOutcome } from './aiPredictionCalibration';
 import { buildAIRealizedEdge, isAIPredictionExpired } from '../shared/aiDecisionSnapshots';
+import {
+  evaluateRecommendationOutcome,
+  type RecommendationExpectedAction,
+  type RecommendationObservedOutcome,
+  type RecommendationStateSnapshot,
+} from '../shared/recommendationOutcome';
 
 export type AIPredictionResolvedTransaction = {
   type: 'add' | 'drop' | 'trade';
@@ -44,6 +50,7 @@ export type AIPredictionOutcomeResolverContext = {
   transactions?: AIPredictionResolvedTransaction[];
   playerStats?: AIPredictionResolvedPlayerStat[];
   valueMovements?: AIPredictionResolvedValueMovement[];
+  rosterStates?: RecommendationStateSnapshot[];
 };
 
 function cleanText(value: unknown): string | null {
@@ -102,6 +109,85 @@ function outcome(
     baselineValue: values.baselineValue ?? null,
     realizedEdge: values.realizedEdge ?? null,
     feedbackSource: values.feedbackSource || 'system',
+  };
+}
+
+function isRecommendationExpectedAction(value: unknown): value is RecommendationExpectedAction {
+  return Boolean(value && typeof value === 'object' && typeof (value as { type?: unknown }).type === 'string');
+}
+
+function getExpectedAction(event: AIPredictionEvent): RecommendationExpectedAction | null {
+  const expectedAction = event.metadata?.expectedAction;
+  return isRecommendationExpectedAction(expectedAction) ? expectedAction : null;
+}
+
+function observedStatusToPredictionStatus(
+  observed: RecommendationObservedOutcome
+): AIPredictionOutcome['status'] {
+  if (observed.status === 'observed_completed') return 'hit';
+  if (observed.status === 'observed_partially_completed') return 'push';
+  if (observed.status === 'observed_ignored' || observed.status === 'observed_contradicted') return 'miss';
+  if (observed.status === 'expired') return 'push';
+  if (observed.status === 'unknown' || observed.status === 'pending') return 'pending';
+  return 'pending';
+}
+
+function observedStatusToRealizedEdgeStatus(
+  observed: RecommendationObservedOutcome
+): NonNullable<AIPredictionOutcome['realizedEdge']>['status'] {
+  if (observed.status === 'observed_completed') return 'action-only';
+  if (observed.status === 'observed_partially_completed') return 'matched-baseline';
+  if (observed.status === 'observed_ignored' || observed.status === 'observed_contradicted') return 'trailed-baseline';
+  if (observed.status === 'expired') return 'expired';
+  return 'action-only';
+}
+
+function resolveObservedRecommendationOutcome(
+  event: AIPredictionEvent,
+  context: AIPredictionOutcomeResolverContext
+): AIPredictionOutcome | null {
+  const expectedAction = getExpectedAction(event);
+  if (!expectedAction) return null;
+  if (expectedAction.type === 'hold' || expectedAction.type === 'trade' || expectedAction.type === 'unknown') return null;
+
+  const currentRosterState = (context.rosterStates || [])
+    .find(row => sameManager(event, row.manager));
+  const scopedTransactions = (context.transactions || [])
+    .filter(transaction => sameManager(event, transaction.manager));
+  const observed = evaluateRecommendationOutcome({
+    expectedAction,
+    currentRosterState,
+    currentLineupState: currentRosterState,
+    transactionHistory: scopedTransactions,
+    now: context.resolvedAt,
+    expiresAt: event.expiresAt || event.decay?.expiresAt || expectedAction.deadline || null,
+  });
+  if (observed.status === 'pending' || observed.status === 'unknown') return null;
+  const status = observedStatusToPredictionStatus(observed);
+
+  const actualValue =
+    observed.status === 'observed_completed'
+      ? 1
+      : observed.status === 'observed_partially_completed'
+        ? 0.5
+        : 0;
+  const baselineValue = status === 'push' ? 0.5 : 1;
+  const resolved = outcome(status, context, observed.evidence.reason, {
+    actualValue,
+    baselineValue,
+    realizedEdge: buildAIRealizedEdge({
+      predictedEdge: event.counterfactual?.edge ?? null,
+      actualValue,
+      baselineValue,
+      baselineKind: baselineKind(event),
+      source: `recommendation-observer:${observed.evidence.detectedFrom}`,
+      note: observed.evidence.reason,
+      status: observedStatusToRealizedEdgeStatus(observed),
+    }),
+  });
+  return {
+    ...resolved,
+    observedOutcome: observed,
   };
 }
 
@@ -595,6 +681,9 @@ export function resolveAIPredictionOutcome(
   if (event.decision === 'blocked') {
     return outcome('blocked', context, 'Prediction was blocked at render time.');
   }
+
+  const observedRecommendationOutcome = resolveObservedRecommendationOutcome(event, context);
+  if (observedRecommendationOutcome) return observedRecommendationOutcome;
 
   const resolved =
     event.action === 'pickup' || event.action === 'stash'

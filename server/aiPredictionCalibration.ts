@@ -14,6 +14,7 @@ import type {
   AIRealizedEdge,
   AIPredictionDecayProfile,
 } from '../shared/aiDecisionSnapshots';
+import type { RecommendationObservedOutcome } from '../shared/recommendationOutcome';
 
 export type AIPredictionDecision = 'do' | 'dont' | 'watch' | 'hold' | 'blocked';
 export type AIPredictionOutcomeStatus = 'hit' | 'miss' | 'push' | 'pending' | 'blocked';
@@ -49,6 +50,7 @@ export type AIPredictionOutcome = {
   realizedEdge?: AIRealizedEdge | null;
   feedbackSource?: 'system' | 'user' | 'admin' | null;
   note?: string | null;
+  observedOutcome?: RecommendationObservedOutcome | null;
 };
 
 export type AIPredictionEvent = {
@@ -1180,6 +1182,8 @@ function getOutcomeModule(event: AIPredictionEvent): string {
 
 function buildOutcomeLedgerRow(event: AIPredictionEvent): AIOutcomeLedgerRow {
   const sharpness = getLeagueSharpnessBucket(event);
+  const observedReason = cleanText(event.outcome.observedOutcome?.evidence.reason);
+  const observedStatus = cleanText(event.outcome.observedOutcome?.status);
   return {
     eventId: event.eventId,
     predictionKey: event.predictionKey,
@@ -1208,7 +1212,10 @@ function buildOutcomeLedgerRow(event: AIPredictionEvent): AIOutcomeLedgerRow {
     sharpnessScore: sharpness.score,
     sharpnessTier: sharpness.tier,
     verdict: getOutcomeVerdict(event.outcome.status),
-    evidencePreview: event.evidence.slice(0, 3),
+    evidencePreview: [
+      observedReason ? `Observed outcome${observedStatus ? ` ${observedStatus}` : ''}: ${observedReason}` : null,
+      ...event.evidence,
+    ].filter((value): value is string => Boolean(value)).slice(0, 3),
     missingEvidence: event.missingEvidence.slice(0, 3),
     blockers: event.hardBlockers.slice(0, 3),
     why: event.whyThisFired,

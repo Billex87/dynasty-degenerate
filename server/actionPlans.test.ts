@@ -73,7 +73,7 @@ describe("actionPlans router", () => {
     expect(result.plan.replacementPlayerId).toBe("bench");
   });
 
-  it("accepts tracked trade recommendation outcomes when the database is unavailable", async () => {
+  it("accepts observed trade recommendation outcomes when the database is unavailable", async () => {
     delete process.env.DATABASE_URL;
     const caller = appRouter.createCaller(createContext());
 
