@@ -286,6 +286,52 @@ async function openPlayerModal(page: import('@playwright/test').Page, playerName
   return dialog;
 }
 
+function addRankingModalPlayer(
+  cachedReport: ReturnType<typeof createCachedRedraftReport>,
+  player: {
+    id: string;
+    name: string;
+    position: string;
+    team: string | null;
+    rank: string;
+  },
+) {
+  const row = {
+    id: player.id,
+    player_id: player.id,
+    name: player.name,
+    pos: player.position,
+    team: player.team,
+    age: null,
+    overallRank: 99,
+    positionRank: player.rank,
+    value: 1200,
+    seasonValue: 1200,
+    fantasyProsValue: 1180,
+    movement: 0,
+    owner: null,
+    sources: ['Current-season model'],
+    sourceCount: 1,
+  };
+
+  (cachedReport.reportData.rankings.profiles['redraft-ppr'] as any[]).push(row);
+  (cachedReport.reportData.playerDetailsById as Record<string, any>)[player.id] = {
+    playerId: player.id,
+    fullName: player.name,
+    position: player.position,
+    team: player.team,
+    age: null,
+    valueProfile: {
+      dynastyValue: null,
+      seasonValue: 1200,
+      fantasyProsSeasonValue: 1180,
+      seasonPositionRank: player.rank,
+      sources: ['Current-season model'],
+    },
+  };
+  (cachedReport.reportData.currentPositionRankById as Record<string, string>)[player.id] = player.rank;
+}
+
 test.describe('player detail modal', () => {
   test('keeps the hero centered, shows admin source data, and preserves availability history', async ({ page }) => {
     const cachedReport = createModalFixture();
@@ -419,5 +465,39 @@ test.describe('player detail modal', () => {
     await expect(dialog.getByText('Prospect Summary', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Player News', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Availability History', { exact: true })).toBeVisible();
+  });
+
+  test('uses NFL shield for free agents and team logos for defenses', async ({ page }) => {
+    const cachedReport = createModalFixture('player-modal-team-icons');
+    addRankingModalPlayer(cachedReport, {
+      id: 'free-agent-1',
+      name: 'Keenan Allen',
+      position: 'WR',
+      team: null,
+      rank: 'WR42',
+    });
+    addRankingModalPlayer(cachedReport, {
+      id: 'defense-1',
+      name: 'Bears D/ST',
+      position: 'DEF',
+      team: 'CHI',
+      rank: 'DEF6',
+    });
+
+    await loadModalReport(page, cachedReport, 'regular');
+    await openRankings(page);
+
+    const freeAgentDialog = await openPlayerModal(page, 'Keenan Allen');
+    const freeAgentTeamMark = freeAgentDialog.locator('.player-modal-team-logo-pill');
+    await expect(freeAgentTeamMark.locator('.team-logo-pill-league-mark')).toBeVisible();
+    await expect(freeAgentTeamMark).not.toContainText('FA');
+
+    await page.keyboard.press('Escape');
+    await expect(freeAgentDialog).toHaveCount(0);
+
+    const defenseDialog = await openPlayerModal(page, 'Bears D/ST');
+    const defenseHeroImage = defenseDialog.locator('img[alt="Bears D/ST"]').first();
+    await expect(defenseHeroImage).toHaveAttribute('src', /\/assets\/draftbuzz-cache\/nfl-logos\/chi\.png$/);
+    await expect(defenseHeroImage).toHaveCSS('object-fit', 'contain');
   });
 });

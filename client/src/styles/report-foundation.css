@@ -12392,6 +12392,19 @@
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.42));
   }
 
+  .team-logo-pill-league {
+    color: #38bdf8;
+  }
+
+  .team-logo-pill-league-mark {
+    display: block;
+    height: 1.62rem;
+    width: 1.62rem;
+    filter:
+      drop-shadow(0 2px 4px rgba(0, 0, 0, 0.42))
+      drop-shadow(0 0 0.5rem rgba(56, 189, 248, 0.24));
+  }
+
   .team-logo-pill-fallback {
     width: auto !important;
     min-width: 1.62rem !important;

@@ -20,7 +20,14 @@ import { ExternalLink, TrendingUp, TrendingDown, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getPlayerAvailability } from '@/lib/playerStatus';
-import { getCachedDraftBuzzImageUrl, getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle } from '@/lib/teamTileStyle';
+import {
+  getCachedDraftBuzzImageUrl,
+  getCollegeInitials,
+  getCollegeLogoUrl,
+  getCollegeTileStyle,
+  getNflTeamLogoUrl,
+  normalizeNflTeamAbbr,
+} from '@/lib/teamTileStyle';
 import { normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
 import { getDraftKind, getDraftKindLabel, getDraftWindowLabel } from '@/lib/draftDisplay';
 import { getPlayerValueConfidence } from '@/lib/playerValueConfidence';
@@ -181,6 +188,11 @@ function isCollegeOnlyModalPick(pick?: PlayerModalData | null, details?: PlayerD
   return pick?.isCollegeProspect ?? (!hasResolvedNflIdentity(pick, details) && Boolean(details?.prospectProfile));
 }
 
+function isDefensePosition(position?: string | null) {
+  const normalized = String(position || '').trim().toUpperCase();
+  return normalized === 'DEF' || normalized === 'DST' || normalized === 'D/ST' || normalized === 'DEFENSE';
+}
+
 function hasDraftPickContext(pick?: PlayerModalData | null) {
   if (!pick) return false;
 
@@ -241,6 +253,7 @@ export function PlayerDetailModal({
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [directImageFailed, setDirectImageFailed] = useState(false);
   const [fallbackImageFailed, setFallbackImageFailed] = useState(false);
+  const [teamLogoFailed, setTeamLogoFailed] = useState(false);
   const reportPlayerDetails = pick?.player_id ? playerDetailsById?.[pick.player_id] : undefined;
   const queryDetails = reportPlayerDetails
     ? {
@@ -252,13 +265,16 @@ export function PlayerDetailModal({
       }
     : pick?.playerDetails || undefined;
   const queryIsCollegeProspect = isCollegeOnlyModalPick(pick, queryDetails);
+  const modalPosition = pick?.playerPos || queryDetails?.position || null;
+  const isDefenseModalPick = isDefensePosition(modalPosition);
+  const normalizedTeamForImage = normalizeNflTeamAbbr(queryDetails?.team || null);
   const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
     {
       playerId: pick?.player_id || '',
       playerName: pick?.playerName || null,
       position: pick?.playerPos || queryDetails?.position || null,
     },
-    { enabled: !!pick?.player_id && isOpen && directImageFailed }
+    { enabled: !!pick?.player_id && isOpen && !isDefenseModalPick && directImageFailed }
   );
   const { data: playerNewsData } = trpc.players.latestNews.useQuery(
     {
@@ -327,7 +343,8 @@ export function PlayerDetailModal({
     setHeadshot(null);
     setDirectImageFailed(false);
     setFallbackImageFailed(false);
-  }, [pick?.player_id, pick?.playerImageUrl, pick?.preferProspectImage]);
+    setTeamLogoFailed(false);
+  }, [pick?.player_id, pick?.playerImageUrl, pick?.preferProspectImage, normalizedTeamForImage, modalPosition]);
 
   useEffect(() => {
     setFocusedPeerPick(null);
@@ -363,7 +380,10 @@ export function PlayerDetailModal({
     ? getCachedDraftBuzzImageUrl(pick.playerImageUrl || prospectProfile?.playerImageUrl || null)
     : null;
   const prospectImageSrc = fallbackDraftBuzzImage || getCachedDraftBuzzImageUrl(prospectProfile?.collegeLogoUrl || null);
-  const nflImageSrc = headshot || directHeadshot || fallbackDraftBuzzImage;
+  const defenseLogoSrc = isDefenseModalPick && normalizedTeamForImage && !teamLogoFailed
+    ? getNflTeamLogoUrl(normalizedTeamForImage)
+    : null;
+  const nflImageSrc = defenseLogoSrc || headshot || (!isDefenseModalPick ? directHeadshot : null) || fallbackDraftBuzzImage;
   const playerImageSrc = isCollegeProspect ? prospectImageSrc : preferProspectImage ? prospectImageSrc || nflImageSrc : nflImageSrc;
   const valueProfile = details?.valueProfile;
   const valueMode = queryValueMode;
@@ -678,8 +698,12 @@ export function PlayerDetailModal({
                     <img
                       src={playerImageSrc}
                       alt={pick.playerName}
-                      className="h-full w-full object-cover"
+                      className={`h-full w-full ${playerImageSrc === defenseLogoSrc ? 'object-contain p-3' : 'object-cover'}`}
                       onError={() => {
+                        if (playerImageSrc === defenseLogoSrc) {
+                          setTeamLogoFailed(true);
+                          return;
+                        }
                         if (playerImageSrc === directHeadshot && !directImageFailed) {
                           setDirectImageFailed(true);
                           return;
