@@ -6986,6 +6986,11 @@ body {
   line-height: 1.45;
 }
 
+.report-overview-hero p.report-overview-hero-subline {
+  color: rgba(255, 247, 237, 0.95);
+  font-weight: 900;
+}
+
 .report-overview-pills {
   display: flex;
   max-width: min(100%, 24.6rem);

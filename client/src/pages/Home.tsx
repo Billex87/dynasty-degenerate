@@ -3505,6 +3505,56 @@ type ReportDashboardTab =
   | "autopilot"
   | string;
 
+type ReportDashboardHeroCopy = {
+  headline: string;
+  subline: string;
+  body: string;
+};
+
+const TAB_HERO_COPY = {
+  overview: {
+    headline: "LEAGUE AUDIT.\nNO MERCY.",
+    subline: "Your league thinks it has balance. It does not.",
+    body: "We use AI to expose contenders, frauds, rebuilders, and roster rot before the rest of your league realizes their teams are on the table.",
+  },
+  momentum: {
+    headline: "CATCH THE TILT.\nCASH THE CHAOS.",
+    subline: "Bad Sundays create great theft.",
+    body: "We track who’s rising, who’s crashing, and who’s one injury report away from accepting a trade they’ll hate by Tuesday.",
+  },
+  rankings: {
+    headline: "POWER RANKINGS.\nWITH TEETH.",
+    subline: "Everyone gets a number. Some deserve an apology.",
+    body: "We rank every team by real dynasty value, not group chat confidence, so you can see who’s loaded, who’s fake, and who should stop talking.",
+  },
+  trades: {
+    headline: "FIND THE MARK.\nSEND THE FLEECE.",
+    subline: "Some managers call it negotiation. We call it inventory removal.",
+    body: "We use AI to spot weak rosters, desperate needs, bad depth, and trade windows before your league mates realize their bench became your shopping cart.",
+  },
+  draft: {
+    headline: "DRAFT CAPITAL.\nCOURTROOM.",
+    subline: "Picks don’t lie. Managers do.",
+    body: "We expose wasted picks, rookie value, future leverage, and the managers who turned draft capital into a public safety warning.",
+  },
+} satisfies Record<
+  "overview" | "momentum" | "rankings" | "trades" | "draft",
+  ReportDashboardHeroCopy
+>;
+
+function getReportDashboardHeroCopy(
+  activeTab?: string | null
+): ReportDashboardHeroCopy {
+  const normalizedTab = normalizeReportTab(activeTab);
+  if (
+    normalizedTab &&
+    Object.prototype.hasOwnProperty.call(TAB_HERO_COPY, normalizedTab)
+  ) {
+    return TAB_HERO_COPY[normalizedTab as keyof typeof TAB_HERO_COPY];
+  }
+  return TAB_HERO_COPY.overview;
+}
+
 type DashboardMetricTone = "neutral" | "info" | "good" | "warn" | "danger";
 type DashboardVisualMetricKind = "standard" | "ring" | "meter";
 
@@ -4207,6 +4257,7 @@ function ReportOverviewHero({
   reportData: ReportData;
   leagueBalanceScore: number | null;
 }) {
+  const heroCopy = getReportDashboardHeroCopy(activeTab);
   const heroConfig = getReportDashboardHeroConfig({
     activeTab,
     leagueValueMode,
@@ -4218,14 +4269,12 @@ function ReportOverviewHero({
     <section className="report-overview-hero">
       <div className="report-overview-hero-copy">
         <h1>
-          <span>Win Now. Win Later.</span>
-          <span>Build Your Dynasty.</span>
+          {heroCopy.headline.split("\n").map(line => (
+            <span key={line}>{line}</span>
+          ))}
         </h1>
-        <p>
-          Stop guessing. Start dominating. Dynasty Degenerates spots trade
-          windows, weekly lineup leverage, and manager tells before your league
-          catches up.
-        </p>
+        <p className="report-overview-hero-subline">{heroCopy.subline}</p>
+        <p>{heroCopy.body}</p>
         <div className="report-overview-pills" aria-label={heroConfig.pillLabel}>
           {heroConfig.pills.map(pill => (
             <span key={pill}>{pill}</span>
