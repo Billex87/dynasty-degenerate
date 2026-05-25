@@ -3,6 +3,7 @@ import { loadFlockFantasyValueProfiles, type FlockFantasyValue } from './flockFa
 import { getDynastyNerdsFormat, loadDynastyNerdsValueProfiles, type DynastyNerdsValue } from './dynastyNerds';
 import { formatDynastySourceWeights, getDynastySourceWeightEntries, getDynastySourceWeights } from './dynastySourceWeights';
 import { loadFantasyProsDevyRankings, type FantasyProsDevyRanking } from './fantasyProsDevy';
+import { loadFantasyProsRookieRankings, type FantasyProsRookieRanking } from './fantasyProsRookies';
 import {
   applyDynastySourceTrust,
   buildDynastySourceDiagnostics,
@@ -902,6 +903,7 @@ function buildRowsForProfile({
   diagnostics,
   prospectLookup,
   fantasyProsDevyRows,
+  fantasyProsRookieRows,
   redraftRows,
   dynastySourceWeights,
   prospectSourceWeights,
@@ -924,6 +926,7 @@ function buildRowsForProfile({
   diagnostics: Map<string, RankingIdentityDiagnostic>;
   prospectLookup?: Map<string, ProspectProfile>;
   fantasyProsDevyRows?: Record<string, FantasyProsDevyRanking>;
+  fantasyProsRookieRows?: Record<string, FantasyProsRookieRanking>;
   leagueTeamCount?: number;
   nflversePlayerContext?: NflversePlayerContext;
 }): RankingPlayer[] {
@@ -933,6 +936,7 @@ function buildRowsForProfile({
   const canonicalKtcValues = canonicalizeRankingMap(ktcValues || {});
   const canonicalBaselineValues = canonicalizeRankingMap(baselineKtcValues || {});
   const canonicalFantasyProsDevyRows = option.board === 'devy' ? canonicalizeRankingMap(fantasyProsDevyRows || {}) : {};
+  const canonicalFantasyProsRookieRows = option.board === 'dynasty' ? canonicalizeRankingMap(fantasyProsRookieRows || {}) : {};
   const canonicalRedraftRows = option.board === 'redraft' ? canonicalizeRankingMap(redraftRows || {}) : {};
   const canonicalProspectRows = option.board === 'devy' ? getProspectRowsFromLookup(prospectLookup) : {};
   const keys = new Set([
@@ -951,6 +955,7 @@ function buildRowsForProfile({
     const flock = canonicalFlockRows?.[key];
     const dynastyNerds = canonicalDynastyNerdsRows?.[key];
     const fantasyProsDevy = canonicalFantasyProsDevyRows?.[key];
+    const fantasyProsRookie = canonicalFantasyProsRookieRows?.[key];
     const redraft = canonicalRedraftRows?.[key];
     const prospectRow = canonicalProspectRows?.[key];
     const blended = canonicalKtcValues[key];
@@ -1112,6 +1117,8 @@ function buildRowsForProfile({
       fantasyProsDevyWorstRank: option.board === 'devy' ? fantasyProsDevy?.worstRank || prospectProfile?.fantasyProsDevyWorstRank || null : null,
       fantasyProsDevyAverageRank: option.board === 'devy' ? fantasyProsDevy?.averageRank || prospectProfile?.fantasyProsDevyAverageRank || null : null,
       fantasyProsDevyStdDev: option.board === 'devy' ? fantasyProsDevy?.stdDev || prospectProfile?.fantasyProsDevyStdDev || null : null,
+      fantasyProsRookieRank: option.board === 'dynasty' && fantasyProsRookie ? fantasyProsRookie.rank : null,
+      fantasyProsRookiePositionRank: option.board === 'dynasty' && fantasyProsRookie ? fantasyProsRookie.positionRank : null,
       seasonValue: option.board === 'redraft' ? value : blended?.redraft_value || null,
       tier: ktc?.tier || flock?.tier || null,
       movement,
@@ -1226,11 +1233,12 @@ export async function buildRankingsBoard({
   sourceMode?: 'live' | 'snapshot';
 }): Promise<RankingsBoard> {
   const snapshotOnly = sourceMode === 'snapshot';
-  const [ktcDevyProfiles, flockProfiles, dynastyNerdsProfiles, fantasyProsDevyRows, redraftResult] = await Promise.all([
+  const [ktcDevyProfiles, flockProfiles, dynastyNerdsProfiles, fantasyProsDevyRows, fantasyProsRookieRows, redraftResult] = await Promise.all([
     snapshotOnly ? Promise.resolve({} as Awaited<ReturnType<typeof getCurrentKTCDevyRankingProfiles>>) : getCurrentKTCDevyRankingProfiles(false),
     snapshotOnly ? Promise.resolve({} as Awaited<ReturnType<typeof loadFlockFantasyValueProfiles>>) : loadFlockFantasyValueProfiles(),
     snapshotOnly ? Promise.resolve({} as Awaited<ReturnType<typeof loadDynastyNerdsValueProfiles>>) : loadDynastyNerdsValueProfiles(),
     snapshotOnly ? Promise.resolve({} as Awaited<ReturnType<typeof loadFantasyProsDevyRankings>>) : loadFantasyProsDevyRankings(),
+    snapshotOnly ? Promise.resolve({} as Awaited<ReturnType<typeof loadFantasyProsRookieRankings>>) : loadFantasyProsRookieRankings(),
     loadRedraftRankingProfiles({ ktcValues, sourceMode }),
   ]);
   const redraftProfiles = redraftResult.profiles;
@@ -1335,6 +1343,7 @@ export async function buildRankingsBoard({
       diagnostics: identityDiagnostics,
       prospectLookup,
       fantasyProsDevyRows: option.board === 'devy' ? fantasyProsDevyRows : undefined,
+      fantasyProsRookieRows: option.board === 'dynasty' ? fantasyProsRookieRows : undefined,
       leagueTeamCount,
       nflversePlayerContext,
     });

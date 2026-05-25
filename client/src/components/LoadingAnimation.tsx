@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Sparkles, Zap } from 'lucide-react';
+import { Check, CheckCircle2, Sparkles, Zap } from 'lucide-react';
 import type { LoaderManagerAnchor } from './LoaderKitBackdrop';
 
 const STEP_DATA_RANGES: Record<string, [number, number]> = {
@@ -160,23 +160,27 @@ export function LoadingAnimation({
       <div className="loading-tron-backdrop analysis-loading-tron analysis-loading-loader-kit" aria-hidden="true" />
 
 
-      {!isLoadingResolved && (
-        <div className="loading-modal-header">
-          <span className="loading-modal-bolt" aria-hidden="true">
-            {leagueLogo ? (
-              <img src={leagueLogo} alt="" className="loading-modal-league-icon" />
-            ) : (
-              <Zap />
-            )}
-          </span>
-          <div className="loading-modal-league-copy">
-            <p className="loading-league-name loading-gradient-text">
-              {leagueName || 'Your League'}
-            </p>
-            {leagueFormat ? <p className="loading-subtitle">{leagueFormat}</p> : null}
+      <div className="loading-modal-header">
+        {isLoadingResolved && (
+          <div className="loading-modal-success-stamp">
+            <CheckCircle2 aria-hidden="true" />
+            <span>Report Generated</span>
           </div>
+        )}
+        <div className={`loading-modal-bolt${isLoadingResolved ? ' loading-modal-bolt--success' : ''}`}>
+          {leagueLogo ? (
+            <img src={leagueLogo} alt="" className="loading-modal-league-icon" />
+          ) : (
+            <Zap className="loading-modal-bolt-svg" />
+          )}
         </div>
-      )}
+        <div className="loading-modal-league-copy">
+          <p className="loading-league-name loading-gradient-text">
+            {leagueName || 'Your League'}
+          </p>
+          {leagueFormat ? <p className="loading-subtitle">{leagueFormat}</p> : null}
+        </div>
+      </div>
 
       {!isLoadingResolved && activeStep ? (
         <div

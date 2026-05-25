@@ -10656,12 +10656,6 @@ body {
   display: inline-block;
   color: #67e8f9;
   font-style: italic;
-  text-shadow:
-    0 1px 1px rgba(0, 0, 0, 1),
-    0 3px 8px rgba(0, 0, 0, 0.96),
-    0 0 12px rgba(103, 232, 249, 0.8),
-    0 0 24px rgba(0, 200, 232, 0.72),
-    0 0 34px rgba(249, 115, 22, 0.34);
 }
 
 .home-hero-dashboard .home-subtitle-detail {

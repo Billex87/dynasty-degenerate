@@ -1,377 +1,116 @@
-/* Sci-fi / AI tech-panel restyle of the Report Generated success card.
-   Only restyles the existing markup — does not change copy or icons.
-   Pairs with .loading-success-card markup in Home.tsx. */
+/* Success state overlays for the unified loading/success modal. */
 
-/* Dialog becomes invisible in success state — the overlay already dims the page.
-   The card is the only visual element; this eliminates the "box inside a box" look. */
-.analysis-loading-dialog-success,
-[data-slot="dialog-content"].analysis-loading-dialog-success {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  overflow: visible !important;
-}
-
-/* Success overlay: much darker than the loading overlay so the home page content
-   behind it doesn't bleed through and create a false "second panel" on mobile. */
+/* Success overlay: full blackout so home page content doesn't bleed through. */
 .analysis-loading-overlay-success {
   background:
     radial-gradient(circle at 20% 12%, rgba(0, 212, 219, 0.06), transparent 34%),
     radial-gradient(circle at 80% 88%, rgba(255, 106, 0, 0.06), transparent 34%),
-    rgba(2, 4, 14, 0.88) !important;
+    rgba(2, 4, 14, 0.97) !important;
 }
 
-.loading-success-card {
-  width: min(calc(100vw - 2rem), 42.5rem) !important;
-  min-height: min(33rem, calc(100dvh - 4rem)) !important;
-  padding: clamp(1.45rem, 3vw, 2.35rem) clamp(1.2rem, 3vw, 2rem) clamp(3rem, 5vw, 4rem) !important;
-  border: 1px solid rgba(125, 247, 255, 0.22) !important;
-  border-radius: 14px !important;
-  /* Rich dark background — the card IS the panel, not a card inside a panel */
-  background:
-    radial-gradient(circle at 20% 10%, rgba(0, 212, 219, 0.18), transparent 38%),
-    radial-gradient(circle at 82% 88%, rgba(255, 106, 0, 0.15), transparent 40%),
-    linear-gradient(145deg, rgba(6, 18, 28, 0.97), rgba(2, 6, 23, 0.99)) !important;
+/* Logo glow when success */
+.loading-modal-bolt--success {
   box-shadow:
-    0 40px 90px rgba(0, 0, 0, 0.72),
-    0 0 0 1px rgba(125, 247, 255, 0.1) inset,
-    0 0 64px rgba(0, 212, 219, 0.2),
-    0 0 46px rgba(255, 106, 0, 0.12) !important;
-  isolation: isolate;
-  overflow: visible;
-}
-
-/* Give the modal body enough height so the centered card never clips */
-.analysis-loading-modal-body:has(.loading-success-card) {
-  min-height: min(35rem, calc(100dvh - 2rem)) !important;
-}
-
-/* Kill the loading panel behind the success card — it's a separate dark layer that
-   creates the "two panels" look. The card itself has the dark background now. */
-.analysis-loading-modal-body:has(.loading-success-card) .loading-panel,
-.analysis-loading-modal-body:has(.loading-success-card) .analysis-loading-panel {
-  display: none !important;
-}
-
-/* Hide the legacy stamp FX layer when 3D is active */
-.loading-success-card .premium-fx-layer-loading-stamp { display: none !important; }
-
-/* Snap-in entrance for the container; 3D scene handles its own intro */
-.loading-success-card {
-  animation: loading-success-pane-stamp-wow 0.6s cubic-bezier(0.18, 0.88, 0.18, 1) both;
-}
-.loading-success-card.loading-success-card-reveal,
-.loading-success-card.loading-success-card-kick {
-  animation: none;
-}
-
-/* Corner brackets are now provided by the 3D card's chamfered geometry.
-   Legacy DOM decorations are hidden so the 3D backdrop reads clean. */
-.loading-success-card::before { display: none; }
-.loading-success-scanline { display: none !important; }
-.loading-success-impact-core { display: none !important; }
-
-/* Flatten the 3D stack — no 3D canvas behind this card anymore, depth transforms
-   cause elements to bleed outside the card border. */
-.loading-success-copy {
-  min-height: min(26rem, calc(100dvh - 8rem)) !important;
-  gap: clamp(1rem, 2.3vw, 1.5rem) !important;
-  transform: none !important;
-  backface-visibility: visible !important;
-}
-
-.loading-success-card .loading-success-kicker {
-  min-height: clamp(2.4rem, 5vw, 3.4rem) !important;
-  border-radius: 0.62rem !important;
-  padding: clamp(0.42rem, 1.2vw, 0.66rem) clamp(1rem, 2vw, 1.45rem) !important;
-  font-size: clamp(1.18rem, 2.2vw, 2.05rem) !important;
-  position: relative !important;
-  z-index: 10 !important;
-  transform: none !important;
-}
-
-.loading-success-card .loading-success-kicker svg {
-  height: clamp(1.15rem, 2vw, 1.75rem) !important;
-  width: clamp(1.15rem, 2vw, 1.75rem) !important;
-}
-
-.loading-success-card .loading-success-icon {
-  height: clamp(7rem, 15vw, 10.2rem) !important;
-  width: clamp(7rem, 15vw, 10.2rem) !important;
-  margin-top: -2rem !important;
-  position: relative !important;
-  z-index: 1 !important;
-  transform: none !important;
-  backface-visibility: visible !important;
-}
-
-.loading-success-card h2,
-.loading-success-title {
-  font-size: clamp(1.5rem, 3vw, 2.45rem) !important;
-}
-
-.loading-success-title-long {
-  font-size: clamp(1.18rem, 2.4vw, 1.95rem) !important;
-}
-
-.loading-success-title-compact {
-  font-size: clamp(0.95rem, 2vw, 1.45rem) !important;
-}
-
-.loading-success-format {
-  font-size: clamp(0.95rem, 1.6vw, 1.2rem) !important;
-}
-
-.loading-success-bar {
-  width: min(20rem, 74%) !important;
-  height: 0.36rem !important;
-}
-
-.success-card-3d-fallback {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  border-radius: inherit;
-  background:
-    radial-gradient(circle at 20% 10%, rgba(0, 212, 219, 0.2), transparent 35%),
-    radial-gradient(circle at 82% 90%, rgba(255, 106, 0, 0.18), transparent 38%),
-    linear-gradient(145deg, rgba(8, 22, 30, 0.92), rgba(2, 6, 23, 0.96));
-  box-shadow:
-    inset 0 0 0 1px rgba(125, 247, 255, 0.28),
-    inset 0 0 2.4rem rgba(0, 212, 219, 0.12),
-    0 0 3rem rgba(0, 212, 219, 0.16);
-  opacity: 1;
-  transition: opacity 260ms ease;
-}
-
-.success-card-3d-fallback-exit {
-  opacity: 0;
-}
-
-.success-card-3d-fallback-panel,
-.success-card-3d-fallback-rail,
-.success-card-3d-fallback-ring,
-.success-card-3d-fallback-medallion,
-.success-card-3d-fallback-football,
-.success-card-3d-fallback-scan {
-  position: absolute;
-  display: block;
-  pointer-events: none;
-}
-
-.success-card-3d-fallback-panel {
-  inset: 0.62rem;
-  border: 1px solid rgba(125, 247, 255, 0.2);
-  border-radius: 0.85rem;
-  background:
-    linear-gradient(rgba(125, 247, 255, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 180, 106, 0.045) 1px, transparent 1px);
-  background-size: 1rem 1rem;
-  opacity: 0.62;
-}
-
-.success-card-3d-fallback-rail {
-  left: 1.25rem;
-  right: 1.25rem;
-  height: 0.18rem;
-  border-radius: 999px;
-  filter: drop-shadow(0 0 0.8rem currentColor);
-}
-
-.success-card-3d-fallback-rail-top {
-  top: 0.95rem;
-  color: rgba(125, 247, 255, 0.82);
-  background: linear-gradient(90deg, transparent, rgba(125, 247, 255, 0.86), transparent);
-}
-
-.success-card-3d-fallback-rail-bottom {
-  bottom: 0.95rem;
-  color: rgba(255, 180, 106, 0.76);
-  background: linear-gradient(90deg, transparent, rgba(255, 180, 106, 0.84), transparent);
-}
-
-.success-card-3d-fallback-ring {
-  left: 50%;
-  top: 50%;
-  width: min(16rem, 78%);
-  aspect-ratio: 2.25;
-  border: 1px solid rgba(125, 247, 255, 0.34);
-  border-radius: 999px;
-  box-shadow:
-    0 0 1.4rem rgba(0, 212, 219, 0.2),
-    inset 0 0 1rem rgba(255, 180, 106, 0.12);
-  transform: translate(-50%, -50%) rotateX(62deg);
-}
-
-.success-card-3d-fallback-ring-b {
-  width: min(19rem, 90%);
-  border-color: rgba(255, 180, 106, 0.28);
-  transform: translate(-50%, -50%) rotateX(62deg) scale(1.06);
-}
-
-.success-card-3d-fallback-medallion {
-  left: 50%;
-  top: 50%;
-  width: min(6.25rem, 30%);
-  aspect-ratio: 1;
-  border: 1px solid rgba(125, 247, 255, 0.5);
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.22), transparent 16%),
-    radial-gradient(circle, rgba(0, 212, 219, 0.24), rgba(255, 180, 106, 0.12) 52%, rgba(2, 6, 23, 0.78) 72%);
-  box-shadow:
-    inset 0 0 1.4rem rgba(0, 212, 219, 0.22),
-    0 0 2rem rgba(0, 212, 219, 0.18);
-  transform: translate(-50%, -50%);
-}
-
-.success-card-3d-fallback-football {
-  left: 12%;
-  top: 70%;
-  width: 2.45rem;
-  height: 1.22rem;
-  border-radius: 999px / 68%;
-  background:
-    linear-gradient(90deg, transparent 44%, rgba(255, 245, 223, 0.9) 44% 49%, transparent 49%),
-    radial-gradient(ellipse at 36% 34%, rgba(255, 232, 199, 0.5), transparent 24%),
-    linear-gradient(135deg, #a94814, #f97316 48%, #7c2d12);
-  box-shadow:
-    0 0 1rem rgba(249, 115, 22, 0.44),
-    0 0 1.3rem rgba(0, 212, 219, 0.22);
-  transform: rotate(-22deg);
-}
-
-.success-card-3d-fallback-scan {
-  left: 0.9rem;
-  right: 0.9rem;
-  top: 50%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(125, 247, 255, 0.78), rgba(255, 180, 106, 0.66), transparent);
-  box-shadow:
-    0 0 1rem rgba(0, 212, 219, 0.35),
-    0 0 1.4rem rgba(255, 106, 0, 0.16);
-  opacity: 0.7;
-}
-
-/* DD logo emission — pulses with the 3D scene's breathing rhythm so
-   the logo reads like a backlit emblem on the panel. */
-.loading-success-card .loading-success-icon,
-.loading-success-card .loading-success-logo-image {
-  filter:
-    drop-shadow(0 0 14px rgba(0, 212, 219, 0.55))
-    drop-shadow(0 0 28px rgba(255, 106, 0, 0.32))
-    drop-shadow(0 0 6px rgba(255, 192, 61, 0.4));
+    0 0 0 1px rgba(125, 247, 255, 0.28),
+    0 0 28px rgba(0, 212, 219, 0.55),
+    0 0 52px rgba(255, 106, 0, 0.32),
+    0 0 12px rgba(255, 192, 61, 0.4) !important;
   animation: dd-logo-emission-pulse 4.2s ease-in-out 0.6s infinite;
 }
+
 @keyframes dd-logo-emission-pulse {
   0%, 100% {
-    filter:
-      drop-shadow(0 0 14px rgba(0, 212, 219, 0.55))
-      drop-shadow(0 0 28px rgba(255, 106, 0, 0.32))
-      drop-shadow(0 0 6px rgba(255, 192, 61, 0.4));
+    box-shadow:
+      0 0 0 1px rgba(125, 247, 255, 0.28),
+      0 0 28px rgba(0, 212, 219, 0.55),
+      0 0 52px rgba(255, 106, 0, 0.32),
+      0 0 12px rgba(255, 192, 61, 0.4);
   }
   50% {
-    filter:
-      drop-shadow(0 0 22px rgba(0, 212, 219, 0.72))
-      drop-shadow(0 0 40px rgba(255, 106, 0, 0.46))
-      drop-shadow(0 0 10px rgba(255, 192, 61, 0.55));
+    box-shadow:
+      0 0 0 1px rgba(125, 247, 255, 0.42),
+      0 0 42px rgba(0, 212, 219, 0.75),
+      0 0 72px rgba(255, 106, 0, 0.48),
+      0 0 20px rgba(255, 192, 61, 0.58);
   }
 }
 
-/* Tighten the existing entrance ripple to feel snappier */
-.loading-success-ripple {
-  animation-duration: 0.78s !important;
-  border-color: rgba(0, 212, 219, 0.72) !important;
-}
-.loading-success-ripple-b {
-  border-color: rgba(255, 106, 0, 0.62) !important;
-  animation-delay: 110ms !important;
-}
-
-/* Kicker "REPORT GENERATED" tag: keep its existing 3D-stamp animation,
-   just tint to brand cyan + add holographic feel */
-.loading-success-card .loading-success-kicker {
-  border-color: rgba(0, 212, 219, 0.85) !important;
+/* "REPORT GENERATED" stamp — sits above the icon, stamps in from above */
+.loading-modal-success-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  white-space: nowrap;
+  padding: 0.38rem 0.9rem;
+  border: 1px solid rgba(0, 212, 219, 0.85);
+  border-radius: 0.52rem;
   background:
     radial-gradient(circle at 18% 0%, rgba(0, 212, 219, 0.26), transparent 38%),
-    linear-gradient(135deg, rgba(0, 124, 132, 0.32), rgba(2, 6, 23, 0.78) 38%, rgba(2, 6, 23, 0.88)) !important;
+    linear-gradient(135deg, rgba(0, 124, 132, 0.32), rgba(2, 6, 23, 0.78) 38%, rgba(2, 6, 23, 0.88));
   box-shadow:
     0 0 0 1px rgba(0, 212, 219, 0.32) inset,
     0 0 24px rgba(0, 212, 219, 0.4),
-    0 0 18px rgba(255, 106, 0, 0.16) !important;
-  text-shadow:
-    0 2px 3px rgba(0, 0, 0, 0.9),
-    0 0 12px rgba(0, 212, 219, 0.6) !important;
-}
-.loading-success-card .loading-success-kicker::after {
-  border-color: rgba(2, 33, 38, 0.82) !important;
-  background: linear-gradient(135deg, rgba(2, 33, 38, 0.82), rgba(2, 6, 23, 0.72)) !important;
+    0 0 18px rgba(255, 106, 0, 0.16);
+  color: rgba(207, 250, 254, 0.96);
+  font-family: Oswald, sans-serif;
+  font-size: clamp(0.72rem, 2vw, 0.92rem);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.9), 0 0 12px rgba(0, 212, 219, 0.6);
+  text-transform: uppercase;
+  animation: loading-success-stamp-in 0.55s cubic-bezier(0.18, 0.88, 0.18, 1) both;
 }
 
-/* League name underline / bar: cyan→orange gradient with brand-accurate hues */
-.loading-success-bar {
-  position: relative;
-  display: block;
-  width: min(14rem, 70%);
-  height: 4px;
-  margin: 0.6rem auto 0;
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(0, 212, 219, 0.95) 14%,
-    rgba(255, 192, 61, 0.9) 50%,
-    rgba(255, 106, 0, 0.95) 86%,
-    transparent 100%
-  );
-  border-radius: 2px;
-  filter: drop-shadow(0 0 6px rgba(0, 212, 219, 0.5));
-  opacity: 0;
-  animation: dd-techpanel-bar-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
+.loading-modal-success-stamp svg {
+  width: clamp(0.72rem, 1.8vw, 0.9rem);
+  height: clamp(0.72rem, 1.8vw, 0.9rem);
+  flex-shrink: 0;
 }
-.loading-success-bar > span {
-  display: none;
+
+@keyframes loading-success-stamp-in {
+  from {
+    opacity: 0;
+    transform: scale(0.72) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
-@keyframes dd-techpanel-bar-in {
-  from { opacity: 0; transform: scaleX(0.3); }
-  to { opacity: 1; transform: scaleX(1); }
+
+/* League name sizing in success — slightly larger now it has room */
+.loading-modal-bolt--success ~ .loading-modal-league-copy .loading-league-name {
+  font-size: clamp(1.1rem, 4vw, 1.5rem);
+}
+
+/* Mobile: match loading modal width; panel goes transparent so dialog is the only dark box */
+@media (max-width: 640px) {
+  [data-slot="dialog-content"].analysis-loading-dialog-success,
+  .analysis-loading-dialog-success {
+    width: min(calc(100vw - 5rem), 20rem) !important;
+    max-width: min(calc(100vw - 5rem), 20rem) !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .analysis-loading-dialog-success .analysis-loading-panel {
+    background: transparent !important;
+    box-shadow: none !important;
+    min-height: 0 !important;
+  }
+
+  .analysis-loading-dialog-success .loading-modal-header {
+    padding: 1rem 0.6rem 0.8rem;
+    gap: 0.6rem;
+  }
 }
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .loading-success-card,
-  .loading-success-card.loading-success-card-reveal,
-  .loading-success-card.loading-success-card-kick {
+  .loading-modal-bolt--success {
     animation: none !important;
   }
-  .loading-success-card::before,
-  .loading-success-scanline,
-  .loading-success-impact-core,
-  .loading-success-bar {
-    animation: none;
-    opacity: 1;
-  }
-  .loading-success-scanline { display: none; }
-}
-
-@media (max-width: 640px) {
-  .loading-success-card {
-    width: min(calc(100vw - 1rem), 27rem) !important;
-    min-height: min(27rem, calc(100dvh - 3rem)) !important;
-    padding: 1.25rem 0.9rem 2.5rem !important;
-  }
-
-  .loading-success-copy {
-    min-height: min(21.5rem, calc(100dvh - 7rem)) !important;
-    gap: 0.9rem !important;
-  }
-
-  .loading-success-card .loading-success-icon {
-    height: clamp(5.65rem, 22vw, 7.4rem) !important;
-    width: clamp(5.65rem, 22vw, 7.4rem) !important;
-  }
-
-  .loading-success-card .loading-success-kicker {
-    font-size: clamp(1rem, 5vw, 1.42rem) !important;
+  .loading-modal-success-stamp {
+    animation: none !important;
   }
 }

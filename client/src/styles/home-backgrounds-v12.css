@@ -25,7 +25,7 @@
 }
 
 .home-shell .home-hero-dashboard .home-title span.home-title-primary {
-  background-image: linear-gradient(90deg, #064b5c 0%, #00c8e8 18%, #d8fbff 50%, #00c8e8 78%, #064b5c 100%) !important;
+  background-image: linear-gradient(90deg, #61c7e1 0%, #00c8e8 18%, #d8fbff 50%, #00c8e8 78%, #61c7e1 100%) !important;
   background-clip: text !important;
   -webkit-background-clip: text !important;
   color: transparent !important;

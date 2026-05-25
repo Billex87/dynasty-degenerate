@@ -14408,12 +14408,14 @@
   }
 }
 
-/* v3 background kit: separate long page art from hero crops so the art does not end early on tall report tabs. */
+/* v3 background kit: separate long page art from hero crops so the art does not end early on tall report tabs.
+   Page image uses vw-based Y offset (calc(-55vw)) so the helmet stays just below the nav at all desktop widths.
+   Since the image is 100% auto, its rendered height scales with vw — a vw offset keeps position proportional. */
 .report-shell .overview-command-canvas {
   background:
     linear-gradient(90deg, rgba(3, 8, 12, 0.16) 0%, rgba(3, 8, 12, 0.05) 36%, rgba(3, 8, 12, 0) 74%, rgba(3, 8, 12, 0) 100%),
     linear-gradient(180deg, rgba(3, 8, 12, 0) 0%, rgba(3, 8, 12, 0.08) 42rem, rgba(3, 8, 12, 0.3) 98rem, rgba(3, 8, 12, 0.78) 100%),
-    url("/brand/backgrounds/webp/page/page-bg-desktop-1920x3000.webp") center top / 100% auto no-repeat,
+    url("/brand/backgrounds/webp/page/page-bg-desktop-1920x3000.webp") center calc(-55vw) / 100% auto no-repeat,
     radial-gradient(circle at 76% 3%, rgba(244, 160, 32, 0.08), transparent 24rem),
     radial-gradient(circle at 30% 0%, rgba(0, 200, 232, 0.07), transparent 28rem),
     linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
@@ -14447,7 +14449,7 @@
     background:
       linear-gradient(90deg, rgba(3, 8, 12, 0.16) 0%, rgba(3, 8, 12, 0.05) 36%, rgba(3, 8, 12, 0) 74%, rgba(3, 8, 12, 0) 100%),
       linear-gradient(180deg, rgba(3, 8, 12, 0) 0%, rgba(3, 8, 12, 0.08) 38rem, rgba(3, 8, 12, 0.32) 88rem, rgba(3, 8, 12, 0.8) 100%),
-      url("/brand/backgrounds/webp/page/page-bg-laptop-1366x2600.webp") center top / 100% auto no-repeat,
+      url("/brand/backgrounds/webp/page/page-bg-laptop-1366x2600.webp") center calc(-63vw) / 100% auto no-repeat,
       radial-gradient(circle at 76% 3%, rgba(244, 160, 32, 0.08), transparent 24rem),
       radial-gradient(circle at 30% 0%, rgba(0, 200, 232, 0.07), transparent 28rem),
       linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
@@ -15384,20 +15386,6 @@
   }
 }
 
-/* Header wrap and report art correction: avoid mid-width overlap and duplicate DD hero art. */
-@media (min-width: 1181px) {
-  .report-shell .overview-command-canvas {
-    background-position:
-      center,
-      center,
-      center 28rem,
-      center,
-      center,
-      0 0,
-      0 0,
-      center !important;
-  }
-}
 
 @media (min-width: 768px) and (max-width: 1180px) {
   .report-shell .report-header-inner {

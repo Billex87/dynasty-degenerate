@@ -11604,41 +11604,6 @@ export default function Home() {
             leagueLogo={loadingLeague?.leagueLogo}
             managerAnchors={loadingManagerAnchors}
           />
-          {analysisCompleteMessage && (
-            <div
-              className={loadingSuccessCardClassName}
-              role="status"
-              aria-live="polite"
-            >
-              <span
-                className="loading-success-impact-core"
-                aria-hidden="true"
-              />
-              <span className="loading-success-scanline" aria-hidden="true" />
-              <div className="loading-success-copy">
-                <p className="loading-success-kicker">
-                  <CheckCircle2 aria-hidden="true" />
-                  Report Generated
-                </p>
-                <div className="loading-success-icon">
-                  {analysisCompleteMessage.leagueLogo ? (
-                    <img
-                      src={analysisCompleteMessage.leagueLogo}
-                      alt=""
-                      className="loading-success-logo-image"
-                    />
-                  ) : (
-                    <CheckCircle2 aria-hidden="true" />
-                  )}
-                </div>
-                <h2
-                  className={`${getLoadingSuccessTitleClassName(analysisCompleteMessage.leagueName || "League report")} loading-success-league-name loading-gradient-text`}
-                >
-                  {analysisCompleteMessage.leagueName || "League report"}
-                </h2>
-              </div>
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>

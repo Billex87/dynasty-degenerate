@@ -280,11 +280,13 @@
 }
 
 .loading-modal-bolt {
-  height: clamp(3.35rem, 11vw, 4.25rem);
-  width: clamp(3.35rem, 11vw, 4.25rem);
+  position: relative;
+  height: clamp(5rem, 20vw, 6.5rem);
+  width: clamp(5rem, 20vw, 6.5rem);
   border: 0;
   background: transparent;
   box-shadow: none;
+  overflow: visible;
 }
 
 .loading-modal-bolt svg {
@@ -647,8 +649,8 @@
   }
 
   .loading-modal-bolt {
-    height: 3.05rem;
-    width: 3.05rem;
+    height: clamp(4.5rem, 18vw, 6rem);
+    width: clamp(4.5rem, 18vw, 6rem);
   }
 
   .loading-league-name {

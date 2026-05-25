@@ -72,6 +72,8 @@ export interface RankingPlayer {
   fantasyProsDevyWorstRank?: number | null;
   fantasyProsDevyAverageRank?: number | null;
   fantasyProsDevyStdDev?: number | null;
+  fantasyProsRookieRank?: number | null;
+  fantasyProsRookiePositionRank?: string | null;
   projectedRookiePick?: string | null;
   seasonValue?: number | null;
   tier?: string | number | null;
