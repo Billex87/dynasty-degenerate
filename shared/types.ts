@@ -1907,6 +1907,7 @@ export interface MonthlyBlueprintHistorySnapshot {
 }
 
 export interface ReportData {
+  leagueId?: string;
   leagueValueMode?: LeagueValueMode;
   leagueDiagnostics?: LeagueDiagnostics;
   monthlyBlueprintSnapshot?: {

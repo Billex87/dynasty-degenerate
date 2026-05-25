@@ -157,6 +157,7 @@ export function createCachedRedraftReport(leagueId = 'share-redraft-league') {
     activeTab: 'overview',
     savedAt: Date.now(),
     reportData: {
+      leagueId: normalizedLeagueId,
       leagueValueMode: 'redraft',
       leagueDiagnostics: {
         teamCount: 4,
@@ -723,6 +724,7 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
     activeTab: 'overview',
     savedAt: Date.now(),
     reportData: {
+      leagueId: normalizedLeagueId,
       leagueValueMode: 'dynasty',
       monthlyBlueprintSnapshot: {
         month: '2026-05',

@@ -1556,15 +1556,56 @@ function getReportCacheDbKey(leagueId?: string | null): string {
     : REPORT_CACHE_KEY;
 }
 
+function normalizeReportLeagueId(value: unknown): string {
+  return String(value || "").trim();
+}
+
+function getReportDataLeagueId(reportData?: ReportData | null): string {
+  return normalizeReportLeagueId(reportData?.leagueId);
+}
+
+function withReportDataLeagueId(
+  reportData: ReportData,
+  leagueId?: string | null
+): ReportData {
+  const normalizedLeagueId = normalizeReportLeagueId(leagueId);
+  if (!normalizedLeagueId || getReportDataLeagueId(reportData) === normalizedLeagueId) {
+    return reportData;
+  }
+  return {
+    ...reportData,
+    leagueId: normalizedLeagueId,
+  };
+}
+
+function hasMatchingCachedReportLeagueIdentity(
+  report: CachedReport,
+  leagueId?: string | null
+): boolean {
+  const expectedLeagueId = normalizeReportLeagueId(leagueId);
+  const cachedLeagueId = normalizeReportLeagueId(report.leagueId);
+  const reportDataLeagueId = getReportDataLeagueId(report.reportData);
+  if (!cachedLeagueId) return false;
+  if (expectedLeagueId && cachedLeagueId !== expectedLeagueId) return false;
+  if (reportDataLeagueId && reportDataLeagueId !== cachedLeagueId) return false;
+  return true;
+}
+
+function normalizeCachedReportLeagueIdentity(report: CachedReport): CachedReport {
+  const normalizedLeagueId = normalizeReportLeagueId(report.leagueId);
+  if (!normalizedLeagueId) return report;
+  const reportData = withReportDataLeagueId(report.reportData, normalizedLeagueId);
+  return reportData === report.reportData ? report : { ...report, reportData };
+}
+
 function isUsableCachedReport(
   report: CachedReport | null,
   leagueId?: string | null
 ): boolean {
   if (!report) return false;
-  const normalizedLeagueId = String(leagueId || "").trim();
   return (
     report.cacheVersion === REPORT_CACHE_DATA_VERSION &&
-    (!normalizedLeagueId || report.leagueId === normalizedLeagueId) &&
+    hasMatchingCachedReportLeagueIdentity(report, leagueId) &&
     isFreshTimestamp(report.savedAt, REPORT_CACHE_MAX_AGE_MS)
   );
 }
@@ -1608,7 +1649,11 @@ async function readIndexedDbReportCache(
     const request = store.get(getReportCacheDbKey(leagueId));
     request.onsuccess = () => {
       const cachedReport = (request.result as CachedReport) || null;
-      resolve(cachedReport ? sanitizeCachedReport(cachedReport) : null);
+      resolve(
+        cachedReport
+          ? normalizeCachedReportLeagueIdentity(sanitizeCachedReport(cachedReport))
+          : null
+      );
     };
     request.onerror = () => resolve(null);
     transaction.oncomplete = () => db.close();
@@ -1622,7 +1667,9 @@ async function readIndexedDbReportCache(
 async function writeIndexedDbReportCache(report: CachedReport): Promise<void> {
   const db = await openReportCacheDb();
   if (!db) return;
-  const sanitizedReport = sanitizeCachedReport(report);
+  const sanitizedReport = normalizeCachedReportLeagueIdentity(
+    sanitizeCachedReport(report)
+  );
 
   await new Promise<void>(resolve => {
     const transaction = db.transaction(REPORT_CACHE_DB_STORE, "readwrite");
@@ -1662,34 +1709,69 @@ async function clearIndexedDbReportCache(leagueId?: string | null): Promise<void
 
 function clearBrowserReportCache(leagueId?: string | null) {
   localStorage.removeItem(REPORT_CACHE_KEY);
+  const normalizedLeagueId = normalizeReportLeagueId(leagueId);
+  if (normalizedLeagueId) {
+    localStorage.removeItem(getReportCacheDbKey(normalizedLeagueId));
+  }
   void clearIndexedDbReportCache(leagueId);
+}
+
+function readLocalStorageReportCache(key: string): CachedReport | null {
+  try {
+    const cachedReport = localStorage.getItem(key);
+    if (!cachedReport) return null;
+    return normalizeCachedReportLeagueIdentity(
+      sanitizeCachedReport(JSON.parse(cachedReport) as CachedReport)
+    );
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
 }
 
 async function readBrowserReportCache(
   leagueId?: string | null
 ): Promise<CachedReport | null> {
-  const normalizedLeagueId = String(leagueId || "").trim();
-  try {
-    const cachedReport = localStorage.getItem(REPORT_CACHE_KEY);
-    if (cachedReport) {
-      const parsed = sanitizeCachedReport(JSON.parse(cachedReport) as CachedReport);
-      if (!normalizedLeagueId || parsed.leagueId === normalizedLeagueId) {
-        return parsed;
-      }
+  const normalizedLeagueId = normalizeReportLeagueId(leagueId);
+  if (normalizedLeagueId) {
+    const leagueLocalReport = readLocalStorageReportCache(
+      getReportCacheDbKey(normalizedLeagueId)
+    );
+    if (isUsableCachedReport(leagueLocalReport, normalizedLeagueId)) {
+      return leagueLocalReport;
     }
-  } catch {
-    localStorage.removeItem(REPORT_CACHE_KEY);
+
+    const leagueIndexedReport = await readIndexedDbReportCache(normalizedLeagueId);
+    if (isUsableCachedReport(leagueIndexedReport, normalizedLeagueId)) {
+      return leagueIndexedReport;
+    }
+
+    const globalLocalReport = readLocalStorageReportCache(REPORT_CACHE_KEY);
+    return isUsableCachedReport(globalLocalReport, normalizedLeagueId)
+      ? globalLocalReport
+      : null;
   }
-  return readIndexedDbReportCache(normalizedLeagueId || undefined);
+
+  const globalLocalReport = readLocalStorageReportCache(REPORT_CACHE_KEY);
+  if (isUsableCachedReport(globalLocalReport)) return globalLocalReport;
+  const globalIndexedReport = await readIndexedDbReportCache();
+  return isUsableCachedReport(globalIndexedReport) ? globalIndexedReport : null;
 }
 
 function writeBrowserReportCache(report: CachedReport) {
-  const sanitizedReport = sanitizeCachedReport(report);
+  const sanitizedReport = normalizeCachedReportLeagueIdentity(
+    sanitizeCachedReport(report)
+  );
   void writeIndexedDbReportCache(sanitizedReport);
   try {
     localStorage.setItem(REPORT_CACHE_KEY, JSON.stringify(sanitizedReport));
+    localStorage.setItem(
+      getReportCacheDbKey(sanitizedReport.leagueId),
+      JSON.stringify(sanitizedReport)
+    );
   } catch {
     localStorage.removeItem(REPORT_CACHE_KEY);
+    localStorage.removeItem(getReportCacheDbKey(sanitizedReport.leagueId));
   }
 }
 
@@ -10664,7 +10746,13 @@ export default function Home() {
     cachedReport: CachedReport,
     nextActiveTab?: string | null
   ) => {
-    const sanitizedReport = sanitizeCachedReport(cachedReport);
+    const sanitizedReport = normalizeCachedReportLeagueIdentity(
+      sanitizeCachedReport(cachedReport)
+    );
+    if (!isUsableCachedReport(sanitizedReport, sanitizedReport.leagueId)) {
+      clearBrowserReportCache(sanitizedReport.leagueId);
+      return;
+    }
     const tab = nextActiveTab || sanitizedReport.activeTab || "overview";
     setLeagueId(sanitizedReport.leagueId);
     setLeagueName(sanitizedReport.leagueName);
@@ -10726,6 +10814,72 @@ export default function Home() {
     }
     return true;
   };
+
+  useEffect(() => {
+    if (!reportData) return;
+    let isCancelled = false;
+
+    const recoverMismatchedReportIdentity = async () => {
+      const urlLeagueId = getInitialReportLeagueIdFromUrl();
+      const expectedLeagueId = normalizeReportLeagueId(urlLeagueId || leagueId);
+      if (!expectedLeagueId) return;
+
+      const currentLeagueId = normalizeReportLeagueId(leagueId);
+      const reportDataLeagueId = getReportDataLeagueId(reportData);
+      const urlMismatch = Boolean(urlLeagueId && currentLeagueId !== urlLeagueId);
+      const reportMismatch = Boolean(
+        reportDataLeagueId && reportDataLeagueId !== expectedLeagueId
+      );
+      if (!urlMismatch && !reportMismatch) return;
+
+      const tab = getInitialReportTabFromUrl() || activeTab || "overview";
+      clearBrowserReportCache(currentLeagueId || reportDataLeagueId);
+      setReportData(null);
+      setReportDataCacheVersion(null);
+      setAnalysisCompleteMessage(null);
+      setPendingAnalysisLeague(null);
+      setLeagueId(expectedLeagueId);
+      setActiveTab(tab);
+      rememberLeagueId(expectedLeagueId);
+
+      const restored = await restoreFreshCachedReportForLeague(
+        expectedLeagueId,
+        tab,
+        viewerUserId
+      );
+      if (isCancelled || restored) return;
+
+      await beginAnalysisLoading(expectedLeagueId, userLeagues);
+      if (isCancelled || activeAnalysisLeagueIdRef.current !== expectedLeagueId) {
+        return;
+      }
+      analyzeMutation.mutate({
+        leagueId: expectedLeagueId,
+        viewerUserId: getValidSleeperUserId(viewerUserId) || undefined,
+      });
+    };
+
+    const handlePageShow = () => {
+      void recoverMismatchedReportIdentity();
+    };
+    const handleVisible = () => {
+      if (document.visibilityState === "visible") {
+        void recoverMismatchedReportIdentity();
+      }
+    };
+
+    void recoverMismatchedReportIdentity();
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisible);
+    return () => {
+      isCancelled = true;
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisible);
+    };
+    // The function dependencies are intentionally omitted so this guard runs
+    // from report/URL identity state instead of rebinding on every mutation state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, leagueId, reportData, userLeagues, viewerUserId]);
 
   const userLeagueRanksMutation = trpc.league.getUserLeagueRanks.useMutation({
     onSuccess: data => {
@@ -10873,31 +11027,35 @@ export default function Home() {
 
       try {
         STALE_REPORT_CACHE_KEYS.forEach(key => localStorage.removeItem(key));
-        const parsed = await readBrowserReportCache(urlLeagueId || undefined);
-        if (isCancelled) return;
-        if (parsed) {
-          if (
-            isUsableCachedReport(parsed, urlLeagueId || parsed.leagueId)
-          ) {
-            applyCachedReport(parsed, urlTab || parsed.activeTab || "overview");
-            queueReportVisibleTelemetry({
-              leagueId: parsed.leagueId,
-              leagueName: parsed.leagueName,
-              activeTab: urlTab || parsed.activeTab || "overview",
-              source: "browser-cache",
-              cacheStatus: "browser",
-              requestMs: null,
-              payloadVersion: parsed.cacheVersion || REPORT_CACHE_DATA_VERSION,
-            });
-            if (shouldBackgroundRefreshCachedReport(parsed)) {
-              refreshReportInBackground(parsed.leagueId, restoredViewerUserId);
-            }
-            return;
+        const restoreReportFromCache = (cachedReport: CachedReport) => {
+          const tab = urlTab || cachedReport.activeTab || "overview";
+          applyCachedReport(cachedReport, tab);
+          queueReportVisibleTelemetry({
+            leagueId: cachedReport.leagueId,
+            leagueName: cachedReport.leagueName,
+            activeTab: tab,
+            source: "browser-cache",
+            cacheStatus: "browser",
+            requestMs: null,
+            payloadVersion:
+              cachedReport.cacheVersion || REPORT_CACHE_DATA_VERSION,
+          });
+          if (shouldBackgroundRefreshCachedReport(cachedReport)) {
+            refreshReportInBackground(
+              cachedReport.leagueId,
+              restoredViewerUserId
+            );
           }
-          clearBrowserReportCache(parsed.leagueId);
-        }
+        };
 
         if (urlLeagueId) {
+          const parsed = await readBrowserReportCache(urlLeagueId);
+          if (isCancelled) return;
+          if (parsed && isUsableCachedReport(parsed, urlLeagueId)) {
+            restoreReportFromCache(parsed);
+            return;
+          }
+          if (parsed) clearBrowserReportCache(parsed.leagueId);
           setLeagueId(urlLeagueId);
           setActiveTab(urlTab || "overview");
           setLeagueIdHistory(
@@ -10931,28 +11089,7 @@ export default function Home() {
             cachedLastLeagueReport &&
             isUsableCachedReport(cachedLastLeagueReport, parsed.leagueId)
           ) {
-            applyCachedReport(
-              cachedLastLeagueReport,
-              urlTab || cachedLastLeagueReport.activeTab || "overview"
-            );
-            queueReportVisibleTelemetry({
-              leagueId: cachedLastLeagueReport.leagueId,
-              leagueName: cachedLastLeagueReport.leagueName,
-              activeTab:
-                urlTab || cachedLastLeagueReport.activeTab || "overview",
-              source: "browser-cache",
-              cacheStatus: "browser",
-              requestMs: null,
-              payloadVersion:
-                cachedLastLeagueReport.cacheVersion ||
-                REPORT_CACHE_DATA_VERSION,
-            });
-            if (shouldBackgroundRefreshCachedReport(cachedLastLeagueReport)) {
-              refreshReportInBackground(
-                cachedLastLeagueReport.leagueId,
-                restoredViewerUserId
-              );
-            }
+            restoreReportFromCache(cachedLastLeagueReport);
             return;
           }
           setLeagueId(parsed.leagueId);
@@ -10975,6 +11112,13 @@ export default function Home() {
             viewerUserId:
               getValidSleeperUserId(restoredViewerUserId) || undefined,
           });
+          return;
+        }
+
+        const parsed = await readBrowserReportCache();
+        if (isCancelled) return;
+        if (parsed && isUsableCachedReport(parsed)) {
+          restoreReportFromCache(parsed);
         }
       } catch {
         clearBrowserReportCache();
@@ -10992,9 +11136,18 @@ export default function Home() {
 
   useEffect(() => {
     if (!reportData) return;
+    const normalizedLeagueId = normalizeReportLeagueId(leagueId);
+    const reportDataLeagueId = getReportDataLeagueId(reportData);
+    if (
+      !normalizedLeagueId ||
+      (reportDataLeagueId && reportDataLeagueId !== normalizedLeagueId)
+    ) {
+      return;
+    }
+    const cacheReportData = withReportDataLeagueId(reportData, normalizedLeagueId);
 
     const lastLeague: LastLeague = {
-      leagueId,
+      leagueId: normalizedLeagueId,
       leagueName,
       leagueLogo,
       leagueFormat,
@@ -11007,7 +11160,7 @@ export default function Home() {
       writeBrowserReportCache({
         ...lastLeague,
         cacheVersion: REPORT_CACHE_DATA_VERSION,
-        reportData,
+        reportData: cacheReportData,
       });
     } catch {
       clearBrowserReportCache();
@@ -11714,10 +11867,10 @@ export default function Home() {
       <DialogContent className="admin-unlock-dialog border-orange-400/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/30 sm:max-w-lg">
         <DialogHeader className="text-center sm:text-center">
           <DialogTitle className="athletic-headline text-center text-3xl text-orange-300">
-            Congrats you piece of shit
+            Congrats
           </DialogTitle>
           <DialogDescription className="text-center text-slate-300">
-            Your signed-in admin session has premium AI reads, blueprint
+            Your admin session has premium AI reads, blueprint
             reports, league power tools and market signals
           </DialogDescription>
         </DialogHeader>
