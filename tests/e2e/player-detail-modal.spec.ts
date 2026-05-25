@@ -3,6 +3,7 @@ import { createCachedRedraftReport, REPORT_CACHE_KEY } from './fixtures/cachedRe
 
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 const SLEEPER_USERS_KEY = 'dynasty-degenerates:sleeper-user-history:v1';
+const ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY = 'dynasty-degenerates:admin-passphrase-verified-session:v1';
 
 function createModalFixture(leagueId = 'player-modal-regression-league') {
   const cachedReport = createCachedRedraftReport(leagueId);
@@ -252,11 +253,15 @@ async function loadModalReport(
   };
 
   await page.addInitScript(
-    ({ reportKey, report, sessionKey, session, usersKey }) => {
+    ({ reportKey, report, sessionKey, session, usersKey, adminPassphraseSessionKey, admin }) => {
       window.localStorage.clear();
+      window.sessionStorage.clear();
       window.localStorage.setItem(reportKey, JSON.stringify(report));
       window.localStorage.setItem(sessionKey, JSON.stringify(session));
       window.localStorage.setItem(usersKey, JSON.stringify([session.user]));
+      if (admin) {
+        window.sessionStorage.setItem(adminPassphraseSessionKey, 'true');
+      }
     },
     {
       reportKey: REPORT_CACHE_KEY,
@@ -264,6 +269,8 @@ async function loadModalReport(
       sessionKey: SLEEPER_SESSION_KEY,
       session: sleeperSession,
       usersKey: SLEEPER_USERS_KEY,
+      adminPassphraseSessionKey: ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY,
+      admin: adminViewMode === 'admin',
     },
   );
 
@@ -365,7 +372,7 @@ test.describe('player detail modal', () => {
     await expect(dialog.getByText('Player News', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Availability History', { exact: true })).toBeVisible();
     await expect(dialog.locator('.ai-read-trace-kicker:visible', { hasText: 'Why this fired' }).first()).toBeVisible();
-    await expect(dialog.locator('.ai-read-trace-list:visible', { hasText: /Draft capital: Round 1, pick 18/i }).first()).toBeVisible();
+    await expect(dialog.locator('.ai-read-chip:visible', { hasText: 'Round 1, pick 18' }).first()).toBeVisible();
     await expect(dialog.locator('.ai-read-chip:visible', { hasText: 'Runway 90%' }).first()).toBeVisible();
     await expect(dialog.locator('p').filter({ hasText: 'Availability: 2025: 14 GP' }).first()).toBeVisible();
     await expect(dialog.getByText('AVAILABLE')).toHaveCount(0);
@@ -417,7 +424,7 @@ test.describe('player detail modal', () => {
     expect(firstChartPointValue).not.toBe('');
     await firstChartPoint.click();
     await expect(pointPopover.locator('strong')).toContainText(firstChartPointValue);
-    await expect(timelineDialog.locator('.player-value-selected-point')).toHaveCount(0);
+    await expect(timelineDialog.locator('.player-value-selected-point')).toBeVisible();
     await expect(timelineDialog.locator('.player-value-timeline-note')).toHaveCount(0);
     await timelineDialog.getByRole('tab', { name: 'Position Rank' }).click();
     await expect(timelineDialog.getByRole('tab', { name: 'Position Rank' })).toHaveAttribute('aria-selected', 'true');
@@ -425,10 +432,12 @@ test.describe('player detail modal', () => {
     await expect(timelineDialog.getByText('Snapshot Source History')).toHaveCount(0);
     await expect(timelineDialog.getByText('Source Movement')).toHaveCount(0);
     await expect(timelineDialog.locator('.player-value-source-chart-grid')).toHaveCount(0);
-    await expect(timelineDialog.getByText('Highest')).toBeVisible();
+    await expect(timelineDialog.getByText('Highest', { exact: true })).toBeVisible();
     await expect(timelineDialog.getByText(/May .*2026 \/ RB/i).first()).toBeVisible();
-    await timelineDialog.getByRole('tab', { name: /All/i }).click();
-    await expect(timelineDialog.getByRole('tab', { name: /All/i })).toHaveAttribute('aria-selected', 'true');
+    const allRangeTab = timelineDialog.getByRole('tab', { name: /All/i });
+    await allRangeTab.focus();
+    await page.keyboard.press('Enter');
+    await expect(allRangeTab).toHaveAttribute('aria-selected', 'true');
     await expect(timelineDialog.getByText('May').first()).toBeVisible();
     await timelineDialog.getByRole('button', { name: /Close Bijan Robinson value timeline detail/i }).click();
     await expect(timelineDialog).toHaveCount(0);
