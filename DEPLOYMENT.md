@@ -59,7 +59,7 @@ Set `ADMIN_LOGIN_PASSWORD` to a strong random value and keep `JWT_SECRET` stable
 ## Vercel Cron
 `vercel.json` calls `/api/cron/ktc-snapshot` at paired UTC times for `06:00` and `18:00` in `America/Vancouver`. The endpoint checks Pacific time before doing work, so the extra UTC entries are daylight-saving fallbacks.
 
-`/api/cron/league-report-cache` runs 20 minutes after the snapshot windows. Set `LEAGUE_REPORT_WARM_LEAGUE_IDS` to warm shared report and rankings caches for important leagues before users load the site.
+`/api/cron/league-report-cache` is intentionally limited to one scheduled warmer per day to cap Vercel Function CPU. Set `LEAGUE_REPORT_WARM_LEAGUE_IDS` to warm shared report and rankings caches for important leagues before users load the site; scheduled runs skip fresh report caches and only regenerate cold reports. Use `?force=true` on a manually authorized cron request when you intentionally want to bypass the cache. On-demand report generation still works when a cache is cold.
 
 ## Abuse Protection
 

@@ -74,14 +74,6 @@
       "schedule": "20 13 * * *"
     },
     {
-      "path": "/api/cron/league-report-cache",
-      "schedule": "20 19 * * *"
-    },
-    {
-      "path": "/api/cron/league-report-cache",
-      "schedule": "20 1 * * *"
-    },
-    {
       "path": "/api/cron/prospect-snapshot",
       "schedule": "0 14 1 * *"
     },

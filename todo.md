@@ -24,6 +24,7 @@
 
 ## Data Operations Roadmap
 
+- [ ] After the Vercel CPU patch deploys, use [docs/vercel-function-cpu-runbook.md](docs/vercel-function-cpu-runbook.md) to review `vercel-functions-fluid-cpu-duration`, identify the top CPU routes, and decide whether cron warming, cached report opens, rankings endpoints, or dynamic-data refresh need the next reduction pass.
 - [x] Add a Neon/Postgres transfer audit command that reports largest tables, largest JSON payload rows, recent `leagueReportCache` sizes, snapshot payload sizes, and recent source-health volume.
 - [x] Run the Neon transfer audit with production `DATABASE_URL` and record the main transfer drivers.
 - [x] Add transparent compression for large `leagueReportCache` payloads and a one-off compaction command for existing heavy cache rows.

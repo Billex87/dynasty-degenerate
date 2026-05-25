@@ -146,11 +146,20 @@ app.get('/api/cron/league-report-cache', async (req, res) => {
   for (const leagueId of leagueIds) {
     const leagueStartedAt = Date.now();
     try {
-      await caller.league.analyze({ leagueId, forceRefresh: true });
-      await caller.league.rankings({ leagueId, forceRefresh: true });
+      const reportCache = forceRun
+        ? null
+        : await caller.league.reportCacheStatus({ leagueId });
+      const reportCacheHit = reportCache?.report.status === 'hit';
+
+      if (!reportCacheHit) {
+        await caller.league.analyze({ leagueId, forceRefresh: forceRun });
+      }
+      await caller.league.rankings({ leagueId, forceRefresh: forceRun });
       results.push({
         leagueId,
         ok: true,
+        reportCacheStatus: reportCacheHit ? 'hit' : 'warmed',
+        forceRefresh: forceRun,
         durationMs: Date.now() - leagueStartedAt,
       });
     } catch (error) {

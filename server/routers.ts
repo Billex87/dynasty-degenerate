@@ -4171,6 +4171,29 @@ function buildPlayerValueProfileMap(
   );
 }
 
+function buildLazyPlayerValueProfileMap(
+  players: Record<string, any>,
+  ktcValues: KTCValues,
+  leagueValueMode: LeagueValueMode = 'dynasty'
+): Record<string, PlayerDetails['valueProfile']> {
+  const rankLookups = buildValueProfileRankLookups(ktcValues, leagueValueMode);
+  const cache = Object.create(null) as Record<string, PlayerDetails['valueProfile']>;
+
+  return new Proxy(cache, {
+    get(target, property) {
+      if (typeof property !== 'string') return undefined;
+      if (Object.prototype.hasOwnProperty.call(target, property)) return target[property];
+      if (!players[property]) {
+        target[property] = undefined;
+        return undefined;
+      }
+
+      target[property] = getPlayerValueProfile(property, players, ktcValues, rankLookups, leagueValueMode);
+      return target[property];
+    },
+  });
+}
+
 function buildSimilarTradeValueMap(
   playerIds: Iterable<string>,
   players: Record<string, any>,
@@ -4932,15 +4955,15 @@ async function buildLiveSleeperActivityPatch(
       console.warn(`Failed to load FantasyPros rank snapshots for live Sleeper activity ${leagueId}:`, error);
     }
 
-    const valueProfilesById = buildPlayerValueProfileMap(
-      Object.keys(players || {}),
-      players || {},
+    const safePlayers = players || {};
+    const valueProfilesById = buildLazyPlayerValueProfileMap(
+      safePlayers,
       ktcValues,
       leagueValueMode
     );
     const [trendingAdds, trendingDrops] = await Promise.all([
-      fetchTrendingPlayers('add', players || {}, ktcValues, ownerByPlayerId, rosterStatusByPlayerId, leagueValueMode, valueProfilesById),
-      fetchTrendingPlayers('drop', players || {}, ktcValues, ownerByPlayerId, rosterStatusByPlayerId, leagueValueMode, valueProfilesById),
+      fetchTrendingPlayers('add', safePlayers, ktcValues, ownerByPlayerId, rosterStatusByPlayerId, leagueValueMode, valueProfilesById),
+      fetchTrendingPlayers('drop', safePlayers, ktcValues, ownerByPlayerId, rosterStatusByPlayerId, leagueValueMode, valueProfilesById),
     ]);
     const managerIntelByName = new Map(
       (cachedReportData?.managerRosterIntelligence || [])
@@ -4950,7 +4973,7 @@ async function buildLiveSleeperActivityPatch(
     const currentRecentTransactions = buildRecentTransactions(
       allTransactions,
       rosterUserMap,
-      players || {},
+      safePlayers,
       ktcValues,
       rosterStatusByPlayerId,
       managerIntelByName,
@@ -4968,7 +4991,7 @@ async function buildLiveSleeperActivityPatch(
     const waiverIntelligence = buildWaiverIntelligence(
       trendingAdds,
       trendingDrops,
-      players || {},
+      safePlayers,
       ktcValues,
       ownerByPlayerId,
       rosterStatusByPlayerId,
@@ -4985,7 +5008,7 @@ async function buildLiveSleeperActivityPatch(
     );
     const scheduleEdgeTargets = buildScheduleEdgeTargetsFromDraftSharksContext({
       draftSharksContext: draftSharksScheduleContext,
-      players: players || {},
+      players: safePlayers,
       ktcValues,
       ownerByPlayerId,
       rosterStatusByPlayerId,
@@ -5580,7 +5603,7 @@ async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false
   const [users, rosters, players] = await Promise.all([
     fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`),
     fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`),
-    fetchSleeperJson<Record<string, any>>('https://api.sleeper.app/v1/players/nfl'),
+    fetchSleeperPlayersIndex(),
   ]);
 
   const safeUsers = Array.isArray(users) ? users : [];
