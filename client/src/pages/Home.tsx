@@ -11814,7 +11814,7 @@ export default function Home() {
     <Dialog open={isLeaguePickerOpen} onOpenChange={setIsLeaguePickerOpen}>
       <DialogContent className="league-switch-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-2xl">
         <DialogHeader className="league-switch-header text-center sm:text-center">
-          <DialogTitle className="athletic-headline text-3xl text-orange-400">
+          <DialogTitle className="athletic-headline league-switch-title-gradient text-3xl">
             Pick Another League
           </DialogTitle>
           <DialogDescription className="league-switch-description text-cyan-100/70">
@@ -11849,13 +11849,10 @@ export default function Home() {
                     "your Sleeper account"}
                 </strong>
               </span>
-              <span>.</span>
             </span>
-            <span>
-              {isLeaguePickerIntelBusy
-                ? "Syncing rankings and manager icons."
-                : "Choose one of your current Sleeper leagues."}
-            </span>
+            {isLeaguePickerIntelBusy ? (
+              <span>Syncing rankings and manager icons</span>
+            ) : null}
           </DialogDescription>
         </DialogHeader>
         <div className="home-league-picker league-switch-picker">
@@ -11875,7 +11872,7 @@ export default function Home() {
             variant="outline"
             className="league-switch-start-over-button border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
           >
-            Back to Home
+            Back to Sign In
           </Button>
         </DialogFooter>
       </DialogContent>
