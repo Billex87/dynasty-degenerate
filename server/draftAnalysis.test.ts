@@ -194,6 +194,49 @@ describe('Draft Analysis', () => {
     expect(managerStats.misses).toBeDefined();
   });
 
+  it('passes rookie ADP source metadata through processed draft picks', async () => {
+    const result = await analyzeDraftPicks(
+      [
+        {
+          round: 1,
+          pick_no: 9,
+          player_id: 'hunter',
+          picked_by: 'roster1',
+          season: '2025',
+          draft_pick_count: 36,
+          user_id_to_manager_map: { roster1: 'Manager A' },
+        },
+      ] as any,
+      {
+        hunter: { full_name: 'Travis Hunter', position: 'WR' },
+      },
+      { roster1: 'Manager A' },
+      {
+        travishunter: { name: 'Travis Hunter', ktc_value: 4300, position_rank: 'WR20' },
+      },
+      {
+        '2025:hunter': {
+          name: 'Travis Hunter',
+          adp: 5.5,
+          source: 'Sleeper SF Rookie Rank',
+          rank: 5,
+          positionRank: 'WR2',
+        },
+      },
+      undefined,
+      {
+        travishunter: { name: 'Travis Hunter', ktc_value: 4200, position_rank_may2025: 'WR21' },
+      }
+    );
+
+    expect(result.draftPicks[0]).toMatchObject({
+      adp: 5.5,
+      adpSource: 'Sleeper SF Rookie Rank',
+      adpRank: 5,
+      adpPositionRank: 'WR2',
+    });
+  });
+
   it('keeps the original pick owner when a traded draft slot is selected by another manager', async () => {
     const result = await analyzeDraftPicks(
       [

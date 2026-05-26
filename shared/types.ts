@@ -853,6 +853,8 @@ export interface DraftPick {
   adpSource?: string | null;
   adpRank?: number | null;
   adpPositionRank?: string | null;
+  currentAdp?: number | null;
+  currentAdpSource?: string | null;
   ktcValue: number | null;
   currentKtcValue: number | null;
   valueGain: number | null;
@@ -867,6 +869,8 @@ export interface DraftPick {
   draftType?: string | null;
   draftValueDate?: string | null;
   currentValueDate?: string | null;
+  draftValueSource?: string | null;
+  currentValueSource?: string | null;
   player_id?: string;
   playerDetails?: PlayerDetails;
   draftDecisionVerdict?: string | null;

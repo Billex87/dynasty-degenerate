@@ -1,6 +1,7 @@
 import { storeKtcSnapshot } from './ktcSnapshotJob';
 import { shouldRunMonthlyProspectSnapshot, storeNflDraftBuzzProspectSnapshot } from './prospectSource';
 import { refreshFantasyProsEndpointSnapshotRefresh, runDynamicDataRefresh } from './dynamicDataJobs';
+import { refreshSleeperStartupAdpSnapshots } from './startupAdpSnapshots';
 import {
   getFantasyProsEndpointSnapshotScheduleLabel,
   getPacificScheduleParts,
@@ -12,6 +13,7 @@ const SNAPSHOT_HOURS = [6, 12, 18];
 const PROSPECT_SNAPSHOT_HOUR = 7;
 const DYNAMIC_REFRESH_HOUR = 18;
 const DYNAMIC_REFRESH_MINUTE = 40;
+const STARTUP_ADP_SNAPSHOT_HOUR = 8;
 
 function getPacificDateParts(date: Date) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -40,6 +42,7 @@ function getPacificDateParts(date: Date) {
 export function initializeScheduledJobs() {
   let lastSnapshotRunKey: string | null = null;
   let lastProspectSnapshotRunMonth: string | null = null;
+  let lastStartupAdpSnapshotRunMonth: string | null = null;
   let lastDynamicRefreshRunKey: string | null = null;
   let lastFantasyProsEndpointSnapshotRunKey: string | null = null;
 
@@ -72,6 +75,19 @@ export function initializeScheduledJobs() {
     }
 
     if (
+      minute === 0
+      && hour === STARTUP_ADP_SNAPSHOT_HOUR
+      && lastStartupAdpSnapshotRunMonth !== monthKey
+    ) {
+      lastStartupAdpSnapshotRunMonth = monthKey;
+      const rosterRoomSeason = now.getMonth() >= 8 ? String(now.getFullYear() + 1) : String(now.getFullYear());
+      console.log(`[Scheduled Jobs] Running monthly Sleeper startup ADP snapshot at ${now.toISOString()} (${dateKey} ${STARTUP_ADP_SNAPSHOT_HOUR}:00 ${SNAPSHOT_TIME_ZONE})`);
+      refreshSleeperStartupAdpSnapshots({ season: rosterRoomSeason }).catch((error) => {
+        console.error('[Scheduled Jobs] Error running Sleeper startup ADP snapshot:', error);
+      });
+    }
+
+    if (
       hour === DYNAMIC_REFRESH_HOUR
       && minute === DYNAMIC_REFRESH_MINUTE
       && lastDynamicRefreshRunKey !== dateKey
@@ -100,5 +116,5 @@ export function initializeScheduledJobs() {
   // Check every minute if we should run the snapshot
   setInterval(checkAndRunKtcSnapshot, 60000);
   
-  console.log(`[Scheduled Jobs] Initialized - KTC snapshots run daily at ${SNAPSHOT_HOURS.join(':00 and ')}:00, prospect snapshots run monthly at ${PROSPECT_SNAPSHOT_HOUR}:00, dynamic data refresh runs daily at ${DYNAMIC_REFRESH_HOUR}:${String(DYNAMIC_REFRESH_MINUTE).padStart(2, '0')}, and FantasyPros endpoint snapshots run ${getFantasyProsEndpointSnapshotScheduleLabel()}`);
+  console.log(`[Scheduled Jobs] Initialized - KTC snapshots run daily at ${SNAPSHOT_HOURS.join(':00 and ')}:00, prospect snapshots run monthly at ${PROSPECT_SNAPSHOT_HOUR}:00, Sleeper startup ADP snapshots run monthly at ${STARTUP_ADP_SNAPSHOT_HOUR}:00, dynamic data refresh runs daily at ${DYNAMIC_REFRESH_HOUR}:${String(DYNAMIC_REFRESH_MINUTE).padStart(2, '0')}, and FantasyPros endpoint snapshots run ${getFantasyProsEndpointSnapshotScheduleLabel()}`);
 }

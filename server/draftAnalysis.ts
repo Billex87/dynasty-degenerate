@@ -17,6 +17,11 @@ interface ADPData {
   [playerId: string]: {
     name: string;
     adp: number;
+    source?: string;
+    rank?: number;
+    positionRank?: string | null;
+    currentAdp?: number | null;
+    currentAdpSource?: string | null;
   };
 }
 
@@ -89,6 +94,9 @@ interface DraftValueWindow {
   currentValues?: Record<string, PositionRankData>;
   draftValueDate?: string | null;
   currentValueDate?: string | null;
+  draftValueSource?: string | null;
+  currentValueSource?: string | null;
+  baselineSnapshotKey?: string | null;
 }
 
 interface DraftAnalysisOptions {
@@ -356,6 +364,14 @@ export async function analyzeDraftPicks(
     };
   };
 
+  const getFantasyProsDynastyValue = (record: PositionRankData | null | undefined): number | null => {
+    return getNumberValue(record, 'expert_value_fantasypros') ?? getNumberValue(record, 'fantasyProsDynastyValue');
+  };
+
+  const getFantasyProsDynastyRank = (record: PositionRankData | null | undefined): string | null => {
+    return record?.fantasypros_dynasty_position_rank || record?.fantasypros_position_rank || null;
+  };
+
   const getStarterThresholds = (teamCount: number): Record<string, number> => ({
     QB: Math.max(1, Math.round(teamCount * 2)),
     RB: Math.max(1, Math.round(teamCount * 3)),
@@ -463,7 +479,8 @@ export async function analyzeDraftPicks(
     const playerName = player?.full_name || 'Unknown';
     const playerPos = player?.position || 'N/A';
 
-    const adp = adpData[getDraftAdpKey(pick)]?.adp || adpData[pick.player_id]?.adp || null;
+    const adpRecord = adpData[getDraftAdpKey(pick)] || adpData[pick.player_id] || null;
+    const adp = adpRecord?.adp ?? null;
     
     // Create slug to match KTC data
     const playerSlug = createSlug(playerName);
@@ -514,14 +531,11 @@ export async function analyzeDraftPicks(
           || draftValueRows[playerSlug]
           || ktcValues[playerSlug]
           || null;
-        const sourceMatchedValues = getSourceMatchedValues(draftYearData, ktcData);
-        const draftYearValue = sourceMatchedValues?.baselineValue ?? getBaselineValue(draftYearData);
+        const fantasyProsDraftValue = getFantasyProsDynastyValue(draftYearData);
+        const draftYearValue = fantasyProsDraftValue ?? getSourceMatchedValues(draftYearData, ktcData)?.baselineValue ?? getBaselineValue(draftYearData);
         if (draftYearValue) {
           baselineValue = draftYearValue;
-          if (sourceMatchedValues?.currentValue) {
-            currentKtcValue = sourceMatchedValues.currentValue;
-          }
-          baselineRank = draftYearData.position_rank || draftYearData.position_rank_may2025 || null;
+          baselineRank = getFantasyProsDynastyRank(draftYearData) || draftYearData.position_rank || draftYearData.position_rank_may2025 || null;
         }
       } else {
         const draftYearBaseline = ktcValuesByDraftYear?.[draftYear];
@@ -625,6 +639,11 @@ export async function analyzeDraftPicks(
       originalOwner,
       originalRosterId,
       adp,
+      adpSource: adpRecord?.source || null,
+      adpRank: adpRecord?.rank ?? null,
+      adpPositionRank: adpRecord?.positionRank || null,
+      currentAdp: adpRecord?.currentAdp ?? null,
+      currentAdpSource: adpRecord?.currentAdpSource || null,
       ktcValue: draftKtcValue,
       currentKtcValue,
       valueGain,
@@ -643,6 +662,12 @@ export async function analyzeDraftPicks(
       currentValueDate: isRedraftAnalysis
         ? redraftValueWindow?.currentValueDate || null
         : dynastyMainDraftValueWindow?.currentValueDate || null,
+      draftValueSource: isRedraftAnalysis
+        ? null
+        : dynastyMainDraftValueWindow?.draftValueSource || null,
+      currentValueSource: isRedraftAnalysis
+        ? null
+        : dynastyMainDraftValueWindow?.currentValueSource || null,
       player_id: pick.player_id,
       playerDetails: getPlayerDetails(pick.player_id, player),
     };

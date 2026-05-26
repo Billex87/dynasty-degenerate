@@ -131,6 +131,17 @@ function isEligibleDraftOpportunityCandidate(
     return rookieYear === draftYear;
   }
 
+  const yearsExp = Number(candidate.playerDetails?.yearsExp);
+  const expectedYearsExp = new Date().getFullYear() - draftYear;
+  if (
+    Number.isFinite(yearsExp)
+    && yearsExp >= 0
+    && Number.isFinite(expectedYearsExp)
+    && expectedYearsExp >= 0
+  ) {
+    return yearsExp <= expectedYearsExp;
+  }
+
   return true;
 }
 

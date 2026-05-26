@@ -16,6 +16,7 @@ import { getKtcSnapshotFromDaysAgo, getKtcSnapshotOnOrBeforeDate } from "./ktcSn
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
 import { buildSleeperRookieAdpData } from "./sleeperRookieAdp";
+import { buildSleeperStartupAdpData } from "./startupAdpSnapshots";
 import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBaselines";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants } from "./leagueAnalysis";
@@ -960,6 +961,16 @@ function getRedraftRegularSeasonEndValueDate(season: number, playoffWeekStart?: 
   return addDays(getNflWeekStartDate(season, boundedPlayoffWeekStart), -1);
 }
 
+function getDynastyStartupBaselineDate(season: number): Date {
+  return new Date(Date.UTC(season, 7, 25, 12, 0, 0, 0));
+}
+
+function getDynastyBaselineLabel(season: string, valueProfileKey: string): string {
+  return valueProfileKey.includes('one_qb')
+    ? `FantasyPros ${season} Dynasty 1QB baseline`
+    : `FantasyPros ${season} Dynasty SF baseline`;
+}
+
 function isMainDraftPick(pick: any): boolean {
   const pickCount = Number(pick?.draft_pick_count || 0);
   const round = Number(pick?.round || 0);
@@ -1050,18 +1061,17 @@ async function buildDynastyMainDraftValueWindowsByDraftId(
   currentValues: KTCValues;
   draftValueDate: string | null;
   currentValueDate: string | null;
+  draftValueSource?: string | null;
+  currentValueSource?: string | null;
+  baselineSnapshotKey?: string | null;
 }>> {
-  const draftDateByDraftId = new Map<string, Date>();
+  const draftSeasonByDraftId = new Map<string, string>();
 
   for (const pick of draftPicks) {
     const draftId = pick?.draft_id ? String(pick.draft_id) : '';
     if (!draftId || !isMainDraftPick(pick)) continue;
-
-    const draftDate = getDraftWindowDate(pick);
-    const existingDate = draftDateByDraftId.get(draftId);
-    if (draftDate && (!existingDate || draftDate < existingDate)) {
-      draftDateByDraftId.set(draftId, draftDate);
-    }
+    const season = pick?.season ? String(pick.season) : null;
+    if (season && /^\d{4}$/.test(season)) draftSeasonByDraftId.set(draftId, season);
   }
 
   const windows: Record<string, {
@@ -1069,23 +1079,31 @@ async function buildDynastyMainDraftValueWindowsByDraftId(
     currentValues: KTCValues;
     draftValueDate: string | null;
     currentValueDate: string | null;
+    draftValueSource?: string | null;
+    currentValueSource?: string | null;
+    baselineSnapshotKey?: string | null;
   }> = {};
 
-  await Promise.all(Array.from(draftDateByDraftId.entries()).map(async ([draftId, draftDate]) => {
-    const threeYearEndDate = addYears(draftDate, 3);
+  await Promise.all(Array.from(draftSeasonByDraftId.entries()).map(async ([draftId, season]) => {
+    const numericSeason = Number(season);
+    const draftValueDate = getDynastyStartupBaselineDate(numericSeason);
+    const threeYearEndDate = addYears(draftValueDate, 3);
     const now = new Date();
     const currentValueDate = now > threeYearEndDate ? threeYearEndDate : now;
 
     const [draftValues, currentValues] = await Promise.all([
-      loadKtcSnapshotForDate(draftDate, valueProfileKey, fallbackValues),
+      loadKtcSnapshotForDate(draftValueDate, valueProfileKey, fallbackValues),
       loadKtcSnapshotForDate(currentValueDate, valueProfileKey, fallbackValues),
     ]);
 
     windows[draftId] = {
       draftValues,
       currentValues,
-      draftValueDate: formatDateKey(draftDate),
+      draftValueDate: formatDateKey(draftValueDate),
       currentValueDate: formatDateKey(currentValueDate),
+      draftValueSource: getDynastyBaselineLabel(season, valueProfileKey),
+      currentValueSource: 'Current DD dynasty blend',
+      baselineSnapshotKey: formatDateKey(draftValueDate),
     };
   }));
 
@@ -6833,22 +6851,34 @@ export const appRouter = router({
             }, {
               leagueValueMode,
             });
+            const dynastyMainDraftValueWindowsByDraftId = leagueValueMode === 'dynasty'
+              ? await buildDynastyMainDraftValueWindowsByDraftId(draftPicks, ktcValues, leagueValueProfileKey)
+              : undefined;
+            const startupBaselineSnapshotKeyBySeason = Object.fromEntries(
+              draftPicks
+                .filter((pick: any) => pick?.season && pick?.draft_id && dynastyMainDraftValueWindowsByDraftId?.[pick.draft_id]?.baselineSnapshotKey)
+                .map((pick: any) => [String(pick.season), dynastyMainDraftValueWindowsByDraftId?.[pick.draft_id]?.baselineSnapshotKey || null])
+            );
             const draftDerivedAdpData = calculateADPFromPicks(draftPicks);
             const sleeperRookieAdpData = leagueValueMode === 'dynasty'
               ? await buildSleeperRookieAdpData(draftPicks, players, leagueValueOptions)
               : {};
+            const sleeperStartupAdpData = leagueValueMode === 'dynasty'
+              ? await buildSleeperStartupAdpData(draftPicks, players, {
+                ...leagueValueOptions,
+                baselineSnapshotKeyBySeason: startupBaselineSnapshotKeyBySeason,
+              })
+              : {};
             const adpData = {
               ...draftDerivedAdpData,
               ...sleeperRookieAdpData,
+              ...sleeperStartupAdpData,
             };
             if (draftPicks.length > 0) {
               const rookieValues2025 = getRookieValueBaseline('2025');
               const rookieValuesByDraftYear = getRookieValueBaselines();
               const redraftValueWindowsBySeason = leagueValueMode === 'redraft'
                 ? await buildRedraftValueWindowsBySeason(draftPicks, ktcValues, leagueValueProfileKey, playoffWeekStartBySeason)
-                : undefined;
-              const dynastyMainDraftValueWindowsByDraftId = leagueValueMode === 'dynasty'
-                ? await buildDynastyMainDraftValueWindowsByDraftId(draftPicks, ktcValues, leagueValueProfileKey)
                 : undefined;
               draftAnalysis = await analyzeDraftPicks(
                 draftPicks,

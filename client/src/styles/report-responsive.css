@@ -11119,13 +11119,16 @@
 
 .report-shell .rookie-draft-player-cell .draft-opportunity-note {
   display: block !important;
-  width: calc(100% - 2.53rem) !important;
-  margin-top: 0.02rem !important;
-  margin-left: 2.53rem !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  white-space: normal !important;
-  line-height: 1.18 !important;
+  position: absolute !important;
+  top: 1.42rem !important;
+  left: 2.66rem !important;
+  right: 0 !important;
+  width: auto !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  line-height: 1.05 !important;
 }
 
 @media (max-width: 767px) {
@@ -14212,11 +14215,11 @@
   .report-shell .rookie-draft-row-header,
   .report-shell .rookie-draft-row {
     grid-template-columns:
-      minmax(2.2rem, 0.32fr) minmax(8.4rem, 1.55fr) minmax(1.9rem, 0.24fr)
-      minmax(2.35rem, 0.3fr) minmax(1.75rem, 0.2fr) minmax(2.8rem, 0.34fr)
-      minmax(3.35rem, 0.4fr) minmax(2.8rem, 0.34fr) minmax(3.35rem, 0.4fr)
-      minmax(3.6rem, 0.42fr) !important;
-    gap: 0.24rem !important;
+      minmax(2.25rem, 0.3fr) minmax(2.55rem, 0.3fr) minmax(8.9rem, 1.5fr)
+      minmax(1.95rem, 0.23fr) minmax(2.35rem, 0.29fr) minmax(1.9rem, 0.22fr)
+      minmax(2.95rem, 0.36fr) minmax(3.2rem, 0.38fr) minmax(2.95rem, 0.36fr)
+      minmax(3.2rem, 0.38fr) minmax(3.55rem, 0.42fr) !important;
+    gap: 0.34rem !important;
   }
 
   .report-shell .rookie-draft-row-header {
@@ -14226,6 +14229,7 @@
   }
 
   .report-shell .rookie-draft-pick-cell,
+  .report-shell .rookie-draft-adp-cell,
   .report-shell .rookie-draft-rank-cell,
   .report-shell .rookie-draft-value-cell,
   .report-shell .rookie-draft-gain-cell {
@@ -14317,7 +14321,7 @@
   .draft-sort-strip {
     display: grid !important;
     width: 100% !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     gap: 0.34rem !important;
   }
 

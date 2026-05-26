@@ -7,15 +7,20 @@ import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame } from './ManagerChampionships';
 import { TeamLogoPill } from './TeamLogoPill';
-import { EmptyState, MetricPill, PreviewMetricChips, ReportSectionHeader, type PreviewMetric } from './reportPrimitives';
+import { EmptyState, MetricPill, PlayerPill, PreviewMetricChips, ReportSectionHeader, type PreviewMetric } from './reportPrimitives';
 import { AIReadPanel } from './AIReadPanel';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 import { getDraftKind, getDraftKindLabel, isFreshRookieMarketRead } from '@/lib/draftDisplay';
+import {
+  buildDraftSignalManagerStats,
+  getDraftSignalPicks,
+} from '@/lib/draftDashboardMetrics';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
 import { readEnumParam, readOptionalEnumParam, replaceUrlSearchParams } from '@/lib/reportUrlState';
+import { getPositionRankPillClass } from '@/lib/positionRank';
 
 interface DraftAnalysisProps {
   draftPicks: DraftPick[];
@@ -35,7 +40,7 @@ interface DraftAnalysisProps {
 }
 
 type ManagerDraftModalMode = 'portfolio' | 'audit';
-type SortColumn = 'pick' | 'currentValue' | 'valueChange' | null;
+type SortColumn = 'pick' | 'adp' | 'currentValue' | 'valueChange' | null;
 type SortDirection = 'asc' | 'desc';
 type RookieMismatchTone = 'buy' | 'sell' | 'watch' | 'hold';
 type RookieMismatchRow = {
@@ -58,13 +63,18 @@ type RookieMismatchRow = {
   aiRead: string;
   chips: string[];
 };
-const DRAFT_SORT_COLUMNS: readonly Exclude<SortColumn, null>[] = ['pick', 'currentValue', 'valueChange'];
+const DRAFT_SORT_COLUMNS: readonly Exclude<SortColumn, null>[] = ['pick', 'adp', 'currentValue', 'valueChange'];
 const DRAFT_SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
 
 function formatDraftAge(age?: number | string | null): string {
   const numericAge = Number(age);
   if (!Number.isFinite(numericAge) || numericAge <= 0) return '-';
   return `${Number.isInteger(numericAge) ? numericAge : numericAge.toFixed(1)} yrs`;
+}
+
+function formatDraftAdp(adp?: number | null): string {
+  if (typeof adp !== 'number' || !Number.isFinite(adp)) return 'N/A';
+  return Number.isInteger(adp) ? String(adp) : adp.toFixed(1);
 }
 
 function getDraftCurrentValue(pick: DraftPick, leagueValueMode: LeagueValueMode): number {
@@ -279,6 +289,20 @@ function renderPreviewManagerIdentity(
   );
 }
 
+function renderDraftPreviewPlayer(pick: DraftPick): ReactNode {
+  const details = pick.playerDetails;
+
+  return (
+    <PlayerPill
+      playerId={pick.player_id}
+      playerName={pick.playerName}
+      team={details?.team}
+      position={details?.position || pick.playerPos}
+      className="analysis-preview-player"
+    />
+  );
+}
+
 function getDraftGroupKey(pick: DraftPick, leagueValueMode: LeagueValueMode): string {
   return `${pick.draftYear || 'Draft'}::${getDraftKind(pick, leagueValueMode)}`;
 }
@@ -382,8 +406,8 @@ function buildDraftYearPreviewMetrics(
   const cleanDecisionRate = picks.length ? `${Math.round((cleanDecisionCount / picks.length) * 100)}%` : '-';
 
   return [
-    topGain ? { label: leagueValueMode === 'redraft' ? 'Top Current Gain' : 'Top Gain', compactLabel: 'Gain', value: topGain.playerName, tone: 'good' } : null,
-    biggestMiss && (biggestMiss.valueGain || 0) < 0 ? { label: 'Biggest Miss', compactLabel: 'Miss', value: biggestMiss.playerName, tone: 'danger' } : null,
+    topGain ? { label: leagueValueMode === 'redraft' ? 'Top Current Gain' : 'Top Gain', compactLabel: 'Gain', value: renderDraftPreviewPlayer(topGain), tone: 'good' } : null,
+    biggestMiss && (biggestMiss.valueGain || 0) < 0 ? { label: 'Biggest Miss', compactLabel: 'Miss', value: renderDraftPreviewPlayer(biggestMiss), tone: 'danger' } : null,
     picks.length ? { label: leagueValueMode === 'redraft' ? 'Starter Hit Rate' : 'Hit Rate', compactLabel: 'Hit Rate', value: `${Math.round((hitCount / picks.length) * 100)}%`, tone: 'info' } : null,
     bestDecisionMaker ? {
       label: 'Cleanest Read',
@@ -453,7 +477,7 @@ export function DraftAnalysis({
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortColumn(column);
-      setSortDirection(column === 'pick' ? 'asc' : 'desc');
+      setSortDirection(column === 'pick' || column === 'adp' ? 'asc' : 'desc');
     }
   };
 
@@ -469,8 +493,8 @@ export function DraftAnalysis({
     }
 
     return [...pickedOnly].sort((a, b) => {
-      let aVal = 0;
-      let bVal = 0;
+      let aVal: number | null = 0;
+      let bVal: number | null = 0;
 
       if (sortColumn === 'currentValue') {
         aVal = getDraftCurrentValue(a, leagueValueMode);
@@ -478,9 +502,17 @@ export function DraftAnalysis({
       } else if (sortColumn === 'valueChange') {
         aVal = a.valueGain ?? 0;
         bVal = b.valueGain ?? 0;
+      } else if (sortColumn === 'adp') {
+        aVal = typeof a.adp === 'number' && Number.isFinite(a.adp) ? a.adp : null;
+        bVal = typeof b.adp === 'number' && Number.isFinite(b.adp) ? b.adp : null;
       } else if (sortColumn === 'pick') {
         aVal = a.pick || 0;
         bVal = b.pick || 0;
+      }
+
+      if (aVal === null || bVal === null) {
+        if (aVal === null && bVal === null) return a.pick - b.pick;
+        return aVal === null ? 1 : -1;
       }
 
       return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
@@ -499,10 +531,17 @@ export function DraftAnalysis({
     () => buildDraftOpportunityMap(draftPicks, managerRosterIntelligence || [], leagueValueMode),
     [draftPicks, leagueValueMode, managerRosterIntelligence]
   );
-  const orderedDraftStats = useMemo(() => sortManagerDraftStatsByEfficiency(draftStats), [draftStats]);
+  const draftSignalPicks = useMemo(
+    () => getDraftSignalPicks({ draftPicks: sortedDraftPicks, leagueValueMode }, leagueValueMode),
+    [leagueValueMode, sortedDraftPicks]
+  );
+  const orderedDraftStats = useMemo(
+    () => sortManagerDraftStatsByEfficiency(buildDraftSignalManagerStats({ draftPicks, leagueValueMode }, leagueValueMode)),
+    [draftPicks, leagueValueMode]
+  );
   const draftCapitalEfficiencyPicks = useMemo(
-    () => isRedraft ? draftPicks : draftPicks.filter((pick) => pick.draftKind === 'rookie'),
-    [draftPicks, isRedraft]
+    () => getDraftSignalPicks({ draftPicks, leagueValueMode }, leagueValueMode),
+    [draftPicks, leagueValueMode]
   );
   const draftYears = useMemo(() => Object.keys(draftPicksByYear).sort(compareDraftGroupKeys), [draftPicksByYear]);
   useEffect(() => {
@@ -525,8 +564,8 @@ export function DraftAnalysis({
   }, [sortColumn, sortDirection]);
 
   const draftDecisionAudits = useMemo(() => {
-    return buildDraftDecisionAudits(sortedDraftPicks, managerRosterIntelligence || [], leagueValueMode);
-  }, [sortedDraftPicks, managerRosterIntelligence, leagueValueMode]);
+    return buildDraftDecisionAudits(draftSignalPicks, managerRosterIntelligence || [], leagueValueMode);
+  }, [draftSignalPicks, managerRosterIntelligence, leagueValueMode]);
   const draftDecisionAuditByPick = useMemo(() => {
     const map = new Map<string, DraftDecisionAudit>();
     draftDecisionAudits.forEach((audit) => {
@@ -538,8 +577,8 @@ export function DraftAnalysis({
     return buildManagerDraftDecisionAudits(draftDecisionAudits);
   }, [draftDecisionAudits]);
   const draftPicksWithDecisionAudit = useMemo(() => {
-    return draftPicks.map((pick) => attachDraftDecisionAudit(pick, draftDecisionAuditByPick.get(getDraftPickKey(pick))));
-  }, [draftDecisionAuditByPick, draftPicks]);
+    return draftSignalPicks.map((pick) => attachDraftDecisionAudit(pick, draftDecisionAuditByPick.get(getDraftPickKey(pick))));
+  }, [draftDecisionAuditByPick, draftSignalPicks]);
   const rookieValuationMismatches = useMemo(() => {
     return buildRookieValuationMismatches({
       draftPicks: sortedDraftPicks,
@@ -587,9 +626,9 @@ export function DraftAnalysis({
     );
   }
 
-  const topDraftGain = [...sortedDraftPicks].sort((a, b) => (b.valueGain || 0) - (a.valueGain || 0))[0];
-  const biggestDraftLeak = [...sortedDraftPicks].sort((a, b) => (a.valueGain || 0) - (b.valueGain || 0))[0];
-  const viewerDraftPicks = viewerManager ? sortedDraftPicks.filter((pick) => pick.manager === viewerManager) : [];
+  const topDraftGain = [...draftSignalPicks].sort((a, b) => (b.valueGain || 0) - (a.valueGain || 0))[0];
+  const biggestDraftLeak = [...draftSignalPicks].sort((a, b) => (a.valueGain || 0) - (b.valueGain || 0))[0];
+  const viewerDraftPicks = viewerManager ? draftSignalPicks.filter((pick) => pick.manager === viewerManager) : [];
   const topDraftGainKind = topDraftGain
     ? getDraftKindLabel(getDraftKind(topDraftGain, leagueValueMode)).toLowerCase()
     : 'draft';
@@ -604,10 +643,10 @@ export function DraftAnalysis({
           title={isRedraft ? 'Draft recap AI read' : 'Draft capital AI read'}
           subtitle="Uses only returned draft picks, current player values, and roster-context audit notes."
           readType="Draft Capital Read"
-          confidence={sortedDraftPicks.length ? 82 : 50}
+          confidence={draftSignalPicks.length ? 82 : 50}
           severity={biggestDraftLeak && (biggestDraftLeak.valueGain || 0) < -500 ? 'warn' : 'info'}
           chips={[
-            `${sortedDraftPicks.length} picks`,
+            `${draftSignalPicks.length} picks`,
             topDraftGain ? `Top gain: ${topDraftGain.playerName}` : 'No gains',
             viewerManager ? `${viewerDraftPicks.length} viewer picks` : 'League view',
           ]}
@@ -685,7 +724,7 @@ export function DraftAnalysis({
           <div className="draft-decision-audit-note">
             {isRedraft
               ? 'Manager-level read on whether each draft generated current-season value, starter hits, bench depth, and position-need help.'
-              : 'Manager-level read on whether each draft stayed near the best dynasty values available. Roster need is only used as a tiebreaker after board value.'}
+              : 'Manager-level read on whether each rookie draft pick stayed near the best dynasty values available. Roster need is only used as a tiebreaker after board value.'}
           </div>
           <div className="owner-tile-shell">
             <div className="owner-tile-grid draft-efficiency-tile-grid draft-decision-manager-grid balanced-tile-grid" style={getBalancedGridStyle(managerDraftDecisionAudits.length)}>
@@ -744,7 +783,7 @@ export function DraftAnalysis({
           title="Rookie Valuation Mismatch"
           kicker="Market price vs profile, opportunity, and runway"
           previewMetrics={[
-            topRookieMismatch ? { label: 'Top Flag', value: topRookieMismatch.playerName, tone: topRookieMismatch.tone === 'buy' ? 'good' : topRookieMismatch.tone === 'sell' ? 'danger' : 'warn' } : null,
+            topRookieMismatch ? { label: 'Top Flag', value: renderDraftPreviewPlayer(topRookieMismatch.pick), tone: topRookieMismatch.tone === 'buy' ? 'good' : topRookieMismatch.tone === 'sell' ? 'danger' : 'warn' } : null,
             { label: 'Players Graded', value: rookieValuationMismatches.length, tone: 'info' },
             topRookieMismatch ? { label: 'Mismatch', value: `${topRookieMismatch.mismatchScore > 0 ? '+' : ''}${topRookieMismatch.mismatchScore}`, tone: Math.abs(topRookieMismatch.mismatchScore) >= 20 ? 'warn' : 'info' } : null,
           ].filter(Boolean) as PreviewMetric[]}
@@ -840,6 +879,10 @@ export function DraftAnalysis({
                         Pick #
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
+                      <button type="button" onClick={() => handleSort('adp')}>
+                        Drafted ADP
+                        <ArrowUpDown className="h-3.5 w-3.5" />
+                      </button>
                       <button type="button" onClick={() => handleSort('currentValue')}>
                         {isRedraft ? 'Current Season' : 'Current Value'}
                         <ArrowUpDown className="h-3.5 w-3.5" />
@@ -851,6 +894,7 @@ export function DraftAnalysis({
                     </div>
                     <div className="rookie-draft-row-header" aria-hidden="true">
                       <span>Pick</span>
+                      <span>Drafted / Current ADP</span>
                       <span>Player</span>
                       <span>Team</span>
                       <span>Age</span>
@@ -875,6 +919,9 @@ export function DraftAnalysis({
                         const draftRankLabel = pick.positionRankMay2025 || pick.playerPos || 'N/A';
                         const currentRankLabel = pick.currentPositionRank || pick.playerPos || 'N/A';
                         const currentValue = getDraftCurrentValue(pick, leagueValueMode);
+                        const adpTitle = [pick.adpSource ? `Drafted: ${pick.adpSource}` : null, pick.currentAdpSource ? `Current: ${pick.currentAdpSource}` : null]
+                          .filter(Boolean)
+                          .join(' | ') || undefined;
                         return (
                           <button
                             key={`${pick.draftYear}-${pick.pick}-${pick.player_id || idx}`}
@@ -884,6 +931,14 @@ export function DraftAnalysis({
                             onClick={() => openDraftPlayer(pick)}
                           >
                             <span className="rookie-draft-pick-cell" data-label="Pick">#{pick.pick}</span>
+                            <span
+                              className="rookie-draft-adp-cell"
+                              data-label="Drafted / Current ADP"
+                              title={adpTitle}
+                            >
+                              <span>{formatDraftAdp(pick.adp)}</span>
+                              <small>{formatDraftAdp(pick.currentAdp)}</small>
+                            </span>
                             <span className="rookie-draft-player-cell">
                               <PlayerNameWithHeadshot
                                 playerId={pick.player_id}
@@ -902,12 +957,13 @@ export function DraftAnalysis({
                                 avatarUrl={managerAvatars?.[pick.manager]}
                                 managerName={pick.manager}
                                 displayName={managerDisplayName}
+                                hideName
                               />
                             </span>
-                            <span className="rookie-draft-rank-cell rookie-draft-rank-cell-draft" data-label="Draft">{draftRankLabel}</span>
-                            <span className="rookie-draft-value-cell" data-label="Draft">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
-                            <span className="rookie-draft-rank-cell rookie-draft-rank-cell-current" data-label="Now">{currentRankLabel}</span>
-                            <span className="rookie-draft-value-cell" data-label="Now">{currentValue ? currentValue.toLocaleString() : 'N/A'}</span>
+                            <span className={getPositionRankPillClass(draftRankLabel, 'rookie-draft-rank-cell rookie-draft-rank-cell-draft')} data-label="Draft">{draftRankLabel}</span>
+                            <span className="rookie-draft-value-cell" data-label="Draft" title={pick.draftValueSource || undefined}>{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
+                            <span className={getPositionRankPillClass(currentRankLabel, 'rookie-draft-rank-cell rookie-draft-rank-cell-current')} data-label="Now">{currentRankLabel}</span>
+                            <span className="rookie-draft-value-cell" data-label="Now" title={pick.currentValueSource || undefined}>{currentValue ? currentValue.toLocaleString() : 'N/A'}</span>
                             <span className="rookie-draft-change-cell" aria-label={`${pick.playerName} value change`}>
                               <span className="rookie-draft-age-mobile" data-label="Age">{ageLabel}</span>
                               {details?.team ? (
@@ -938,7 +994,7 @@ export function DraftAnalysis({
         isOpen={selectedManager !== null}
         onClose={() => setSelectedManager(null)}
         managerName={selectedManager || ''}
-        managerDisplayName={selectedManager ? draftStats.find((stat) => stat.manager === selectedManager)?.managerDisplayName : undefined}
+        managerDisplayName={selectedManager ? orderedDraftStats.find((stat) => stat.manager === selectedManager)?.managerDisplayName : undefined}
         draftPicks={selectedManagerMode === 'audit' ? draftPicksWithDecisionAudit : draftCapitalEfficiencyPicks}
         managerAvatarUrl={selectedManager ? managerAvatars?.[selectedManager] : null}
         playerDetailsById={playerDetailsById}

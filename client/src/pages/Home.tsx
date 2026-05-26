@@ -84,7 +84,7 @@ import {
   getBestDraftAdpValueManager,
   getBestDraftSignalManager,
   getDraftSignalPicks,
-  getWorstDraftSignalManager,
+  getWorstDraftAdpValueManager,
 } from "@/lib/draftDashboardMetrics";
 import {
   buildManagerPositionRoomPreview,
@@ -256,7 +256,7 @@ const DYNASTY_MOBILE_REPORT_LOGO_SRC =
   "/brand/logos/png/mobile-dd-stacked-transparent.png?v=20260519-mobile-transparent";
 const DYNASTY_REPORT_HEADER_LOGO_SRC =
   "/brand/logos/uploads/report-header-logo-compact-transparent-cropped.png?v=20260518-compact-crop";
-const REPORT_CACHE_DATA_VERSION = "draftsharks-sos-only-v1";
+const REPORT_CACHE_DATA_VERSION = "sleeper-rookie-rank-v1";
 const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v25";
 const REPORT_DELTA_SNAPSHOT_KEY =
   "dynasty-degenerates:report-delta-snapshots:v1";
@@ -4938,29 +4938,22 @@ function getDashboardFutureGm(reportData: ReportData, leagueValueMode: LeagueVal
   };
 }
 
-function getDashboardDraftLiability(reportData: ReportData, leagueValueMode: LeagueValueMode) {
-  const worstManager = getWorstDraftSignalManager(reportData, leagueValueMode);
-  const decided = worstManager
-    ? (worstManager.hits || 0) + (worstManager.misses || 0)
-    : 0;
-  const hitRate = decided && worstManager
-    ? Math.round(((worstManager.hits || 0) / decided) * 100)
-    : null;
-  return worstManager
+function getDashboardAdpReach(reportData: ReportData, leagueValueMode: LeagueValueMode) {
+  const reachManager = getWorstDraftAdpValueManager(reportData, leagueValueMode);
+
+  return reachManager
     ? {
-        manager: worstManager.manager,
-        value: formatDashboardSignedNumber(worstManager.avgKtcGain),
-        subLabel: "Worst rookie value per pick",
+        manager: reachManager.manager,
+        value: `${Math.round(reachManager.totalAdpReach)} ADP`,
+        subLabel: "Total rookie ADP overpay",
         badges: [
-          { label: `${worstManager.totalPicks} picks`, tone: "info" as DashboardMetricTone },
           {
-            label: hitRate === null ? "Hit rate pending" : `${hitRate}% hits`,
-            tone:
-              hitRate === null
-                ? ("neutral" as DashboardMetricTone)
-                : hitRate >= 50
-                  ? ("warn" as DashboardMetricTone)
-                  : ("danger" as DashboardMetricTone),
+            label: `${reachManager.adpReachPickCount} reaches`,
+            tone: "danger" as DashboardMetricTone,
+          },
+          {
+            label: `${reachManager.totalPicks} picks`,
+            tone: "info" as DashboardMetricTone,
           },
         ],
       }
@@ -5191,7 +5184,7 @@ function getReportDashboardHeroConfig({
 
   if (activeTab === "draft") {
     const futureGm = getDashboardFutureGm(reportData, leagueValueMode);
-    const liability = getDashboardDraftLiability(reportData, leagueValueMode);
+    const adpReach = getDashboardAdpReach(reportData, leagueValueMode);
     const adpThief = getDashboardAdpThief(reportData, leagueValueMode);
     return {
       pillLabel: "Draft signals",
@@ -5212,20 +5205,18 @@ function getReportDashboardHeroConfig({
             : "Best pick efficiency is not available.",
         },
         {
-          key: "draft-liability",
+          key: "adp-reach",
           kind: "badges",
-          label: "Draft Liability",
-          value: liability?.manager || "No leak found",
-          subLabel: liability
-            ? `${liability.value} avg rookie value`
-            : "Not enough draft ROI",
-          badges: liability?.badges || [{ label: "Pending", tone: "neutral" }],
-          targetManager: liability?.manager,
-          avatarUrl: getMetricAvatarUrl(liability?.manager),
-          tone: liability ? "danger" : "neutral",
-          helper: liability
-            ? liability.subLabel
-            : "Worst pick efficiency is not available.",
+          label: "ADP Reach",
+          value: adpReach?.manager || "No reach logged",
+          subLabel: adpReach?.subLabel || "No ADP overpay data",
+          badges: adpReach?.badges || [{ label: "Pending", tone: "neutral" }],
+          targetManager: adpReach?.manager,
+          avatarUrl: getMetricAvatarUrl(adpReach?.manager),
+          tone: adpReach ? "danger" : "neutral",
+          helper: adpReach
+            ? `${adpReach.manager} reached ${adpReach.value} ahead of rookie ADP.`
+            : "Worst total ADP reach is not available.",
         },
         {
           key: "adp-thief",
