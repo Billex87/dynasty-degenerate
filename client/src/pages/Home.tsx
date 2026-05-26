@@ -12291,14 +12291,6 @@ export default function Home() {
                     reportData={reportDataForView}
                     leagueBalanceScore={dashboardLeagueHealthScore}
                   />
-                  <ReportDashboardSpotlight
-                    manager={dashboardViewerManager}
-                    activeTab={resolvedActiveTab}
-                    leagueValueMode={leagueValueMode}
-                    reportData={reportDataForView}
-                    managerAvatars={reportData.managerAvatars}
-                    variant="inline"
-                  />
                   <ReportSinceLastReportBrief
                     changes={reportDeltaChanges}
                     previousSavedAt={previousReportDeltaSnapshot?.savedAt}
@@ -13118,6 +13110,14 @@ export default function Home() {
                     </TabsContent>
                   )}
                   </Suspense>
+                  <ReportDashboardSpotlight
+                    manager={dashboardViewerManager}
+                    activeTab={resolvedActiveTab}
+                    leagueValueMode={leagueValueMode}
+                    reportData={reportDataForView}
+                    managerAvatars={reportData.managerAvatars}
+                    variant="inline"
+                  />
                 </div>
               </main>
               <ReportDashboardSpotlight
