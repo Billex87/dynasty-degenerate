@@ -6133,17 +6133,11 @@ function ReportDashboardSpotlight({
       </div>
     </>
   );
-  const inlineTronTheme: AITronTheme =
-    activeTab === "trades"
-      ? "blue"
-      : activeTab === "draft" || activeTab === "rankings"
-        ? "amber"
-        : "cyan";
   const inlineSpotlightClassName = [
     "report-dashboard-spotlight-inline",
     inlineSpotlightOpen
       ? "report-dashboard-spotlight"
-      : "ai-surface-r3f ai-neural-surface-tron ai-neural-surface-window dashboard-spotlight-inline-tron",
+      : "dashboard-spotlight-inline-glass",
   ].filter(Boolean).join(" ");
 
   if (variant === "inline") {
@@ -6153,13 +6147,6 @@ function ReportDashboardSpotlight({
         aria-label="Manager spotlight"
         onToggle={(event) => setInlineSpotlightOpen(event.currentTarget.open)}
       >
-        {!inlineSpotlightOpen && (
-          <AITronSurface
-            theme={inlineTronTheme}
-            density="small"
-            routeKey={`dashboard-spotlight-${activeTab}-${manager}`}
-          />
-        )}
         <summary className="dashboard-spotlight-inline-summary">
           {spotlightHeader}
           <span className="dashboard-spotlight-inline-copy">
