@@ -256,8 +256,8 @@ const DYNASTY_MOBILE_REPORT_LOGO_SRC =
   "/brand/logos/png/mobile-dd-stacked-transparent.png?v=20260519-mobile-transparent";
 const DYNASTY_REPORT_HEADER_LOGO_SRC =
   "/brand/logos/uploads/report-header-logo-compact-transparent-cropped.png?v=20260518-compact-crop";
-const REPORT_CACHE_DATA_VERSION = "sleeper-rookie-rank-v1";
-const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v25";
+const REPORT_CACHE_DATA_VERSION = "startup-adp-snapshot-v1";
+const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v26";
 const REPORT_DELTA_SNAPSHOT_KEY =
   "dynasty-degenerates:report-delta-snapshots:v1";
 const REPORT_DELTA_MAX_LEAGUES = 12;

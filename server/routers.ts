@@ -1164,7 +1164,7 @@ function buildManagerAnchorsFromSleeperUsers(users: unknown) {
     : [];
 }
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v52';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v53';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v13';
 const LEAGUE_REPORT_CACHE_TTL_MS = getLeagueReportCacheTtlMs();
 const LEAGUE_REPORT_CACHE_TTL_HOURS = getLeagueReportCacheTtlHours();
@@ -6867,6 +6867,7 @@ export const appRouter = router({
               ? await buildSleeperStartupAdpData(draftPicks, players, {
                 ...leagueValueOptions,
                 baselineSnapshotKeyBySeason: startupBaselineSnapshotKeyBySeason,
+                currentSeason: currentSeasonLabel,
               })
               : {};
             const adpData = {

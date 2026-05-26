@@ -97,6 +97,7 @@ function sanitizeWaiverIntelligence(reportData: ReportData): ReportData {
   return {
     ...reportData,
     trendingAdds: withoutOmittedPlayers(reportData.trendingAdds, omitted),
+    trendingDrops: withoutOmittedPlayers(reportData.trendingDrops, omitted),
     waiverIntelligence: {
       ...waiver,
       availableTrendingAdds: withoutOmittedPlayers(waiver.availableTrendingAdds, omitted),

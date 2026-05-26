@@ -40,6 +40,7 @@ describe("sanitizeCachedReportData", () => {
     const reportData: ReportData = {
       ...baseReportData(),
       trendingAdds: [omitted, trusted],
+      trendingDrops: [omitted, trusted],
       waiverIntelligence: {
         rosteredTrendingAdds: [],
         availableTrendingAdds: [omitted, trusted],
@@ -71,6 +72,7 @@ describe("sanitizeCachedReportData", () => {
     const sanitized = sanitizeCachedReportData(reportData);
 
     const visibleWaiverSurfaces = {
+      trendingDrops: sanitized.trendingDrops,
       availableTrendingAdds: sanitized.waiverIntelligence?.availableTrendingAdds,
       highestKtcAvailable: sanitized.waiverIntelligence?.highestKtcAvailable,
       bestAvailableByPosition: sanitized.waiverIntelligence?.bestAvailableByPosition,
@@ -80,6 +82,7 @@ describe("sanitizeCachedReportData", () => {
 
     expect(JSON.stringify(visibleWaiverSurfaces)).not.toContain("Dallen Bentley");
     expect(sanitized.trendingAdds?.map(player => player.name)).toEqual(["Trusted Tight End"]);
+    expect(sanitized.trendingDrops?.map(player => player.name)).toEqual(["Trusted Tight End"]);
     expect(sanitized.waiverIntelligence?.highestKtcAvailable).toBeNull();
     expect(sanitized.waiverIntelligence?.bestAvailableByPosition.TE).toBeNull();
     expect(sanitized.waiverIntelligence?.availableTrendingAdds.map(player => player.name)).toEqual(["Trusted Tight End"]);

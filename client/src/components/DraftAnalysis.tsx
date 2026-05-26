@@ -339,6 +339,12 @@ function getDraftGroupTitle(groupKey: string, picks: DraftPick[], leagueValueMod
   return /^\d{4}$/.test(draftYear) ? `${draftYear} ${label}` : label;
 }
 
+function getDraftGroupKind(groupKey: string, picks: DraftPick[], leagueValueMode: LeagueValueMode): ReturnType<typeof getDraftKind> {
+  const explicitKind = groupKey.split('::')[1] as ReturnType<typeof getDraftKind> | undefined;
+  if (explicitKind === 'rookie' || explicitKind === 'startup' || explicitKind === 'main') return explicitKind;
+  return picks[0] ? getDraftKind(picks[0], leagueValueMode) : 'rookie';
+}
+
 function buildDraftStatsPreviewMetrics(
   stats: ManagerDraftStats[],
   leagueValueMode: LeagueValueMode,
@@ -844,6 +850,10 @@ export function DraftAnalysis({
       <div className="draft-year-card-grid">
         {draftYears.map((draftYear) => {
           const yearPicks = draftPicksByYear[draftYear] || [];
+          const draftGroupKind = getDraftGroupKind(draftYear, yearPicks, leagueValueMode);
+          const isStartupDraftGroup = draftGroupKind === 'startup';
+          const adpColumnLabel = isStartupDraftGroup ? 'Drafted / Current ADP' : 'ADP';
+          const adpSortLabel = isStartupDraftGroup ? 'Drafted ADP' : 'ADP';
           const draftYearSectionId = `year:${draftYear}`;
           const isDraftBoardOpen = activeDraftSectionId === draftYearSectionId;
           const yearPreviewMetrics = buildDraftYearPreviewMetrics(yearPicks, leagueValueMode, draftDecisionAudits, managerAvatars);
@@ -880,7 +890,7 @@ export function DraftAnalysis({
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => handleSort('adp')}>
-                        Drafted ADP
+                        {adpSortLabel}
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => handleSort('currentValue')}>
@@ -894,7 +904,7 @@ export function DraftAnalysis({
                     </div>
                     <div className="rookie-draft-row-header" aria-hidden="true">
                       <span>Pick</span>
-                      <span>Drafted / Current ADP</span>
+                      <span>{adpColumnLabel}</span>
                       <span>Player</span>
                       <span>Team</span>
                       <span>Age</span>
@@ -919,9 +929,11 @@ export function DraftAnalysis({
                         const draftRankLabel = pick.positionRankMay2025 || pick.playerPos || 'N/A';
                         const currentRankLabel = pick.currentPositionRank || pick.playerPos || 'N/A';
                         const currentValue = getDraftCurrentValue(pick, leagueValueMode);
-                        const adpTitle = [pick.adpSource ? `Drafted: ${pick.adpSource}` : null, pick.currentAdpSource ? `Current: ${pick.currentAdpSource}` : null]
-                          .filter(Boolean)
-                          .join(' | ') || undefined;
+                        const adpTitle = isStartupDraftGroup
+                          ? [pick.adpSource ? `Drafted: ${pick.adpSource}` : null, pick.currentAdpSource ? `Current: ${pick.currentAdpSource}` : null]
+                            .filter(Boolean)
+                            .join(' | ') || undefined
+                          : pick.adpSource || undefined;
                         return (
                           <button
                             key={`${pick.draftYear}-${pick.pick}-${pick.player_id || idx}`}
@@ -933,11 +945,13 @@ export function DraftAnalysis({
                             <span className="rookie-draft-pick-cell" data-label="Pick">#{pick.pick}</span>
                             <span
                               className="rookie-draft-adp-cell"
-                              data-label="Drafted / Current ADP"
+                              data-label={adpColumnLabel}
                               title={adpTitle}
                             >
                               <span>{formatDraftAdp(pick.adp)}</span>
-                              <small>{formatDraftAdp(pick.currentAdp)}</small>
+                              {isStartupDraftGroup && pick.currentAdp !== null && pick.currentAdp !== undefined ? (
+                                <small>{formatDraftAdp(pick.currentAdp)}</small>
+                              ) : null}
                             </span>
                             <span className="rookie-draft-player-cell">
                               <PlayerNameWithHeadshot

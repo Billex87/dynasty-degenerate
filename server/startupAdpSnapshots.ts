@@ -257,6 +257,7 @@ export async function buildSleeperStartupAdpData(
     numQbs?: number | null;
     ppr?: number | null;
     baselineSnapshotKeyBySeason?: Record<string, string | null>;
+    currentSeason?: string | number | null;
   } = {},
 ): Promise<Record<string, DraftAdpRow>> {
   const format = getStartupAdpFormat(options);
@@ -273,13 +274,14 @@ export async function buildSleeperStartupAdpData(
     currentRows: Record<string, StartupAdpRow>;
   }>();
   await Promise.all(seasons.map(async (season) => {
+    const currentAdpSeason = String(options.currentSeason || season).trim();
     const [baselineRows, currentRows] = await Promise.all([
       loadStoredStartupAdpSnapshot({
         season,
         format,
         onOrBefore: options.baselineSnapshotKeyBySeason?.[season] || null,
       }),
-      loadCurrentSleeperStartupAdp(season, format),
+      loadCurrentSleeperStartupAdp(/^\d{4}$/.test(currentAdpSeason) ? currentAdpSeason : season, format),
     ]);
     rowsBySeason.set(season, { baselineRows, currentRows });
   }));
