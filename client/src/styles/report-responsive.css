@@ -15139,11 +15139,11 @@
 
 /* Header tab fit pass: bottom-align logo, tabs, league chips, and avatar. */
 .report-shell .report-header-inner {
-  padding-block: clamp(0.38rem, 0.7vw, 0.7rem) 0.32rem !important;
+  padding-block: clamp(0.25rem, 0.48vw, 0.46rem) 0.28rem !important;
 }
 
 .report-shell .report-header-grid {
-  grid-template-columns: minmax(16rem, 22rem) minmax(29rem, 52rem) minmax(16rem, 22rem) !important;
+  grid-template-columns: minmax(12.5rem, 17rem) minmax(29rem, 52rem) minmax(16rem, 22rem) !important;
   align-items: end !important;
   justify-content: space-between !important;
   gap: clamp(0.35rem, 0.75vw, 0.9rem) !important;
@@ -15160,8 +15160,8 @@
 }
 
 .report-shell .report-header-logo-left {
-  width: min(21rem, 100%) !important;
-  height: clamp(4.35rem, 4.45vw, 5.45rem) !important;
+  width: min(16.25rem, 100%) !important;
+  height: clamp(3.1rem, 3.35vw, 4rem) !important;
   object-position: left bottom !important;
 }
 
@@ -15244,7 +15244,12 @@
 
 .report-shell .report-tabs::after,
 .report-shell .report-tab::after {
-  background: var(--dd-orange-title-gradient, linear-gradient(90deg, #c2410c 0%, #fb923c 22%, #fdba74 52%, #fb923c 78%, #c2410c 100%)) !important;
+  content: none !important;
+  display: none !important;
+}
+
+.report-shell .report-dashboard-shell {
+  padding-top: 0 !important;
 }
 
 .report-shell .report-league-zone {
@@ -15607,6 +15612,201 @@
   .report-shell .report-overview-metrics .dashboard-balance-graph {
     grid-row: auto !important;
     grid-column: 1 !important;
+  }
+}
+
+/* Current report chrome fit: keep tabs flush to the header edge, preserve the
+   long brand on tablet widths, and keep mobile identity icons equal height. */
+.report-shell .report-header-inner {
+  padding-bottom: 4px !important;
+}
+
+.report-shell .report-header-grid {
+  gap: clamp(0.28rem, 0.58vw, 0.68rem) !important;
+}
+
+.report-shell .report-header-tabs.report-tabs {
+  align-self: end !important;
+  border-radius: 0.7rem !important;
+}
+
+.report-shell .report-dashboard-shell {
+  gap: 0 !important;
+  flex: 1 0 auto;
+  padding-bottom: 0 !important;
+}
+
+.report-shell .report-dashboard-main,
+.report-shell .overview-command-canvas {
+  min-height: 100%;
+}
+
+.report-shell .report-footer {
+  flex: 0 0 auto;
+  margin-top: 0 !important;
+}
+
+@media (min-width: 1280px) {
+  .report-shell .report-header-grid {
+    grid-template-columns: minmax(12rem, 16.5rem) minmax(38rem, 1fr) minmax(13rem, 18rem) !important;
+  }
+}
+
+@media (min-width: 1181px) and (max-width: 1279px) {
+  .report-shell .report-header-grid {
+    grid-template-columns: minmax(9.5rem, 12.25rem) minmax(34rem, 1fr) minmax(13rem, 17rem) !important;
+    column-gap: clamp(0.78rem, 1.05vw, 0.95rem) !important;
+  }
+
+  .report-shell .report-header-logo-left {
+    width: min(12rem, 100%) !important;
+    height: 3.25rem !important;
+  }
+
+  .report-shell .report-header-tabs.report-tabs {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .report-shell .report-league-lockup {
+    gap: 0.68rem !important;
+  }
+
+  .report-shell .report-league-lockup > div {
+    max-width: min(13.75rem, 100%) !important;
+  }
+}
+
+@media (min-width: 600px) and (max-width: 1180px) {
+  .report-shell .report-header-inner {
+    padding-inline: 0 !important;
+    padding-top: 0.44rem !important;
+  }
+
+  .report-shell .report-header-grid {
+    grid-template-columns: minmax(11.5rem, 16.25rem) minmax(0, 1fr) !important;
+    grid-template-areas:
+      "brand league"
+      "tabs tabs" !important;
+    gap: 0.36rem 0.55rem !important;
+  }
+
+  .report-shell .report-header-brand {
+    grid-area: brand !important;
+    padding-left: clamp(0.45rem, 1vw, 0.75rem) !important;
+  }
+
+  .report-shell .report-league-zone {
+    grid-area: league !important;
+    padding-right: clamp(0.45rem, 1vw, 0.75rem) !important;
+  }
+
+  .report-shell .report-header-mobile-brand-lockup {
+    display: none !important;
+  }
+
+  .report-shell .report-header-logo-button {
+    display: block !important;
+  }
+
+  .report-shell .report-header-logo-left {
+    display: block !important;
+    width: min(15.75rem, 100%) !important;
+    height: clamp(3rem, 4.6vw, 3.9rem) !important;
+    object-position: left bottom !important;
+  }
+
+  .report-shell .report-header-tabs.report-tabs {
+    grid-area: tabs !important;
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    margin-inline: 0 !important;
+    border-right: 0 !important;
+    border-left: 0 !important;
+    border-radius: 0.7rem !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .report-shell .report-header-tabs.report-tabs {
+    width: 100% !important;
+    margin-bottom: 0 !important;
+  }
+}
+
+@media (max-width: 599px) {
+  .report-shell {
+    --dd-report-mobile-icon-size: clamp(2.45rem, 8.5vw, 2.7rem);
+  }
+
+  .report-shell .report-header-inner {
+    padding: 0.5rem 0 4px !important;
+  }
+
+  .report-shell .report-header-grid {
+    grid-template-columns: minmax(var(--dd-report-mobile-icon-size), var(--dd-report-mobile-icon-size)) minmax(0, 1fr) !important;
+    gap: 0.38rem 0.5rem !important;
+  }
+
+  .report-shell .report-header-brand {
+    min-height: var(--dd-report-mobile-icon-size) !important;
+    padding-left: 0.5rem !important;
+    align-items: center !important;
+  }
+
+  .report-shell .report-header-mobile-brand-lockup,
+  .report-shell .report-header-mobile-logo,
+  .report-shell .report-header-league-avatar {
+    width: var(--dd-report-mobile-icon-size) !important;
+    height: var(--dd-report-mobile-icon-size) !important;
+  }
+
+  .report-shell .report-header-mobile-brand-lockup,
+  .report-shell .report-header-mobile-logo {
+    object-position: left center !important;
+  }
+
+  .report-shell .report-league-zone {
+    align-self: center !important;
+    padding-right: 0.5rem !important;
+  }
+
+  .report-shell .report-header-league-avatar {
+    align-self: center !important;
+  }
+
+  .report-shell .report-header-tabs.report-tabs {
+    border-right: 0 !important;
+    border-left: 0 !important;
+    border-radius: 0.7rem !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 900px) {
+  .report-shell .report-header-tabs.report-tabs::before {
+    content: "" !important;
+    position: absolute !important;
+    top: 0.15rem !important;
+    bottom: 0.15rem !important;
+    left: calc((100% / var(--dd-report-tab-count)) * var(--dd-report-tab-index) + 0.15rem) !important;
+    z-index: 0 !important;
+    display: block !important;
+    width: calc((100% / var(--dd-report-tab-count)) - 0.3rem) !important;
+    border: 1px solid rgba(251, 146, 60, 0.48) !important;
+    border-radius: 0.56rem !important;
+    background:
+      linear-gradient(135deg, rgba(249, 115, 22, 0.94), rgba(194, 65, 12, 0.76)),
+      radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.22), transparent 30%) !important;
+    box-shadow:
+      0 10px 24px rgba(249, 115, 22, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+    opacity: 1 !important;
+    pointer-events: none !important;
+  }
+
+  .report-shell .report-header-tabs.report-tabs .report-tab {
+    position: relative !important;
+    z-index: 1 !important;
   }
 }
 
