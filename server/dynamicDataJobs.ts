@@ -17,6 +17,7 @@ import { isAnyProjectionTypeEnabled } from './projectionFeatureFlags';
 import { buildProspectLookup, loadProspectContext } from './prospectSource';
 import { getCurrentRankingSeason } from './rankingSeason';
 import { buildRankingsBoard } from './rankingsBoard';
+import { refreshSleeperProjectionSnapshotSet } from './sleeperProjectionSnapshots';
 import { refreshSleeperSeasonStatsSnapshots } from './sleeperSeasonStats';
 import { buildSourceHealthEvents, recordSourceHealthEvents } from './sourceHealth';
 import { getValueSourceProfileKey, getValueSourceProfileLabel, type ValueBlendOptions } from './valueBlend';
@@ -70,6 +71,10 @@ function includeFantasyProsProjectionSnapshots(): boolean {
     'kicker',
     'injuryAdjusted',
   ]);
+}
+
+function includeSleeperProjectionSnapshots(): boolean {
+  return envFlag('ENABLE_SLEEPER_PROJECTION_SNAPSHOTS') || isAnyProjectionTypeEnabled('sleeper', ['weekly']);
 }
 
 async function resolveFantasyProsSnapshotWindow(shouldResolveWeek: boolean) {
@@ -495,7 +500,7 @@ export async function refreshReportEnrichmentSnapshots(options: {
   const season = options.season || (now.getMonth() >= 8 ? currentSeason : previousSeason);
   const rosterRoomSeason = season === currentSeason ? currentSeason : String(Number(season) + 1);
   const rosterRoomPreviousSeason = season === currentSeason ? previousSeason : season;
-  const [playerNews, draftSharksSchedule, depthChartWarmCache, sleeperSeasonStats, playerProps, nflverseDraftCapital, nflversePlayerContext] = await Promise.all([
+  const [playerNews, draftSharksSchedule, depthChartWarmCache, sleeperSeasonStats, sleeperProjectionStats, playerProps, nflverseDraftCapital, nflversePlayerContext] = await Promise.all([
     loadPlayerNewsBundle({ persistSnapshot: true, forceRefresh: true }),
     loadDraftSharksScheduleContext({
       season: String(new Date().getFullYear()),
@@ -506,6 +511,12 @@ export async function refreshReportEnrichmentSnapshots(options: {
       limit: options.backfillLimit || 100,
     }),
     refreshSleeperSeasonStatsSnapshots(),
+    includeSleeperProjectionSnapshots()
+      ? refreshSleeperProjectionSnapshotSet({
+        season: rosterRoomSeason,
+        requestDelayMs: envNumber('SLEEPER_PROJECTION_SNAPSHOT_REQUEST_DELAY_MS', 150),
+      })
+      : Promise.resolve(null),
     refreshPlayerPropSnapshots(),
     loadNflverseDraftCapitalSnapshot({ persistSnapshot: true, forceRefresh: true }),
     loadNflversePlayerContext({
@@ -525,6 +536,7 @@ export async function refreshReportEnrichmentSnapshots(options: {
     draftSharksProfileCount: Object.keys(draftSharksSchedule.profiles || {}).length,
     depthChartWarmCache,
     sleeperSeasonStats,
+    sleeperProjectionStats,
     playerProps,
     nflverseDraftCapitalRows: nflverseDraftCapital.rowCount,
     nflversePlayerContextRows: Object.fromEntries(nflversePlayerContext.rowCounts.map((row) => [row.sourceKey, row.rowCount])),

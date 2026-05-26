@@ -58,6 +58,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   'sportsdataio-news-v1': 'SportsDataIO/RotoBaller news snapshot',
   'espn-depth-charts-v1': 'ESPN depth-chart snapshot',
   'draftsharks-sos-v1': 'DraftSharks SOS snapshot',
+  'sleeper-weekly-projections-v1': 'Stored weekly projection snapshot',
   'player-props-opticodds-v1': 'OpticOdds player props snapshot',
   'nflverse-draft-capital-v1': 'nflverse draft-capital snapshot',
   'nflverse-team-environment-v1': 'nflverse team-environment snapshot',
@@ -347,6 +348,13 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       staleAfterHours: WEEKLY_STALE_HOURS,
       missingLevel: envFlag('ENABLE_DRAFTSHARKS_SOS') ? 'warn' : 'info',
     },
+    ...['PPR', 'HALF_PPR', 'STD'].map((scoringProfile) => ({
+      sourceKey: `player-projection-snapshots-v1:sleeper:${scoringProfile}:weekly`,
+      source: `${PROVIDER_LABELS['sleeper-weekly-projections-v1']} (${scoringProfile})`,
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: DAILY_STALE_HOURS,
+      missingLevel: envFlag('ENABLE_SLEEPER_PROJECTIONS') ? 'warn' as const : 'info' as const,
+    })),
     {
       sourceKey: 'player-props-opticodds-v1',
       source: PROVIDER_LABELS['player-props-opticodds-v1'],

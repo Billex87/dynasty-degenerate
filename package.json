@@ -31,6 +31,7 @@
     "backtest:player-projections": "tsx scripts/backtest-player-projections.ts",
     "build:historical-player-team-map": "tsx scripts/build-historical-player-team-map.ts",
     "build:player-matchup-actuals": "tsx scripts/build-player-matchup-actuals.ts",
+    "refresh:sleeper-projections": "tsx scripts/refresh-sleeper-projections.ts",
     "build:ai-calibration-summary": "tsx scripts/build-ai-calibration-summary.ts",
     "publish:player-cohort-calibration": "tsx scripts/publish-player-cohort-calibration.ts",
     "audit:value-history:shards": "node scripts/audit-value-history-shards.mjs",

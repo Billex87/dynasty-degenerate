@@ -42,6 +42,7 @@ type AutopilotPlayerLike = {
   name?: string | null;
   pos?: string | null;
   position?: string | null;
+  team?: string | null;
   owner?: string | null;
   value?: number | null;
   seasonValue?: number | null;
@@ -53,7 +54,13 @@ type AutopilotPlayerLike = {
   age?: number | null;
   currentPositionRank?: string | null;
   seasonPositionRank?: string | null;
+  weeklyProjection?: PlayerDetails['weeklyProjection'];
   playerDetails?: PlayerDetails;
+};
+
+type AutopilotRosterOwnerLookup = {
+  byPlayerId: Map<string, string>;
+  byKey: Map<string, string>;
 };
 
 type ScheduleStreamerCandidate = NonNullable<NonNullable<ReportData['schedulePlanning']>['streamerCandidates']>[number];
@@ -77,6 +84,88 @@ function normalizeManagerName(value?: string | null) {
 
 function sameManager(a?: string | null, b?: string | null) {
   return normalizeManagerName(a) === normalizeManagerName(b);
+}
+
+function normalizeAutopilotLookupValue(value?: string | null) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function normalizeAutopilotPosition(value?: string | null) {
+  const position = String(value || '').trim().toUpperCase();
+  if (position === 'DST' || position === 'D/ST') return 'DEF';
+  return position;
+}
+
+function getAutopilotPlayerTeam(player?: AutopilotPlayerLike | null) {
+  return String(
+    player?.team ||
+      player?.playerDetails?.team ||
+      ''
+  ).trim().toUpperCase();
+}
+
+function getAutopilotRosterOwnerKeys(player?: AutopilotPlayerLike | null): string[] {
+  if (!player) return [];
+  const position = normalizeAutopilotPosition(player.pos || player.position || player.playerDetails?.position);
+  if (!position) return [];
+  const nameKey = normalizeAutopilotLookupValue(player.name || player.playerDetails?.fullName);
+  const teamKey = normalizeAutopilotLookupValue(getAutopilotPlayerTeam(player));
+  return [
+    nameKey ? `${position}:name:${nameKey}` : null,
+    nameKey && teamKey ? `${position}:name-team:${nameKey}:${teamKey}` : null,
+    position === 'DEF' && teamKey ? `${position}:team:${teamKey}` : null,
+  ].filter((key): key is string => Boolean(key));
+}
+
+function buildAutopilotRosterOwnerLookup(data: ReportData): AutopilotRosterOwnerLookup {
+  const lookup: AutopilotRosterOwnerLookup = {
+    byPlayerId: new Map(),
+    byKey: new Map(),
+  };
+
+  const addPlayer = (player: AutopilotPlayerLike | undefined | null, manager?: string | null) => {
+    const owner = String(manager || player?.owner || '').trim();
+    if (!player || !owner) return;
+    if (player.player_id && !lookup.byPlayerId.has(player.player_id)) {
+      lookup.byPlayerId.set(player.player_id, owner);
+    }
+    getAutopilotRosterOwnerKeys(player).forEach(key => {
+      if (!lookup.byKey.has(key)) lookup.byKey.set(key, owner);
+    });
+  };
+
+  for (const row of data.managerPositionCounts || []) {
+    const players = [
+      ...(row.rosterPlayers || []),
+      ...(row.lineupPlayers || []),
+      ...(row.starterPlayers || []),
+      ...(row.starterGroups || []).flatMap(group => group.players || []),
+    ];
+    players.forEach(player => addPlayer(player, row.manager));
+  }
+
+  for (const row of data.managerRosterIntelligence || []) {
+    (row.rosterPlayers || []).forEach(player => addPlayer(player, row.manager));
+  }
+
+  return lookup;
+}
+
+function getAutopilotRosterOwner(
+  lookup: AutopilotRosterOwnerLookup,
+  player: AutopilotPlayerLike
+): string | null {
+  const sourceOwner = String(player.owner || '').trim();
+  if (sourceOwner && !/^available$/i.test(sourceOwner)) return sourceOwner;
+  if (player.player_id) {
+    const owner = lookup.byPlayerId.get(player.player_id);
+    if (owner) return owner;
+  }
+  for (const key of getAutopilotRosterOwnerKeys(player)) {
+    const owner = lookup.byKey.get(key);
+    if (owner) return owner;
+  }
+  return null;
 }
 
 function safeNumber(value: unknown): number | null {
@@ -247,6 +336,46 @@ function getWaiverMatchupGuard(player: TrendingPlayer): {
 
 function getPlayerLineupPosition(player?: AutopilotPlayerLike | null): string {
   return normalizeLineupPosition(getPlayerPosition(player));
+}
+
+function getWeeklyProjection(player?: AutopilotPlayerLike | null) {
+  return player?.weeklyProjection || player?.playerDetails?.weeklyProjection || null;
+}
+
+function formatWeeklyProjectionRead(player?: AutopilotPlayerLike | null): string | null {
+  const projection = getWeeklyProjection(player);
+  if (!projection || projection.status !== 'ready') return null;
+  const opponent = projection.opponent
+    ? projection.homeAway === 'away'
+      ? ` at ${projection.opponent}`
+      : ` vs ${projection.opponent}`
+    : '';
+  return `Stored weekly projection: ${projection.projectedFantasyPoints.toFixed(1)} points in Week ${projection.week}${opponent}.`;
+}
+
+function findBestProjectionSwap(
+  managerRow: ReportData['managerPositionCounts'][number] | null | undefined,
+): { starter: AutopilotPlayerLike; candidate: AutopilotPlayerLike; edge: number } | null {
+  if (!managerRow) return null;
+  const starters = managerRow.starterPlayers || [];
+  const starterKeys = new Set(starters.map(getPlayerIdentityKey).filter(Boolean));
+  const candidates = (managerRow.lineupPlayers?.length ? managerRow.lineupPlayers : managerRow.rosterPlayers || [])
+    .filter((player) => !starterKeys.has(getPlayerIdentityKey(player)))
+    .filter((player) => getWeeklyProjection(player)?.status === 'ready');
+  let best: { starter: AutopilotPlayerLike; candidate: AutopilotPlayerLike; edge: number } | null = null;
+  for (const starter of starters) {
+    const starterProjection = getWeeklyProjection(starter);
+    if (!starterProjection || starterProjection.status !== 'ready') continue;
+    for (const candidate of candidates) {
+      if (!canReplaceStarterInKnownSlot({ candidate, starter, managerRow })) continue;
+      const candidateProjection = getWeeklyProjection(candidate);
+      if (!candidateProjection || candidateProjection.status !== 'ready') continue;
+      const edge = Math.round((candidateProjection.projectedFantasyPoints - starterProjection.projectedFantasyPoints) * 10) / 10;
+      if (edge < 2) continue;
+      if (!best || edge > best.edge) best = { starter, candidate, edge };
+    }
+  }
+  return best;
 }
 
 function getPlayerAge(player?: AutopilotPlayerLike | null): number | null {
@@ -1035,6 +1164,44 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
   const matchup = getMatchupPreview(data, manager);
   const bestStarter = getBestStarter(managerPositionRow, mode);
   const cards: AutopilotRecommendation[] = [];
+  const projectionSwap = findBestProjectionSwap(managerPositionRow);
+
+  if (projectionSwap) {
+    const candidateRead = formatWeeklyProjectionRead(projectionSwap.candidate);
+    const starterRead = formatWeeklyProjectionRead(projectionSwap.starter);
+    cards.push({
+      id: `lineup-projection-swap-${projectionSwap.candidate.player_id || projectionSwap.candidate.name}-${projectionSwap.starter.player_id || projectionSwap.starter.name}`,
+      type: 'Start/Sit',
+      playerId: projectionSwap.candidate.player_id || null,
+      player: getPlayerName(projectionSwap.candidate),
+      secondaryPlayerId: projectionSwap.starter.player_id || null,
+      secondary: `over ${getPlayerName(projectionSwap.starter)}`,
+      action: 'Start',
+      confidence: recommendationConfidence(76 + Math.min(10, projectionSwap.edge * 2), [projectionSwap.candidate, projectionSwap.starter, candidateRead, starterRead]),
+      risk: projectionSwap.edge >= 5 ? 'Low' : 'Medium',
+      upside: projectionSwap.edge >= 5 ? 'High' : 'Medium',
+      summary: `${getPlayerName(projectionSwap.candidate)} has a ${projectionSwap.edge.toFixed(1)} point stored weekly projection edge over ${getPlayerName(projectionSwap.starter)}.`,
+      reasons: dedupeStrings([
+        candidateRead,
+        starterRead,
+        `${getPlayerName(projectionSwap.candidate)} is eligible for ${getPlayerName(projectionSwap.starter)}'s current starter slot.`,
+        mode === 'dynasty'
+          ? 'This is a weekly lineup edge only; it does not change the long-term dynasty value read.'
+          : 'Redraft mode can act directly on the weekly points edge.',
+      ], 4),
+      signals: dedupeStrings(['Stored weekly projection', `+${projectionSwap.edge.toFixed(1)} point edge`, getPlayerLineupPosition(projectionSwap.candidate), mode === 'dynasty' ? 'Short-term only' : 'Season lens'], 4),
+      expectedAction: {
+        type: 'swap_starter',
+        playerIn: toRecommendationPlayerRef(projectionSwap.candidate),
+        playerOut: toRecommendationPlayerRef(projectionSwap.starter),
+        playersInvolved: [toRecommendationPlayerRef(projectionSwap.candidate), toRecommendationPlayerRef(projectionSwap.starter)].filter(Boolean) as RecommendationPlayerRef[],
+        expectedLineupChange: `${getPlayerName(projectionSwap.candidate)} should start over ${getPlayerName(projectionSwap.starter)}.`,
+        source: 'autopilot',
+        reason: `Stored weekly projection edge is ${projectionSwap.edge.toFixed(1)} points.`,
+      },
+      tone: 'good',
+    });
+  }
 
   const mustStart = matchup?.mustStarts?.[0] || bestStarter || intel?.youngCorePlayer || intel?.lastSeasonStud;
   if (mustStart) {
@@ -1165,9 +1332,18 @@ function buildWeeklyActionPlan(
   const intel = findManagerIntel(data, manager);
   const managerPositionRow = findManagerPositionRow(data, manager);
   const matchup = getMatchupPreview(data, manager);
+  const projectionSwap = findBestProjectionSwap(managerPositionRow);
   const vulnerable = matchup?.vulnerableSpots?.[0] || matchup?.boomBustRisks?.[0] || intel?.weakestStarter || null;
   const inferredStarter = inferStarterToReview(lineup);
-  const starterToReview = vulnerable
+  const starterToReview = projectionSwap
+    ? {
+      player: getPlayerName(projectionSwap.starter),
+      position: getPlayerPosition(projectionSwap.starter),
+      confidence: recommendationConfidence(76 + Math.min(10, projectionSwap.edge * 2), [projectionSwap.starter, projectionSwap.candidate]),
+      note: `${getPlayerName(projectionSwap.candidate)} has a ${projectionSwap.edge.toFixed(1)} point stored weekly projection edge.`,
+      tone: 'warn' as AutopilotTone,
+    }
+    : vulnerable
     ? {
       player: getPlayerName(vulnerable),
       position: getPlayerPosition(vulnerable),
@@ -1178,7 +1354,7 @@ function buildWeeklyActionPlan(
       tone: 'warn' as AutopilotTone,
     }
     : inferredStarter;
-  const starterToReviewPlayer = vulnerable || findManagerPlayerByName(managerPositionRow, starterToReview?.player);
+  const starterToReviewPlayer = projectionSwap?.starter || vulnerable || findManagerPlayerByName(managerPositionRow, starterToReview?.player);
 
   const options: WeeklyActionPlan['options'] = [];
   const seen = new Set<string>();
@@ -1220,6 +1396,14 @@ function buildWeeklyActionPlan(
   };
 
   (matchup?.mustStarts || []).slice(0, 3).forEach((player) => pushOption(player, 74, 'Matchup model marks this as a must-start.', 'good'));
+  if (projectionSwap) {
+    pushOption(
+      projectionSwap.candidate,
+      recommendationConfidence(78 + Math.min(10, projectionSwap.edge * 2), [projectionSwap.candidate, projectionSwap.starter]),
+      `Stored weekly projection edge: +${projectionSwap.edge.toFixed(1)} points over ${getPlayerName(projectionSwap.starter)}.`,
+      'good'
+    );
+  }
   lineup
     .filter((recommendation) => recommendation.action.toLowerCase().includes('start'))
     .forEach((recommendation) => pushOption(recommendation, recommendation.confidence, 'Lineup recommendation from the current read.', recommendation.tone));
@@ -2032,6 +2216,7 @@ function buildFuturePickTrajectory(data: ReportData, manager: string): FuturePic
 function collectWaiverCandidates(data: ReportData, mode: AutopilotMode, intel?: ManagerRosterIntelligence | null): TrendingPlayer[] {
   const waiver = data.waiverIntelligence;
   if (!waiver) return [];
+  const rosterOwnerLookup = buildAutopilotRosterOwnerLookup(data);
   const omittedCandidateIds = new Set(
     (waiver.omittedCandidates || [])
       .filter((candidate) => candidate.action === 'omit')
@@ -2044,7 +2229,13 @@ function collectWaiverCandidates(data: ReportData, mode: AutopilotMode, intel?: 
     ...(waiver.recentlyDroppedValuable || []),
     ...Object.values(waiver.bestAvailableByPosition || {}),
     ...(waiver.weeklyEcrTargets || []).map((target) => target.player),
-  ].filter((player): player is TrendingPlayer => Boolean(player?.name));
+  ].filter((player): player is TrendingPlayer => Boolean(player?.name))
+    .map((player) => {
+      const rosterOwner = getAutopilotRosterOwner(rosterOwnerLookup, player);
+      return rosterOwner && !player.owner
+        ? { ...player, owner: rosterOwner }
+        : player;
+    });
   const seen = new Set<string>();
   return candidates
     .filter((player) => {
@@ -2072,7 +2263,11 @@ function scoreWaiverCandidate(player: TrendingPlayer, mode: AutopilotMode, intel
   const weeklyEcrBonus = weeklyEcrRank
     ? Math.max(0, 18 - weeklyEcrRank / 6) + Math.min(10, (player.weeklyEcr?.confidence || 0) / 10)
     : 0;
-  return Math.max(0, Math.min(100, value / 115 + Math.min(22, (player.count || 0) / 8) + (rank ? Math.max(0, 22 - rank / 3) : 0) + needBonus + youngBonus + roleBonus + weeklyEcrBonus + matchupGuard.score));
+  const projection = getWeeklyProjection(player);
+  const projectionBonus = projection?.status === 'ready'
+    ? Math.min(mode === 'dynasty' ? 8 : 18, Math.max(0, projection.projectedFantasyPoints - 6) * (mode === 'dynasty' ? 0.7 : 1.25))
+    : 0;
+  return Math.max(0, Math.min(100, value / 115 + Math.min(22, (player.count || 0) / 8) + (rank ? Math.max(0, 22 - rank / 3) : 0) + needBonus + youngBonus + roleBonus + weeklyEcrBonus + projectionBonus + matchupGuard.score));
 }
 
 function formatWaiverWeeklyEcrRead(player: TrendingPlayer): string | null {
@@ -2123,6 +2318,7 @@ function formatWaiverWeeklyEcrTraceRead(player: TrendingPlayer): string | null {
 function getAutopilotValueSourceCount(player: TrendingPlayer): number {
   const sources = new Set((player.playerDetails?.valueProfile?.sources || []).filter(Boolean));
   if (player.weeklyEcr) sources.add(player.weeklyEcr.source === 'DraftSharks' ? 'DraftSharks SOS snapshot' : 'FantasyPros rank snapshot');
+  if (getWeeklyProjection(player)?.status === 'ready') sources.add('stored weekly projection');
   return sources.size;
 }
 
@@ -2166,6 +2362,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       const value = getAutopilotPlayerValue(player, mode) || 0;
       const weeklyEcrRead = formatWaiverWeeklyEcrRead(player);
       const weeklyEcrTraceRead = formatWaiverWeeklyEcrTraceRead(player);
+      const weeklyProjectionRead = formatWeeklyProjectionRead(player);
       const matchupOutlook = isScheduleWindowSignal(player.weeklyEcr)
         ? getShortTermMatchupOutlook(player.weeklyEcr.matchupWindows)
         : null;
@@ -2173,7 +2370,8 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       const hasCurrentSeasonValue = Boolean(
         player.playerDetails?.valueProfile?.seasonValue ||
         player.playerDetails?.valueProfile?.fantasyProsSeasonValue ||
-        player.weeklyEcr
+        player.weeklyEcr ||
+        weeklyProjectionRead
       );
       const hasDynastyValue = Boolean(
         player.playerDetails?.valueProfile?.dynastyValue ||
@@ -2184,6 +2382,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         mode === 'redraft' && hasCurrentSeasonValue ? 'redraft' : null,
         hasCurrentSeasonValue ? 'current' : null,
         mode === 'dynasty' && hasDynastyValue ? 'dynasty' : null,
+        weeklyProjectionRead ? 'current' : null,
         player.weeklyEcr ? 'schedule' : null,
         player.count ? 'market' : null,
         player.playerDetails?.prospectProfile ? 'prospect' : null,
@@ -2202,6 +2401,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
           rank ? `${rank} rank is attached to this waiver action.` : null,
           value > 0 ? `${formatCompactValue(value)} ${mode === 'redraft' ? 'season' : 'market'} value is attached.` : null,
           player.count ? `${formatCompactValue(player.count)} add/drop trend signal in the feed.` : null,
+          weeklyProjectionRead,
           weeklyEcrRead,
           intel?.tradePlan?.needPosition === getPlayerPosition(player) ? `Matches ${manager}'s ${getPlayerPosition(player)} need.` : null,
           dropCandidate ? `${dropCandidate.name} is a usable drop candidate if a roster spot is needed.` : null,
@@ -2213,6 +2413,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         ], 8),
         sourceTrace: dedupeStrings([
           sourceCount ? `${sourceCount} value/schedule source${sourceCount === 1 ? '' : 's'} attached.` : null,
+          weeklyProjectionRead ? 'Stored weekly projection attached.' : null,
           weeklyEcrTraceRead,
         ], 8),
         signalModes,
@@ -2239,14 +2440,14 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         calibrationManager: manager,
         calibrationLeagueId: leagueId,
       });
-      return { player, score, rank, weeklyEcrRead, weeklyEcrTraceRead, evidenceRead };
+      return { player, score, rank, weeklyEcrRead, weeklyEcrTraceRead, weeklyProjectionRead, evidenceRead };
     })
     .filter(({ evidenceRead }) => evidenceRead.shouldRender && evidenceRead.label !== 'thin')
     .sort((a, b) => b.evidenceRead.finalScore - a.evidenceRead.finalScore)
     .slice(0, 2);
   if (!candidates.length) return [];
 
-  return candidates.map(({ player, score, rank, weeklyEcrRead, weeklyEcrTraceRead, evidenceRead }, index) => {
+  return candidates.map(({ player, score, rank, weeklyEcrRead, weeklyEcrTraceRead, weeklyProjectionRead, evidenceRead }, index) => {
     const confidence = Math.min(
       evidenceRead.finalScore,
       clampPercent(56 + score * 0.35 + (dropCandidate ? 5 : 0))
@@ -2266,19 +2467,20 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       risk: confidence >= 78 ? 'Low' : 'Medium',
       upside: mode === 'dynasty' && age && age <= 24 ? 'High' : confidence >= 80 ? 'High' : 'Medium',
       summary: mode === 'redraft'
-        ? `${evidenceRead.canAct ? 'Do this' : "Don't add yet"}: ${player.name} has the strongest current-season waiver case the evidence layer allows.`
-        : `${evidenceRead.canAct ? 'Do this' : "Don't add yet"}: ${player.name} has the strongest dynasty waiver case the evidence layer allows${weeklyEcrRead ? ', with short-window matchup support' : ''}.`,
+        ? `${evidenceRead.canAct ? 'Do this' : "Don't add yet"}: ${player.name} has the strongest current-season waiver case the evidence layer allows${weeklyProjectionRead ? ', with stored weekly projection support' : ''}.`
+        : `${evidenceRead.canAct ? 'Do this' : "Don't add yet"}: ${player.name} has the strongest dynasty waiver case the evidence layer allows${weeklyProjectionRead ? ', with short-term projection support' : weeklyEcrRead ? ', with short-window matchup support' : ''}.`,
       reasons: dedupeStrings([
         evidenceRead.whyThisFired,
         player.count ? `${formatCompactValue(player.count)} add/drop trend signal in the feed.` : null,
         rank ? `${rank} rank gives this more than a blind trend-chase case.` : null,
+        weeklyProjectionRead,
         weeklyEcrRead,
         matchupGuard.reason,
         weeklyEcrTraceRead,
         intel?.tradePlan?.needPosition === getPlayerPosition(player) ? `Matches ${manager}'s ${getPlayerPosition(player)} need.` : null,
         dropCandidate ? `${dropCandidate.name} is a usable drop candidate if a roster spot is needed.` : null,
       ], 4),
-      signals: dedupeStrings([evidenceRead.label, 'Available', rank, matchupGuard.signal, weeklyEcrTraceRead ? 'Stored schedule trace' : weeklyEcrRead ? 'Schedule edge' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null, ...receiptItems.slice(0, 1)], 4),
+      signals: dedupeStrings([evidenceRead.label, 'Available', rank, weeklyProjectionRead ? 'Stored projection' : null, matchupGuard.signal, weeklyEcrTraceRead ? 'Stored schedule trace' : weeklyEcrRead ? 'Schedule edge' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null, ...receiptItems.slice(0, 1)], 4),
       evidenceRead,
       expectedAction: {
         type: dropCandidate ? 'drop_for_add' : ['K', 'DEF'].includes(getPlayerLineupPosition(player)) ? 'stream_player' : 'waiver_add',

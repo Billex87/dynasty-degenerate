@@ -374,6 +374,7 @@ export interface ManagerStarterPlayer {
   seasonValue?: number;
   currentPositionRank?: string | null;
   seasonPositionRank?: string | null;
+  weeklyProjection?: WeeklyProjectionContext | null;
   playerDetails?: PlayerDetails;
 }
 
@@ -849,6 +850,9 @@ export interface DraftPick {
   originalOwner?: string | null;
   originalRosterId?: number | null;
   adp: number | null;
+  adpSource?: string | null;
+  adpRank?: number | null;
+  adpPositionRank?: string | null;
   ktcValue: number | null;
   currentKtcValue: number | null;
   valueGain: number | null;
@@ -1086,6 +1090,7 @@ export interface PlayerDetails {
   sleeperStartedPct?: number | null;
   sleeperResearchSeason?: string | null;
   sleeperResearchSeasonType?: string | null;
+  weeklyProjection?: WeeklyProjectionContext | null;
   leagueUsage?: {
     season: string;
     ownedGames: number;
@@ -1612,6 +1617,25 @@ export interface TrendingPlayer {
   count: number;
   ktcValue: number | null;
   weeklyEcr?: WaiverWeeklyEcrSignal | null;
+  weeklyProjection?: WeeklyProjectionContext | null;
+}
+
+export interface WeeklyProjectionContext {
+  source: 'stored-weekly-projection';
+  provider: 'sleeper' | string;
+  season: string;
+  week: number;
+  scoringProfile: string;
+  projectedFantasyPoints: number;
+  tightEndPremiumAdjustment?: number | null;
+  opponent?: string | null;
+  homeAway?: 'home' | 'away' | 'bye' | 'unknown' | null;
+  team?: string | null;
+  updatedAt?: string | null;
+  fetchedAt?: string | null;
+  status: 'ready' | 'stale' | 'missing' | 'bye' | 'error';
+  note: string;
+  statSummary?: string | null;
 }
 
 export interface RecentTransactionPlayer {
@@ -1921,6 +1945,19 @@ export interface ReportData {
   aiCalibrationAdjustmentProfile?: ReportAICalibrationAdjustmentProfile | null;
   serverReportDelta?: ServerReportDeltaRead | null;
   sourceSnapshotDiagnostics?: SourceSnapshotFreshnessDiagnostic[];
+  weeklyProjectionDiagnostics?: {
+    status: 'ready' | 'warning' | 'blocked';
+    source: 'stored-weekly-projection';
+    provider: 'sleeper' | string;
+    season: string | null;
+    week: number | null;
+    scoringProfile: string | null;
+    rowCount: number;
+    rosteredCoveragePct: number | null;
+    attachedPlayerCount: number;
+    note: string;
+    warnings: string[];
+  };
   depthChartDiagnostics?: DepthChartDiagnostics;
   transactionBackfillDiagnostics?: TransactionBackfillDiagnostics;
   prospectSourceDiagnostics?: ProspectSourceDiagnostics;

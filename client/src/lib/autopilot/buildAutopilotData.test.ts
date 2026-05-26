@@ -86,6 +86,90 @@ describe('buildAutopilotData', () => {
     );
   });
 
+  it('surfaces legal stored-projection start/sit swaps without changing dynasty value copy', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    const weeklyProjection = (playerId: string, points: number) => ({
+      source: 'stored-weekly-projection' as const,
+      provider: 'sleeper',
+      season: '2026',
+      week: 1,
+      scoringProfile: 'PPR',
+      projectedFantasyPoints: points,
+      opponent: 'KC',
+      homeAway: 'home' as const,
+      status: 'ready' as const,
+      note: 'Stored weekly projection fixture.',
+      statSummary: playerId === 'te2' ? '6 targets · 4 rec' : '3 targets · 2 rec',
+    });
+    const row = reportData.managerPositionCounts?.find((managerRow) => managerRow.manager === 'Tester');
+    for (const player of [
+      ...(row?.starterPlayers || []),
+      ...(row?.lineupPlayers || []),
+      ...(row?.rosterPlayers || []),
+    ]) {
+      if (player.player_id === 'te1') player.weeklyProjection = weeklyProjection('te1', 7.1) as any;
+      if (player.player_id === 'te2') player.weeklyProjection = weeklyProjection('te2', 12.6) as any;
+    }
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    const startSit = data.lineup.find((recommendation) => recommendation.id.includes('lineup-projection-swap'));
+    expect(startSit).toMatchObject({
+      type: 'Start/Sit',
+      player: 'Replacement Tight End',
+      secondary: 'over Sample Tight End',
+      expectedAction: {
+        type: 'swap_starter',
+      },
+    });
+    expect(startSit?.summary).toContain('stored weekly projection edge');
+    expect(startSit?.reasons.join(' ')).toContain('weekly lineup edge only');
+    expect(data.weeklyPlan?.starterToReview?.player).toBe('Sample Tight End');
+    expect(data.weeklyPlan?.options.map((option) => option.player)).toContain('Replacement Tight End');
+  });
+
+  it('does not create AI projection claims from stale stored projection rows', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    const staleWeeklyProjection = (playerId: string, points: number) => ({
+      source: 'stored-weekly-projection' as const,
+      provider: 'sleeper',
+      season: '2026',
+      week: 1,
+      scoringProfile: 'PPR',
+      projectedFantasyPoints: points,
+      opponent: 'KC',
+      homeAway: 'home' as const,
+      status: 'stale' as const,
+      note: 'Stored weekly projection fixture is stale.',
+      statSummary: playerId === 'te2' ? '6 targets · 4 rec' : '3 targets · 2 rec',
+    });
+    const row = reportData.managerPositionCounts?.find((managerRow) => managerRow.manager === 'Tester');
+    for (const player of [
+      ...(row?.starterPlayers || []),
+      ...(row?.lineupPlayers || []),
+      ...(row?.rosterPlayers || []),
+    ]) {
+      if (player.player_id === 'te1') player.weeklyProjection = staleWeeklyProjection('te1', 7.1) as any;
+      if (player.player_id === 'te2') player.weeklyProjection = staleWeeklyProjection('te2', 12.6) as any;
+    }
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    expect(data.lineup.some((recommendation) => recommendation.id.includes('lineup-projection-swap'))).toBe(false);
+    expect(JSON.stringify(data.lineup)).not.toContain('stored weekly projection edge');
+    expect(JSON.stringify(data.weeklyPlan || {})).not.toContain('Stored weekly projection edge');
+  });
+
   it('does not promote omitted waiver candidates from stale cached waiver slots', () => {
     const reportData = createCachedCommandCenterReport().reportData;
     const omittedCandidate = reportData.waiverIntelligence?.omittedCandidates?.[0];
@@ -232,6 +316,141 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue[0]?.target).toBe('Streaming Defense');
     expect(data.actionQueue[0]?.changeTriggers.join(' ')).toContain('DraftSharks');
     expect(JSON.stringify(data.actionQueue)).not.toContain('Los Angeles Rams');
+  });
+
+  it('does not promote source-only D/ST waiver targets that are rostered in the league snapshot', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.leagueDiagnostics = {
+      ...reportData.leagueDiagnostics!,
+      starterSlots: [
+        ...(reportData.leagueDiagnostics?.starterSlots || []),
+        'DEF',
+      ],
+      rosterSlots: [
+        ...(reportData.leagueDiagnostics?.rosterSlots || []),
+        'DEF',
+      ],
+    };
+
+    const weeks: WaiverWeeklyEcrWeek[] = [5, 4, 4].map((star, index) => ({
+      week: index + 1,
+      rankEcr: 2,
+      positionRank: 'DEF2',
+      bestRank: null,
+      worstRank: null,
+      averageRank: 2,
+      rankStdDev: null,
+      lastUpdated: '2026-09-08T18:00:00.000Z',
+      opponent: `T${index + 1}`,
+      homeAway: 'home',
+      opponentRank: 4,
+      matchupStars: star,
+      matchupTier: 'easy',
+      isBye: false,
+    }));
+    const broncos: TrendingPlayer = {
+      player_id: 'denverbroncos',
+      name: 'Denver Broncos',
+      pos: 'DEF',
+      team: 'DEN',
+      owner: null,
+      count: 520,
+      seasonValue: 1120,
+      currentPositionRank: 'DEF2',
+      playerDetails: {
+        playerId: 'denverbroncos',
+        fullName: 'Denver Broncos',
+        position: 'DEF',
+        team: 'DEN',
+        valueProfile: {
+          seasonValue: 1120,
+          fantasyProsSeasonValue: 1120,
+          seasonPositionRank: 'DEF2',
+          fantasyProsPositionRank: 'DEF2',
+          sources: ['FantasyPros', 'DraftSharks'],
+        },
+      },
+    };
+    const signal: WaiverWeeklyEcrSignal = {
+      signalType: 'draftsharks-sos',
+      playerId: 'denverbroncos',
+      fantasyProsId: null,
+      name: 'Denver Broncos',
+      position: 'DEF',
+      team: 'DEN',
+      source: 'DraftSharks',
+      updatedAt: '2026-09-08T18:00:00.000Z',
+      weeks,
+      bestWeek: 1,
+      bestRankEcr: 2,
+      bestPositionRank: 'DEF2',
+      averageRankEcr: 2,
+      rankDelta: null,
+      bestMatchupStars: 5,
+      bestOpponentRank: 4,
+      matchupWindows: buildMatchupWindowSet(weeks, { currentWeek: 1 }),
+      confidence: 90,
+      note: 'Denver matchup window.',
+      sourceTrace: [],
+      traceSummary: 'test',
+    };
+    const rosteredBroncos = {
+      player_id: 'broncosdst',
+      name: 'Broncos D/ST',
+      pos: 'DEF',
+      owner: 'Rival',
+      value: 1120,
+      seasonValue: 1120,
+      currentPositionRank: 'DEF2',
+      playerDetails: {
+        playerId: 'broncosdst',
+        fullName: 'Broncos D/ST',
+        position: 'DEF',
+        team: 'DEN',
+      },
+    };
+    reportData.managerPositionCounts = [
+      ...(reportData.managerPositionCounts || []),
+      {
+        manager: 'Rival',
+        activePlayerCount: 1,
+        reservePlayerCount: 0,
+        taxiPlayerCount: 0,
+        totalRosterPlayerCount: 1,
+        QB: 0,
+        QB_starters: 0,
+        RB: 0,
+        RB_starters: 0,
+        WR: 0,
+        WR_starters: 0,
+        TE: 0,
+        TE_starters: 0,
+        DEF: 1,
+        DEF_starters: 1,
+        starterPlayers: [rosteredBroncos],
+        lineupPlayers: [rosteredBroncos],
+        rosterPlayers: [rosteredBroncos],
+      },
+    ];
+    reportData.waiverIntelligence = {
+      rosteredTrendingAdds: [],
+      availableTrendingAdds: [{ ...broncos, weeklyEcr: signal }],
+      highestKtcAvailable: { ...broncos, weeklyEcr: signal },
+      bestAvailableByPosition: { QB: null, RB: null, WR: null, TE: null, K: null, DEF: { ...broncos, weeklyEcr: signal } },
+      bestTaxiStashes: [],
+      recentlyDroppedValuable: [],
+      weeklyEcrTargets: [{ player: { ...broncos, weeklyEcr: signal }, signal, score: 95 }],
+      omittedCandidates: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'redraft',
+      fallback: AUTOPILOT_MOCK_DATA.redraft,
+    });
+
+    expect(JSON.stringify(data.waivers)).not.toContain('Denver Broncos');
+    expect(JSON.stringify(data.actionQueue)).not.toContain('Denver Broncos');
   });
 
   it('switches the recommendation lens for redraft mode', () => {

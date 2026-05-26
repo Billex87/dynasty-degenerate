@@ -126,6 +126,7 @@ describe('projection feature flags', () => {
     expect(matrix.globalFlag).toBe('ENABLE_PROJECTION_FEATURES');
     expect(matrix.sourceFlags).toMatchObject({
       fantasypros: 'ENABLE_FANTASYPROS_PROJECTIONS',
+      sleeper: 'ENABLE_SLEEPER_PROJECTIONS',
       sportsdataio: 'ENABLE_SPORTSDATAIO_PROJECTIONS',
       fantasynerds: 'ENABLE_FANTASY_NERDS_PROJECTIONS',
     });
@@ -135,5 +136,28 @@ describe('projection feature flags', () => {
       kicker: 'ENABLE_KICKER_PROJECTIONS',
     });
     expect(matrix.killSwitchFlags).toContain('DISABLE_PROJECTION_SNAPSHOTS');
+  });
+
+  it('fails Sleeper weekly projection gates closed unless every rollout flag is enabled', () => {
+    clearProjectionEnv();
+
+    let gate = getProjectionGate('sleeper', 'weekly');
+    expect(gate.enabled).toBe(false);
+    expect(gate.blockingFlags).toEqual(expect.arrayContaining([
+      'ENABLE_PROJECTION_FEATURES',
+      'ENABLE_SLEEPER_PROJECTIONS',
+      'ENABLE_WEEKLY_PROJECTIONS',
+    ]));
+
+    enableGate('sleeper', 'weekly');
+    gate = getProjectionGate('sleeper', 'weekly');
+    expect(gate.enabled).toBe(true);
+    expect(getProjectionReadinessGate({
+      source: 'sleeper',
+      projectionType: 'weekly',
+      projectionSnapshotStatus: 'ready',
+      scheduleSnapshotStatus: 'ready',
+      sourceMappingStatus: 'ready',
+    }).enabled).toBe(true);
   });
 });

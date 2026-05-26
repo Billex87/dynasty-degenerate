@@ -56,6 +56,23 @@ function createModalFixture(leagueId = 'player-modal-regression-league') {
       url: 'https://example.com/news/travis-etienne-saints',
       publishedAt: '2026-03-09T00:00:00.000Z',
     },
+    weeklyProjection: {
+      source: 'stored-weekly-projection',
+      provider: 'sleeper',
+      season: '2026',
+      week: 1,
+      scoringProfile: 'Half PPR',
+      projectedFantasyPoints: 14.8,
+      tightEndPremiumAdjustment: null,
+      opponent: 'NYJ',
+      homeAway: 'home',
+      team: 'BUF',
+      updatedAt: '2026-05-26T00:00:00.000Z',
+      fetchedAt: '2026-05-26T00:00:00.000Z',
+      status: 'ready',
+      note: 'Stored weekly projection fixture.',
+      statSummary: '4 rec, 61 rec yds, 0.5 rec TD',
+    },
     valueProfile: {
       ...player1.valueProfile,
       fantasyCalcRedraft: 4875,
@@ -371,6 +388,13 @@ test.describe('player detail modal', () => {
     await expect(dialog.getByText(/This full summary should stay readable in the full-width pill with no truncation or abbreviation/i)).toBeVisible();
     await expect(dialog.getByText('Player News', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Availability History', { exact: true })).toBeVisible();
+    const projectionReceipt = dialog.getByTestId('weekly-projection-receipt');
+    await expect(projectionReceipt).toBeVisible();
+    await expect(projectionReceipt).toContainText('Stored weekly projection');
+    await expect(projectionReceipt).toContainText('14.8 pts');
+    await expect(projectionReceipt).toContainText('Week 1');
+    await expect(projectionReceipt).toContainText('Half PPR');
+    await expect(projectionReceipt).toContainText('4 rec, 61 rec yds, 0.5 rec TD');
     await expect(dialog.locator('.ai-read-trace-kicker:visible', { hasText: 'Why this fired' }).first()).toBeVisible();
     await expect(dialog.locator('.ai-read-chip:visible', { hasText: 'Round 1, pick 18' }).first()).toBeVisible();
     await expect(dialog.locator('.ai-read-chip:visible', { hasText: 'Runway 90%' }).first()).toBeVisible();

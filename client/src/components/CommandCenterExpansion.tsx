@@ -36,6 +36,7 @@ import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame } from './ManagerChampionships';
 import { TeamLogoPill } from './TeamLogoPill';
 import { normalizeLeagueValueMode } from '@/lib/leagueValueMode';
+import { getDraftSignalPicks } from '@/lib/draftDashboardMetrics';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { isPlaceholderManagerName } from '@/lib/managerDisplay';
 import { getManagerProfileLabel } from '@/lib/managerProfileLabels';
@@ -2693,7 +2694,7 @@ function getDraftCapitalScore(pick: DraftPick): number {
 }
 
 function buildRookieSignals(data: ReportData) {
-  const draftSignals = (data.draftPicks || [])
+  const draftSignals = getDraftSignalPicks(data, data.leagueValueMode)
     .filter((pick) => pick.playerName && !/pick/i.test(pick.playerName))
     .map((pick) => {
       const currentValue = Math.round(pick.currentKtcValue || pick.ktcValue || getPlayerDetailsValue(pick.playerDetails));
@@ -3375,16 +3376,18 @@ export function AssistantFeatureShells({
             <MetricPill label="Best add" value={bestWaiver?.name || '-'} tone={bestWaiver ? 'good' : 'neutral'} />
             <MetricPill label="Drop candidates" value={intel?.droppablePlayers?.length || 0} tone={intel?.droppablePlayers?.length ? 'warn' : 'neutral'} />
             <MetricPill label="Matchup trace" value={data.waiverIntelligence?.weeklyEcrTargets?.length || 0} tone={data.waiverIntelligence?.weeklyEcrTargets?.length ? 'good' : 'neutral'} />
+            <MetricPill label="Projection" value={data.weeklyProjectionDiagnostics?.attachedPlayerCount || 0} tone={data.weeklyProjectionDiagnostics?.status === 'ready' ? 'good' : 'neutral'} />
           </div>
           {renderAssistantPlayerRows(waiverAdds.slice(0, 4).map((player) => {
             const ecrRank = player.weeklyEcr?.bestPositionRank || (player.weeklyEcr?.bestRankEcr ? `Rank ${Math.round(player.weeklyEcr.bestRankEcr)}` : null);
+            const projection = player.weeklyProjection || player.playerDetails?.weeklyProjection || null;
             return {
               id: player.player_id,
               name: player.name,
               position: player.pos,
               team: player.team || player.playerDetails?.team || null,
               playerId: player.player_id,
-              meta: ecrRank ? `Next-3 ${ecrRank}` : `${player.count.toLocaleString()} adds`,
+              meta: projection?.status === 'ready' ? `${projection.projectedFantasyPoints.toFixed(1)} stored projection pts` : ecrRank ? `Next-3 ${ecrRank}` : `${player.count.toLocaleString()} adds`,
               value: formatCompactValue(player.ktcValue || getPlayerDetailsValue(player.playerDetails)),
               tone: 'good',
             };

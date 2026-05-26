@@ -1,9 +1,9 @@
 import crypto from 'node:crypto';
-import { findLatestProviderDataSnapshot, upsertProviderDataSnapshot } from './db';
+import { findLatestProviderDataSnapshot, findProviderDataSnapshot, upsertProviderDataSnapshot } from './db';
 import { normalizeNflTeamCode, type NflTeamCode } from './nflTeamCodes';
 import { parseProviderSnapshotPayload } from './providerDataSnapshots';
 
-export type PlayerProjectionSource = 'fantasypros' | 'draftsharks' | 'sportsdataio' | 'fantasynerds' | 'internal';
+export type PlayerProjectionSource = 'fantasypros' | 'draftsharks' | 'sportsdataio' | 'fantasynerds' | 'sleeper' | 'internal';
 export type PlayerProjectionType = 'weekly' | 'rest_of_season' | 'preseason' | 'playoff_weeks';
 export type PlayerProjectionPosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF' | 'FLEX' | 'UNKNOWN';
 
@@ -14,6 +14,10 @@ export type PlayerProjectionInputRow = {
   sourcePlayerId?: string | number | null;
   playerName?: string | null;
   team?: string | null;
+  opponent?: string | null;
+  homeAway?: 'home' | 'away' | 'bye' | 'unknown' | string | null;
+  gameId?: string | number | null;
+  sourceStatus?: string | null;
   position?: string | null;
   projectedFantasyPoints?: string | number | null;
   passingAttempts?: string | number | null;
@@ -54,6 +58,10 @@ export type PlayerProjectionSnapshotRow = {
   sourcePlayerId: string | null;
   playerName: string;
   team: NflTeamCode | null;
+  opponent: NflTeamCode | null;
+  homeAway: 'home' | 'away' | 'bye' | 'unknown' | null;
+  gameId: string | null;
+  sourceStatus: string | null;
   position: PlayerProjectionPosition;
   source: PlayerProjectionSource;
   scoringProfile: string;
@@ -165,6 +173,7 @@ function cleanScoringProfile(value: string): string {
 }
 
 function numberValue(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.round(parsed * 100) / 100 : null;
 }
@@ -195,6 +204,12 @@ function normalizePosition(value?: string | null): PlayerProjectionPosition {
 function idValue(value: unknown): string | null {
   const raw = String(value || '').trim();
   return raw && raw !== '0' ? raw : null;
+}
+
+function normalizeHomeAway(value?: string | null): PlayerProjectionSnapshotRow['homeAway'] {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'home' || normalized === 'away' || normalized === 'bye' || normalized === 'unknown') return normalized;
+  return null;
 }
 
 function stableChecksum(value: unknown): string {
@@ -266,6 +281,7 @@ export function normalizePlayerProjectionRows(input: BuildPlayerProjectionSnapsh
     const sourcePlayerId = idValue(rawRow.sourcePlayerId);
     const playerName = String(rawRow.playerName || '').trim();
     const team = normalizeNflTeamCode(rawRow.team);
+    const opponent = normalizeNflTeamCode(rawRow.opponent);
     const position = normalizePosition(rawRow.position);
     const projectedFantasyPoints = numberValue(rawRow.projectedFantasyPoints);
     const reason = quarantineReason(rawRow, position, projectedFantasyPoints);
@@ -296,6 +312,10 @@ export function normalizePlayerProjectionRows(input: BuildPlayerProjectionSnapsh
       sourcePlayerId,
       playerName: playerName || sourcePlayerId || playerId || 'Unknown player',
       team,
+      opponent,
+      homeAway: normalizeHomeAway(rawRow.homeAway),
+      gameId: idValue(rawRow.gameId),
+      sourceStatus: rawRow.sourceStatus ? String(rawRow.sourceStatus) : null,
       position,
       source,
       scoringProfile,
@@ -430,6 +450,22 @@ export async function loadLatestPlayerProjectionSnapshot(input: {
   projectionType: PlayerProjectionType;
 }): Promise<PlayerProjectionSnapshotPayload | null> {
   const stored = await findLatestProviderDataSnapshot(getPlayerProjectionSourceKey(input));
+  const parsed = parseProviderSnapshotPayload<PlayerProjectionSnapshotPayload>(stored?.payload);
+  return parsed?.schemaVersion === 1 && Array.isArray(parsed.rows) ? parsed : null;
+}
+
+export async function loadPlayerProjectionSnapshot(input: {
+  source: PlayerProjectionSource;
+  scoringProfile: string;
+  projectionType: PlayerProjectionType;
+  season: string | number;
+  week?: string | number | null;
+  sourceVersion: string | number;
+}): Promise<PlayerProjectionSnapshotPayload | null> {
+  const stored = await findProviderDataSnapshot(
+    getPlayerProjectionSourceKey(input),
+    getPlayerProjectionSnapshotKey(input)
+  );
   const parsed = parseProviderSnapshotPayload<PlayerProjectionSnapshotPayload>(stored?.payload);
   return parsed?.schemaVersion === 1 && Array.isArray(parsed.rows) ? parsed : null;
 }

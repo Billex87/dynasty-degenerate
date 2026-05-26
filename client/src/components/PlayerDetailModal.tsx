@@ -40,6 +40,7 @@ import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
 import { AIReadPanel, type AIReadChip } from './AIReadPanel';
 import { PremiumFxLayer } from './PremiumFxLayer';
+import { WeeklyProjectionReceipt } from './WeeklyProjectionReceipt';
 
 const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; accent: string }> = {
   ARI: { primary: '#97233F', secondary: '#000000', accent: '#FFB612' },
@@ -553,6 +554,7 @@ export function PlayerDetailModal({
     valueProfile,
     valueMode,
   }) : [];
+  const weeklyProjection = details?.weeklyProjection || null;
   const hasSleeperMarketSnapshot = Boolean(
     details && (
       (details.sleeperRosteredPct !== null && details.sleeperRosteredPct !== undefined)
@@ -1118,12 +1120,16 @@ export function PlayerDetailModal({
               </div>
             ) : null}
 
-            {!isCollegeProspect && (intelligenceNotes.length > 0 || hasSleeperMarketSnapshot) && (
+            {!isCollegeProspect && (intelligenceNotes.length > 0 || hasSleeperMarketSnapshot || weeklyProjection?.status === 'ready') && (
               <div className="player-intelligence-panel mx-auto max-w-xl">
                 <p className="player-intelligence-title">
                   Player Intelligence
                 </p>
                 <SleeperMarketBadge details={details} />
+                <WeeklyProjectionReceipt
+                  weeklyProjection={weeklyProjection}
+                  className="player-intelligence-card player-intelligence-card-wide"
+                />
                 {intelligenceNotes.length > 0 && (
                   <div className="player-intelligence-grid">
                     {intelligenceNotes.map((note) => (

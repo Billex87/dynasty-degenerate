@@ -6156,7 +6156,7 @@ function getCommandPlayerProjectionRead(player: CommandPlayer): {
 
   return {
     projectedPoints,
-    sourceLabel: projectedPoints !== null ? "weekly projection" : null,
+    sourceLabel: projectedPoints !== null ? "stored weekly projection" : null,
   };
 }
 
@@ -6462,8 +6462,8 @@ function buildLineupSwapRecommendations({
             formatProjectedPointEdge(projectedPointEdge);
           const reasonBullets = [
             projectedPointCopy
-              ? `Projected edge: ${candidate.name} is ${projectedPointCopy} ahead of ${starter.name}.`
-              : `Projection feed pending for this matchup; using current-season value, rank, and availability until weekly projections land.`,
+              ? `Stored weekly projection edge: ${candidate.name} is ${projectedPointCopy} ahead of ${starter.name}.`
+              : `No ready stored weekly projection is attached for this matchup; using current-season value, rank, and availability.`,
             scoreEdge > 0
               ? `Starter-score edge: ${formatCompactValue(scoreEdge)} in the current-season model.`
               : starterIsFlagged
@@ -6476,7 +6476,7 @@ function buildLineupSwapRecommendations({
               ? `${starter.name} appears in the vulnerable starter set for this manager.`
               : null,
             candidateProjection.sourceLabel
-              ? `Projection source: ${candidateProjection.sourceLabel}.`
+              ? `Stored weekly projection context is attached.`
               : null,
           ].filter(Boolean) as string[];
           const reason =
@@ -6951,8 +6951,10 @@ export function LeagueCommandCenter({
     ? data.managerPositionCounts.find(row => row.manager === selectedManager && isVisibleManager(row.manager))
     : null;
   const openManager = (manager: string) => setSelectedManager(manager);
-  const openCommandPlayer = (player: CommandPlayer) => {
-    if (!selectedManager) return;
+  const openCommandPlayerForManager = (
+    manager: string,
+    player: CommandPlayer
+  ) => {
     const valueLens =
       leagueValueMode === "redraft"
         ? {
@@ -6978,8 +6980,8 @@ export function LeagueCommandCenter({
         value: valueLens.value,
         playerDetails: player.playerDetails,
         playerDetailsById: data.playerDetailsById,
-        manager: player.owner || selectedManager,
-        managerAvatarUrl: managerAvatars?.[player.owner || selectedManager],
+        manager: player.owner || manager,
+        managerAvatarUrl: managerAvatars?.[player.owner || manager],
         currentPositionRank: rank,
         valueMode:
           leagueValueMode === "redraft" || valueLens.kind === "season"
@@ -6989,6 +6991,10 @@ export function LeagueCommandCenter({
         taxiReason: taxiRead.taxiReason,
       })
     );
+  };
+  const openCommandPlayer = (player: CommandPlayer) => {
+    if (!selectedManager) return;
+    openCommandPlayerForManager(selectedManager, player);
   };
   const selectedStarters = selectedCounts?.starterPlayers || [];
   const selectedLineupPlayers =
@@ -7298,59 +7304,142 @@ export function LeagueCommandCenter({
             hideNumber
             hideHeader={section !== "all"}
           >
-            <div
-              className="command-depth-grid balanced-tile-grid"
-              style={getBalancedGridStyle(taxiDepth.length)}
-            >
-              {taxiDepth.map(row => (
-                <ManagerDepthTile
-                  key={row.manager}
-                  manager={row.manager}
-                  avatarUrl={managerAvatars?.[row.manager]}
-                  className={`taxi-triage-depth-tile ${viewerOwnedHighlightClass(
-                    row.manager,
-                    viewerManager
-                  )}`}
-                  subtitle={
-                    row.taxiTriage.counts["Promote Now"]
-                      ? `${row.taxiTriage.counts["Promote Now"]} promote`
-                      : null
-                  }
-                  subtitleTone="balanced"
-                  badges={[
-                    {
-                      label: `${row.taxiTriage.items.length} taxi`,
-                      tone: "neutral",
-                    },
-                    ...(row.taxiTriage.counts["Keep Parked"]
-                      ? [
+            {section === "taxi" ? (
+              <div className="manager-command-taxi-overview-list">
+                {taxiDepth.map(row => {
+                  const taxiItems = sortTaxiTriageItems(
+                    row.taxiTriage.items || []
+                  );
+
+                  return (
+                    <section
+                      key={row.manager}
+                      className="manager-command-taxi-overview-group"
+                    >
+                      <ManagerDepthTile
+                        manager={row.manager}
+                        avatarUrl={managerAvatars?.[row.manager]}
+                        className={`taxi-triage-depth-tile ${viewerOwnedHighlightClass(
+                          row.manager,
+                          viewerManager
+                        )}`}
+                        subtitle={
+                          row.taxiTriage.counts["Promote Now"]
+                            ? `${row.taxiTriage.counts["Promote Now"]} promote`
+                            : null
+                        }
+                        subtitleTone="balanced"
+                        badges={[
                           {
-                            label: `${row.taxiTriage.counts["Keep Parked"]} stash`,
-                            tone: "future" as const,
+                            label: `${row.taxiTriage.items.length} taxi`,
+                            tone: "neutral",
                           },
-                        ]
-                      : []),
-                    ...(row.taxiTriage.counts["Taxi Risk"]
-                      ? [
-                          {
-                            label: `${row.taxiTriage.counts["Taxi Risk"]} risk`,
-                            tone: "warn" as const,
-                          },
-                        ]
-                      : []),
-                    ...(row.taxiTriage.counts.Cuttable
-                      ? [
-                          {
-                            label: `${row.taxiTriage.counts.Cuttable} cuts`,
-                            tone: "danger" as const,
-                          },
-                        ]
-                      : []),
-                  ]}
-                  onClick={() => openManager(row.manager)}
-                />
-              ))}
-            </div>
+                          ...(row.taxiTriage.counts["Keep Parked"]
+                            ? [
+                                {
+                                  label: `${row.taxiTriage.counts["Keep Parked"]} stash`,
+                                  tone: "future" as const,
+                                },
+                              ]
+                            : []),
+                          ...(row.taxiTriage.counts["Taxi Risk"]
+                            ? [
+                                {
+                                  label: `${row.taxiTriage.counts["Taxi Risk"]} risk`,
+                                  tone: "warn" as const,
+                                },
+                              ]
+                            : []),
+                          ...(row.taxiTriage.counts.Cuttable
+                            ? [
+                                {
+                                  label: `${row.taxiTriage.counts.Cuttable} cuts`,
+                                  tone: "danger" as const,
+                                },
+                              ]
+                            : []),
+                        ]}
+                        onClick={() => openManager(row.manager)}
+                      />
+                      <div
+                        className="manager-command-taxi-overview-player-grid manager-command-tile-grid balanced-tile-grid balanced-centered-tile-grid"
+                        style={getBalancedGridStyle(
+                          Math.max(taxiItems.length, 2),
+                          2
+                        )}
+                      >
+                        {taxiItems.map(player => (
+                          <CommandPlayerTile
+                            key={player.player_id}
+                            label={getTaxiDisplayAction(player.taxiAction)}
+                            note={player.taxiReason}
+                            player={player}
+                            showValueStack
+                            onClick={() =>
+                              openCommandPlayerForManager(row.manager, player)
+                            }
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            ) : (
+              <div
+                className="command-depth-grid balanced-tile-grid"
+                style={getBalancedGridStyle(taxiDepth.length)}
+              >
+                {taxiDepth.map(row => (
+                  <ManagerDepthTile
+                    key={row.manager}
+                    manager={row.manager}
+                    avatarUrl={managerAvatars?.[row.manager]}
+                    className={`taxi-triage-depth-tile ${viewerOwnedHighlightClass(
+                      row.manager,
+                      viewerManager
+                    )}`}
+                    subtitle={
+                      row.taxiTriage.counts["Promote Now"]
+                        ? `${row.taxiTriage.counts["Promote Now"]} promote`
+                        : null
+                    }
+                    subtitleTone="balanced"
+                    badges={[
+                      {
+                        label: `${row.taxiTriage.items.length} taxi`,
+                        tone: "neutral",
+                      },
+                      ...(row.taxiTriage.counts["Keep Parked"]
+                        ? [
+                            {
+                              label: `${row.taxiTriage.counts["Keep Parked"]} stash`,
+                              tone: "future" as const,
+                            },
+                          ]
+                        : []),
+                      ...(row.taxiTriage.counts["Taxi Risk"]
+                        ? [
+                            {
+                              label: `${row.taxiTriage.counts["Taxi Risk"]} risk`,
+                              tone: "warn" as const,
+                            },
+                          ]
+                        : []),
+                      ...(row.taxiTriage.counts.Cuttable
+                        ? [
+                            {
+                              label: `${row.taxiTriage.counts.Cuttable} cuts`,
+                              tone: "danger" as const,
+                            },
+                          ]
+                        : []),
+                    ]}
+                    onClick={() => openManager(row.manager)}
+                  />
+                ))}
+              </div>
+            )}
           </FeatureCard>
         ) : null}
       </div>

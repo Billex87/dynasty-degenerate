@@ -15,6 +15,7 @@ import type { KTCValues, LastSeasonPlayerRank } from "./reportGenerator";
 import { getKtcSnapshotFromDaysAgo, getKtcSnapshotOnOrBeforeDate } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
+import { buildFantasyProsRookieAdpData } from "./fantasyProsRookieAdp";
 import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBaselines";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants } from "./leagueAnalysis";
@@ -70,9 +71,17 @@ import {
   normalizeTep,
   type ValueBlendOptions,
 } from "./valueBlend";
+import { buildProjectionSnapshotHealthDiagnostic } from "./projectionAdminDiagnostics";
+import { getProjectionGate, getProjectionReadinessGate } from "./projectionFeatureFlags";
+import {
+  applySleeperTightEndPremium,
+  getSleeperProjectionScoringProfile,
+  loadStoredSleeperProjectionSnapshot,
+  type SleeperProjectionScoringProfile,
+} from "./sleeperProjectionSnapshots";
 import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, insertLoginAttempt, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
-import type { LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget } from "../shared/types";
+import type { LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
 import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
 import type { AICounterfactualRead, AIDecisionSnapshot, AIPredictionDecayProfile, AIRealizedEdge } from "../shared/aiDecisionSnapshots";
 import type { RecommendationObservedOutcome } from "../shared/recommendationOutcome";
@@ -753,6 +762,134 @@ function getLeagueValueBlendOptions(leagueInfo: any): ValueBlendOptions {
 
 function getLeagueValueProfileKey(leagueInfo: any): string {
   return getValueSourceProfileKey(getLeagueValueBlendOptions(leagueInfo));
+}
+
+function formatSleeperProjectionScoringLabel(profile: SleeperProjectionScoringProfile, tightEndPremium = 0): string {
+  const baseLabel = profile === 'HALF_PPR'
+    ? 'Half PPR'
+    : profile === 'STD'
+      ? 'Standard'
+      : profile === 'CUSTOM'
+        ? 'Custom'
+        : 'PPR';
+  const tep = Math.round((Number(tightEndPremium) || 0) * 100) / 100;
+  return tep > 0 ? `${baseLabel} + ${tep} TEP` : baseLabel;
+}
+
+function formatProjectionStatSummary(row: {
+  passingYards?: number | null;
+  passingTouchdowns?: number | null;
+  interceptions?: number | null;
+  carries?: number | null;
+  rushingYards?: number | null;
+  rushingTouchdowns?: number | null;
+  targets?: number | null;
+  receptions?: number | null;
+  receivingYards?: number | null;
+  receivingTouchdowns?: number | null;
+}, tightEndPremiumAdjustment = 0): string | null {
+  const parts = [
+    row.passingYards ? `${row.passingYards} pass yds` : null,
+    row.passingTouchdowns ? `${row.passingTouchdowns} pass TD` : null,
+    row.interceptions ? `${row.interceptions} INT` : null,
+    row.carries ? `${row.carries} carries` : null,
+    row.rushingYards ? `${row.rushingYards} rush yds` : null,
+    row.rushingTouchdowns ? `${row.rushingTouchdowns} rush TD` : null,
+    row.targets ? `${row.targets} targets` : null,
+    row.receptions ? `${row.receptions} rec` : null,
+    row.receivingYards ? `${row.receivingYards} rec yds` : null,
+    row.receivingTouchdowns ? `${row.receivingTouchdowns} rec TD` : null,
+  ].filter((item): item is string => Boolean(item));
+  if (tightEndPremiumAdjustment > 0) {
+    return [...parts.slice(0, 3), `+${tightEndPremiumAdjustment} TEP`].join(' · ') || null;
+  }
+  return parts.slice(0, 4).join(' · ') || null;
+}
+
+function buildWeeklyProjectionContextMap(input: {
+  snapshot: Awaited<ReturnType<typeof loadStoredSleeperProjectionSnapshot>>;
+  season: string;
+  week: number;
+  scoringProfile: SleeperProjectionScoringProfile;
+  tightEndPremium?: number;
+  rosteredPlayerIds: string[];
+}): {
+  weeklyProjectionByPlayerId: Record<string, WeeklyProjectionContext>;
+  diagnostics: NonNullable<ReportData['weeklyProjectionDiagnostics']>;
+} {
+  const health = buildProjectionSnapshotHealthDiagnostic({
+    snapshot: input.snapshot,
+    expectedScoringProfiles: [input.scoringProfile],
+  });
+  const readiness = getProjectionReadinessGate({
+    source: 'sleeper',
+    projectionType: 'weekly',
+    projectionSnapshotStatus: health.status === 'ready' ? 'ready' : health.status === 'warning' ? 'stale' : 'missing',
+    scheduleSnapshotStatus: 'ready',
+    sourceMappingStatus: input.snapshot?.identityDiagnostics.missingIdentityRows ? 'partial' : 'ready',
+  });
+  const warnings = [
+    ...health.parserWarnings,
+    readiness.enabled ? null : readiness.reason,
+  ].filter((item): item is string => Boolean(item));
+  const weeklyProjectionByPlayerId: Record<string, WeeklyProjectionContext> = {};
+  const scoringLabel = formatSleeperProjectionScoringLabel(input.scoringProfile, input.tightEndPremium);
+
+  if (input.snapshot && readiness.enabled && health.status === 'ready') {
+    for (const row of input.snapshot.rows) {
+      if (!row.playerId || row.week !== input.week || row.projectedFantasyPoints === null) continue;
+      const homeAway = row.homeAway || (row.opponent ? 'unknown' : 'bye');
+      if (homeAway === 'bye') continue;
+      const premiumProjection = applySleeperTightEndPremium({
+        projectedFantasyPoints: row.projectedFantasyPoints,
+        position: row.position,
+        receptions: row.receptions,
+        tightEndPremium: input.tightEndPremium,
+      });
+      if (premiumProjection.projectedFantasyPoints === null) continue;
+      weeklyProjectionByPlayerId[row.playerId] = {
+        source: 'stored-weekly-projection',
+        provider: 'sleeper',
+        season: row.season,
+        week: row.week,
+        scoringProfile: scoringLabel,
+        projectedFantasyPoints: premiumProjection.projectedFantasyPoints,
+        tightEndPremiumAdjustment: premiumProjection.adjustment || null,
+        opponent: row.opponent,
+        homeAway,
+        team: row.team,
+        updatedAt: row.providerUpdatedAt || input.snapshot.providerUpdatedAt || null,
+        fetchedAt: input.snapshot.fetchedAt,
+        status: 'ready',
+        note: premiumProjection.adjustment > 0
+          ? `Stored weekly projection for Week ${row.week} in ${scoringLabel} scoring, including TE premium.`
+          : `Stored weekly projection for Week ${row.week} in ${scoringLabel} scoring.`,
+        statSummary: formatProjectionStatSummary(row, premiumProjection.adjustment),
+      };
+    }
+  }
+
+  const uniqueRosteredPlayerIds = Array.from(new Set(input.rosteredPlayerIds.filter(Boolean)));
+  const rosteredCount = uniqueRosteredPlayerIds.length;
+  const attachedRosteredCount = uniqueRosteredPlayerIds.filter((playerId) => Boolean(weeklyProjectionByPlayerId[playerId])).length;
+  return {
+    weeklyProjectionByPlayerId,
+    diagnostics: {
+      status: health.status,
+      source: 'stored-weekly-projection',
+      provider: 'sleeper',
+      season: input.snapshot?.season || input.season,
+      week: input.snapshot?.week ?? input.week,
+      scoringProfile: scoringLabel,
+      rowCount: input.snapshot?.rowCount || 0,
+      rosteredCoveragePct: rosteredCount ? Math.round((attachedRosteredCount / rosteredCount) * 1000) / 10 : null,
+      attachedPlayerCount: attachedRosteredCount,
+      note: readiness.enabled && health.status === 'ready'
+        ? 'Stored weekly projections are attached to eligible report players.'
+        : 'Stored weekly projections are unavailable or gated, so recommendations fall back to schedule/value context.',
+      warnings,
+    },
+  };
 }
 
 function addDays(date: Date, days: number): Date {
@@ -1806,6 +1943,82 @@ function cloneReportWithViewerManager(payload: any, viewerUserId?: string | null
       ...payload.reportData,
       viewerManager,
     },
+  };
+}
+
+function stripWeeklyProjectionFromPlayer<T extends Record<string, any> | null | undefined>(player: T): T {
+  if (!player || typeof player !== 'object' || !('weeklyProjection' in player)) return player;
+  const { weeklyProjection: _weeklyProjection, ...rest } = player;
+  return rest as T;
+}
+
+function stripWeeklyProjectionFromPlayerArray<T>(players?: T[] | null): T[] | undefined | null {
+  return Array.isArray(players)
+    ? players.map((player) => stripWeeklyProjectionFromPlayer(player as any) as T)
+    : players;
+}
+
+function stripWeeklyProjectionContextFromReportData(reportData: ReportData): ReportData {
+  return {
+    ...reportData,
+    weeklyProjectionDiagnostics: {
+      status: 'blocked',
+      source: 'stored-weekly-projection',
+      provider: 'sleeper',
+      season: reportData.weeklyProjectionDiagnostics?.season || reportData.leagueDiagnostics?.currentSeason || null,
+      week: reportData.weeklyProjectionDiagnostics?.week || reportData.leagueDiagnostics?.currentWeek || null,
+      scoringProfile: reportData.weeklyProjectionDiagnostics?.scoringProfile || null,
+      rowCount: 0,
+      rosteredCoveragePct: null,
+      attachedPlayerCount: 0,
+      note: 'Stored weekly projections are disabled, so cached projection context was stripped before serving this report.',
+      warnings: ['Projection feature flags are disabled.'],
+    },
+    playerDetailsById: Object.fromEntries(
+      Object.entries(reportData.playerDetailsById || {}).map(([playerId, details]) => [
+        playerId,
+        stripWeeklyProjectionFromPlayer(details as any),
+      ])
+    ) as ReportData['playerDetailsById'],
+    managerPositionCounts: (reportData.managerPositionCounts || []).map((row) => ({
+      ...row,
+      starterPlayers: stripWeeklyProjectionFromPlayerArray(row.starterPlayers) || [],
+      lineupPlayers: stripWeeklyProjectionFromPlayerArray(row.lineupPlayers) || [],
+      rosterPlayers: stripWeeklyProjectionFromPlayerArray(row.rosterPlayers) || [],
+      starterGroups: (row.starterGroups || []).map((group) => ({
+        ...group,
+        players: stripWeeklyProjectionFromPlayerArray(group.players) || [],
+      })),
+    })),
+    matchupPreviews: (reportData.matchupPreviews || []).filter((preview) => !/stored weekly projection/i.test(preview.source || '')),
+    waiverIntelligence: reportData.waiverIntelligence
+      ? {
+          ...reportData.waiverIntelligence,
+          availableTrendingAdds: stripWeeklyProjectionFromPlayerArray(reportData.waiverIntelligence.availableTrendingAdds) || [],
+          rosteredTrendingAdds: stripWeeklyProjectionFromPlayerArray(reportData.waiverIntelligence.rosteredTrendingAdds) || [],
+          bestTaxiStashes: stripWeeklyProjectionFromPlayerArray(reportData.waiverIntelligence.bestTaxiStashes) || [],
+          recentlyDroppedValuable: stripWeeklyProjectionFromPlayerArray(reportData.waiverIntelligence.recentlyDroppedValuable) || [],
+          highestKtcAvailable: stripWeeklyProjectionFromPlayer(reportData.waiverIntelligence.highestKtcAvailable as any) || null,
+          bestAvailableByPosition: Object.fromEntries(
+            Object.entries(reportData.waiverIntelligence.bestAvailableByPosition || {}).map(([position, player]) => [
+              position,
+              stripWeeklyProjectionFromPlayer(player as any) || null,
+            ])
+          ) as WaiverIntelligence['bestAvailableByPosition'],
+          weeklyEcrTargets: (reportData.waiverIntelligence.weeklyEcrTargets || []).map((target) => ({
+            ...target,
+            player: stripWeeklyProjectionFromPlayer(target.player as any),
+          })),
+        }
+      : reportData.waiverIntelligence,
+  };
+}
+
+function stripWeeklyProjectionContextFromPayload(payload: any): any {
+  if (!payload?.reportData || getProjectionGate('sleeper', 'weekly').enabled) return payload;
+  return {
+    ...payload,
+    reportData: stripWeeklyProjectionContextFromReportData(payload.reportData),
   };
 }
 
@@ -4503,6 +4716,7 @@ export function buildWaiverIntelligence(
     currentWeek?: number | null;
     playoffWeeks?: number[] | null;
     playoffWeekStart?: number | null;
+    weeklyProjectionByPlayerId?: Record<string, WeeklyProjectionContext | null | undefined>;
   } = {}
 ): WaiverIntelligence {
   const availableAdds = trendingAdds.filter((player) => !player.owner);
@@ -4546,7 +4760,8 @@ export function buildWaiverIntelligence(
   };
   const withWeeklyEcr = (player: TrendingPlayer): TrendingPlayer => {
     const weeklyEcr = getWeeklyEcrSignal(player);
-    if (!weeklyEcr) return player;
+    const weeklyProjection = options.weeklyProjectionByPlayerId?.[player.player_id] || null;
+    if (!weeklyEcr) return weeklyProjection ? { ...player, weeklyProjection } : player;
     const ecrRank = getWaiverWeeklyEcrTrustedRank(weeklyEcr);
     const ecrValue = getRankBasedWaiverSeasonValue(ecrRank);
     const position = normalizeSeasonLineupPosition(player.pos);
@@ -4564,6 +4779,7 @@ export function buildWaiverIntelligence(
       currentPositionRank: player.currentPositionRank || ecrRank,
       ktcValue: adjustedValue || null,
       weeklyEcr,
+      weeklyProjection,
     };
   };
   const availablePlayerPool: TrendingPlayer[] = Object.entries(players)
@@ -4604,11 +4820,15 @@ export function buildWaiverIntelligence(
         pos: waiverPosition,
         team: player?.team || null,
       });
+      const weeklyProjection = options.weeklyProjectionByPlayerId?.[playerId] || null;
       const ecrRank = getWaiverWeeklyEcrTrustedRank(weeklyEcr);
       const ecrValue = getRankBasedWaiverSeasonValue(ecrRank);
+      const projectionValue = weeklyProjection?.status === 'ready'
+        ? Math.round(weeklyProjection.projectedFantasyPoints * 100)
+        : 0;
       const trustedValue = getScheduleAdjustedSpecialTeamsValue({
         position: waiverPosition,
-        value: value || ecrValue,
+        value: leagueValueMode === 'dynasty' ? value || ecrValue || projectionValue : Math.max(value || 0, ecrValue || 0, projectionValue),
         signal: weeklyEcr,
         leagueValueMode,
       });
@@ -4649,6 +4869,7 @@ export function buildWaiverIntelligence(
         count: 0,
         ktcValue: trustedValue || null,
         weeklyEcr,
+        weeklyProjection,
       };
     })
     .filter((player): player is TrendingPlayer => Boolean(player))
@@ -6149,7 +6370,8 @@ export const appRouter = router({
           const cachedReport = await readCachedLeagueReport(reportCacheKey);
           markAnalyzeStep('cache lookup');
           if (!bypassReportCache && cachedReport && typeof cachedReport === 'object') {
-            const cachedReportWithHiddenData = await attachStoredSleeperHiddenLeagueSnapshot(cachedReport, input.leagueId);
+            const cachedReportWithProjectionPolicy = stripWeeklyProjectionContextFromPayload(cachedReport);
+            const cachedReportWithHiddenData = await attachStoredSleeperHiddenLeagueSnapshot(cachedReportWithProjectionPolicy, input.leagueId);
             const cachedReportWithLiveActivity = await attachLiveSleeperActivity(cachedReportWithHiddenData, input.leagueId);
             await insertLoginAttempt({
               eventType: "analyze_league",
@@ -6423,6 +6645,28 @@ export const appRouter = router({
           const currentStandings = buildCurrentStandings(rosters, rosterUserMap);
           const currentWaiverType = Number(leagueInfo.settings?.waiver_type);
           const currentWaiverBudget = Number(leagueInfo.settings?.waiver_budget);
+          const projectionScoringProfile = getSleeperProjectionScoringProfile(leagueInfo.scoring_settings || {});
+          const rosteredProjectionPlayerIds = rosters.flatMap((roster: any) => [
+            ...(roster.players || []),
+            ...(roster.taxi || []),
+            ...(roster.reserve || []),
+          ]).map((playerId: unknown) => String(playerId || '')).filter(Boolean);
+          const storedSleeperProjectionSnapshot = await loadStoredSleeperProjectionSnapshot({
+            season: currentSeasonLabel,
+            week: currentScheduleWeek,
+            scoringProfile: projectionScoringProfile,
+          });
+          const {
+            weeklyProjectionByPlayerId,
+            diagnostics: weeklyProjectionDiagnostics,
+          } = buildWeeklyProjectionContextMap({
+            snapshot: storedSleeperProjectionSnapshot,
+            season: currentSeasonLabel,
+            week: currentScheduleWeek,
+            scoringProfile: projectionScoringProfile,
+            tightEndPremium: getLeagueTightEndPremium(leagueInfo),
+            rosteredPlayerIds: rosteredProjectionPlayerIds,
+          });
 
           const currentSeasonData = {
             label: currentSeasonLabel,
@@ -6442,6 +6686,7 @@ export const appRouter = router({
             playoffWeeks,
             valueBlendProfileKey: leagueValueProfileKey,
             valueBlendProfileLabel: leagueValueProfileLabel,
+            weeklyProjectionByPlayerId,
           };
           let lastSeasonPositionRanks: Record<string, LastSeasonPlayerRank> = {};
           try {
@@ -6520,6 +6765,7 @@ export const appRouter = router({
             players,
             ktcValues,
             playerSchedules: staticSections.playerScheduleProfiles,
+            weeklyProjectionByPlayerId,
           });
           markAnalyzeStep('schedule planning');
 
@@ -6587,8 +6833,14 @@ export const appRouter = router({
             }, {
               leagueValueMode,
             });
-            // Calculate ADP from the draft picks themselves
-            const adpData = calculateADPFromPicks(draftPicks);
+            const draftDerivedAdpData = calculateADPFromPicks(draftPicks);
+            const fantasyProsRookieAdpData = leagueValueMode === 'dynasty'
+              ? await buildFantasyProsRookieAdpData(draftPicks, players)
+              : {};
+            const adpData = {
+              ...draftDerivedAdpData,
+              ...fantasyProsRookieAdpData,
+            };
             if (draftPicks.length > 0) {
               const rookieValues2025 = getRookieValueBaseline('2025');
               const rookieValuesByDraftYear = getRookieValueBaselines();
@@ -6710,6 +6962,7 @@ export const appRouter = router({
               currentWeek: currentScheduleWeek,
               playoffWeeks,
               playoffWeekStart,
+              weeklyProjectionByPlayerId,
             }
           );
           const scheduleEdgeTargets = buildScheduleEdgeTargetsFromDraftSharksContext({
@@ -6894,6 +7147,7 @@ export const appRouter = router({
             { sourceKey: 'sportsdataio-news-v1', rowCount: newsSourceCounts.sportsDataIo },
             { sourceKey: 'espn-depth-charts-v1', rowCount: depthChartResult.diagnostics.loadedTeams.length },
             { sourceKey: 'draftsharks-sos-v1', rowCount: Object.keys(draftSharksScheduleContext.profiles || {}).length },
+            { sourceKey: `player-projection-snapshots-v1:sleeper:${projectionScoringProfile}:weekly`, rowCount: weeklyProjectionDiagnostics.rowCount },
             { sourceKey: NFLVERSE_DRAFT_CAPITAL_SOURCE_KEY, rowCount: nflverseDraftCapital.rowCount },
             ...nflversePlayerContext.rowCounts,
             { sourceKey: `sleeper-season-stats-v1:${lastCompletedSeason}`, rowCount: Object.keys(lastSeasonPositionRanks || {}).length },
@@ -6969,6 +7223,7 @@ export const appRouter = router({
               {
                 ...details,
                 playerSituationDelta: playerSituationDeltasById[playerId] || null,
+                weeklyProjection: weeklyProjectionByPlayerId[playerId] || null,
               },
             ])
           );
@@ -6988,6 +7243,7 @@ export const appRouter = router({
                 }
               : undefined,
             sourceSnapshotDiagnostics,
+            weeklyProjectionDiagnostics,
             depthChartDiagnostics: depthChartResult.diagnostics,
             prospectSourceDiagnostics: staticSections.prospectSourceDiagnostics,
             viewerManager,

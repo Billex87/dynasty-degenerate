@@ -36,6 +36,7 @@ import type {
   TradeTeamContext,
   TradeTimePickAsset,
   TradeValueContext,
+  WeeklyProjectionContext,
 } from '../shared/types';
 
 export interface KTCValues {
@@ -187,6 +188,7 @@ interface SeasonData {
   playoffWeeks?: number[];
   valueBlendProfileKey?: string;
   valueBlendProfileLabel?: string;
+  weeklyProjectionByPlayerId?: Record<string, WeeklyProjectionContext | null | undefined>;
 }
 
 interface ReportOptions {
@@ -3623,6 +3625,7 @@ export async function generateReport(
         seasonValue: seasonValue || undefined,
         currentPositionRank: positionRank,
         seasonPositionRank,
+        weeklyProjection: currentSeasonData.weeklyProjectionByPlayerId?.[pid] || null,
         playerDetails,
       };
     };

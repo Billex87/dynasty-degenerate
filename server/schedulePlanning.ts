@@ -4,7 +4,7 @@ import type { KTCValues } from './reportGenerator';
 import { getDraftSharksScheduleProfile } from './draftSharksSchedule';
 import type { DraftSharksScheduleContext } from './draftSharksSchedule';
 import { normalizeNflTeamCode } from './nflTeamCodes';
-import type { MatchupPreview, PlayerScheduleProfile, SchedulePlanningSummary } from '../shared/types';
+import type { MatchupPreview, PlayerScheduleProfile, SchedulePlanningSummary, WeeklyProjectionContext } from '../shared/types';
 
 type SchedulePosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
 
@@ -327,6 +327,25 @@ function getMatchupProjection(input: {
   return Math.round(raw * 10) / 10;
 }
 
+function getProjectionPointsForPlayers(
+  playerIds: string[],
+  week: number,
+  weeklyProjectionByPlayerId?: Record<string, WeeklyProjectionContext | null | undefined>,
+): number | null {
+  if (!weeklyProjectionByPlayerId) return null;
+  const values = playerIds
+    .map((playerId) => weeklyProjectionByPlayerId[playerId])
+    .filter((projection): projection is WeeklyProjectionContext => Boolean(
+      projection
+      && projection.status === 'ready'
+      && projection.week === week
+      && Number.isFinite(projection.projectedFantasyPoints)
+    ))
+    .map((projection) => projection.projectedFantasyPoints);
+  if (!values.length) return null;
+  return Math.round(values.reduce((sum, value) => sum + value, 0) * 10) / 10;
+}
+
 function logisticWinProbability(edge: number): number {
   return Math.round((1 / (1 + Math.exp(-edge / 12))) * 1000) / 10;
 }
@@ -358,6 +377,7 @@ function toStarterPlayer(
   manager: string,
   players: Record<string, SchedulePlayer>,
   ktcValues: KTCValues,
+  weeklyProjectionByPlayerId?: Record<string, WeeklyProjectionContext | null | undefined>,
 ) {
   const player = players[playerId];
   const position = getPosition(player) || 'FLEX';
@@ -368,6 +388,7 @@ function toStarterPlayer(
     owner: manager,
     value: getPlayerValue(playerId, players as any, ktcValues) || getScheduleValue(playerId, players, ktcValues),
     seasonValue: getPlayerRedraftValue(playerId, players as any, ktcValues) || getScheduleValue(playerId, players, ktcValues),
+    weeklyProjection: weeklyProjectionByPlayerId?.[playerId] || null,
   };
 }
 
@@ -380,9 +401,11 @@ export function buildMatchupPreviews(input: {
   players: Record<string, SchedulePlayer>;
   ktcValues: KTCValues;
   playerSchedules?: Record<string, PlayerScheduleProfile>;
+  weeklyProjectionByPlayerId?: Record<string, WeeklyProjectionContext | null | undefined>;
 }): MatchupPreview[] {
   if (!SUPPORTED_SEASONS.has(String(input.season)) || !Number.isFinite(input.week) || input.week <= 0) return [];
   if (!Array.isArray(input.matchups) || input.matchups.length === 0) return [];
+  const hasWeeklyProjectionContext = Boolean(input.weeklyProjectionByPlayerId && Object.keys(input.weeklyProjectionByPlayerId).length);
 
   const rowsByRosterId = new Map(input.matchups.map((row) => [Number(row.roster_id), row]));
   const rowsByMatchupId = input.matchups.reduce((groups, row) => {
@@ -410,16 +433,18 @@ export function buildMatchupPreviews(input: {
       const actualOpponentPoints = Number(opponent.points);
       const projectedPoints = Number.isFinite(actualPoints) && actualPoints > 0
         ? Math.round(actualPoints * 10) / 10
-        : getMatchupProjection({ playerIds: starterIds, players: input.players, ktcValues: input.ktcValues, playerSchedules: input.playerSchedules });
+        : getProjectionPointsForPlayers(starterIds, input.week, input.weeklyProjectionByPlayerId)
+          ?? getMatchupProjection({ playerIds: starterIds, players: input.players, ktcValues: input.ktcValues, playerSchedules: input.playerSchedules });
       const opponentProjectedPoints = Number.isFinite(actualOpponentPoints) && actualOpponentPoints > 0
         ? Math.round(actualOpponentPoints * 10) / 10
-        : getMatchupProjection({ playerIds: opponentStarterIds, players: input.players, ktcValues: input.ktcValues, playerSchedules: input.playerSchedules });
+        : getProjectionPointsForPlayers(opponentStarterIds, input.week, input.weeklyProjectionByPlayerId)
+          ?? getMatchupProjection({ playerIds: opponentStarterIds, players: input.players, ktcValues: input.ktcValues, playerSchedules: input.playerSchedules });
       const edge = projectedPoints !== null && opponentProjectedPoints !== null
         ? Math.round((projectedPoints - opponentProjectedPoints) * 10) / 10
         : null;
       const starterPlayers = starterIds
-        .map((playerId) => toStarterPlayer(playerId, manager, input.players, input.ktcValues))
-        .sort((left, right) => (right.seasonValue || right.value) - (left.seasonValue || left.value));
+        .map((playerId) => toStarterPlayer(playerId, manager, input.players, input.ktcValues, input.weeklyProjectionByPlayerId))
+        .sort((left, right) => (right.weeklyProjection?.projectedFantasyPoints || right.seasonValue || right.value) - (left.weeklyProjection?.projectedFantasyPoints || left.seasonValue || left.value));
 
       previews.push({
         week: input.week,
@@ -434,17 +459,17 @@ export function buildMatchupPreviews(input: {
         positionEdges: SCHEDULE_POSITIONS.map((position) => {
           const managerProjected = starterPlayers
             .filter((player) => player.pos === position)
-            .reduce((sum, player) => sum + ((player.seasonValue || player.value) / 1000), 0);
+            .reduce((sum, player) => sum + (player.weeklyProjection?.projectedFantasyPoints ?? ((player.seasonValue || player.value) / 1000)), 0);
           const opponentProjected = opponentStarterIds
-            .map((playerId) => toStarterPlayer(playerId, opponentManager, input.players, input.ktcValues))
+            .map((playerId) => toStarterPlayer(playerId, opponentManager, input.players, input.ktcValues, input.weeklyProjectionByPlayerId))
             .filter((player) => player.pos === position)
-            .reduce((sum, player) => sum + ((player.seasonValue || player.value) / 1000), 0);
+            .reduce((sum, player) => sum + (player.weeklyProjection?.projectedFantasyPoints ?? ((player.seasonValue || player.value) / 1000)), 0);
           return {
             position,
             managerProjected: Math.round(managerProjected * 10) / 10,
             opponentProjected: Math.round(opponentProjected * 10) / 10,
             edge: Math.round((managerProjected - opponentProjected) * 10) / 10,
-            note: `${position} schedule/value edge from submitted Sleeper lineup context${input.playerSchedules ? ' and stored bye/SOS profiles' : ''}.`,
+            note: `${position} edge from submitted lineup context${hasWeeklyProjectionContext ? ' and stored weekly projections' : input.playerSchedules ? ' and stored bye/SOS profiles' : ''}.`,
           };
         }).filter((row) => row.managerProjected || row.opponentProjected),
         howToWin: edge === null
@@ -452,7 +477,7 @@ export function buildMatchupPreviews(input: {
           : edge >= 0
             ? `Protect the ${edge.toFixed(1)} point schedule/value edge against ${opponentManager}; use stored bye/SOS context before taking streamer risk.`
             : `Close a ${Math.abs(edge).toFixed(1)} point schedule/value gap against ${opponentManager} through lineup upgrades, streamer checks, and stored bye/SOS context.`,
-        source: 'Sleeper + Dynasty Degenerates schedule model',
+        source: hasWeeklyProjectionContext ? 'Submitted lineup + stored weekly projection model' : 'Sleeper + Dynasty Degenerates schedule model',
         updatedAt: new Date().toISOString(),
       });
     }

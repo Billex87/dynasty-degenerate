@@ -40,6 +40,7 @@ import {
   type ManagerAvatars,
   type PlayerDetailsById,
 } from "./shared";
+import { WeeklyProjectionReceipt } from "../WeeklyProjectionReceipt";
 
 type OwnerIntelRow = NonNullable<ReportData["managerRosterIntelligence"]>[number];
 type CountPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
@@ -2461,9 +2462,27 @@ export default function WaiverIntelligencePanel({
               const weeklyEcrSignal = recommendation.weeklyEcrSignal;
               const weeklyEcrRank = getWaiverWeeklyEcrBestRank(weeklyEcrSignal);
               const weeklyEcrWindow = formatWaiverWeeklyEcrWindow(weeklyEcrSignal);
+              const weeklyProjection = player.weeklyProjection || details?.weeklyProjection || null;
               const receiptItems = getAIEvidenceReceiptItems(
                 recommendation.evidenceRead
               );
+              const openPlayerDetail = () =>
+                setSelectedPlayer(
+                  buildPlayerModalData({
+                    playerId: player.player_id,
+                    playerName: player.name,
+                    playerPos: player.pos,
+                    value,
+                    playerDetails: details,
+                    playerDetailsById,
+                    currentPositionRank: rank,
+                    manager: player.owner || null,
+                    managerAvatarUrl: player.owner
+                      ? managerAvatars?.[player.owner]
+                      : null,
+                    valueMode: leagueValueMode,
+                  })
+                );
 
               return (
                 <article
@@ -2474,24 +2493,8 @@ export default function WaiverIntelligencePanel({
                   <button
                     type="button"
                     className="waiver-ai-target-player"
-                    onClick={() =>
-                      setSelectedPlayer(
-                        buildPlayerModalData({
-                          playerId: player.player_id,
-                          playerName: player.name,
-                          playerPos: player.pos,
-                          value,
-                          playerDetails: details,
-                          playerDetailsById,
-                          currentPositionRank: rank,
-                          manager: player.owner || null,
-                          managerAvatarUrl: player.owner
-                            ? managerAvatars?.[player.owner]
-                            : null,
-                          valueMode: leagueValueMode,
-                        })
-                      )
-                    }
+                    data-testid={weeklyProjection?.status === "ready" ? "projection-player-detail-trigger" : undefined}
+                    onClick={openPlayerDetail}
                   >
                     <span className="waiver-intel-label">{recommendation.label}</span>
                     <PlayerIdentityRow
@@ -2572,6 +2575,12 @@ export default function WaiverIntelligencePanel({
                           </strong>
                         </span>
                       )}
+                      <WeeklyProjectionReceipt
+                        weeklyProjection={weeklyProjection}
+                        variant="fact"
+                        playerName={player.name}
+                        onOpenPlayerDetail={openPlayerDetail}
+                      />
                     </div>
                     {receiptItems.length > 0 && (
                       <details className="waiver-ai-evidence-receipts">
@@ -2613,6 +2622,24 @@ export default function WaiverIntelligencePanel({
           );
           const weeklyEcrRank = getWaiverWeeklyEcrBestRank(weeklyEcrSignal);
           const weeklyEcrWindow = formatWaiverWeeklyEcrWindow(weeklyEcrSignal);
+          const weeklyProjection = player.weeklyProjection || details?.weeklyProjection || null;
+          const openPlayerDetail = () =>
+            setSelectedPlayer(
+              buildPlayerModalData({
+                playerId: player.player_id,
+                playerName: player.name,
+                playerPos: player.pos,
+                value,
+                playerDetails: details,
+                playerDetailsById,
+                currentPositionRank: rank,
+                manager: player.owner || null,
+                managerAvatarUrl: player.owner
+                  ? managerAvatars?.[player.owner]
+                  : null,
+                valueMode: leagueValueMode,
+              })
+            );
           return (
             <article
               key={`${label}-${player.player_id}`}
@@ -2622,24 +2649,8 @@ export default function WaiverIntelligencePanel({
               <button
                 type="button"
                 className="waiver-intel-card-open"
-                onClick={() =>
-                  setSelectedPlayer(
-                    buildPlayerModalData({
-                      playerId: player.player_id,
-                      playerName: player.name,
-                      playerPos: player.pos,
-                      value,
-                      playerDetails: details,
-                      playerDetailsById,
-                      currentPositionRank: rank,
-                      manager: player.owner || null,
-                      managerAvatarUrl: player.owner
-                        ? managerAvatars?.[player.owner]
-                        : null,
-                      valueMode: leagueValueMode,
-                    })
-                  )
-                }
+                data-testid={weeklyProjection?.status === "ready" ? "projection-player-detail-trigger" : undefined}
+                onClick={openPlayerDetail}
               >
                 <div className="waiver-intel-top">
                   <span className="waiver-intel-label">{label}</span>
@@ -2691,6 +2702,10 @@ export default function WaiverIntelligencePanel({
                       <span>Rookie Stash</span>
                     )}
                     {weeklyEcrWindow && <span>{weeklyEcrWindow}</span>}
+                    <WeeklyProjectionReceipt
+                      weeklyProjection={weeklyProjection}
+                      variant="pill"
+                    />
                     {value > 0 && (
                       <span className="waiver-intel-value-pill">
                         {formatCompactValue(value)}

@@ -1048,6 +1048,27 @@ export async function findLatestProviderDataSnapshot(sourceKey: string) {
   };
 }
 
+export async function findProviderDataSnapshot(sourceKey: string, snapshotKey: string) {
+  const sql = await getDb();
+  if (!sql) return null;
+
+  const result = await sql`
+    SELECT "snapshotKey", payload, "updatedAt"
+    FROM "providerDataSnapshots"
+    WHERE "sourceKey" = ${sourceKey}
+      AND "snapshotKey" = ${snapshotKey}
+    LIMIT 1
+  ` as Array<{ snapshotKey?: string | null; payload?: string | null; updatedAt?: Date | string | null }>;
+
+  const row = result[0];
+  if (!row?.payload) return null;
+  return {
+    snapshotKey: String(row.snapshotKey || ''),
+    payload: parseTextPayloadFromStorage(String(row.payload)),
+    updatedAt: row.updatedAt ? new Date(row.updatedAt) : null,
+  };
+}
+
 export async function listLatestSnapshotMetadata(): Promise<StoredSnapshotMetadata[]> {
   const sql = await getDb();
   if (!sql) return [];
