@@ -189,7 +189,7 @@ export function buildOverviewPulseRead(data: ReportData): {
     hasMarketSignals ? "market pressure" : null,
   ].filter(Boolean);
   const lead = manager
-    ? `${manager} sets the starting lens for this Overview pass.`
+    ? `${manager} sets the starting lens for this Overview narrative handoff.`
     : "Run a league report with manager roster data to unlock team-specific reads.";
   const coverageLine = coverage.length
     ? `It checks ${coverage.join(", ")} and leaves exact ranks, roster calls, and trade targets to the sections below.`
@@ -218,7 +218,7 @@ export function buildOverviewPulseRead(data: ReportData): {
           }
         : null,
       leagueValueMode === "redraft" ? "Season lens" : "Dynasty lens",
-      "Overview only",
+      "Narrative only",
       hasRosterRecon
         ? "Drill-down ready"
         : { label: "Drill-down limited", tone: "warn" },
