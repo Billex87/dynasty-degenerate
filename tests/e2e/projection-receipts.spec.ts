@@ -71,6 +71,14 @@ async function loadCachedReport(
     },
   );
 
+  // This panel is a large lazy-loaded report table. Prewarming it keeps the
+  // projection assertions from racing Vite's cold transform in local E2E runs.
+  await page.request
+    .get('/src/components/reportTables/WaiverIntelligencePanel.tsx', {
+      timeout: 60_000,
+    })
+    .catch(() => null);
+
   await page.goto(`/?leagueId=${cachedReport.leagueId}${hash}`, {
     waitUntil: 'domcontentloaded',
   });
