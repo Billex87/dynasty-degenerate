@@ -1,18 +1,17 @@
-import type { DraftPick, ManagerRosterIntelligence } from '@shared/types';
+import type { DraftPick, ManagerRosterIntelligence, ReportData } from '@shared/types';
+import { getDraftKind, type DraftKind } from './draftDisplay';
+import type { LeagueValueMode } from './leagueValueMode';
 
 export type DraftOpportunity =
-  | {
-      type: 'missed';
-      label: string;
-      playerName: string;
-      playerId?: string;
-      pickLabel: string;
-      delta: number;
-    }
-  | {
-      type: 'win';
-      label: string;
-    };
+  {
+    type: 'missed';
+    label: string;
+    playerName: string;
+    playerId?: string;
+    pickLabel: string;
+    delta: number;
+    reason: 'need' | 'position' | 'close' | 'value';
+  };
 
 export function getDraftPickKey(pick: Pick<DraftPick, 'draftYear' | 'round' | 'pick' | 'player_id' | 'playerName'>): string {
   return [
@@ -25,7 +24,8 @@ export function getDraftPickKey(pick: Pick<DraftPick, 'draftYear' | 'round' | 'p
 
 export function buildDraftOpportunityMap(
   draftPicks: DraftPick[],
-  managerRosterIntelligence: ManagerRosterIntelligence[] = []
+  managerRosterIntelligence: ManagerRosterIntelligence[] = [],
+  leagueValueMode?: ReportData['leagueValueMode'] | LeagueValueMode | string | null,
 ): Record<string, DraftOpportunity> {
   const intelByManager = new Map(managerRosterIntelligence.map((row) => [row.manager, row]));
   const pickedOnly = draftPicks
@@ -36,62 +36,109 @@ export function buildDraftOpportunityMap(
       return a.pick - b.pick;
     });
 
-  const byYear = pickedOnly.reduce<Record<string, DraftPick[]>>((groups, pick) => {
-    const year = pick.draftYear || 'Draft';
-    groups[year] = groups[year] || [];
-    groups[year].push(pick);
+  const byDraftGroup = pickedOnly.reduce<Record<string, DraftPick[]>>((groups, pick) => {
+    const group = getDraftOpportunityGroupKey(pick, leagueValueMode);
+    groups[group] = groups[group] || [];
+    groups[group].push(pick);
     return groups;
   }, {});
 
   const result: Record<string, DraftOpportunity> = {};
 
-  Object.values(byYear).forEach((yearPicks) => {
+  Object.values(byDraftGroup).forEach((yearPicks) => {
+    const draftKind = getDraftKind(yearPicks[0] || {}, leagueValueMode);
+    const draftYear = Number(yearPicks[0]?.draftYear || 0);
     yearPicks.forEach((pick) => {
       const currentValue = pick.currentKtcValue || 0;
       const pickedPosition = normalizePosition(pick.playerPos);
       const needPositions = getDraftNeedPositions(intelByManager.get(pick.manager) || null);
-      const isNeedPick = Boolean(pickedPosition && needPositions.includes(pickedPosition));
       const laterPicks = yearPicks
-        .filter((candidate) => candidate.pick > pick.pick && (candidate.currentKtcValue || 0) > currentValue + 250)
-        .map((candidate) => ({
-          candidate,
-          delta: (candidate.currentKtcValue || 0) - currentValue,
-          distance: candidate.pick - pick.pick,
-          position: normalizePosition(candidate.playerPos),
-        }))
+        .filter((candidate) => (
+          candidate.pick > pick.pick
+          && (candidate.currentKtcValue || 0) > currentValue + 250
+          && isEligibleDraftOpportunityCandidate(candidate, draftKind, draftYear)
+        ))
+        .map((candidate) => {
+          const position = normalizePosition(candidate.playerPos);
+
+          return {
+            candidate,
+            delta: (candidate.currentKtcValue || 0) - currentValue,
+            distance: candidate.pick - pick.pick,
+            position,
+            isNeedFit: Boolean(position && needPositions.includes(position)),
+            isSamePosition: Boolean(position && pickedPosition && position === pickedPosition),
+          };
+        })
         .filter((candidate) => {
-          if (!isNeedPick) return true;
-          return candidate.position === pickedPosition || needPositions.includes(candidate.position);
+          if (candidate.distance <= 5) return true;
+          if (candidate.isNeedFit || candidate.isSamePosition) return true;
+          return candidate.delta >= 750;
         })
         .sort((a, b) => {
           const aCloseBonus = a.distance <= 5 ? 700 : 0;
           const bCloseBonus = b.distance <= 5 ? 700 : 0;
-          const aNeedBonus = isNeedPick && a.position === pickedPosition ? 500 : 0;
-          const bNeedBonus = isNeedPick && b.position === pickedPosition ? 500 : 0;
-          return (b.delta + bCloseBonus + bNeedBonus) - (a.delta + aCloseBonus + aNeedBonus);
+          const aNeedBonus = a.isNeedFit ? 550 : 0;
+          const bNeedBonus = b.isNeedFit ? 550 : 0;
+          const aPositionBonus = a.isSamePosition ? 450 : 0;
+          const bPositionBonus = b.isSamePosition ? 450 : 0;
+          return (b.delta + bCloseBonus + bNeedBonus + bPositionBonus)
+            - (a.delta + aCloseBonus + aNeedBonus + aPositionBonus);
         });
 
       const missed = laterPicks[0];
       if (missed) {
+        const reason = missed.isNeedFit
+          ? 'need'
+          : missed.isSamePosition
+            ? 'position'
+            : missed.distance <= 5
+              ? 'close'
+              : 'value';
         result[getDraftPickKey(pick)] = {
           type: 'missed',
-          label: missed.distance <= 5 ? 'Just Missed' : 'Better Board Value',
+          label: getMissedDraftLabel(reason),
           playerName: missed.candidate.playerName,
           playerId: missed.candidate.player_id,
           pickLabel: `${missed.candidate.draftYear || ''} #${missed.candidate.pick}`.trim(),
           delta: missed.delta,
+          reason,
         };
         return;
       }
-
-      result[getDraftPickKey(pick)] = {
-        type: 'win',
-        label: 'Board Win',
-      };
     });
   });
 
   return result;
+}
+
+function getDraftOpportunityGroupKey(
+  pick: DraftPick,
+  leagueValueMode?: ReportData['leagueValueMode'] | LeagueValueMode | string | null,
+): string {
+  return `${pick.draftYear || 'Draft'}::${getDraftKind(pick, leagueValueMode)}`;
+}
+
+function isEligibleDraftOpportunityCandidate(
+  candidate: DraftPick,
+  draftKind: DraftKind,
+  draftYear: number,
+): boolean {
+  if (draftKind !== 'rookie') return true;
+
+  const rookieYear = Number(candidate.playerDetails?.rookieYear);
+  if (Number.isFinite(rookieYear) && rookieYear > 0 && Number.isFinite(draftYear) && draftYear > 0) {
+    return rookieYear === draftYear;
+  }
+
+  return true;
+}
+
+function getMissedDraftLabel(reason: 'need' | 'position' | 'close' | 'value'): string {
+  if (reason === 'need') return 'Need Miss';
+  if (reason === 'position') return 'Position Miss';
+  if (reason === 'close') return 'Just Missed';
+  return 'Better Board Value';
 }
 
 function normalizePosition(position?: string | null): string {

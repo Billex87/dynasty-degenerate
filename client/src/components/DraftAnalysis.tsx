@@ -11,7 +11,7 @@ import { EmptyState, MetricPill, PreviewMetricChips, ReportSectionHeader, type P
 import { AIReadPanel } from './AIReadPanel';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
-import { getDraftKind, getDraftKindLabel, getDraftKindShortLabel, getDraftMarketMovementLabel, getDraftWindowLabel, isFreshRookieMarketRead } from '@/lib/draftDisplay';
+import { getDraftKind, getDraftKindLabel, isFreshRookieMarketRead } from '@/lib/draftDisplay';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { normalizeLeagueValueMode, type LeagueValueMode } from '@/lib/leagueValueMode';
@@ -370,7 +370,6 @@ function buildDraftYearPreviewMetrics(
     !isFreshRookieMarketRead(pick, leagueValueMode)
     && (pick.draftOutcome === 'hit' || pick.isStarter)
   )).length;
-  const draftWindowLabel = getDraftWindowLabel(picks, leagueValueMode);
   const yearPickKeys = new Set(picks.map(getDraftPickKey));
   const yearDecisionRows = buildManagerDraftDecisionAudits(
     draftDecisionAudits.filter((audit) => yearPickKeys.has(getDraftPickKey(audit.pick))),
@@ -386,7 +385,6 @@ function buildDraftYearPreviewMetrics(
     topGain ? { label: leagueValueMode === 'redraft' ? 'Top Current Gain' : 'Top Gain', compactLabel: 'Gain', value: topGain.playerName, tone: 'good' } : null,
     biggestMiss && (biggestMiss.valueGain || 0) < 0 ? { label: 'Biggest Miss', compactLabel: 'Miss', value: biggestMiss.playerName, tone: 'danger' } : null,
     picks.length ? { label: leagueValueMode === 'redraft' ? 'Starter Hit Rate' : 'Hit Rate', compactLabel: 'Hit Rate', value: `${Math.round((hitCount / picks.length) * 100)}%`, tone: 'info' } : null,
-    draftWindowLabel ? { label: 'Value Basis', compactLabel: 'Basis', value: draftWindowLabel, tone: 'info' } : null,
     bestDecisionMaker ? {
       label: 'Cleanest Read',
       compactLabel: 'Clean',
@@ -420,10 +418,7 @@ function buildDraftOpportunitySummary(
     })
     .sort((a, b) => b.delta - a.delta)
     .slice(0, 3);
-  const boardWins = picks.filter((pick) => opportunityByPick[getDraftPickKey(pick)]?.type === 'win').length;
-
   return {
-    boardWins,
     missed,
   };
 }
@@ -501,8 +496,8 @@ export function DraftAnalysis({
     }, {});
   }, [leagueValueMode, sortedDraftPicks]);
   const draftOpportunityByPick = useMemo(
-    () => buildDraftOpportunityMap(draftPicks, managerRosterIntelligence || []),
-    [draftPicks, managerRosterIntelligence]
+    () => buildDraftOpportunityMap(draftPicks, managerRosterIntelligence || [], leagueValueMode),
+    [draftPicks, leagueValueMode, managerRosterIntelligence]
   );
   const orderedDraftStats = useMemo(() => sortManagerDraftStatsByEfficiency(draftStats), [draftStats]);
   const draftCapitalEfficiencyPicks = useMemo(
@@ -813,16 +808,13 @@ export function DraftAnalysis({
           const draftYearSectionId = `year:${draftYear}`;
           const isDraftBoardOpen = activeDraftSectionId === draftYearSectionId;
           const yearPreviewMetrics = buildDraftYearPreviewMetrics(yearPicks, leagueValueMode, draftDecisionAudits, managerAvatars);
-          const draftWindowLabel = getDraftWindowLabel(yearPicks, leagueValueMode);
           const opportunitySummary = buildDraftOpportunitySummary(yearPicks, draftOpportunityByPick);
 
           return (
             <DraftCollapsibleSection
               key={draftYear}
               title={getDraftGroupTitle(draftYear, yearPicks, leagueValueMode)}
-              kicker={draftWindowLabel
-                ? `${yearPicks.length} players picked - ${draftWindowLabel}`
-                : `${yearPicks.length} players picked`}
+              kicker={`${yearPicks.length} players picked`}
               previewMetrics={yearPreviewMetrics}
               open={isDraftBoardOpen}
               onToggle={(open) => setDraftSectionOpen(draftYearSectionId, open)}
@@ -832,7 +824,6 @@ export function DraftAnalysis({
                   <div>
                     <span>Board-value context</span>
                     <strong>
-                      {opportunitySummary.boardWins.toLocaleString()} board wins ·{" "}
                       {opportunitySummary.missed.length.toLocaleString()} review spots
                     </strong>
                   </div>
@@ -900,9 +891,7 @@ export function DraftAnalysis({
                                 team={details?.team}
                                 position={pick.playerPos}
                               />
-                              <DraftOpportunityNote opportunity={opportunity?.type === 'win' ? opportunity : undefined} />
-                              <DraftWindowNote pick={pick} leagueValueMode={leagueValueMode} />
-                              <DraftMarketMovementNote pick={pick} leagueValueMode={leagueValueMode} />
+                              <DraftOpportunityNote opportunity={opportunity} />
                             </span>
                             <span className="rookie-draft-team-cell">
                               {details?.team ? <TeamLogoPill team={details.team} /> : <span className="rookie-draft-team-empty">FA</span>}
@@ -979,39 +968,9 @@ export function DraftAnalysis({
 function DraftOpportunityNote({ opportunity }: { opportunity?: DraftOpportunity }) {
   if (!opportunity) return null;
 
-  if (opportunity.type === 'win') {
-    return (
-      <span className="draft-opportunity-note draft-opportunity-win">
-        {opportunity.label}
-      </span>
-    );
-  }
-
   return (
     <span className="draft-opportunity-note draft-opportunity-missed" title={`${opportunity.label}: ${opportunity.playerName} at ${opportunity.pickLabel}`}>
       {opportunity.label}: {opportunity.playerName}
-    </span>
-  );
-}
-
-function DraftWindowNote({ pick, leagueValueMode }: { pick: DraftPick; leagueValueMode: LeagueValueMode }) {
-  const draftKindLabel = getDraftKindShortLabel(getDraftKind(pick, leagueValueMode));
-  const draftWindowLabel = getDraftWindowLabel(pick, leagueValueMode);
-
-  return (
-    <span className="draft-opportunity-note" title={draftWindowLabel ? `Values compared against ${draftWindowLabel.toLowerCase()}` : undefined}>
-      {draftWindowLabel ? `${draftKindLabel}: ${draftWindowLabel}` : draftKindLabel}
-    </span>
-  );
-}
-
-function DraftMarketMovementNote({ pick, leagueValueMode }: { pick: DraftPick; leagueValueMode: LeagueValueMode }) {
-  const movement = getDraftMarketMovementLabel(pick, leagueValueMode);
-  if (!movement) return null;
-
-  return (
-    <span className={`draft-opportunity-note draft-market-move-note draft-market-move-${movement.tone}`}>
-      {movement.label}
     </span>
   );
 }
