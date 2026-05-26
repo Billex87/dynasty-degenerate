@@ -90,4 +90,45 @@ describe('draft opportunity map', () => {
       pickLabel: '2025 #3',
     });
   });
+
+  it('does not label startup misses as need or position misses', () => {
+    const drafted = pick({
+      pick: 1,
+      playerName: 'Jayden Daniels',
+      playerPos: 'QB',
+      currentKtcValue: 8400,
+      adp: 24,
+      draftKind: 'startup',
+      draftPickCount: 235,
+    });
+    const samePositionValue = pick({
+      pick: 4,
+      playerName: 'Josh Allen',
+      playerPos: 'QB',
+      currentKtcValue: 9900,
+      adp: 21,
+      draftKind: 'startup',
+      draftPickCount: 235,
+    });
+
+    const result = buildDraftOpportunityMap([drafted, samePositionValue], [{
+      manager: 'Manager A',
+      holes: {
+        summary: 'QB need',
+        bestQbRank: 'QB30',
+        rb2Rank: 'RB12',
+        wr3Rank: 'WR20',
+        te1Rank: 'TE8',
+        flexDepth: 8,
+      },
+      positionGrades: {},
+      tradePlan: null,
+    } as any], 'dynasty');
+
+    expect(result[getDraftPickKey(drafted)]).toMatchObject({
+      playerName: 'Josh Allen',
+      reason: 'close',
+      label: 'Just Missed',
+    });
+  });
 });

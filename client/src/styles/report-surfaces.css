@@ -2419,6 +2419,15 @@ button.player-team-tile:focus-visible {
   gap: 0.56rem;
 }
 
+.rookie-draft-row-shell.is-startup-draft-board .rookie-draft-row-header,
+.rookie-draft-row-shell.is-startup-draft-board .rookie-draft-row {
+  grid-template-columns:
+    minmax(2.9rem, 0.3fr) minmax(3.25rem, 0.3fr) minmax(3.35rem, 0.31fr) minmax(10.5rem, 1.52fr)
+    minmax(2.55rem, 0.23fr) minmax(3.35rem, 0.3fr) minmax(6.15rem, 0.58fr)
+    minmax(3.75rem, 0.4fr) minmax(3.9rem, 0.42fr) minmax(4.25rem, 0.46fr) minmax(4.25rem, 0.46fr)
+    minmax(4.7rem, 0.5fr);
+}
+
 .rookie-draft-row-header {
   padding: 0.18rem 0.58rem 0.28rem;
   color: #67e8f9;
@@ -2431,6 +2440,7 @@ button.player-team-tile:focus-visible {
 
 .rookie-draft-row-header span:nth-child(1),
 .rookie-draft-row-header span:nth-child(2),
+.rookie-draft-row-shell.is-startup-draft-board .rookie-draft-row-header span:nth-child(3),
 .rookie-draft-row-header span:nth-child(4),
 .rookie-draft-row-header span:nth-child(5) {
   text-align: center;
@@ -2697,6 +2707,10 @@ button.player-team-tile:focus-visible {
   justify-self: auto;
 }
 
+.rookie-draft-mobile-context {
+  display: none;
+}
+
 .rookie-draft-pill {
   min-width: 2.35rem;
   min-height: 1.82rem;
@@ -2748,6 +2762,16 @@ button.player-team-tile:focus-visible {
       minmax(3.3rem, 0.4fr) minmax(3.4rem, 0.4fr) minmax(3.85rem, 0.46fr)
       minmax(3.85rem, 0.46fr) minmax(4.25rem, 0.5fr);
     gap: 0.44rem;
+  }
+
+  .rookie-draft-row-shell.is-startup-draft-board .rookie-draft-row-header,
+  .rookie-draft-row-shell.is-startup-draft-board .rookie-draft-row {
+    grid-template-columns:
+      minmax(2.45rem, 0.28fr) minmax(2.72rem, 0.27fr) minmax(2.72rem, 0.27fr) minmax(9.8rem, 1.52fr)
+      minmax(2.2rem, 0.22fr) minmax(2.75rem, 0.26fr) minmax(2.4rem, 0.22fr)
+      minmax(3.1rem, 0.34fr) minmax(3.25rem, 0.36fr) minmax(3.65rem, 0.4fr)
+      minmax(3.65rem, 0.4fr) minmax(4.05rem, 0.44fr);
+    gap: 0.36rem;
   }
 
   .rookie-draft-row-header {
@@ -3366,6 +3390,10 @@ button.owner-summary-tile:focus-visible {
     z-index: 3;
     min-width: 2rem;
     min-height: 1.22rem;
+  }
+
+  .rookie-draft-row-shell.is-startup-draft-board .rookie-draft-current-adp-cell {
+    top: 2.72rem;
   }
 
   .rookie-draft-rank-cell-draft {
@@ -11514,23 +11542,92 @@ body {
 @media (min-width: 1180px) {
   .report-shell .recent-transaction-player-grid-with-insight {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)) !important;
+    align-items: start;
   }
 
-  .report-shell .recent-transaction-player-grid-with-insight > .recent-transaction-insight-card {
+  .report-shell .recent-transaction-player-grid-with-insight .recent-transaction-player:not(.recent-transaction-player-has-insight) {
+    min-height: clamp(7.25rem, 8vw, 8.25rem);
+  }
+
+  .report-shell .recent-transaction-player-has-insight {
+    display: grid;
+    min-height: clamp(7.25rem, 8vw, 8.25rem);
+    grid-template-columns: minmax(9.25rem, 0.72fr) minmax(0, 1.28fr);
+    grid-template-areas:
+      "label insight"
+      "player insight"
+      "pills insight";
+    align-items: center;
+    gap: 0.52rem 0.72rem;
+    padding: 0.72rem;
+  }
+
+  .report-shell .recent-transaction-player-has-insight .recent-transaction-player-head {
+    grid-area: label;
+    align-self: start;
+  }
+
+  .report-shell .recent-transaction-player-has-insight .recent-transaction-player-main {
+    grid-area: player;
+    margin-top: 0;
+  }
+
+  .report-shell .recent-transaction-player-has-insight .recent-transaction-player-pills {
+    grid-area: pills;
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  .report-shell .recent-transaction-player-has-insight .recent-transaction-inline-insight {
+    grid-area: insight;
+    align-self: stretch;
     display: flex;
-    min-height: 7.65rem;
-    grid-column: auto !important;
+    min-width: 0;
     flex-direction: column;
-    justify-content: flex-start;
-    gap: 0.58rem;
+    justify-content: center;
+    gap: 0.45rem;
+    margin-top: 0;
+    border-top: 0;
+    border-left: 1px solid color-mix(in srgb, var(--team-accent, #22d3ee) 26%, rgba(148, 163, 184, 0.18));
+    padding-top: 0;
+    padding-left: 0.72rem;
   }
 
-  .report-shell .recent-transaction-player-grid-with-insight .recent-transaction-insight-head {
-    grid-column: auto;
+  .report-shell .recent-transaction-player-has-insight .recent-transaction-insight-head {
+    gap: 0.34rem;
   }
 
-  .report-shell .recent-transaction-player-grid-with-insight .recent-transaction-insight-matchup {
+  .report-shell .recent-transaction-player-has-insight .recent-transaction-insight-title {
+    font-size: 0.54rem;
+  }
+
+  .report-shell .recent-transaction-player-has-insight .recent-transaction-insight-lens {
+    min-height: 1rem;
+    padding-inline: 0.34rem;
+    font-size: 0.46rem;
+  }
+
+  .report-shell .recent-transaction-player-has-insight .recent-transaction-insight-matchup {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 0.28rem;
+  }
+
+  .report-shell .recent-transaction-player-has-insight .recent-transaction-insight-chip {
+    border-radius: 0.6rem;
+    padding: 0.34rem;
+  }
+
+  .report-shell .recent-transaction-player-has-insight .recent-transaction-insight-chip strong {
+    font-size: 0.58rem;
+  }
+
+  .report-shell .recent-transaction-player-has-insight .recent-transaction-inline-insight p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 0.56rem;
+    line-height: 1.14;
   }
 }
 
@@ -11538,6 +11635,10 @@ body {
   .report-shell .recent-transaction-player-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 0.5rem !important;
+  }
+
+  .report-shell .recent-transaction-player-grid-drop-only {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 
   .report-shell .recent-transaction-card {

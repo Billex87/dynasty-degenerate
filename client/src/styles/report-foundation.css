@@ -13610,6 +13610,12 @@
     color: #67e8f9;
   }
 
+  .recent-transaction-type-drop {
+    border-color: rgba(251, 113, 133, 0.34);
+    background: rgba(225, 29, 72, 0.16);
+    color: #fca5a5;
+  }
+
   .recent-transaction-meta strong {
     color: #fb923c;
     font-size: 1rem;

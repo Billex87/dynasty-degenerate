@@ -10,7 +10,7 @@ export type DraftOpportunity =
     playerId?: string;
     pickLabel: string;
     delta: number;
-    reason: 'need' | 'position' | 'close' | 'value';
+    reason: 'need' | 'position' | 'close' | 'value' | 'adp';
   };
 
 export function getDraftPickKey(pick: Pick<DraftPick, 'draftYear' | 'round' | 'pick' | 'player_id' | 'playerName'>): string {
@@ -51,7 +51,8 @@ export function buildDraftOpportunityMap(
     yearPicks.forEach((pick) => {
       const currentValue = pick.currentKtcValue || 0;
       const pickedPosition = normalizePosition(pick.playerPos);
-      const needPositions = getDraftNeedPositions(intelByManager.get(pick.manager) || null);
+      const isStartupDraft = draftKind === 'startup';
+      const needPositions = isStartupDraft ? [] : getDraftNeedPositions(intelByManager.get(pick.manager) || null);
       const laterPicks = yearPicks
         .filter((candidate) => (
           candidate.pick > pick.pick
@@ -67,12 +68,13 @@ export function buildDraftOpportunityMap(
             distance: candidate.pick - pick.pick,
             position,
             isNeedFit: Boolean(position && needPositions.includes(position)),
-            isSamePosition: Boolean(position && pickedPosition && position === pickedPosition),
+            isSamePosition: !isStartupDraft && Boolean(position && pickedPosition && position === pickedPosition),
+            isAdpValue: isStartupDraft && isMeaningfulAdpFall(pick, candidate),
           };
         })
         .filter((candidate) => {
           if (candidate.distance <= 5) return true;
-          if (candidate.isNeedFit || candidate.isSamePosition) return true;
+          if (candidate.isNeedFit || candidate.isSamePosition || candidate.isAdpValue) return true;
           return candidate.delta >= 750;
         })
         .sort((a, b) => {
@@ -82,13 +84,17 @@ export function buildDraftOpportunityMap(
           const bNeedBonus = b.isNeedFit ? 550 : 0;
           const aPositionBonus = a.isSamePosition ? 450 : 0;
           const bPositionBonus = b.isSamePosition ? 450 : 0;
-          return (b.delta + bCloseBonus + bNeedBonus + bPositionBonus)
-            - (a.delta + aCloseBonus + aNeedBonus + aPositionBonus);
+          const aAdpBonus = a.isAdpValue ? 500 : 0;
+          const bAdpBonus = b.isAdpValue ? 500 : 0;
+          return (b.delta + bCloseBonus + bNeedBonus + bPositionBonus + bAdpBonus)
+            - (a.delta + aCloseBonus + aNeedBonus + aPositionBonus + aAdpBonus);
         });
 
       const missed = laterPicks[0];
       if (missed) {
-        const reason = missed.isNeedFit
+        const reason = missed.isAdpValue
+          ? 'adp'
+          : missed.isNeedFit
           ? 'need'
           : missed.isSamePosition
             ? 'position'
@@ -145,11 +151,19 @@ function isEligibleDraftOpportunityCandidate(
   return true;
 }
 
-function getMissedDraftLabel(reason: 'need' | 'position' | 'close' | 'value'): string {
+function getMissedDraftLabel(reason: 'need' | 'position' | 'close' | 'value' | 'adp'): string {
+  if (reason === 'adp') return 'ADP Miss';
   if (reason === 'need') return 'Need Miss';
   if (reason === 'position') return 'Position Miss';
   if (reason === 'close') return 'Just Missed';
   return 'Better Board Value';
+}
+
+function isMeaningfulAdpFall(pick: DraftPick, candidate: DraftPick): boolean {
+  const pickAdp = Number(pick.adp);
+  const candidateAdp = Number(candidate.adp);
+  if (!Number.isFinite(pickAdp) || !Number.isFinite(candidateAdp)) return false;
+  return candidateAdp + 5 <= pickAdp;
 }
 
 function normalizePosition(position?: string | null): string {

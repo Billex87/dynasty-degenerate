@@ -1164,7 +1164,7 @@ function buildManagerAnchorsFromSleeperUsers(users: unknown) {
     : [];
 }
 
-const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v53';
+const LEAGUE_REPORT_CACHE_VERSION = 'league-report-v56';
 const LEAGUE_RANKINGS_CACHE_VERSION = 'league-rankings-v13';
 const LEAGUE_REPORT_CACHE_TTL_MS = getLeagueReportCacheTtlMs();
 const LEAGUE_REPORT_CACHE_TTL_HOURS = getLeagueReportCacheTtlHours();
@@ -5018,6 +5018,7 @@ function buildRecentTransactions(
   players: Record<string, any>,
   ktcValues: KTCValues,
   rosterStatusByPlayerId: Record<string, string> = {},
+  ownerByPlayerId: Record<string, string> = {},
   managerIntelByName: Map<string, any> = new Map(),
   currentSeason: string,
   leagueValueMode: LeagueValueMode = 'dynasty',
@@ -5047,6 +5048,7 @@ function buildRecentTransactions(
       const alternativeDrop = droppedPlayer && !droppedIsCurrentRookie
         ? (intel?.droppablePlayers || [])
             .filter((candidate: any) => candidate?.player_id && candidate.player_id !== droppedPlayerId && candidate.player_id !== addedPlayerId)
+            .filter((candidate: any) => ownerByPlayerId[String(candidate.player_id)] === manager)
             .filter((candidate: any) => candidate.playerDetails?.rosterStatus !== 'Taxi')
             .filter((candidate: any) => {
               const candidateIsRookie = Number(candidate.playerDetails?.rookieYear || 0) === currentSeasonNumber;
@@ -5196,6 +5198,7 @@ async function buildLiveSleeperActivityPatch(
       safePlayers,
       ktcValues,
       rosterStatusByPlayerId,
+      ownerByPlayerId,
       managerIntelByName,
       currentSeason,
       leagueValueMode,
@@ -7017,6 +7020,7 @@ export const appRouter = router({
             players,
             ktcValues,
             rosterStatusByPlayerId,
+            ownerByPlayerId,
             managerIntelByName,
             currentSeason,
             leagueValueMode,
@@ -7028,6 +7032,7 @@ export const appRouter = router({
             players,
             ktcValues,
             rosterStatusByPlayerId,
+            ownerByPlayerId,
             managerIntelByName,
             context.season || currentSeason,
             leagueValueMode,

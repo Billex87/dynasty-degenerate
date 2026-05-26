@@ -256,8 +256,8 @@ const DYNASTY_MOBILE_REPORT_LOGO_SRC =
   "/brand/logos/png/mobile-dd-stacked-transparent.png?v=20260519-mobile-transparent";
 const DYNASTY_REPORT_HEADER_LOGO_SRC =
   "/brand/logos/uploads/report-header-logo-compact-transparent-cropped.png?v=20260518-compact-crop";
-const REPORT_CACHE_DATA_VERSION = "startup-adp-snapshot-v1";
-const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v26";
+const REPORT_CACHE_DATA_VERSION = "sleeper-only-startup-adp-v1";
+const REPORT_CACHE_KEY = "dynasty-degenerates:last-report:v29";
 const REPORT_DELTA_SNAPSHOT_KEY =
   "dynasty-degenerates:report-delta-snapshots:v1";
 const REPORT_DELTA_MAX_LEAGUES = 12;
@@ -286,6 +286,10 @@ const STALE_REPORT_CACHE_KEYS = [
   "dynasty-degenerates:last-report:v22",
   "dynasty-degenerates:last-report:v23",
   "dynasty-degenerates:last-report:v24",
+  "dynasty-degenerates:last-report:v25",
+  "dynasty-degenerates:last-report:v26",
+  "dynasty-degenerates:last-report:v27",
+  "dynasty-degenerates:last-report:v28",
 ];
 const LAST_LEAGUE_KEY = "dynasty-degenerates:last-league:v1";
 const SLEEPER_SESSION_KEY = "dynasty-degenerates:sleeper-session:v1";

@@ -38,7 +38,7 @@ export interface StartupAdpSnapshotPayload {
 
 type DraftAdpRow = {
   name: string;
-  adp: number;
+  adp: number | null;
   source?: string;
   rank?: number;
   positionRank?: string | null;
@@ -82,17 +82,18 @@ export function getStartupAdpStatKey(format: StartupAdpFormat): string {
   }
 }
 
-function getStartupAdpLabel(format: StartupAdpFormat): string {
+function getStartupAdpLabel(format: StartupAdpFormat, season?: string): string {
+  const prefix = season ? `Sleeper ${season}` : 'Sleeper';
   switch (format) {
     case 'dynasty_sf':
-      return 'Sleeper Dynasty SF ADP';
+      return `${prefix} Dynasty SF ADP`;
     case 'dynasty_half_ppr':
-      return 'Sleeper Dynasty Half-PPR ADP';
+      return `${prefix} Dynasty Half-PPR ADP`;
     case 'dynasty_std':
-      return 'Sleeper Dynasty Standard ADP';
+      return `${prefix} Dynasty Standard ADP`;
     case 'dynasty_ppr':
     default:
-      return 'Sleeper Dynasty 1QB ADP';
+      return `${prefix} Dynasty 1QB ADP`;
   }
 }
 
@@ -118,7 +119,7 @@ function normalizeSleeperProjectionRows(
 ): StartupAdpRow[] {
   if (!Array.isArray(payload)) return [];
   const statKey = getStartupAdpStatKey(format);
-  const source = getStartupAdpLabel(format);
+  const source = getStartupAdpLabel(format, season);
   const candidates = payload
     .map((row: any) => {
       const player = row?.player || {};
@@ -275,15 +276,22 @@ export async function buildSleeperStartupAdpData(
   }>();
   await Promise.all(seasons.map(async (season) => {
     const currentAdpSeason = String(options.currentSeason || season).trim();
-    const [baselineRows, currentRows] = await Promise.all([
+    const [storedBaselineRows, sleeperSeasonRows, currentRows] = await Promise.all([
       loadStoredStartupAdpSnapshot({
         season,
         format,
         onOrBefore: options.baselineSnapshotKeyBySeason?.[season] || null,
       }),
+      loadCurrentSleeperStartupAdp(season, format),
       loadCurrentSleeperStartupAdp(/^\d{4}$/.test(currentAdpSeason) ? currentAdpSeason : season, format),
     ]);
-    rowsBySeason.set(season, { baselineRows, currentRows });
+    rowsBySeason.set(season, {
+      baselineRows: {
+        ...sleeperSeasonRows,
+        ...storedBaselineRows,
+      },
+      currentRows,
+    });
   }));
 
   const adpData: Record<string, DraftAdpRow> = {};
@@ -298,11 +306,11 @@ export async function buildSleeperStartupAdpData(
     if (!baselineRow && !currentRow) return;
     adpData[`${season}:${pick.player_id}`] = {
       name: baselineRow?.name || currentRow?.name || name,
-      adp: baselineRow?.adp ?? currentRow?.adp ?? 0,
+      adp: baselineRow?.adp ?? null,
       source: baselineRow
-        ? `${baselineRow.source} snapshot`
-        : `${currentRow?.source || getStartupAdpLabel(format)} current`,
-      rank: baselineRow?.rank ?? currentRow?.rank,
+        ? baselineRow.source
+        : undefined,
+      rank: baselineRow?.rank,
       positionRank: null,
       currentAdp: currentRow?.adp ?? null,
       currentAdpSource: currentRow?.source || null,

@@ -16,7 +16,7 @@ interface SleeperDraft {
 interface ADPData {
   [playerId: string]: {
     name: string;
-    adp: number;
+    adp: number | null;
     source?: string;
     rank?: number;
     positionRank?: string | null;

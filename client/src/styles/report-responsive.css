@@ -14263,6 +14263,16 @@
     gap: 0.34rem !important;
   }
 
+  .report-shell .rookie-draft-row-shell.is-startup-draft-board .rookie-draft-row-header,
+  .report-shell .rookie-draft-row-shell.is-startup-draft-board .rookie-draft-row {
+    grid-template-columns:
+      minmax(2.1rem, 0.26fr) minmax(2.4rem, 0.27fr) minmax(2.4rem, 0.27fr) minmax(8.1rem, 1.28fr)
+      minmax(1.85rem, 0.21fr) minmax(2.2rem, 0.24fr) minmax(1.85rem, 0.2fr)
+      minmax(2.65rem, 0.32fr) minmax(2.9rem, 0.34fr) minmax(2.75rem, 0.32fr)
+      minmax(2.9rem, 0.34fr) minmax(3.3rem, 0.38fr) !important;
+    gap: 0.28rem !important;
+  }
+
   .report-shell .rookie-draft-row-header {
     padding-inline: 0.28rem !important;
     font-size: 0.46rem !important;
@@ -14366,6 +14376,10 @@
     gap: 0.34rem !important;
   }
 
+  .draft-sort-strip.is-startup-sort-strip {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+
   .draft-sort-strip button {
     min-width: 0 !important;
     justify-content: center !important;
@@ -14375,6 +14389,11 @@
     letter-spacing: 0.035em !important;
     text-align: center !important;
     white-space: normal !important;
+  }
+
+  .draft-sort-strip.is-startup-sort-strip button {
+    padding-inline: 0.22rem !important;
+    font-size: clamp(0.46rem, 2vw, 0.56rem) !important;
   }
 
   .draft-sort-strip button svg {
@@ -18610,5 +18629,404 @@
     height: 1.05rem;
     flex-basis: 1.05rem;
     font-size: 0.45rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .report-shell .draft-year-card-grid .rookie-draft-row {
+    display: grid !important;
+    grid-template-columns: 2.18rem minmax(0, 1fr) minmax(3.45rem, max-content) !important;
+    grid-template-areas:
+      "pick player change"
+      "context context context" !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    gap: 0.36rem 0.38rem !important;
+    overflow: hidden !important;
+    padding: 0.56rem 0.6rem !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-row-shell.is-startup-draft-board .rookie-draft-row {
+    grid-template-areas:
+      "pick player change"
+      "context context context" !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-pick-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-player-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-change-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-mobile-context {
+    position: static !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    align-items: center !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-pick-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-player-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-change-cell {
+    display: inline-flex !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-pick-cell {
+    grid-area: pick !important;
+    justify-self: start !important;
+    justify-content: center !important;
+    min-width: 2.1rem !important;
+    min-height: 1.34rem !important;
+    padding: 0.14rem 0.34rem !important;
+    font-size: clamp(0.62rem, 2.7vw, 0.74rem) !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-player-cell {
+    grid-area: player !important;
+    min-width: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-player-cell .player-chip {
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 0.42rem !important;
+    transform: none !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-player-cell .player-chip > :is(img, span[aria-hidden="true"]) {
+    width: 1.82rem !important;
+    min-width: 1.82rem !important;
+    height: 1.82rem !important;
+    min-height: 1.82rem !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-player-cell .player-chip > span:last-child {
+    display: block !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: clamp(0.78rem, 3.05vw, 0.94rem) !important;
+    line-height: 1.05 !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-change-cell {
+    grid-area: change !important;
+    justify-self: end !important;
+    justify-content: flex-end !important;
+    width: auto !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-gain-cell {
+    min-width: 3.2rem !important;
+    max-width: 4.55rem !important;
+    min-height: 1.36rem !important;
+    padding: 0.18rem 0.34rem !important;
+    overflow: hidden !important;
+    font-size: clamp(0.58rem, 2.25vw, 0.68rem) !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-mobile-context {
+    grid-area: context !important;
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    align-items: center !important;
+    gap: 0.24rem !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: 0.02rem 0 0.04rem !important;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-mobile-context::-webkit-scrollbar {
+    display: none;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-mobile-context-chip {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    min-height: 1.32rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.18rem !important;
+    border: 1px solid rgba(34, 211, 238, 0.18) !important;
+    border-radius: 999px !important;
+    background: rgba(2, 6, 23, 0.58) !important;
+    padding: 0.14rem 0.38rem !important;
+    color: #e0f2fe !important;
+    font-size: clamp(0.55rem, 2.12vw, 0.66rem) !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-mobile-context-chip small {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: rgba(103, 232, 249, 0.72);
+    font-size: 0.48rem;
+    font-weight: 1000;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-mobile-context-team {
+    width: 1.42rem !important;
+    min-width: 1.42rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-mobile-context-team .team-logo-pill,
+  .report-shell .draft-year-card-grid .rookie-draft-mobile-context-team .team-logo-pill img,
+  .report-shell .draft-year-card-grid .rookie-draft-mobile-context-team .rookie-draft-team-empty {
+    width: 1.42rem !important;
+    min-width: 1.42rem !important;
+    height: 1.42rem !important;
+    min-height: 1.42rem !important;
+    font-size: 0.48rem !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-mobile-context-manager {
+    width: 1.42rem !important;
+    min-width: 1.42rem !important;
+    height: 1.42rem !important;
+    min-height: 1.42rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    overflow: hidden !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-mobile-context-manager > :is(img, span) {
+    width: 1.42rem !important;
+    min-width: 1.42rem !important;
+    height: 1.42rem !important;
+    min-height: 1.42rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid rgba(34, 211, 238, 0.24) !important;
+    border-radius: 999px !important;
+    background: rgba(15, 23, 42, 0.72) !important;
+    object-fit: cover !important;
+    color: #fdba74 !important;
+    font-size: 0.5rem !important;
+  }
+
+  .report-shell .draft-year-card-grid :is(
+    .rookie-draft-team-cell,
+    .rookie-draft-age-cell,
+    .rookie-draft-manager-cell,
+    .rookie-draft-rank-cell,
+    .rookie-draft-adp-cell,
+    .rookie-draft-value-cell,
+    .rookie-draft-age-mobile,
+    .rookie-draft-change-team,
+    .rookie-draft-player-cell .draft-opportunity-note,
+    .rookie-draft-player-cell .draft-market-move-note,
+    .rookie-draft-player-cell .draft-window-note
+  ) {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__row {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) max-content max-content max-content !important;
+    grid-template-areas:
+      "player player mobile-primary mobile-primary"
+      "meta trend movement manager" !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    gap: 0.4rem 0.5rem !important;
+    overflow: hidden !important;
+    padding: 0.62rem 0.66rem !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__score {
+    display: none !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__mobile-primary {
+    grid-area: mobile-primary !important;
+    display: inline-flex !important;
+    min-width: 0 !important;
+    align-items: center !important;
+    justify-self: end !important;
+    gap: 0.32rem !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__mobile-rank {
+    order: 2 !important;
+    display: inline-flex !important;
+    min-width: 2rem !important;
+    min-height: 1.3rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid rgba(103, 232, 249, 0.28) !important;
+    border-radius: 999px !important;
+    background: rgba(8, 47, 73, 0.5) !important;
+    padding: 0.14rem 0.34rem !important;
+    color: #67e8f9 !important;
+    font-size: clamp(0.58rem, 2.4vw, 0.68rem) !important;
+    font-weight: 1000 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__mobile-value {
+    order: 1 !important;
+    display: inline-flex !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    color: #fed7aa !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__mobile-value > span {
+    display: none !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__mobile-value strong {
+    color: #ffffff !important;
+    font-size: clamp(0.98rem, 4vw, 1.18rem) !important;
+    font-weight: 1000 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__player {
+    grid-area: player !important;
+    min-width: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__player :is(.player-chip, .ranking-player-identity) {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__player :is(.player-chip > span:last-child, .ranking-player-identity > span:last-child) {
+    display: block !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    font-size: clamp(0.82rem, 3.1vw, 0.98rem) !important;
+    line-height: 1.05 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__mobile-meta {
+    grid-area: meta !important;
+    display: flex !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0.24rem !important;
+    overflow: hidden !important;
+    padding-right: 0 !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) :is(.value-board__team, .value-board__meta, .value-board__age) {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    align-items: center !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__manager {
+    grid-area: manager !important;
+    position: static !important;
+    display: inline-flex !important;
+    justify-self: end !important;
+    max-width: 4.5rem !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__movement {
+    grid-area: movement !important;
+    display: inline-flex !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    justify-self: end !important;
+    align-self: center !important;
+    overflow: hidden !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__trend {
+    grid-area: trend !important;
+    display: inline-flex !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    justify-self: end !important;
+    align-self: center !important;
+    overflow: hidden !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) :is(.value-board__movement .ranking-ai-read-chip, .value-board__previous-season, .value-board__market-values) {
+    display: none !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) :is(.value-board__movement .ranking-movement-pill, .value-board__trend .ranking-trend-pill) {
+    display: inline-flex !important;
+    max-width: 4.35rem !important;
+    min-height: 1.3rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.14rem !important;
+    overflow: hidden !important;
+    padding: 0.15rem 0.34rem !important;
+    font-size: clamp(0.52rem, 2.05vw, 0.62rem) !important;
+    letter-spacing: 0 !important;
+    line-height: 1 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__movement .ranking-movement-pill::before {
+    content: "Val";
+    color: rgba(203, 213, 225, 0.72);
+    font-size: 0.46rem;
+    font-weight: 1000;
+    text-transform: uppercase;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__trend .ranking-trend-pill::before {
+    content: "Rank";
+    color: rgba(203, 213, 225, 0.72);
+    font-size: 0.46rem;
+    font-weight: 1000;
+    text-transform: uppercase;
+  }
+}
+
+@media (max-width: 430px) {
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__row {
+    grid-template-columns: minmax(0, 1fr) max-content max-content !important;
+    grid-template-areas:
+      "player mobile-primary mobile-primary"
+      "meta trend manager"
+      "movement movement movement" !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__movement {
+    justify-self: end !important;
   }
 }

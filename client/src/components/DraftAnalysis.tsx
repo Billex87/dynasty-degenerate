@@ -40,30 +40,9 @@ interface DraftAnalysisProps {
 }
 
 type ManagerDraftModalMode = 'portfolio' | 'audit';
-type SortColumn = 'pick' | 'adp' | 'currentValue' | 'valueChange' | null;
+type SortColumn = 'pick' | 'adp' | 'currentAdp' | 'currentValue' | 'valueChange' | null;
 type SortDirection = 'asc' | 'desc';
-type RookieMismatchTone = 'buy' | 'sell' | 'watch' | 'hold';
-type RookieMismatchRow = {
-  id: string;
-  pick: DraftPick;
-  playerName: string;
-  position: string;
-  team?: string | null;
-  manager: string;
-  currentValue: number;
-  marketDelta: number;
-  marketDeltaPct: number | null;
-  profileScore: number;
-  opportunityScore: number;
-  runwayScore: number;
-  marketScore: number;
-  mismatchScore: number;
-  label: string;
-  tone: RookieMismatchTone;
-  aiRead: string;
-  chips: string[];
-};
-const DRAFT_SORT_COLUMNS: readonly Exclude<SortColumn, null>[] = ['pick', 'adp', 'currentValue', 'valueChange'];
+const DRAFT_SORT_COLUMNS: readonly Exclude<SortColumn, null>[] = ['pick', 'adp', 'currentAdp', 'currentValue', 'valueChange'];
 const DRAFT_SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
 
 function formatDraftAge(age?: number | string | null): string {
@@ -88,15 +67,6 @@ function getDraftCurrentValue(pick: DraftPick, leagueValueMode: LeagueValueMode)
   return Math.round(pick.currentKtcValue || 0);
 }
 
-function getTimelineDelta(details?: PlayerDetails): { delta: number; deltaPct: number | null } {
-  const summary = details?.valueTimeline?.summary;
-  if (!summary) return { delta: 0, deltaPct: null };
-  return {
-    delta: Math.round(summary.delta || 0),
-    deltaPct: summary.deltaPct ?? null,
-  };
-}
-
 function getPlayerCurrentValue(pick: DraftPick, details: PlayerDetails | undefined, leagueValueMode: LeagueValueMode): number {
   const draftValue = getDraftCurrentValue(pick, leagueValueMode);
   if (draftValue) return draftValue;
@@ -104,166 +74,6 @@ function getPlayerCurrentValue(pick: DraftPick, details: PlayerDetails | undefin
     return Math.round(details?.valueProfile?.seasonValue || details?.valueProfile?.fantasyProsSeasonValue || details?.valueProfile?.fantasyCalcRedraft || 0);
   }
   return Math.round(details?.valueProfile?.dynastyValue || details?.valueProfile?.balancedValue || details?.valueProfile?.marketKtc || 0);
-}
-
-function getDraftCapitalProfileScore(pick: DraftPick, details?: PlayerDetails): number {
-  const round = Number(details?.nflDraftRound ?? pick.round);
-  const overallPick = Number(details?.nflDraftPick || 0);
-  const rookiePick = Number(pick.pick || 0);
-  let score = 44;
-
-  if (Number.isFinite(overallPick) && overallPick > 0) {
-    score = overallPick <= 32 ? 94 : overallPick <= 64 ? 82 : overallPick <= 100 ? 68 : overallPick <= 160 ? 52 : 38;
-  } else if (Number.isFinite(round) && round > 0) {
-    score = round === 1 ? 88 : round === 2 ? 74 : round === 3 ? 60 : round <= 5 ? 44 : 32;
-  } else if (Number.isFinite(rookiePick) && rookiePick > 0) {
-    score = rookiePick <= 6 ? 84 : rookiePick <= 12 ? 74 : rookiePick <= 24 ? 56 : 40;
-  }
-
-  const prospect = details?.prospectProfile;
-  if (prospect?.overallRank) score += clampNumber(18 - Math.floor(prospect.overallRank / 12), 0, 18);
-  if (prospect?.rating) score += clampNumber(Math.round((Number(prospect.rating) - 70) / 4), -4, 10);
-  if (details?.athleticProfile?.forty && ['RB', 'WR'].includes((details.position || pick.playerPos || '').toUpperCase())) {
-    score += details.athleticProfile.forty <= 4.45 ? 5 : details.athleticProfile.forty >= 4.65 ? -5 : 0;
-  }
-
-  return Math.round(clampNumber(score, 1, 99));
-}
-
-function getOpportunityMismatchScore(details?: PlayerDetails): { score: number; label: string } {
-  const delta = details?.rosterRoom?.opportunityDelta;
-  if (!delta) return { score: 50, label: 'Opportunity unclear' };
-
-  let score = 50;
-  if (delta.qualitySignal === 'major-opening') score += 28;
-  if (delta.qualitySignal === 'minor-opening') score += 16;
-  if (delta.qualitySignal === 'squeeze') score -= 16;
-  if (delta.qualitySignal === 'major-squeeze') score -= 28;
-  if (delta.incumbentOpportunitySignal === 'major-promotion') score += 18;
-  if (delta.incumbentOpportunitySignal === 'minor-promotion') score += 10;
-  if (delta.incumbentOpportunitySignal === 'blocked') score -= 18;
-  score += clampNumber(Math.round((delta.netOpportunityScore || 0) / 3), -16, 16);
-
-  const label = delta.qualitySignal === 'major-opening'
-    ? 'Major room opened'
-    : delta.qualitySignal === 'minor-opening'
-      ? 'Room opened'
-      : delta.qualitySignal === 'major-squeeze'
-        ? 'Major squeeze'
-        : delta.qualitySignal === 'squeeze'
-          ? 'Room squeeze'
-          : delta.incumbentOpportunitySignal === 'blocked'
-            ? 'Blocked runway'
-            : 'Stable room';
-
-  return { score: Math.round(clampNumber(score, 1, 99)), label };
-}
-
-function getRunwayScore(pick: DraftPick, details?: PlayerDetails): { score: number; label: string } {
-  const cohortDraft = details?.playerCohort?.draftCapital;
-  if (cohortDraft?.patienceScore !== null && cohortDraft?.patienceScore !== undefined) {
-    return {
-      score: Math.round(clampNumber(cohortDraft.patienceScore, 1, 99)),
-      label: cohortDraft.opportunityWindow === 'protected-runway'
-        ? 'Protected runway'
-        : cohortDraft.opportunityWindow === 'short-leash'
-          ? 'Short leash'
-          : 'Prove-it window',
-    };
-  }
-
-  const round = Number(details?.nflDraftRound ?? pick.round);
-  const age = Number(details?.age || 0);
-  let score = Number.isFinite(round) && round > 0
-    ? round === 1 ? 90 : round === 2 ? 74 : round === 3 ? 58 : round <= 5 ? 42 : 30
-    : 46;
-  if (Number.isFinite(age) && age > 0) score += age <= 22 ? 8 : age <= 24 ? 3 : age >= 27 ? -12 : 0;
-  if (details?.contractProfile?.investmentTier === 'premium') score += 12;
-  if (details?.contractProfile?.investmentTier === 'fringe') score -= 10;
-
-  const finalScore = Math.round(clampNumber(score, 1, 99));
-  return {
-    score: finalScore,
-    label: finalScore >= 76 ? 'Protected runway' : finalScore <= 42 ? 'Short leash' : 'Prove-it window',
-  };
-}
-
-function getMarketScore(currentValue: number, marketDeltaPct: number | null): number {
-  const valueScore = clampNumber(Math.round(currentValue / 95), 0, 72);
-  const heatScore = marketDeltaPct === null ? 0 : clampNumber(Math.round(marketDeltaPct * 0.72), -20, 28);
-  return Math.round(clampNumber(valueScore + heatScore, 1, 99));
-}
-
-function getMismatchLabel(score: number, opportunityScore: number, marketDeltaPct: number | null): { label: string; tone: RookieMismatchTone } {
-  if (score >= 26) return { label: 'Underpriced breakout', tone: 'buy' };
-  if (score >= 14) return { label: 'Situation riser', tone: 'buy' };
-  if (score <= -24) return { label: 'Market too hot', tone: 'sell' };
-  if (score <= -12 && opportunityScore <= 42) return { label: 'Opportunity blocked', tone: 'sell' };
-  if (marketDeltaPct !== null && marketDeltaPct >= 25 && score < 6) return { label: 'Regression trap', tone: 'watch' };
-  return { label: 'Hold with context', tone: 'hold' };
-}
-
-function buildRookieValuationMismatches({
-  draftPicks,
-  playerDetailsById,
-  leagueValueMode,
-}: {
-  draftPicks: DraftPick[];
-  playerDetailsById?: Record<string, PlayerDetails>;
-  leagueValueMode: LeagueValueMode;
-}): RookieMismatchRow[] {
-  const seen = new Set<string>();
-  return draftPicks
-    .filter((pick) => pick.player_id && pick.playerName && pick.playerName !== 'Unknown')
-    .flatMap((pick) => {
-      const details = pick.playerDetails || (pick.player_id ? playerDetailsById?.[pick.player_id] : undefined);
-      const isYoungOrRookie = Number(details?.yearsExp ?? 99) <= 3 || Number(details?.rookieYear || pick.draftYear || 0) >= new Date().getFullYear() - 2 || pick.draftKind === 'rookie';
-      if (!isYoungOrRookie || !pick.player_id || seen.has(pick.player_id)) return [];
-      seen.add(pick.player_id);
-
-      const currentValue = getPlayerCurrentValue(pick, details, leagueValueMode);
-      const timeline = getTimelineDelta(details);
-      const fallbackDelta = Math.round(pick.valueGain || 0);
-      const marketDelta = timeline.delta || fallbackDelta;
-      const marketDeltaPct = timeline.deltaPct ?? (pick.ktcValue ? Math.round((fallbackDelta / pick.ktcValue) * 1000) / 10 : null);
-      const profileScore = getDraftCapitalProfileScore(pick, details);
-      const opportunity = getOpportunityMismatchScore(details);
-      const runway = getRunwayScore(pick, details);
-      const marketScore = getMarketScore(currentValue, marketDeltaPct);
-      const supportScore = Math.round((profileScore * 0.34) + (opportunity.score * 0.38) + (runway.score * 0.28));
-      const mismatchScore = Math.round(supportScore - marketScore);
-      const label = getMismatchLabel(mismatchScore, opportunity.score, marketDeltaPct);
-      const chips = [
-        `${profileScore} profile`,
-        `${opportunity.score} opportunity`,
-        `${runway.score} runway`,
-        marketDelta ? `${marketDelta > 0 ? '+' : ''}${marketDelta.toLocaleString()} market` : 'Flat market',
-      ];
-      const aiRead = `${label.label}: profile ${profileScore}, opportunity ${opportunity.score}, and runway ${runway.score} compare against a market score of ${marketScore}. ${opportunity.label}${marketDeltaPct !== null ? `; market is ${marketDeltaPct >= 0 ? 'up' : 'down'} ${Math.abs(marketDeltaPct)}%.` : '.'}`;
-
-      return [{
-        id: pick.player_id,
-        pick,
-        playerName: pick.playerName,
-        position: pick.playerPos,
-        team: details?.team ?? null,
-        manager: pick.manager,
-        currentValue,
-        marketDelta,
-        marketDeltaPct,
-        profileScore,
-        opportunityScore: opportunity.score,
-        runwayScore: runway.score,
-        marketScore,
-        mismatchScore,
-        label: label.label,
-        tone: label.tone,
-        aiRead,
-        chips,
-      }];
-    })
-    .sort((a, b) => Math.abs(b.mismatchScore) - Math.abs(a.mismatchScore) || b.currentValue - a.currentValue)
-    .slice(0, 8);
 }
 
 function renderPreviewManagerIdentity(
@@ -483,7 +293,7 @@ export function DraftAnalysis({
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortColumn(column);
-      setSortDirection(column === 'pick' || column === 'adp' ? 'asc' : 'desc');
+      setSortDirection(column === 'pick' || column === 'adp' || column === 'currentAdp' ? 'asc' : 'desc');
     }
   };
 
@@ -511,6 +321,9 @@ export function DraftAnalysis({
       } else if (sortColumn === 'adp') {
         aVal = typeof a.adp === 'number' && Number.isFinite(a.adp) ? a.adp : null;
         bVal = typeof b.adp === 'number' && Number.isFinite(b.adp) ? b.adp : null;
+      } else if (sortColumn === 'currentAdp') {
+        aVal = typeof a.currentAdp === 'number' && Number.isFinite(a.currentAdp) ? a.currentAdp : null;
+        bVal = typeof b.currentAdp === 'number' && Number.isFinite(b.currentAdp) ? b.currentAdp : null;
       } else if (sortColumn === 'pick') {
         aVal = a.pick || 0;
         bVal = b.pick || 0;
@@ -585,14 +398,6 @@ export function DraftAnalysis({
   const draftPicksWithDecisionAudit = useMemo(() => {
     return draftSignalPicks.map((pick) => attachDraftDecisionAudit(pick, draftDecisionAuditByPick.get(getDraftPickKey(pick))));
   }, [draftDecisionAuditByPick, draftSignalPicks]);
-  const rookieValuationMismatches = useMemo(() => {
-    return buildRookieValuationMismatches({
-      draftPicks: sortedDraftPicks,
-      playerDetailsById,
-      leagueValueMode,
-    });
-  }, [leagueValueMode, playerDetailsById, sortedDraftPicks]);
-  const topRookieMismatch = rookieValuationMismatches[0] || null;
   const openManagerPortfolio = (manager: string) => {
     setSelectedManagerMode('portfolio');
     setSelectedManager(manager);
@@ -615,9 +420,6 @@ export function DraftAnalysis({
       draftDecisionAuditByPick.get(getDraftPickKey(pick)),
       leagueValueMode,
     ));
-  };
-  const openMismatchPlayer = (row: RookieMismatchRow) => {
-    openDraftPlayer(row.pick);
   };
 
   if (!draftPicks || draftPicks.length === 0) {
@@ -784,76 +586,15 @@ export function DraftAnalysis({
       )}
       </div>
 
-      {rookieValuationMismatches.length > 0 && !isRedraft && (
-        <DraftCollapsibleSection
-          title="Rookie Valuation Mismatch"
-          kicker="Market price vs profile, opportunity, and runway"
-          previewMetrics={[
-            topRookieMismatch ? { label: 'Top Flag', value: renderDraftPreviewPlayer(topRookieMismatch.pick), tone: topRookieMismatch.tone === 'buy' ? 'good' : topRookieMismatch.tone === 'sell' ? 'danger' : 'warn' } : null,
-            { label: 'Players Graded', value: rookieValuationMismatches.length, tone: 'info' },
-            topRookieMismatch ? { label: 'Mismatch', value: `${topRookieMismatch.mismatchScore > 0 ? '+' : ''}${topRookieMismatch.mismatchScore}`, tone: Math.abs(topRookieMismatch.mismatchScore) >= 20 ? 'warn' : 'info' } : null,
-          ].filter(Boolean) as PreviewMetric[]}
-          open={activeDraftSectionId === 'rookie-mismatch'}
-          onToggle={(open) => setDraftSectionOpen('rookie-mismatch', open)}
-        >
-          <div className="rookie-mismatch-board">
-            <div className="rookie-mismatch-board-head">
-              <p>
-                This compares current value against draft capital, prospect context, roster-room change, depth pressure, and patience runway. Big positive gaps point to underpriced upside; big negative gaps point to market heat that needs more proof.
-              </p>
-            </div>
-            <div className="rookie-mismatch-list">
-              {rookieValuationMismatches.map((row) => (
-                <button
-                  key={row.id}
-                  type="button"
-                  className={`rookie-mismatch-row rookie-mismatch-row-${row.tone}`}
-                  style={getTeamTileStyle(row.team)}
-                  onClick={() => openMismatchPlayer(row)}
-                  aria-label={`Open ${row.playerName} valuation mismatch detail`}
-                >
-                  <span className="rookie-mismatch-player">
-                    <PlayerNameWithHeadshot
-                      playerId={row.pick.player_id}
-                      playerName={row.playerName}
-                      team={row.team}
-                      position={row.position}
-                    />
-                    <span className="rookie-mismatch-label">{row.label}</span>
-                  </span>
-                  <span className="rookie-mismatch-score" data-label="Mismatch">
-                    {row.mismatchScore > 0 ? '+' : ''}{row.mismatchScore}
-                    <small>gap</small>
-                  </span>
-                  <span className="rookie-mismatch-metrics" data-label="Scores">
-                    <span><strong>{row.profileScore}</strong> Profile</span>
-                    <span><strong>{row.opportunityScore}</strong> Opp</span>
-                    <span><strong>{row.runwayScore}</strong> Runway</span>
-                    <span><strong>{row.marketScore}</strong> Market</span>
-                  </span>
-                  <span className="rookie-mismatch-market" data-label="Market">
-                    <strong>{row.currentValue ? row.currentValue.toLocaleString() : '-'}</strong>
-                    <em>{row.marketDelta > 0 ? '+' : ''}{row.marketDelta.toLocaleString()}{row.marketDeltaPct !== null ? ` / ${row.marketDeltaPct > 0 ? '+' : ''}${row.marketDeltaPct}%` : ''}</em>
-                  </span>
-                  <span className="rookie-mismatch-read">{row.aiRead}</span>
-                  <span className="rookie-mismatch-chip-row">
-                    {row.chips.map((chip) => <em key={chip}>{chip}</em>)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </DraftCollapsibleSection>
-      )}
-
       {/* Full Draft Board */}
       <div className="draft-year-card-grid">
         {draftYears.map((draftYear) => {
           const yearPicks = draftPicksByYear[draftYear] || [];
           const draftGroupKind = getDraftGroupKind(draftYear, yearPicks, leagueValueMode);
           const isStartupDraftGroup = draftGroupKind === 'startup';
-          const adpColumnLabel = isStartupDraftGroup ? 'Drafted / Current ADP' : 'ADP';
-          const adpSortLabel = isStartupDraftGroup ? 'Drafted ADP' : 'ADP';
+          const adpColumnLabel = isStartupDraftGroup ? 'Then ADP' : 'ADP';
+          const adpColumnTitle = isStartupDraftGroup ? 'Drafted ADP' : 'ADP';
+          const currentAdpColumnLabel = 'Now ADP';
           const draftYearSectionId = `year:${draftYear}`;
           const isDraftBoardOpen = activeDraftSectionId === draftYearSectionId;
           const yearPreviewMetrics = buildDraftYearPreviewMetrics(yearPicks, leagueValueMode, draftDecisionAudits, managerAvatars);
@@ -883,28 +624,35 @@ export function DraftAnalysis({
                   </p>
                 </div>
               )}
-                  <div className="rookie-draft-row-shell">
-                    <div className="draft-sort-strip">
-                      <button type="button" onClick={() => handleSort('pick')}>
+                  <div className={`rookie-draft-row-shell ${isStartupDraftGroup ? 'is-startup-draft-board' : ''}`}>
+                    <div className={`draft-sort-strip ${isStartupDraftGroup ? 'is-startup-sort-strip' : ''}`}>
+                      <button type="button" onClick={() => handleSort('pick')} aria-label="Sort by pick number">
                         Pick #
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" onClick={() => handleSort('adp')}>
-                        {adpSortLabel}
+                      <button type="button" onClick={() => handleSort('adp')} aria-label={`Sort by ${adpColumnTitle}`} title={adpColumnTitle}>
+                        {adpColumnLabel}
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" onClick={() => handleSort('currentValue')}>
+                      {isStartupDraftGroup ? (
+                        <button type="button" onClick={() => handleSort('currentAdp')} aria-label="Sort by current ADP" title="Current ADP">
+                          {currentAdpColumnLabel}
+                          <ArrowUpDown className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
+                      <button type="button" onClick={() => handleSort('currentValue')} aria-label={isRedraft ? 'Sort by current season value' : 'Sort by current value'}>
                         {isRedraft ? 'Current Season' : 'Current Value'}
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" onClick={() => handleSort('valueChange')}>
+                      <button type="button" onClick={() => handleSort('valueChange')} aria-label="Sort by value change">
                         Value Change
                         <ArrowUpDown className="h-3.5 w-3.5" />
                       </button>
                     </div>
                     <div className="rookie-draft-row-header" aria-hidden="true">
                       <span>Pick</span>
-                      <span>{adpColumnLabel}</span>
+                      <span title={adpColumnTitle}>{adpColumnLabel}</span>
+                      {isStartupDraftGroup ? <span title="Current ADP">{currentAdpColumnLabel}</span> : null}
                       <span>Player</span>
                       <span>Team</span>
                       <span>Age</span>
@@ -946,13 +694,21 @@ export function DraftAnalysis({
                             <span
                               className="rookie-draft-adp-cell"
                               data-label={adpColumnLabel}
+                              data-mobile-label={isStartupDraftGroup ? 'Then' : 'ADP'}
                               title={adpTitle}
                             >
-                              <span>{formatDraftAdp(pick.adp)}</span>
-                              {isStartupDraftGroup && pick.currentAdp !== null && pick.currentAdp !== undefined ? (
-                                <small>{formatDraftAdp(pick.currentAdp)}</small>
-                              ) : null}
+                              {formatDraftAdp(pick.adp)}
                             </span>
+                            {isStartupDraftGroup ? (
+                              <span
+                                className="rookie-draft-adp-cell rookie-draft-current-adp-cell"
+                                data-label={currentAdpColumnLabel}
+                                data-mobile-label="Now"
+                                title={pick.currentAdpSource || undefined}
+                              >
+                                {formatDraftAdp(pick.currentAdp)}
+                              </span>
+                            ) : null}
                             <span className="rookie-draft-player-cell">
                               <PlayerNameWithHeadshot
                                 playerId={pick.player_id}
@@ -991,6 +747,41 @@ export function DraftAnalysis({
                                   : 'N/A'}
                                 {pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain > 0 && <TrendingUp className="h-3.5 w-3.5" />}
                                 {pick.valueGain !== null && pick.valueGain !== undefined && pick.valueGain < 0 && <TrendingDown className="h-3.5 w-3.5" />}
+                              </span>
+                            </span>
+                            <span className="rookie-draft-mobile-context">
+                              <span className="rookie-draft-mobile-context-chip rookie-draft-mobile-context-team">
+                                {details?.team ? <TeamLogoPill team={details.team} /> : <span className="rookie-draft-team-empty">FA</span>}
+                              </span>
+                              <span className="rookie-draft-mobile-context-chip">{ageLabel}</span>
+                              <span
+                                className="rookie-draft-mobile-context-chip rookie-draft-mobile-context-manager"
+                                title={managerDisplayName}
+                                aria-label={managerDisplayName}
+                              >
+                                {managerAvatars?.[pick.manager] ? (
+                                  <img src={managerAvatars[pick.manager] || ''} alt="" />
+                                ) : (
+                                  <span aria-hidden="true">{managerDisplayName[0]?.toUpperCase() || '?'}</span>
+                                )}
+                              </span>
+                              <span className="rookie-draft-mobile-context-chip">
+                                <small>{isStartupDraftGroup ? 'Then ADP' : 'ADP'}</small>
+                                {formatDraftAdp(pick.adp)}
+                              </span>
+                              {isStartupDraftGroup ? (
+                                <span className="rookie-draft-mobile-context-chip">
+                                  <small>Now ADP</small>
+                                  {formatDraftAdp(pick.currentAdp)}
+                                </span>
+                              ) : null}
+                              <span className="rookie-draft-mobile-context-chip">
+                                <small>Draft</small>
+                                {draftRankLabel} {pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}
+                              </span>
+                              <span className="rookie-draft-mobile-context-chip">
+                                <small>Now</small>
+                                {currentRankLabel} {currentValue ? currentValue.toLocaleString() : 'N/A'}
                               </span>
                             </span>
                           </button>
@@ -1280,7 +1071,8 @@ function buildDraftDecisionAudit(
   intel: ManagerRosterIntelligence | null,
   leagueValueMode: LeagueValueMode = 'dynasty',
 ): DraftDecisionAudit {
-  const needPositions = getDraftNeedPositions(intel);
+  const isStartupDraft = getDraftKind(pick, leagueValueMode) === 'startup';
+  const needPositions = isStartupDraft ? [] : getDraftNeedPositions(intel);
   const primaryNeed = needPositions[0] || null;
   const pickedPosition = normalizePosition(pick.playerPos);
   const pickedValue = getDraftWindowValue(pick);
@@ -1316,7 +1108,7 @@ function buildDraftDecisionAudit(
   } else if (bestAvailableDelta <= 550) {
     verdict = needMatch ? 'Fit Tiebreaker' : 'Value Pocket';
     tone = needMatch ? 'need' : 'value';
-  } else if (bestSamePositionAvailable && samePositionDelta > 350) {
+  } else if (!isStartupDraft && bestSamePositionAvailable && samePositionDelta > 350) {
     verdict = 'Passed Position Value';
     tone = 'watch';
   } else if (bestAvailableDelta > 900) {
@@ -1327,7 +1119,9 @@ function buildDraftDecisionAudit(
     tone = 'need';
   }
 
-  const needReason = primaryNeed ? getNeedReason(intel, primaryNeed) : 'No major position hole was flagged for this roster.';
+  const needReason = isStartupDraft
+    ? 'Startup drafts begin from an empty roster, so this is graded on board value and ADP discipline rather than positional need.'
+    : primaryNeed ? getNeedReason(intel, primaryNeed) : 'No major position hole was flagged for this roster.';
   const summary = buildDraftDecisionSummary({
     verdict,
     pick,
@@ -1346,12 +1140,12 @@ function buildDraftDecisionAudit(
   const alternative = buildDraftAlternative(
     pick,
     bestAvailable,
-    bestSamePositionAvailable,
+    isStartupDraft ? null : bestSamePositionAvailable,
     bestNeedAvailable,
     needMatch,
     primaryNeed,
     bestAvailableDelta,
-    samePositionDelta,
+    isStartupDraft ? 0 : samePositionDelta,
     needAlternativeDelta,
     hasTrueNeedAlternative
   );

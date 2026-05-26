@@ -206,7 +206,8 @@ export default function RecentTransactionsPanel({
   ) => {
     if (!player) return;
     const leagueRank = getTransactionPlayerRank(player, leagueValueMode);
-    const manager = tone === "add" ? transaction?.manager || null : null;
+    const manager =
+      tone === "add" || tone === "alt" ? transaction?.manager || null : null;
     setSelectedPlayer(
       buildPlayerModalData({
         playerId: player.player_id,
@@ -451,6 +452,11 @@ export default function RecentTransactionsPanel({
                   const validBetterCutInsight = betterCutInsight?.isBetterCut
                     ? betterCutInsight
                     : null;
+                  const transactionTypeMeta =
+                    getRecentTransactionTypeMeta(transaction);
+                  const isDropOnlyTransaction = Boolean(
+                    transaction.droppedPlayer && !transaction.addedPlayer
+                  );
 
                   return (
                     <ReportCard
@@ -466,11 +472,9 @@ export default function RecentTransactionsPanel({
                         </div>
                         <div className="recent-transaction-meta">
                           <span
-                            className={`recent-transaction-type-pill ${transaction.type === "Free Agent" ? "recent-transaction-type-fa" : "recent-transaction-type-waiver"}`}
+                            className={`recent-transaction-type-pill ${transactionTypeMeta.className}`}
                           >
-                            {transaction.type === "Free Agent"
-                              ? "FA"
-                              : "Waiver"}
+                            {transactionTypeMeta.label}
                           </span>
                           {transaction.bidAmount !== null && (
                             <strong>${transaction.bidAmount}</strong>
@@ -478,7 +482,7 @@ export default function RecentTransactionsPanel({
                         </div>
                       </div>
                       <div
-                        className={`recent-transaction-player-grid${validBetterCutInsight ? " recent-transaction-player-grid-with-insight" : ""}`}
+                        className={`recent-transaction-player-grid${validBetterCutInsight ? " recent-transaction-player-grid-with-insight" : ""}${isDropOnlyTransaction ? " recent-transaction-player-grid-drop-only" : ""}`}
                       >
                         {renderPlayerRow(
                           "Added",
@@ -526,7 +530,7 @@ export default function RecentTransactionsPanel({
           >
             {showAllTransactions
               ? `Show last ${DEFAULT_VISIBLE_TRANSACTION_DATE_COUNT} dates`
-              : getRecentTransactionDisplayAllLabel(hiddenTransactions)}
+              : `Display all transactions (${hiddenTransactions.length})`}
           </button>
           <span>
             {showAllTransactions
@@ -553,6 +557,21 @@ type RecentTransactionRow = NonNullable<
 >[number];
 type RecentTransactionSort = "add" | "drop";
 type BetterCutInsight = ReturnType<typeof buildBetterCutInsight>;
+
+function getRecentTransactionTypeMeta(transaction: RecentTransactionRow): {
+  label: string;
+  className: string;
+} {
+  if (transaction.droppedPlayer && !transaction.addedPlayer) {
+    return { label: "Dropped", className: "recent-transaction-type-drop" };
+  }
+
+  if (transaction.type === "Free Agent") {
+    return { label: "FA", className: "recent-transaction-type-fa" };
+  }
+
+  return { label: "Waiver", className: "recent-transaction-type-waiver" };
+}
 
 function getRecentTransactionSuggestedBetterAdd(
   transaction: RecentTransactionRow,
@@ -815,43 +834,6 @@ function getRecentTransactionVisibleDateKeys(
   }
 
   return visibleDateKeys;
-}
-
-function getRecentTransactionYear(date: string): string | null {
-  const rawDate = String(date || "").trim();
-  const dateMatch = rawDate.match(/^(\d{4})-/);
-  if (dateMatch) return dateMatch[1];
-
-  const parsed = new Date(rawDate);
-  if (!Number.isNaN(parsed.getTime())) {
-    return String(parsed.getFullYear());
-  }
-
-  return null;
-}
-
-function getRecentTransactionDisplayAllLabel(
-  hiddenTransactions: RecentTransactionRow[]
-): string {
-  const hiddenCount = hiddenTransactions.length;
-  const years = Array.from(
-    new Set(
-      hiddenTransactions
-        .map(transaction => getRecentTransactionYear(transaction.date))
-        .filter((year): year is string => Boolean(year))
-    )
-  );
-  const currentYear = String(new Date().getFullYear());
-
-  if (years.length === 1 && years[0] !== currentYear) {
-    return `Display ${years[0]} (${hiddenCount})`;
-  }
-
-  if (years.length > 1) {
-    return `Display all years (${hiddenCount})`;
-  }
-
-  return `Display all (${hiddenCount})`;
 }
 
 function compareRecentTransactions(
