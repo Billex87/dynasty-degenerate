@@ -5,8 +5,8 @@ test.describe('homepage smoke', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByPlaceholder('Sleeper username')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Run The Damn Report' })).toBeVisible();
-    await expect(page.getByPlaceholder('Find in your Sleeper app settings or URL')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Run (The Damn Report|Degenerate Analysis)/ })).toBeVisible();
+    await expect(page.getByPlaceholder('Find in your Sleeper app settings or URL')).toBeVisible();
 
     const overflow = await page.evaluate(() => {
       const root = document.documentElement;

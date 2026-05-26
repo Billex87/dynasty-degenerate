@@ -13273,9 +13273,9 @@ export default function Home() {
     <>
       <div className="home-shell min-h-screen flex flex-col premium-fx-host" style={reportData && analysisCompleteMessage ? { opacity: 0 } : undefined}>
         <HomeHeaderChrome onBrandClick={handleStartOver} />
-        <main className="home-main flex-1 flex flex-col items-center justify-center px-1 sm:px-6 py-8 sm:py-16">
+        <main className="home-main flex flex-col items-center justify-center">
           <div
-            className={`home-hero home-hero-dashboard w-full max-w-3xl${showHomePortfolioPanel ? " home-hero-dashboard-portfolio" : ""}`}
+            className={`home-hero home-hero-dashboard${showHomePortfolioPanel ? " home-hero-dashboard-portfolio" : ""}`}
           >
             {/* Main Title */}
             <div className="home-hero-copy space-y-3 sm:space-y-4 text-center">
@@ -13292,14 +13292,16 @@ export default function Home() {
               </h2>
               <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 mx-auto">
                 Your league mates are guessing.{" "}
-                <span className="home-subtitle-ai">WE'RE NOT.</span>
+                <span className="home-subtitle-ai">WE'RE NOT!</span>
               </p>
               <p className="home-subtitle-detail">
                 We use AI to expose roster cracks,
                 <br />
+                {" "}
                 trade windows, lineup leverage, and draft value before the rest
                 of your league realizes
                 <br />
+                {" "}
                 they're playing for second place.
               </p>
             </div>
@@ -13354,7 +13356,6 @@ export default function Home() {
                     disabled={userLeaguesMutation.isPending}
                     className="home-find-leagues-button h-12 w-full shrink-0 rounded-lg border border-orange-400/40 bg-gradient-to-r from-orange-500 to-orange-600 px-5 font-bold text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
                   >
-                    <Bot size={20} />
                     {userLeaguesMutation.isPending
                       ? "Finding Leagues..."
                       : "Find Leagues"}
@@ -13417,7 +13418,6 @@ export default function Home() {
                     disabled={isLoading}
                     className="home-analyze-button w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-base gap-2 rounded-lg transition-all duration-200 shadow-lg"
                   >
-                    <Bot size={20} />
                     Run Degenerate Analysis
                   </Button>
                 </>
@@ -13435,9 +13435,14 @@ export default function Home() {
                   </span>
                 </p>
                 <p className="home-weapons-callout-copy">
-                  Run the scan. Find the weakness. Send the offer.
+                  <span className="home-weapons-copy-line">
+                    Run the scan. Find the weakness. Send the offer.
+                  </span>
                   <br />
-                  Make them regret inviting you.
+                  {" "}
+                  <span className="home-weapons-copy-line">
+                    Make them regret inviting you.
+                  </span>
                 </p>
               </div>
             ) : null}
@@ -13456,7 +13461,7 @@ export default function Home() {
 
             {/* Features Grid */}
             <div className="home-feature-carousel-window">
-              <div className="home-feature-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-6">
+              <div className="home-feature-grid">
                 <div className="home-feature-card home-feature-green p-4 sm:p-6 space-y-3">
                   <div className="home-feature-heading">
                     <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
@@ -13466,7 +13471,7 @@ export default function Home() {
                   </div>
                   <p className="text-sm text-slate-400">
                     See who’s stacked, who’s cooked, and who’s one ACL away
-                    from rebuilding their trash ass team.
+                    from rebuilding their <span className="home-keep-together">trash ass team.</span>
                   </p>
                 </div>
 
@@ -13478,8 +13483,8 @@ export default function Home() {
                     <h3 className="font-semibold text-white">Trade Victims</h3>
                   </div>
                   <p className="text-sm text-slate-400">
-                    Find managers holding trash, fake depth, and players only
-                    podcasters really believe in.
+                    Find managers holding drops, fake depth, and players only
+                    podcasters <span className="home-keep-together">really believe in.</span>
                   </p>
                 </div>
 
@@ -13492,7 +13497,7 @@ export default function Home() {
                   </div>
                   <p className="text-sm text-slate-400">
                     Spot starter gaps and turn desperation into leverage plays
-                    before your league mates coffee hits.
+                    before your <span className="home-keep-together">buddies coffee hits.</span>
                   </p>
                 </div>
 
@@ -13505,7 +13510,7 @@ export default function Home() {
                   </div>
                   <p className="text-sm text-slate-400">
                     Expose bad picks, wasted rookie value, and managers who let
-                    their girlfriends draft for them.
+                    their girlfriends <span className="home-keep-together">draft for them.</span>
                   </p>
                 </div>
 
@@ -13518,7 +13523,7 @@ export default function Home() {
                   </div>
                   <p className="text-sm text-slate-400">
                     Use AI to find weak rosters, bad offers, and managers one
-                    panic trade away from eternal shame.
+                    panic trade away <span className="home-keep-together">from a Sacko.</span>
                   </p>
                 </div>
 
@@ -13531,7 +13536,7 @@ export default function Home() {
                   </div>
                   <p className="text-sm text-slate-400">
                     Find overlooked players, panic drops, and free scraps
-                    before the rest of the idiots notice.
+                    before the rest of <span className="home-keep-together">the league notices.</span>
                   </p>
                 </div>
 
@@ -13544,7 +13549,7 @@ export default function Home() {
                   </div>
                   <p className="text-sm text-slate-400">
                     See who’s stacked, who’s cooked, and who’s one ACL away
-                    from rebuilding their trash ass team.
+                    from rebuilding their <span className="home-keep-together">trash ass team.</span>
                   </p>
                 </div>
 
@@ -13556,8 +13561,8 @@ export default function Home() {
                     <h3 className="font-semibold text-white">Trade Victims</h3>
                   </div>
                   <p className="text-sm text-slate-400">
-                    Find managers holding trash, fake depth, and players only
-                    podcasters really believe in.
+                    Find managers holding drops, fake depth, and players only
+                    podcasters <span className="home-keep-together">really believe in.</span>
                   </p>
                 </div>
               </div>
