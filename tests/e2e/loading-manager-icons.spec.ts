@@ -2,7 +2,14 @@ import { expect, test } from '@playwright/test';
 
 test.describe('loading manager icons', () => {
   test('shows manager icons during the active loading preview', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/?preview=loading', { waitUntil: 'domcontentloaded' });
+
+    await expect.poll(async () =>
+      page.locator('.analysis-loading-dialog-loading').evaluate(element =>
+        Math.round(element.getBoundingClientRect().width)
+      )
+    ).toBeLessThanOrEqual(305);
 
     const anchors = page.locator('.loader-kit-backdrop__manager-anchor');
     await expect(anchors).toHaveCount(12);

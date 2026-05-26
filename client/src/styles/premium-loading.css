@@ -725,10 +725,11 @@
   [data-slot="dialog-content"].analysis-loading-dialog-loading,
   .analysis-loading-dialog-loading,
   .ddlp__current-modal-shell {
-    width: min(calc(100vw - 7rem), 17rem) !important;
-    max-width: min(calc(100vw - 7rem), 17rem) !important;
+    width: min(calc(100vw - 4.75rem), 19rem) !important;
+    max-width: min(calc(100vw - 4.75rem), 19rem) !important;
     min-height: 0 !important;
     height: auto !important;
+    scale: 0.83 !important;
     animation: none !important;
   }
 
@@ -747,7 +748,7 @@
   .ddlp__current-modal-shell .analysis-loading-modal-body,
   .analysis-loading-modal-body {
     min-height: 0 !important;
-    padding: 0.72rem !important;
+    padding: 0.64rem !important;
   }
 
   .analysis-loading-panel {
@@ -793,7 +794,7 @@
     border: 0;
     border-radius: 0;
     background: transparent;
-    padding: 1.1rem 1.4rem 0;
+    padding: 0.98rem 1.15rem 0;
     box-shadow: none;
     animation: loading-mobile-status-in 260ms ease-out both;
   }
@@ -812,8 +813,9 @@
     position: relative;
     z-index: 3;
     width: 100%;
+    max-width: 15.5rem;
     color: #67e8f9;
-    font-size: clamp(1rem, 4.6vw, 1.24rem);
+    font-size: clamp(0.96rem, 4.15vw, 1.12rem);
     font-weight: 900;
     line-height: 1.2;
     text-align: center;
@@ -841,7 +843,7 @@
   .loading-data-counter {
     position: relative;
     z-index: 3;
-    font-size: clamp(0.62rem, 2.6vw, 0.72rem);
+    font-size: clamp(0.6rem, 2.45vw, 0.68rem);
     font-weight: 700;
     letter-spacing: 0.04em;
     color: rgba(36, 245, 255, 0.6);
@@ -852,7 +854,7 @@
 
   .loading-mobile-progress-track {
     position: relative;
-    width: calc(100% + 2.8rem);
+    width: calc(100% + 2.3rem);
     height: 2.4rem;
     flex-shrink: 0;
     overflow: hidden;

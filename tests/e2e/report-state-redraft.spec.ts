@@ -189,6 +189,7 @@ test.describe('shareable report control state', () => {
   });
 
   test('hides draft history for redraft leagues with no draft data yet', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     const cachedReport = createCachedRedraftNoDraftReport();
     await loadCachedReportPayload(page, cachedReport, '#draft');
 
@@ -196,6 +197,13 @@ test.describe('shareable report control state', () => {
     await expect(page.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByRole('tab', { name: 'Draft History' })).toHaveCount(0);
     await expect(page.getByText('No draft data available')).toHaveCount(0);
+    await expect.poll(async () =>
+      page.locator('.report-header-tabs').evaluate(element => {
+        const gridColumns = window.getComputedStyle(element).gridTemplateColumns;
+        return gridColumns.split(' ').filter(Boolean).length;
+      })
+    ).toBe(4);
+    await page.setViewportSize({ width: 1440, height: 1000 });
 
     await page.getByRole('tab', { name: 'Rankings' }).click();
     await openFullRosterRankings(page);
@@ -203,10 +211,10 @@ test.describe('shareable report control state', () => {
 
     await page.getByRole('tab', { name: 'Weekly Momentum' }).click();
     await expect(page.getByRole('tab', { name: 'Weekly Momentum' })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByText('Top 10 Weekly Risers')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Market Movers' })).toBeVisible();
 
     await page.getByRole('tab', { name: 'Trade History' }).click();
-    await expect(page.getByText('Trade Value Leaderboard')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Trade Value Board' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Draft History' })).toHaveCount(0);
   });
 

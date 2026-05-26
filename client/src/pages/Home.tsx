@@ -11579,6 +11579,23 @@ export default function Home() {
   const visibleReportTabCount =
     4 + (canViewAutopilotTab ? 1 : 0) + (shouldShowDraftHistoryTab ? 1 : 0);
   const reportTabsClassName = `report-tabs report-tabs-${visibleReportTabCount === 6 ? "six" : visibleReportTabCount === 5 ? "five" : "four"}`;
+  const visibleReportTabIds = [
+    "overview",
+    ...(canViewAutopilotTab ? ["autopilot"] : []),
+    "momentum",
+    "rankings",
+    "trades",
+    ...(shouldShowDraftHistoryTab ? ["draft"] : []),
+  ];
+  const resolvedReportTabIndex = Math.max(
+    0,
+    visibleReportTabIds.indexOf(resolvedActiveTab)
+  );
+  const reportTabsStyle = {
+    width: "100%",
+    "--dd-report-tab-count": String(visibleReportTabCount),
+    "--dd-report-tab-index": String(resolvedReportTabIndex),
+  } as CSSProperties;
   const rankingsQuery = trpc.league.rankingsMeta.useQuery(
     { leagueId },
     {
@@ -11642,10 +11659,13 @@ export default function Home() {
   const handleReportTabChange = (nextTab: string) => {
     const isBlockedAutopilotTab =
       nextTab === "autopilot" && !canViewAutopilotTab;
+    const isBlockedDraftTab =
+      nextTab === "draft" && !shouldShowDraftHistoryTab;
     if (isBlockedAutopilotTab) {
       showAutopilotAccessToast();
     }
-    const allowedNextTab = isBlockedAutopilotTab ? "overview" : nextTab;
+    const allowedNextTab =
+      isBlockedAutopilotTab || isBlockedDraftTab ? "overview" : nextTab;
     setActiveTab(allowedNextTab);
     updateReportTabUrl(allowedNextTab, leagueId);
   };
@@ -12127,7 +12147,7 @@ export default function Home() {
                   <TabsList
                     className={`${reportTabsClassName} ${canViewAutopilotTab ? "report-tabs-with-autopilot" : ""} report-header-tabs`}
                     data-active-tab={resolvedActiveTab}
-                    style={{ width: '100%' }}
+                    style={reportTabsStyle}
                   >
                     <TabsTrigger
                       value="overview"

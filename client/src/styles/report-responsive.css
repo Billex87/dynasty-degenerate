@@ -11612,7 +11612,7 @@
   }
 
   .report-shell .report-tabs {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--dd-report-tab-count, 4), minmax(0, 1fr));
     gap: 0.16rem;
     padding: 0.22rem;
   }
@@ -15166,11 +15166,14 @@
 }
 
 .report-shell .report-header-tabs.report-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(var(--dd-report-tab-count, 4), minmax(0, 1fr)) !important;
   width: 100% !important;
   margin: 0 !important;
   padding: 0.15rem !important;
   border-radius: 0.7rem !important;
   gap: 0.16rem !important;
+  overflow: hidden !important;
 }
 
 .report-shell .report-tabs.report-tabs-six {
@@ -15539,7 +15542,7 @@
     grid-column: 1 / -1 !important;
     width: 100% !important;
     display: grid !important;
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(var(--dd-report-tab-count, 4), minmax(0, 1fr)) !important;
   }
 }
 

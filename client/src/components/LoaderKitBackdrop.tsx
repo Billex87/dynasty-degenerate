@@ -502,9 +502,7 @@ function LoaderKitCore({
           .project(camera);
         const anchorX = (projected.x * 0.5 + 0.5) * size.width;
         const anchorY = (-projected.y * 0.5 + 0.5) * size.height;
-        const stageScale = variant === "panel"
-          ? isCompactViewport ? 0.96 : 1.22
-          : isCompactViewport ? 0.98 : 1.06;
+        const stageScale = variant === "panel" ? 1.22 : 1.06;
         const scaledAnchorX = size.width / 2 + (anchorX - size.width / 2) * stageScale;
         const scaledAnchorY = size.height / 2 + (anchorY - size.height / 2) * stageScale;
         const depth = THREE.MathUtils.clamp((projected.z + 1) / 2, 0, 1);
