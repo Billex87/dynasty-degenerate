@@ -11,7 +11,6 @@ import {
   type ManagerAvatars,
   type PlayerDetailsById,
 } from '../ReportTables';
-import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { getPlayerValueForMode, normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
@@ -51,7 +50,7 @@ export default function TrendingPlayersTable({
           {displaySections.map(section => (
             <section key={section.title} className="trending-section">
               <h4>{section.title}</h4>
-              <div className="trending-card-grid balanced-tile-grid" style={getBalancedGridStyle(Math.max(section.data.length, 5), 5)}>
+              <div className="trending-card-grid">
                 {section.data.slice(0, 5).map((row) => {
                   const playerDetails = row.playerDetails || (row.player_id ? playerDetailsById?.[row.player_id] : undefined);
                   return (

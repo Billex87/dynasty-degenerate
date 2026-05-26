@@ -136,6 +136,8 @@ export function LeagueRosterScanner({
   currentStandings,
   leagueValueMode: leagueValueModeInput = "dynasty",
   focusKey = 0,
+  mode: controlledMode,
+  onModeChange,
 }: {
   data?: ReportData["managerRosterIntelligence"];
   managerAvatars?: ManagerAvatars;
@@ -151,6 +153,8 @@ export function LeagueRosterScanner({
   currentStandings?: ReportData["currentStandings"];
   leagueValueMode?: ReportData["leagueValueMode"];
   focusKey?: number;
+  mode?: TradeWarMode;
+  onModeChange?: (nextMode: TradeWarMode) => void;
 }) {
   const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
   const tradeWarModeOptions: TradeWarMode[] =
@@ -163,7 +167,22 @@ export function LeagueRosterScanner({
           "waiver-leverage",
         ]
       : ["dynasty", "contender", "rebuilder"];
-  const [mode, setMode] = useState<TradeWarMode>(tradeWarModeOptions[0]);
+  const isControlledMode =
+    controlledMode !== undefined && onModeChange !== undefined;
+  const [uncontrolledMode, setUncontrolledMode] = useState<TradeWarMode>(
+    tradeWarModeOptions[0]
+  );
+  const mode =
+    controlledMode && tradeWarModeOptions.includes(controlledMode)
+      ? controlledMode
+      : uncontrolledMode;
+  const setMode = (nextMode: TradeWarMode) => {
+    if (isControlledMode) {
+      onModeChange(nextMode);
+      return;
+    }
+    setUncontrolledMode(nextMode);
+  };
   const [openInventoryManagers, setOpenInventoryManagers] = useState<
     Set<string>
   >(new Set());
@@ -172,10 +191,10 @@ export function LeagueRosterScanner({
   );
 
   React.useEffect(() => {
-    if (!tradeWarModeOptions.includes(mode)) {
-      setMode(tradeWarModeOptions[0]);
+    if (!tradeWarModeOptions.includes(uncontrolledMode)) {
+      setUncontrolledMode(tradeWarModeOptions[0]);
     }
-  }, [mode, tradeWarModeOptions]);
+  }, [uncontrolledMode, tradeWarModeOptions]);
 
   React.useEffect(() => {
     if (!focusKey) return;
@@ -303,26 +322,30 @@ export function LeagueRosterScanner({
       id="league-roster-scanner"
       className="trade-war-manager-board trade-war-manager-rank-inventory"
     >
-      <div className="trade-war-manager-board-head trade-war-manager-board-filter-head">
-        <div
-          className="trade-war-mode-tabs"
-          role="tablist"
-          aria-label="Roster scanner value view"
-        >
-          {tradeWarModeOptions.map(option => (
-            <button
-              key={option}
-              type="button"
-              className={`trade-war-mode-tab trade-war-mode-tab-${option} ${
-                mode === option ? "active" : ""
-              }`}
-              onClick={() => setMode(option)}
-            >
-              {getTradeWarModeLabel(option)}
-            </button>
-          ))}
+      {!isControlledMode ? (
+        <div className="trade-war-manager-board-head trade-war-manager-board-filter-head">
+          <div
+            className="trade-war-mode-tabs"
+            role="tablist"
+            aria-label="Roster scanner value view"
+          >
+            {tradeWarModeOptions.map(option => (
+              <button
+                key={option}
+                type="button"
+                role="tab"
+                className={`trade-war-mode-tab trade-war-mode-tab-${option} ${
+                  mode === option ? "active" : ""
+                }`}
+                aria-selected={mode === option}
+                onClick={() => setMode(option)}
+              >
+                {getTradeWarModeLabel(option)}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
       <div className="trade-war-manager-board-grid">
         {orderedManagers.map(manager => {
           const assets = assetsByManager.get(manager) || [];

@@ -10477,6 +10477,64 @@
     border-color: rgba(251, 191, 36, 0.28);
   }
 
+  .weekly-projection-receipt {
+    min-width: 0;
+  }
+
+  .weekly-projection-receipt-card,
+  .weekly-projection-receipt-fact {
+    display: grid;
+    gap: 0.18rem;
+  }
+
+  .weekly-projection-receipt-card em,
+  .weekly-projection-receipt-fact em {
+    color: rgba(103, 232, 249, 0.8);
+    font-size: 0.56rem;
+    font-style: normal;
+    font-weight: 1000;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .weekly-projection-receipt-card strong,
+  .weekly-projection-receipt-fact strong {
+    min-width: 0;
+    color: #f8fafc;
+    font-size: 0.84rem;
+    font-weight: 1000;
+    line-height: 1.1;
+  }
+
+  .weekly-projection-receipt-card small,
+  .weekly-projection-receipt-fact small {
+    min-width: 0;
+    color: #cbd5e1;
+    font-size: 0.62rem;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  .weekly-projection-receipt-fact {
+    width: 100%;
+    border: 1px solid rgba(34, 211, 238, 0.18);
+    border-radius: 0.62rem;
+    background: rgba(2, 6, 23, 0.44);
+    padding: 0.38rem 0.46rem;
+    text-align: left;
+  }
+
+  button.weekly-projection-receipt-fact {
+    cursor: pointer;
+  }
+
+  button.weekly-projection-receipt-fact:hover,
+  button.weekly-projection-receipt-fact:focus-visible {
+    border-color: rgba(103, 232, 249, 0.42);
+    background: rgba(8, 47, 73, 0.48);
+  }
+
   .player-intelligence-label {
     color: rgba(103, 232, 249, 0.8);
     font-size: 0.56rem;
@@ -12989,7 +13047,8 @@
     gap: 0.42rem;
   }
 
-  .waiver-ai-target-facts > span {
+  .waiver-ai-target-facts > span,
+  .waiver-ai-target-facts > button.weekly-projection-receipt-fact {
     display: grid;
     min-width: 0;
     gap: 0.14rem;
@@ -13289,6 +13348,14 @@
   .waiver-intel-pills .waiver-intel-value-pill {
     border-color: rgba(251, 146, 60, 0.22);
     color: #fdba74;
+  }
+
+  .waiver-intel-pills .weekly-projection-receipt-pill {
+    max-width: 100%;
+    border-color: rgba(34, 211, 238, 0.22);
+    color: #a5f3fc;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .waiver-intel-pills .waiver-intel-rank-pill {

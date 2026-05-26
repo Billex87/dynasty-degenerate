@@ -171,6 +171,10 @@ button.player-team-tile:focus-visible {
 
 .trade-war-mode-tabs {
   display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
   gap: 0.35rem;
   padding: 0.3rem;
   border: 1px solid rgba(34, 211, 238, 0.18);
@@ -183,6 +187,7 @@ button.player-team-tile:focus-visible {
   --trade-war-mode-tab-bg: rgba(124, 45, 18, 0.2);
   --trade-war-mode-tab-color: #fed7aa;
   --trade-war-mode-tab-shadow: rgba(251, 146, 60, 0.18);
+  flex: 0 0 auto;
   min-height: 2rem;
   border: 1px solid transparent;
   border-radius: 999px;
@@ -191,6 +196,7 @@ button.player-team-tile:focus-visible {
   font-size: 0.72rem;
   font-weight: 950;
   letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
 .trade-war-mode-tabs button.active {
@@ -200,32 +206,32 @@ button.player-team-tile:focus-visible {
   box-shadow: 0 0 24px var(--trade-war-mode-tab-shadow);
 }
 
-.trade-war-mode-tab-dynasty {
-  --trade-war-mode-tab-border: rgba(250, 204, 21, 0.5);
-  --trade-war-mode-tab-bg: rgba(113, 63, 18, 0.48);
-  --trade-war-mode-tab-color: #fde68a;
-  --trade-war-mode-tab-shadow: rgba(250, 204, 21, 0.18);
+.trade-war-mode-tabs .trade-war-mode-tab-dynasty {
+  --trade-war-mode-tab-border: rgba(250, 204, 21, 0.76);
+  --trade-war-mode-tab-bg: radial-gradient(circle at 20% 0, rgba(254, 240, 138, 0.58), transparent 54%), linear-gradient(135deg, rgba(180, 83, 9, 0.96), rgba(245, 158, 11, 0.9));
+  --trade-war-mode-tab-color: #1c1917;
+  --trade-war-mode-tab-shadow: rgba(250, 204, 21, 0.22);
 }
 
-.trade-war-mode-tab-contender,
-.trade-war-mode-tab-starter-upgrade,
-.trade-war-mode-tab-playoff-push {
-  --trade-war-mode-tab-border: rgba(52, 211, 153, 0.44);
-  --trade-war-mode-tab-bg: rgba(6, 78, 59, 0.44);
-  --trade-war-mode-tab-color: #bbf7d0;
-  --trade-war-mode-tab-shadow: rgba(52, 211, 153, 0.16);
+.trade-war-mode-tabs .trade-war-mode-tab-contender,
+.trade-war-mode-tabs .trade-war-mode-tab-starter-upgrade,
+.trade-war-mode-tabs .trade-war-mode-tab-playoff-push {
+  --trade-war-mode-tab-border: rgba(52, 211, 153, 0.7);
+  --trade-war-mode-tab-bg: radial-gradient(circle at 20% 0, rgba(187, 247, 208, 0.38), transparent 54%), linear-gradient(135deg, rgba(16, 185, 129, 0.94), rgba(5, 150, 105, 0.82));
+  --trade-war-mode-tab-color: #031b12;
+  --trade-war-mode-tab-shadow: rgba(16, 185, 129, 0.22);
 }
 
-.trade-war-mode-tab-rebuilder,
-.trade-war-mode-tab-waiver-leverage {
-  --trade-war-mode-tab-border: rgba(168, 85, 247, 0.46);
-  --trade-war-mode-tab-bg: rgba(76, 29, 149, 0.42);
-  --trade-war-mode-tab-color: #ddd6fe;
-  --trade-war-mode-tab-shadow: rgba(168, 85, 247, 0.16);
+.trade-war-mode-tabs .trade-war-mode-tab-rebuilder,
+.trade-war-mode-tabs .trade-war-mode-tab-waiver-leverage {
+  --trade-war-mode-tab-border: rgba(192, 132, 252, 0.72);
+  --trade-war-mode-tab-bg: radial-gradient(circle at 20% 0, rgba(216, 180, 254, 0.36), transparent 54%), linear-gradient(135deg, rgba(126, 34, 206, 0.94), rgba(88, 28, 135, 0.88));
+  --trade-war-mode-tab-color: #f5d0fe;
+  --trade-war-mode-tab-shadow: rgba(168, 85, 247, 0.24);
 }
 
-.trade-war-mode-tab-depth-fix,
-.trade-war-mode-tab-positional-need {
+.trade-war-mode-tabs .trade-war-mode-tab-depth-fix,
+.trade-war-mode-tabs .trade-war-mode-tab-positional-need {
   --trade-war-mode-tab-border: rgba(56, 189, 248, 0.42);
   --trade-war-mode-tab-bg: rgba(8, 47, 73, 0.44);
   --trade-war-mode-tab-color: #a5f3fc;
@@ -3720,6 +3726,34 @@ button.trade-manager-trade {
   justify-content: flex-start;
 }
 
+.report-shell .manager-command-taxi-overview-list {
+  display: grid;
+  width: min(100%, 74rem);
+  margin-inline: auto;
+  gap: clamp(0.7rem, 1.4vw, 1rem);
+}
+
+.report-shell .manager-command-taxi-overview-group {
+  display: grid;
+  gap: clamp(0.5rem, 1vw, 0.72rem);
+  min-width: 0;
+  border: 1px solid rgba(34, 211, 238, 0.14);
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.08), transparent 34%),
+    rgba(2, 6, 23, 0.36);
+  padding: clamp(0.58rem, 1.1vw, 0.82rem);
+}
+
+.report-shell .manager-command-taxi-overview-group > .taxi-triage-depth-tile {
+  width: min(100%, 22rem);
+  justify-self: center;
+}
+
+.report-shell .manager-command-taxi-overview-player-grid {
+  width: 100%;
+}
+
 .report-shell .owner-summary-name,
 .report-shell .command-depth-name {
   font-size: clamp(0.92rem, 1.35vw, 1.2rem);
@@ -5465,6 +5499,18 @@ button.trade-manager-trade {
   color: #fdba74;
 }
 
+.rankings-control-group .ranking-position-button-k:not(.active) {
+  border-color: rgba(250, 204, 21, 0.42);
+  background: rgba(250, 204, 21, 0.14);
+  color: #fde68a;
+}
+
+.rankings-control-group .ranking-position-button-def:not(.active) {
+  border-color: rgba(45, 212, 191, 0.42);
+  background: rgba(20, 184, 166, 0.14);
+  color: #5eead4;
+}
+
 .rankings-control-group .ranking-position-button-qb.active {
   border-color: rgba(244, 63, 94, 0.62);
   background: linear-gradient(135deg, rgba(159, 18, 57, 0.92), rgba(76, 5, 25, 0.82));
@@ -5483,6 +5529,16 @@ button.trade-manager-trade {
 .rankings-control-group .ranking-position-button-te.active {
   border-color: rgba(251, 146, 60, 0.68);
   background: linear-gradient(135deg, rgba(194, 65, 12, 0.92), rgba(67, 20, 7, 0.82));
+}
+
+.rankings-control-group .ranking-position-button-k.active {
+  border-color: rgba(250, 204, 21, 0.68);
+  background: linear-gradient(135deg, rgba(202, 138, 4, 0.92), rgba(113, 63, 18, 0.82));
+}
+
+.rankings-control-group .ranking-position-button-def.active {
+  border-color: rgba(45, 212, 191, 0.68);
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.9), rgba(19, 78, 74, 0.82));
 }
 
 .rankings-control-group .ranking-position-button-pick.active {
@@ -6667,10 +6723,13 @@ body {
   inset: 0;
   z-index: -2;
   pointer-events: none;
-  background-image: url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-768x1200.png");
-  background-position: right -1rem top -6.2rem;
+  background-image: image-set(
+    url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-768x1024.png") 1x,
+    url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-long-1086x1448.png") 2x
+  );
+  background-position: right top;
   background-repeat: no-repeat;
-  background-size: clamp(24rem, 34vw, 34rem) auto;
+  background-size: cover;
   opacity: 0.64;
 }
 
@@ -7226,6 +7285,15 @@ body {
   white-space: normal;
 }
 
+.dashboard-metric-card > small {
+  display: block;
+  color: rgba(226, 232, 240, 0.62);
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.28;
+  overflow-wrap: anywhere;
+}
+
 .dashboard-metric-card[data-tone="info"] {
   background: linear-gradient(135deg, rgba(0, 200, 232, 0.05), rgba(3, 8, 16, 0.1));
 }
@@ -7356,6 +7424,198 @@ body {
 .dashboard-meter-metric[data-tone="danger"] i::after {
   background: linear-gradient(90deg, #ef4444, #f97316);
   box-shadow: 0 0 12px rgba(239, 68, 68, 0.18);
+}
+
+.dashboard-mini-bar-stack,
+.dashboard-target-metric,
+.dashboard-badge-list-metric,
+.dashboard-delta-metric {
+  align-content: start;
+  gap: 0.24rem;
+}
+
+.dashboard-mini-bars {
+  display: grid;
+  gap: 0.24rem;
+  margin-top: 0.05rem;
+}
+
+.dashboard-mini-bar-row {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) 2.4rem;
+  gap: 0.34rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.dashboard-mini-bar-row b,
+.dashboard-mini-bar-row em {
+  color: rgba(226, 232, 240, 0.74);
+  font-size: 0.54rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dashboard-mini-bar-row em {
+  text-align: right;
+  text-transform: none;
+}
+
+.dashboard-mini-bar-row i {
+  position: relative;
+  display: block;
+  height: 0.32rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.dashboard-mini-bar-row i span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--dashboard-bar-score);
+  border-radius: inherit;
+  background: linear-gradient(90deg, #00c8e8, #f4a020);
+  box-shadow: 0 0 12px rgba(0, 200, 232, 0.18);
+}
+
+.dashboard-mini-bar-row[data-tone="good"] i span {
+  background: linear-gradient(90deg, #22c55e, #86efac);
+}
+
+.dashboard-mini-bar-row[data-tone="warn"] i span {
+  background: linear-gradient(90deg, #f4a020, #fde047);
+}
+
+.dashboard-mini-bar-row[data-tone="danger"] i span {
+  background: linear-gradient(90deg, #ef4444, #fb7185);
+}
+
+.dashboard-target-lockup {
+  display: flex;
+  gap: 0.48rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.dashboard-target-lockup > strong,
+.dashboard-target-metric > strong,
+.dashboard-badge-list-metric > strong,
+.dashboard-delta-metric > strong {
+  min-width: 0;
+  color: #f8fafc;
+  font-size: clamp(0.96rem, 1.05vw, 1.18rem);
+  font-weight: 950;
+  line-height: 1.04;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-target-avatar {
+  display: grid;
+  width: 2.1rem;
+  height: 2.1rem;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(103, 232, 249, 0.32);
+  border-radius: 999px;
+  background: rgba(2, 13, 24, 0.72);
+  box-shadow: 0 0 18px rgba(0, 200, 232, 0.12);
+}
+
+.dashboard-target-avatar img,
+.dashboard-target-avatar span {
+  width: 100%;
+  height: 100%;
+}
+
+.dashboard-target-avatar img {
+  object-fit: cover;
+}
+
+.dashboard-target-avatar span {
+  display: grid;
+  place-items: center;
+  color: rgba(207, 250, 254, 0.9);
+  font-size: 0.68rem;
+  font-weight: 950;
+}
+
+.dashboard-metric-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.24rem;
+  min-width: 0;
+}
+
+.dashboard-metric-badges b {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(0, 200, 232, 0.2);
+  border-radius: 999px;
+  background: rgba(0, 200, 232, 0.08);
+  padding: 0.18rem 0.38rem;
+  color: rgba(207, 250, 254, 0.86);
+  font-size: 0.52rem;
+  font-weight: 900;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-metric-badges b[data-tone="good"] {
+  border-color: rgba(34, 197, 94, 0.28);
+  background: rgba(34, 197, 94, 0.1);
+  color: rgba(187, 247, 208, 0.9);
+}
+
+.dashboard-metric-badges b[data-tone="warn"] {
+  border-color: rgba(244, 160, 32, 0.32);
+  background: rgba(244, 160, 32, 0.1);
+  color: rgba(254, 215, 170, 0.92);
+}
+
+.dashboard-metric-badges b[data-tone="danger"] {
+  border-color: rgba(248, 113, 113, 0.32);
+  background: rgba(248, 113, 113, 0.1);
+  color: rgba(254, 202, 202, 0.92);
+}
+
+.dashboard-delta-metric > strong {
+  display: flex;
+  gap: 0.36rem;
+  align-items: center;
+}
+
+.dashboard-delta-metric > strong b {
+  width: 0.58rem;
+  height: 0.58rem;
+  flex: 0 0 auto;
+  transform: rotate(45deg);
+  border-top: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+  color: rgba(148, 163, 184, 0.82);
+}
+
+.dashboard-delta-metric[data-direction="up"] > strong b {
+  color: #86efac;
+}
+
+.dashboard-delta-metric[data-direction="down"] > strong b {
+  transform: rotate(225deg);
+  color: #fb7185;
+}
+
+.dashboard-delta-metric[data-direction="flat"] > strong b {
+  width: 0.7rem;
+  height: 0;
+  transform: none;
+  border-top: 2px solid currentColor;
+  border-left: 0;
 }
 
 .dashboard-owner-strip {
@@ -8448,7 +8708,7 @@ body {
   .overview-command-canvas {
     background:
       linear-gradient(180deg, rgba(3, 8, 12, 0.18) 0%, rgba(3, 8, 12, 0.54) 24rem, rgba(3, 8, 12, 0.96) 48rem, rgba(3, 8, 12, 0.99) 100%),
-      url("/brand/hero/background/webp/hero-bg-tablet-portrait-768x1200.webp") center top / cover no-repeat,
+      url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") center top / cover no-repeat,
       linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       rgba(3, 8, 16, 0.74);
@@ -8487,7 +8747,7 @@ body {
   .overview-command-canvas {
     background:
       linear-gradient(180deg, rgba(3, 8, 12, 0.18) 0%, rgba(3, 8, 12, 0.5) 19rem, rgba(3, 8, 12, 0.97) 38rem, rgba(3, 8, 12, 0.995) 100%),
-      url("/brand/hero/background/webp/hero-bg-mobile-portrait-long-430x1200.webp") center top / cover no-repeat,
+      url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") center top / cover no-repeat,
       linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       rgba(3, 8, 16, 0.74);
@@ -10056,7 +10316,10 @@ body {
   border-radius: 1.25rem;
   background:
     linear-gradient(90deg, rgba(3, 8, 12, 0.84), rgba(3, 8, 12, 0.68)),
-    url("/brand/backgrounds/webp/right-panel/right-panel-desktop-tall-460x1600.webp") right top / auto 100% no-repeat,
+    image-set(
+      url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-768x1024.png") 1x,
+      url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-long-1086x1448.png") 2x
+    ) right top / cover no-repeat,
     rgba(5, 13, 22, 0.9);
   box-shadow:
     0 0 44px rgba(0, 200, 232, 0.08),
@@ -10612,7 +10875,7 @@ body {
   align-items: start;
   column-gap: clamp(2rem, 6vw, 6rem);
   row-gap: clamp(0.85rem, 1.45vw, 1.35rem);
-  margin-left: clamp(1.25rem, 4vw, 4.5rem);
+  margin-left: 0;
 }
 
 .home-hero-dashboard .home-hero-copy {
@@ -10659,7 +10922,7 @@ body {
 
 .home-hero-dashboard .home-subtitle-ai {
   display: inline-block;
-  color: #67e8f9;
+  color: #fb923c;
   font-style: italic;
 }
 
@@ -10784,8 +11047,6 @@ body {
 .home-hero-dashboard .home-feature-card {
   min-height: 8.8rem;
   border-radius: 0.95rem !important;
-  background:
-    linear-gradient(145deg, rgba(12, 20, 30, 0.84), rgba(2, 6, 23, 0.68)) !important;
   padding: 0.9rem !important;
 }
 
@@ -10889,7 +11150,7 @@ body {
 
 @media (max-width: 767px) {
   .home-shell::before {
-    background-image: url("/brand/hero/background/webp/hero-bg-mobile-portrait-430x932.webp") !important;
+    background-image: url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") !important;
     background-position: center top !important;
   }
 

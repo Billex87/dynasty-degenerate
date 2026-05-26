@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TeamLogoPill } from './TeamLogoPill';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
-import { EmptyState, ManagerBadge } from './reportPrimitives';
+import { EmptyState } from './reportPrimitives';
 import { trpc } from '@/lib/trpc';
 import { getPositionRankClass, getPositionRankPillClass } from '@/lib/positionRank';
 import { getCachedDraftBuzzImageUrl, getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle, getTeamTileStyle, normalizeNflTeamAbbr } from '@/lib/teamTileStyle';
@@ -22,8 +22,10 @@ import {
 import { readBooleanParam, readCsvParam, readEnumParam, readNumberParam, getUrlSearchParam, replaceUrlSearchParams } from '@/lib/reportUrlState';
 
 type PositionFilter = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF' | 'PICK';
-type SortMode = 'rank' | 'value' | 'movement';
+type SortMode = 'rank' | 'value' | 'movement' | 'prospect' | 'age';
 type MovementSortDirection = 'down' | 'up';
+type ProspectSortDirection = 'high' | 'low';
+type AgeSortDirection = 'young' | 'old';
 type DraftBuzzPosition = Exclude<PositionFilter, 'K' | 'DEF' | 'PICK'>;
 type SortDirection = 'asc' | 'desc';
 type DraftBuzzSortKey = 'class' | 'rank' | 'player' | 'team' | 'school' | 'position' | 'score' | 'forty' | 'vertical' | 'height' | 'weight';
@@ -44,16 +46,20 @@ type RankingsTableConfig = {
   description: string;
   defaultProfileKey?: string | null;
   hidePicks?: boolean;
+  leagueDiagnostics?: ReportData['leagueDiagnostics'];
   leagueValueMode: LeagueValueMode;
   valueLabel: string;
 };
 
 const PAGE_SIZE = 25;
 const DRAFT_BUZZ_PAGE_SIZE = 25;
-const SORT_MODES: readonly SortMode[] = ['rank', 'value', 'movement'];
+const SORT_MODES: readonly SortMode[] = ['rank', 'value', 'movement', 'prospect', 'age'];
 const MOVEMENT_SORT_DIRECTIONS: readonly MovementSortDirection[] = ['down', 'up'];
+const PROSPECT_SORT_DIRECTIONS: readonly ProspectSortDirection[] = ['high', 'low'];
+const AGE_SORT_DIRECTIONS: readonly AgeSortDirection[] = ['young', 'old'];
 const SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
 const POSITION_FILTER_KEYS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'PICK'] as const;
+const COLLEGE_POSITION_FILTER_KEYS: readonly PositionFilter[] = ['QB', 'RB', 'WR', 'TE'];
 const DRAFT_BUZZ_POSITIONS: DraftBuzzPosition[] = ['QB', 'RB', 'WR', 'TE'];
 const DRAFT_BUZZ_SORT_KEYS: readonly DraftBuzzSortKey[] = ['class', 'rank', 'player', 'team', 'school', 'position', 'score', 'forty', 'vertical', 'height', 'weight'];
 const DRAFT_BUZZ_SORT_COLUMNS: Array<{ key: DraftBuzzSortKey; label: string }> = [
@@ -96,20 +102,60 @@ function getProfileRowCount(rankings: NonNullable<ReportData['rankings']>, profi
   return rankings.profileRowCounts?.[profileKey] || 0;
 }
 
-function getPositionFilters(board: RankingsTableConfig['board'], hidePicks = false) {
+function normalizeRankingPosition(value?: string | null): PositionFilter | null {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (normalized === 'DST' || normalized === 'D/ST' || normalized === 'DEFENSE') return 'DEF';
+  if (normalized === 'PK') return 'K';
+  return POSITION_FILTER_KEYS.includes(normalized as PositionFilter)
+    ? normalized as PositionFilter
+    : null;
+}
+
+function getSpecialTeamPositionSupport(leagueDiagnostics?: ReportData['leagueDiagnostics']): Set<PositionFilter> {
+  const supported = new Set<PositionFilter>();
+  const slots = [
+    ...(leagueDiagnostics?.starterSlots || []),
+    ...(leagueDiagnostics?.rosterSlots || []),
+  ];
+
+  slots.forEach(value => {
+    const position = normalizeRankingPosition(value);
+    if (position === 'K' || position === 'DEF') supported.add(position);
+  });
+
+  return supported;
+}
+
+function getPositionFilters(
+  board: RankingsTableConfig['board'],
+  hidePicks = false,
+  supportedSpecialTeams: Set<PositionFilter> = new Set()
+) {
   return POSITION_FILTERS.filter((filter) => {
+    if (board === 'devy') return COLLEGE_POSITION_FILTER_KEYS.includes(filter.key);
+    if ((filter.key === 'K' || filter.key === 'DEF') && !supportedSpecialTeams.has(filter.key)) return false;
     if (board === 'redraft') return filter.key !== 'PICK';
-    if (filter.key === 'K' || filter.key === 'DEF') return false;
     return !hidePicks || filter.key !== 'PICK';
   });
 }
 
-function readPositionFiltersParam(paramName: string, hidePicks = false, board: RankingsTableConfig['board'] = 'dynasty'): PositionFilter[] {
-  const allowed = new Set(getPositionFilters(board, hidePicks).map((filter) => filter.key));
+function readPositionFiltersParam(
+  paramName: string,
+  hidePicks = false,
+  board: RankingsTableConfig['board'] = 'dynasty',
+  supportedSpecialTeams: Set<PositionFilter> = new Set()
+): PositionFilter[] {
+  const allowed = new Set(getPositionFilters(board, hidePicks, supportedSpecialTeams).map((filter) => filter.key));
   return readCsvParam(paramName).filter((value): value is PositionFilter => {
     if (!POSITION_FILTER_KEYS.includes(value as PositionFilter)) return false;
     return allowed.has(value as PositionFilter);
   });
+}
+
+function readRankingsSortModeParam(paramName: string, board: RankingsTableConfig['board']): SortMode {
+  const sort = readEnumParam(paramName, SORT_MODES, board === 'devy' ? 'prospect' : 'value');
+  if (board === 'devy') return 'prospect';
+  return sort === 'rank' || sort === 'prospect' ? 'value' : sort;
 }
 
 function readDraftBuzzPositionsParam(paramName: string): DraftBuzzPosition[] {
@@ -183,6 +229,21 @@ function getPreviousSeasonSummary(details?: PlayerDetails): { label: string; com
     compactLabel: [rank, points ? `${points} pts` : null].filter(Boolean).join(', '),
     title: `${season || 'Previous season'} production: ${titleParts.join(' - ')}`,
   };
+}
+
+function getNumericYear(value?: string | number | null): number | null {
+  const year = Number(value || 0);
+  return Number.isFinite(year) && year > 1900 ? year : null;
+}
+
+function getPreviousSeasonShortLabel(details?: PlayerDetails): string {
+  const season = getNumericYear(details?.lastSeasonYear) || new Date().getFullYear() - 1;
+  return String(season).slice(-2);
+}
+
+function isCurrentYearRookie(player: RankingPlayer, details?: PlayerDetails): boolean {
+  const rookieYear = getNumericYear(details?.rookieYear) || getNumericYear(player.draftYear) || getNumericYear(player.prospectProfile?.draftYear);
+  return rookieYear === new Date().getFullYear();
 }
 
 function getTeamSearchTerms(team?: string | null): string[] {
@@ -290,6 +351,11 @@ function getProspectProjection(player: RankingPlayer): string | null {
 function getDraftBuzzScore(player: RankingPlayer): number | null {
   const score = Number(player.prospectProfile?.rating || 0);
   return Number.isFinite(score) && score > 0 ? score : null;
+}
+
+function getRankingAgeValue(player: RankingPlayer): number | null {
+  const age = Number(player.age || 0);
+  return Number.isFinite(age) && age > 0 ? age : null;
 }
 
 function formatDraftBuzzScore(value?: number | null): string {
@@ -459,6 +525,34 @@ function getProfileButtonLabel(option: RankingProfileOption): string {
   return `${prefix} TEP++`;
 }
 
+function getLeagueDiagnosticsQbFormat(leagueDiagnostics?: ReportData['leagueDiagnostics']): RankingProfileOption['qbFormat'] | null {
+  const qbFormat = leagueDiagnostics?.qbFormat;
+  if (qbFormat === 'superflex' || qbFormat === 'two_qb') return 'sf';
+  if (qbFormat === 'one_qb') return 'one_qb';
+  return null;
+}
+
+function getLeagueDiagnosticsTepBucket(leagueDiagnostics?: ReportData['leagueDiagnostics']): RankingProfileOption['tep'] | null {
+  const tep = Number(leagueDiagnostics?.tightEndPremium ?? 0);
+  if (!Number.isFinite(tep)) return null;
+  if (tep >= 1.25) return 1.5;
+  if (tep >= 0.75) return 1;
+  if (tep >= 0.25) return 0.5;
+  return 0;
+}
+
+function getLeagueMatchedProfileKey(
+  options: RankingProfileOption[],
+  board: RankingsTableConfig['board'],
+  leagueDiagnostics?: ReportData['leagueDiagnostics']
+): string | null {
+  if (board === 'redraft') return null;
+  const qbFormat = getLeagueDiagnosticsQbFormat(leagueDiagnostics);
+  const tep = getLeagueDiagnosticsTepBucket(leagueDiagnostics);
+  if (!qbFormat || tep === null) return null;
+  return options.find(option => option.board === board && option.qbFormat === qbFormat && option.tep === tep)?.key || null;
+}
+
 function getPickYearSuffix(player: RankingPlayer): string {
   const draftYear = Number(player.draftYear || 0);
   if (Number.isFinite(draftYear) && draftYear > 0) {
@@ -513,14 +607,6 @@ function RankingPlayerIdentity({ player, team }: { player: RankingPlayer; team?:
   );
 }
 
-function RankingOwnerChip({ owner, managerAvatars }: { owner?: string | null; managerAvatars?: ReportData['managerAvatars'] }) {
-  if (!owner) {
-    return <ManagerBadge className="ranking-owner-chip ranking-owner-pill-fa" emptyLabel="FA" />;
-  }
-
-  return <ManagerBadge className="ranking-owner-chip" avatarUrl={managerAvatars?.[owner]} managerName={owner} />;
-}
-
 function RankingOwnerAvatar({ owner, managerAvatars }: { owner?: string | null; managerAvatars?: ReportData['managerAvatars'] }) {
   if (!owner)
     return (
@@ -535,6 +621,16 @@ function RankingOwnerAvatar({ owner, managerAvatars }: { owner?: string | null; 
   return (
     <span className="ranking-owner-avatar-fallback" aria-hidden="true">
       {owner.slice(0, 2).toUpperCase()}
+    </span>
+  );
+}
+
+function RankingOwnerIcon({ owner, managerAvatars }: { owner?: string | null; managerAvatars?: ReportData['managerAvatars'] }) {
+  const label = owner || 'Free Agent';
+
+  return (
+    <span className="ranking-owner-avatar-wrap" title={label} aria-label={label}>
+      <RankingOwnerAvatar owner={owner} managerAvatars={managerAvatars} />
     </span>
   );
 }
@@ -568,14 +664,12 @@ function isRedraftSourceLabel(source: string): boolean {
     || /^fantasypros$/i.test(source.trim());
 }
 
-function getRankingSearchPlaceholder(board: RankingsTableConfig['board'], leagueValueMode: LeagueValueMode): string {
+function getRankingSearchPlaceholder(board: RankingsTableConfig['board']): string {
   if (board === 'devy') {
-    return 'Search player, school, class, rank, measurables';
+    return 'Search by player or school';
   }
 
-  return leagueValueMode === 'redraft'
-    ? 'Search player, team, manager, college, position, season value, movement'
-    : 'Search player, team, manager, college, position, rank, value, movement';
+  return 'Search by player, team, manager';
 }
 
 function getRankingValueProfile(
@@ -648,6 +742,8 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
     context: 'rankings',
   }) || player.pos;
   const previousSeasonSummary = !player.isDevy && !player.isPick ? getPreviousSeasonSummary(details) : null;
+  const previousSeasonShortLabel = !player.isDevy && !player.isPick ? getPreviousSeasonShortLabel(details) : null;
+  const showRookiePreviousSeasonBadge = !previousSeasonSummary && !player.isDevy && !player.isPick && isCurrentYearRookie(player, details);
   const rowClassName = [
     'player-team-tile',
     'ranking-player-card',
@@ -669,7 +765,7 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
       </div>
 
       {player.isDevy ? (
-        <strong className={`value-board__prospect-score ${prospectScore ? '' : 'value-board__prospect-score-empty'}`} aria-label={prospectScore ? `${player.name} buzz score ${formatDraftBuzzScore(prospectScore)}` : `${player.name} buzz score unavailable`}>
+        <strong className={`value-board__prospect-score ${prospectScore ? '' : 'value-board__prospect-score-empty'}`} aria-label={prospectScore ? `${player.name} college prospect score ${formatDraftBuzzScore(prospectScore)}` : `${player.name} college prospect score unavailable`}>
           {formatDraftBuzzScore(prospectScore)}
         </strong>
       ) : null}
@@ -728,10 +824,7 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
             <span className="ranking-devy-projection-pill">{prospectProjection}</span>
           ) : null
         ) : (
-          <>
-            <RankingOwnerChip owner={player.owner} managerAvatars={managerAvatars} />
-            <RankingOwnerAvatar owner={player.owner} managerAvatars={managerAvatars} />
-          </>
+          <RankingOwnerIcon owner={player.owner} managerAvatars={managerAvatars} />
         )}
       </div>
 
@@ -768,12 +861,23 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
         </div>
       ) : null}
 
-      {!player.isDevy && !player.isPick && previousSeasonSummary ? (
+      {!player.isDevy && !player.isPick ? (
         <div className="value-board__previous-season">
-          <span className="ranking-last-season-summary-pill" title={previousSeasonSummary.title}>
-            <span className="ranking-last-season-summary-full">{previousSeasonSummary.label}</span>
-            <span className="ranking-last-season-summary-compact">{previousSeasonSummary.compactLabel}</span>
-          </span>
+          {previousSeasonSummary ? (
+            <span className="ranking-last-season-summary-pill" title={previousSeasonSummary.title}>
+              <span className="ranking-last-season-summary-full">{previousSeasonSummary.label}</span>
+              <span className="ranking-last-season-summary-compact">{previousSeasonSummary.compactLabel}</span>
+            </span>
+          ) : showRookiePreviousSeasonBadge ? (
+            <span className="ranking-last-season-rookie-pill" title={`${player.name} is a rookie with no previous-season NFL production`}>
+              <span className="ranking-last-season-rookie-star" aria-hidden="true">R</span>
+              <span className="ranking-last-season-rookie-label">Rookie</span>
+            </span>
+          ) : (
+            <span className="ranking-last-season-empty" title={`${player.name} has no ${previousSeasonShortLabel || 'previous'} production in this data set`}>
+              No {previousSeasonShortLabel || 'Prev'} Data
+            </span>
+          )}
         </div>
       ) : null}
     </>
@@ -962,9 +1066,9 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
         <div>
           <div className="rankings-kicker">Scouting Data Archive</div>
           <h3>Prospect Score Archive</h3>
-          <p>Draft Buzz scouting scores organized by class, position rank, NFL team match, school, and verified measurables where available.</p>
+          <p>College prospect scores organized by class, position rank, NFL team match, school, and verified measurables where available.</p>
           <div className="draftbuzz-scoreboard__badges" aria-label="Prospect archive coverage">
-            <span>Draft Buzz Scouting Scores</span>
+            <span>College Prospect Scores</span>
             {coverageLabel ? <span>{coverageLabel}</span> : null}
             <span>{allRows.length.toLocaleString()} scored players</span>
           </div>
@@ -1093,17 +1197,23 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   const boardOptions = profileOptions.filter(option => option.board === config.board);
   const urlPrefix = getRankingsUrlPrefix(config.board);
   const canIncludePicksWithOverall = config.board === 'dynasty' && !config.hidePicks;
+  const initialSpecialTeamSupport = getSpecialTeamPositionSupport(config.leagueDiagnostics);
+  const leagueMatchedProfileKey = getLeagueMatchedProfileKey(profileOptions, config.board, config.leagueDiagnostics);
+  const defaultProfileKey = leagueMatchedProfileKey || config.defaultProfileKey || getProfileFallback(profileOptions, config.board);
   const getInitialProfileKey = () => {
     const urlProfileKey = getUrlSearchParam(`${urlPrefix}Profile`);
     const hasUrlProfile = urlProfileKey && boardOptions.some(option => option.key === urlProfileKey);
-    return (hasUrlProfile ? urlProfileKey : null) || config.defaultProfileKey || getProfileFallback(profileOptions, config.board);
+    const shouldUseUrlProfile = hasUrlProfile && (!leagueMatchedProfileKey || urlProfileKey === leagueMatchedProfileKey);
+    return (shouldUseUrlProfile ? urlProfileKey : null) || defaultProfileKey;
   };
   const [selectedProfileKey, setSelectedProfileKey] = useState(getInitialProfileKey);
-  const [selectedPositions, setSelectedPositions] = useState<PositionFilter[]>(() => readPositionFiltersParam(`${urlPrefix}Positions`, config.hidePicks, config.board));
+  const [selectedPositions, setSelectedPositions] = useState<PositionFilter[]>(() => readPositionFiltersParam(`${urlPrefix}Positions`, config.hidePicks, config.board, initialSpecialTeamSupport));
   const [includePicksWithOverall, setIncludePicksWithOverall] = useState(() => canIncludePicksWithOverall && readBooleanParam(`${urlPrefix}Picks`));
   const [selectedDraftClass, setSelectedDraftClass] = useState<number | null>(() => readNumberParam(`${urlPrefix}Class`));
-  const [sortMode, setSortMode] = useState<SortMode>(() => readEnumParam(`${urlPrefix}Sort`, SORT_MODES, 'rank'));
-  const [movementSortDirection, setMovementSortDirection] = useState<MovementSortDirection>(() => readEnumParam(`${urlPrefix}Movement`, MOVEMENT_SORT_DIRECTIONS, 'down'));
+  const [sortMode, setSortMode] = useState<SortMode>(() => readRankingsSortModeParam(`${urlPrefix}Sort`, config.board));
+  const [movementSortDirection, setMovementSortDirection] = useState<MovementSortDirection>(() => readRankingsSortModeParam(`${urlPrefix}Sort`, config.board) === 'movement' ? readEnumParam(`${urlPrefix}Movement`, MOVEMENT_SORT_DIRECTIONS, 'up') : 'up');
+  const [prospectSortDirection, setProspectSortDirection] = useState<ProspectSortDirection>(() => readRankingsSortModeParam(`${urlPrefix}Sort`, config.board) === 'prospect' ? readEnumParam(`${urlPrefix}Prospect`, PROSPECT_SORT_DIRECTIONS, 'high') : 'high');
+  const [ageSortDirection, setAgeSortDirection] = useState<AgeSortDirection>(() => readRankingsSortModeParam(`${urlPrefix}Sort`, config.board) === 'age' ? readEnumParam(`${urlPrefix}Age`, AGE_SORT_DIRECTIONS, 'young') : 'young');
   const [query, setQuery] = useState(() => getUrlSearchParam(`${urlPrefix}Search`) || '');
   const deferredQuery = useDeferredValue(query);
   const [page, setPage] = useState(1);
@@ -1111,18 +1221,22 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   useEffect(() => {
     const urlProfileKey = getUrlSearchParam(`${urlPrefix}Profile`);
     const hasUrlProfile = urlProfileKey && boardOptions.some(option => option.key === urlProfileKey);
-    const nextProfileKey = (hasUrlProfile ? urlProfileKey : null) || config.defaultProfileKey || getProfileFallback(profileOptions, config.board);
+    const shouldUseUrlProfile = hasUrlProfile && (!leagueMatchedProfileKey || urlProfileKey === leagueMatchedProfileKey);
+    const nextProfileKey = (shouldUseUrlProfile ? urlProfileKey : null) || defaultProfileKey;
     if (nextProfileKey) {
+      const nextSortMode = readRankingsSortModeParam(`${urlPrefix}Sort`, config.board);
       setSelectedProfileKey(nextProfileKey);
-      setSelectedPositions(readPositionFiltersParam(`${urlPrefix}Positions`, config.hidePicks, config.board));
+      setSelectedPositions(readPositionFiltersParam(`${urlPrefix}Positions`, config.hidePicks, config.board, getSpecialTeamPositionSupport(config.leagueDiagnostics)));
       setIncludePicksWithOverall(canIncludePicksWithOverall && readBooleanParam(`${urlPrefix}Picks`));
       setSelectedDraftClass(readNumberParam(`${urlPrefix}Class`));
-      setSortMode(readEnumParam(`${urlPrefix}Sort`, SORT_MODES, 'rank'));
-      setMovementSortDirection(readEnumParam(`${urlPrefix}Movement`, MOVEMENT_SORT_DIRECTIONS, 'down'));
+      setSortMode(nextSortMode);
+      setMovementSortDirection(nextSortMode === 'movement' ? readEnumParam(`${urlPrefix}Movement`, MOVEMENT_SORT_DIRECTIONS, 'up') : 'up');
+      setProspectSortDirection(nextSortMode === 'prospect' ? readEnumParam(`${urlPrefix}Prospect`, PROSPECT_SORT_DIRECTIONS, 'high') : 'high');
+      setAgeSortDirection(nextSortMode === 'age' ? readEnumParam(`${urlPrefix}Age`, AGE_SORT_DIRECTIONS, 'young') : 'young');
       setQuery(getUrlSearchParam(`${urlPrefix}Search`) || '');
       setPage(1);
     }
-  }, [canIncludePicksWithOverall, config.board, config.defaultProfileKey, config.hidePicks, profileOptions, rankings.generatedAt, urlPrefix]);
+  }, [canIncludePicksWithOverall, config.board, config.defaultProfileKey, config.hidePicks, config.leagueDiagnostics, defaultProfileKey, leagueMatchedProfileKey, profileOptions, rankings.generatedAt, urlPrefix]);
 
   const localRows = selectedProfileKey ? rankings.profiles?.[selectedProfileKey] || [] : [];
   const expectedRowCount = getProfileRowCount(rankings, selectedProfileKey);
@@ -1137,16 +1251,17 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   );
   const rows = profileQuery.data?.rows || localRows;
   const isProfileLoading = profileQuery.isLoading && localRows.length === 0 && expectedRowCount > 0;
-  const activeProfile = profileOptions.find(option => option.key === selectedProfileKey);
-  const activeProfileLabel = activeProfile ? getProfileButtonLabel(activeProfile) : null;
+  const supportedSpecialTeams = useMemo(
+    () => getSpecialTeamPositionSupport(config.leagueDiagnostics),
+    [config.leagueDiagnostics]
+  );
+  const positionFilters = useMemo(
+    () => getPositionFilters(config.board, config.hidePicks, supportedSpecialTeams),
+    [config.board, config.hidePicks, supportedSpecialTeams]
+  );
   const leagueTypeControlStyle = {
     '--rankings-league-type-width': `calc(${Math.max(8.5, ...boardOptions.map(option => getProfileButtonLabel(option).length))}ch + 1.75rem)`,
   } as CSSProperties;
-  const contextPills = [
-    activeProfileLabel ? `League Matched: ${activeProfileLabel}` : null,
-    config.board === 'devy' ? 'Degen Scouting Scores' : null,
-    config.board === 'devy' ? '2021-2027 Tracked' : null,
-  ].filter((label): label is string => Boolean(label));
   const draftClassOptions = useMemo(() => {
     if (config.board !== 'devy') return [];
     return Array.from(new Set(rows.map(getDraftClassValue).filter((year): year is number => Boolean(year)))).sort((a, b) => a - b);
@@ -1158,6 +1273,15 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
     }
   }, [draftClassOptions, selectedDraftClass]);
 
+  useEffect(() => {
+    const allowedPositions = new Set(positionFilters.map(filter => filter.key));
+    const nextPositions = selectedPositions.filter(position => allowedPositions.has(position));
+    if (nextPositions.length !== selectedPositions.length) {
+      setSelectedPositions(nextPositions);
+      if (!nextPositions.includes('PICK')) setIncludePicksWithOverall(false);
+    }
+  }, [positionFilters, selectedPositions]);
+
   const filteredRows = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
 
@@ -1166,10 +1290,12 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
         if (config.hidePicks && player.isPick) return false;
         if (config.board === 'devy' && (player.isPick || !player.isDevy)) return false;
         if (config.board === 'redraft' && player.isPick) return false;
+        const normalizedPosition = normalizeRankingPosition(player.pos);
+        if (config.board === 'devy' && (!normalizedPosition || !COLLEGE_POSITION_FILTER_KEYS.includes(normalizedPosition))) return false;
         if (selectedPositions.length === 0) {
           return includePicksWithOverall && canIncludePicksWithOverall ? true : !player.isPick;
         }
-        return selectedPositions.includes(player.pos as PositionFilter);
+        return Boolean(normalizedPosition && selectedPositions.includes(normalizedPosition));
       })
       .filter(player => config.board !== 'devy' || !selectedDraftClass || getDraftClassValue(player) === selectedDraftClass)
       .filter(player => {
@@ -1182,7 +1308,18 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
         );
       })
       .sort((a, b) => {
-        if (config.board === 'devy') return a.overallRank - b.overallRank;
+        if (config.board === 'devy') {
+          if (sortMode === 'prospect') {
+            const aScore = getDraftBuzzScore(a);
+            const bScore = getDraftBuzzScore(b);
+            const scoreSort = prospectSortDirection === 'high'
+              ? compareNullableMetric(aScore, bScore, 'desc')
+              : compareNullableMetric(aScore, bScore, 'asc');
+            return scoreSort || a.overallRank - b.overallRank;
+          }
+
+          return a.overallRank - b.overallRank;
+        }
         if (sortMode === 'value') {
           const aValue = config.leagueValueMode === 'redraft' ? a.seasonValue ?? a.fantasyProsValue ?? a.value : a.value;
           const bValue = config.leagueValueMode === 'redraft' ? b.seasonValue ?? b.fantasyProsValue ?? b.value : b.value;
@@ -1195,9 +1332,15 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
             ? bMovement - aMovement || a.overallRank - b.overallRank
             : aMovement - bMovement || a.overallRank - b.overallRank;
         }
+        if (sortMode === 'age') {
+          const ageSort = ageSortDirection === 'young'
+            ? compareNullableMetric(getRankingAgeValue(a), getRankingAgeValue(b), 'asc')
+            : compareNullableMetric(getRankingAgeValue(a), getRankingAgeValue(b), 'desc');
+          return ageSort || a.overallRank - b.overallRank;
+        }
         return a.overallRank - b.overallRank;
       });
-  }, [canIncludePicksWithOverall, config.board, config.hidePicks, config.leagueValueMode, deferredQuery, includePicksWithOverall, movementSortDirection, playerDetailsById, rows, selectedDraftClass, selectedPositions, sortMode]);
+  }, [ageSortDirection, canIncludePicksWithOverall, config.board, config.hidePicks, config.leagueValueMode, deferredQuery, includePicksWithOverall, movementSortDirection, playerDetailsById, prospectSortDirection, rows, selectedDraftClass, selectedPositions, sortMode]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -1205,7 +1348,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
 
   useEffect(() => {
     setPage(1);
-  }, [includePicksWithOverall, movementSortDirection, query, selectedDraftClass, selectedPositions, selectedProfileKey, sortMode]);
+  }, [ageSortDirection, includePicksWithOverall, movementSortDirection, prospectSortDirection, query, selectedDraftClass, selectedPositions, selectedProfileKey, sortMode]);
 
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
@@ -1219,12 +1362,14 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
         [`${urlPrefix}Positions`]: selectedPositions.length ? selectedPositions.join(',') : null,
         [`${urlPrefix}Picks`]: includePicksWithOverall && selectedPositions.length === 0,
         [`${urlPrefix}Class`]: selectedDraftClass,
-        [`${urlPrefix}Sort`]: sortMode === 'rank' ? null : sortMode,
-        [`${urlPrefix}Movement`]: sortMode === 'movement' ? movementSortDirection : null,
+        [`${urlPrefix}Sort`]: config.board === 'devy' ? (sortMode === 'prospect' ? null : sortMode) : (sortMode === 'value' ? null : sortMode),
+        [`${urlPrefix}Movement`]: sortMode === 'movement' && movementSortDirection !== 'up' ? movementSortDirection : null,
+        [`${urlPrefix}Prospect`]: sortMode === 'prospect' && prospectSortDirection !== 'high' ? prospectSortDirection : null,
+        [`${urlPrefix}Age`]: sortMode === 'age' && ageSortDirection !== 'young' ? ageSortDirection : null,
       },
       { onlyForHash: '#rankings' },
     );
-  }, [includePicksWithOverall, movementSortDirection, query, selectedDraftClass, selectedPositions, selectedProfileKey, sortMode, urlPrefix]);
+  }, [ageSortDirection, config.board, includePicksWithOverall, movementSortDirection, prospectSortDirection, query, selectedDraftClass, selectedPositions, selectedProfileKey, sortMode, urlPrefix]);
 
   const handleMovementSortClick = () => {
     if (sortMode === 'movement') {
@@ -1232,11 +1377,33 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
       return;
     }
     setSortMode('movement');
-    setMovementSortDirection('down');
+    setMovementSortDirection('up');
   };
   const MovementSortIcon = movementSortDirection === 'up' ? TrendingUp : TrendingDown;
-  const movementSortLabel = movementSortDirection === 'up' ? '7-Day risers' : '7-Day fallers';
-  const movementSortText = movementSortDirection === 'up' ? '7-Day Up' : '7-Day Down';
+  const movementSortLabel = movementSortDirection === 'up' ? 'weekly risers' : 'weekly fallers';
+  const movementSortText = 'Weekly';
+  const handleAgeSortClick = () => {
+    if (sortMode === 'age') {
+      setAgeSortDirection(direction => direction === 'young' ? 'old' : 'young');
+      return;
+    }
+    setSortMode('age');
+    setAgeSortDirection('young');
+  };
+  const AgeSortIcon = ageSortDirection === 'old' ? TrendingUp : TrendingDown;
+  const ageSortLabel = ageSortDirection === 'young' ? 'youngest players' : 'oldest players';
+  const ageSortText = 'Age';
+  const handleProspectSortClick = () => {
+    if (sortMode === 'prospect') {
+      setProspectSortDirection(direction => direction === 'high' ? 'low' : 'high');
+      return;
+    }
+    setSortMode('prospect');
+    setProspectSortDirection('high');
+  };
+  const ProspectSortIcon = prospectSortDirection === 'high' ? TrendingUp : TrendingDown;
+  const prospectSortLabel = prospectSortDirection === 'high' ? 'highest prospect score' : 'lowest prospect score';
+  const prospectSortText = 'Rank';
 
   const togglePosition = (position: PositionFilter) => {
     if (position === 'PICK') {
@@ -1291,18 +1458,15 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
           <Input
             value={query}
             onChange={event => setQuery(event.target.value)}
-            placeholder={getRankingSearchPlaceholder(config.board, config.leagueValueMode)}
-            aria-label={getRankingSearchPlaceholder(config.board, config.leagueValueMode)}
-            title={getRankingSearchPlaceholder(config.board, config.leagueValueMode)}
+            placeholder={getRankingSearchPlaceholder(config.board)}
+            aria-label={getRankingSearchPlaceholder(config.board)}
+            title={getRankingSearchPlaceholder(config.board)}
             className="rankings-search-input"
           />
         </div>
 
         {config.board !== 'devy' ? (
           <div className="rankings-control-group rankings-sort-toggle value-board__sort">
-            <button type="button" className={sortMode === 'rank' ? 'active' : ''} aria-pressed={sortMode === 'rank'} onClick={() => setSortMode('rank')}>
-              Rank
-            </button>
             <button type="button" className={sortMode === 'value' ? 'active' : ''} aria-pressed={sortMode === 'value'} onClick={() => setSortMode('value')}>
               {config.leagueValueMode === 'redraft' ? 'Season' : 'Value'}
             </button>
@@ -1317,11 +1481,22 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
               <span>{movementSortText}</span>
               <MovementSortIcon className="rankings-sort-direction-icon" aria-hidden="true" />
             </button>
+            <button
+              type="button"
+              className={`rankings-age-sort-button ${sortMode === 'age' ? 'active' : ''}`}
+              aria-pressed={sortMode === 'age'}
+              aria-label={`Sort by ${ageSortLabel}`}
+              title={`Sort by ${ageSortLabel}`}
+              onClick={handleAgeSortClick}
+            >
+              <span>{ageSortText}</span>
+              <AgeSortIcon className="rankings-sort-direction-icon" aria-hidden="true" />
+            </button>
           </div>
         ) : null}
 
-        {config.board === 'devy' && draftClassOptions.length ? (
-          <div className="rankings-control-group rankings-class-toggle value-board__class" aria-label="Draft class filter">
+        {config.board === 'devy' ? (
+          <div className="rankings-control-group rankings-class-toggle rankings-class-toggle-with-sort value-board__class" aria-label="Draft class filter and college rankings sort">
             <button type="button" className={!selectedDraftClass ? 'active' : ''} aria-pressed={!selectedDraftClass} onClick={() => setSelectedDraftClass(null)}>
               All
             </button>
@@ -1330,6 +1505,17 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
                 {draftClass}
               </button>
             ))}
+            <button
+              type="button"
+              className={`rankings-prospect-sort-button ${sortMode === 'prospect' ? 'active' : ''}`}
+              aria-pressed={sortMode === 'prospect'}
+              aria-label={`Sort by ${prospectSortLabel}`}
+              title={`Sort by ${prospectSortLabel}`}
+              onClick={handleProspectSortClick}
+            >
+              <span>{prospectSortText}</span>
+              <ProspectSortIcon className="rankings-sort-direction-icon" aria-hidden="true" />
+            </button>
           </div>
         ) : null}
 
@@ -1342,7 +1528,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
               OVR
             </span>
           </button>
-          {getPositionFilters(config.board, config.hidePicks).map(filter => (
+          {positionFilters.map(filter => (
             <button key={filter.key} type="button" className={getPositionButtonClass(filter.key, selectedPositions.includes(filter.key) || (filter.key === 'PICK' && includePicksWithOverall && selectedPositions.length === 0))} aria-label={filter.label} aria-pressed={selectedPositions.includes(filter.key) || (filter.key === 'PICK' && includePicksWithOverall && selectedPositions.length === 0)} onClick={() => togglePosition(filter.key)}>
               {filter.compactLabel && filter.compactLabel !== filter.label ? (
                 <>
@@ -1357,11 +1543,6 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
                 filter.label
               )}
             </button>
-          ))}
-          {contextPills.map(label => (
-            <span key={label} className="rankings-context-pill">
-              {label}
-            </span>
           ))}
         </div>
       </div>
@@ -1385,8 +1566,8 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
           <span>{config.board === 'devy' ? 'Class' : 'Age'}</span>
           {config.board !== 'devy' ? <span>Last Year</span> : null}
           <span>{config.board === 'devy' ? 'Projection' : 'Manager'}</span>
-          <span>Rank +/-</span>
-          <span>{config.board === 'devy' ? 'Buzz' : '7-Day'}</span>
+          {config.board !== 'devy' ? <span>Rank +/-</span> : null}
+          <span>{config.board === 'devy' ? 'Prospect' : 'Weekly'}</span>
           <span>{config.board === 'devy' ? 'Pos Rank' : config.valueLabel}</span>
         </div>
         {pageRows.map((player, index) => (
@@ -1608,6 +1789,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
         description: modeCopy.rankingsDescription,
         defaultProfileKey: primaryBoard === 'redraft' ? rankings.defaultRedraftProfileKey : rankings.defaultProfileKey,
         hidePicks,
+        leagueDiagnostics,
         leagueValueMode,
         valueLabel,
       },
@@ -1618,6 +1800,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
         description: 'College-only rankings use the same QB and TE-premium profile as this league, with verified prospect measurables layered in where available.',
         defaultProfileKey: rankings.defaultDevyProfileKey,
         hidePicks: true,
+        leagueDiagnostics,
         leagueValueMode,
         valueLabel: 'Prospect Rank',
       } : null,

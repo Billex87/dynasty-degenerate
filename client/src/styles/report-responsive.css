@@ -938,39 +938,60 @@
   }
 
   .value-board__filters {
-    grid-column: 2;
-    grid-row: 1;
-    display: flex;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
     width: 100%;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    gap: 0.3rem;
+    grid-template-columns: repeat(auto-fit, minmax(3.2rem, 1fr));
+    gap: 0.32rem;
   }
 
   .value-board__search {
-    grid-column: 1;
-    grid-row: 2;
+    grid-column: 2;
+    grid-row: 1;
     width: 100%;
     max-width: none;
   }
 
   .value-board__sort {
-    grid-column: 2;
-    grid-row: 2;
-    display: flex;
-    width: auto;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.32rem;
   }
 
   .value-board__class {
     grid-column: 1 / -1;
     grid-row: 3;
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(4.8rem, 1fr));
+    gap: 0.32rem;
+  }
+
+  .rankings-controls-devy .value-board__class {
+    grid-row: 2;
+  }
+
+  .rankings-controls-devy .value-board__filters {
+    grid-row: 3;
   }
 
   .value-board__filters .ranking-position-button,
   .rankings-controls-with-picks .value-board__filters .ranking-position-button {
-    min-width: 2.55rem;
+    min-width: 0;
+  }
+
+  .value-board__sort button,
+  .value-board__filters button,
+  .value-board__class button {
+    width: 100%;
+    min-width: 0 !important;
+    min-height: 2rem;
+    padding-inline: 0.32rem;
+    font-size: 0.58rem;
   }
 
   .value-board__row-header,
@@ -1837,7 +1858,9 @@
   display: contents;
 }
 
-.rankings-movement-sort-button {
+.rankings-movement-sort-button,
+.rankings-age-sort-button,
+.rankings-prospect-sort-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3889,7 +3912,7 @@
 
 @media (min-width: 700px) and (max-width: 1100px) and (orientation: portrait) {
   .home-shell::before {
-    background-image: url("/brand/hero/background/webp/hero-bg-tablet-portrait-768x1200.webp") !important;
+    background-image: url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") !important;
     background-position: center top !important;
   }
 
@@ -3900,7 +3923,7 @@
 
 @media (max-width: 699px) and (orientation: portrait) {
   .home-shell::before {
-    background-image: url("/brand/hero/background/webp/hero-bg-mobile-portrait-long-430x1200.webp") !important;
+    background-image: url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") !important;
     background-position: center top !important;
   }
 
@@ -3943,13 +3966,13 @@
 
 @media (max-width: 399px) and (orientation: portrait) {
   .home-shell::before {
-    background-image: url("/brand/hero/background/webp/hero-bg-mobile-portrait-long-390x1100.webp") !important;
+    background-image: url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") !important;
   }
 
   .overview-command-canvas {
     background:
       linear-gradient(180deg, rgba(3, 8, 12, 0.18) 0%, rgba(3, 8, 12, 0.5) 19rem, rgba(3, 8, 12, 0.97) 38rem, rgba(3, 8, 12, 0.995) 100%),
-      url("/brand/hero/background/webp/hero-bg-mobile-portrait-long-390x1100.webp") center top / cover no-repeat,
+      url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") center top / cover no-repeat,
       linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       rgba(3, 8, 16, 0.74) !important;
@@ -5132,7 +5155,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 520px) {
   .trade-detail-modal {
     padding: 0.52rem !important;
   }
@@ -5932,6 +5955,17 @@
 .analysis-preview-chip-negative {
   border-color: rgba(251, 113, 133, 0.3);
   background: rgba(127, 29, 29, 0.22);
+}
+
+.analysis-preview-chip-bad-signal {
+  border-color: rgba(248, 113, 113, 0.42) !important;
+  background: rgba(127, 29, 29, 0.32) !important;
+  color: #fecaca !important;
+}
+
+.analysis-preview-chip-bad-signal > .analysis-preview-chip-label,
+.analysis-preview-chip-bad-signal > strong {
+  color: #fecaca !important;
 }
 
 .value-pill-mode-aware,
@@ -10157,6 +10191,45 @@
   min-width: 0;
 }
 
+.report-disclosure-preview-row
+  .analysis-preview-chip-row:has(.analysis-preview-player-with-meta) {
+  width: auto;
+  max-width: 100%;
+  gap: 0.38rem;
+}
+
+.report-disclosure-preview-row
+  .analysis-preview-chip-row:has(.analysis-preview-player-with-meta)
+  .analysis-preview-chip {
+  width: max-content;
+  min-width: 0;
+  max-width: min(100%, 17rem);
+  flex: 0 1 auto;
+  gap: 0.34rem;
+  padding: 0.28rem 0.5rem;
+  font-size: clamp(0.58rem, 0.78vw, 0.68rem);
+}
+
+.report-disclosure-preview-row .analysis-preview-player-with-meta {
+  width: auto;
+  min-width: 0;
+  gap: 0.3rem;
+}
+
+.report-disclosure-preview-row
+  .analysis-preview-player-with-meta
+  .analysis-preview-player {
+  max-width: min(10rem, 38vw);
+  flex: 0 1 auto;
+}
+
+.report-disclosure-preview-row .analysis-preview-player-count {
+  min-width: max-content;
+  margin-left: 0;
+  padding: 0.1rem 0.3rem;
+  font-size: clamp(0.52rem, 0.68vw, 0.58rem);
+}
+
 .report-disclosure-preview-row .analysis-preview-chip-row-single .analysis-preview-chip {
   flex: 0 1 auto;
   min-width: min(100%, 7.7rem);
@@ -10263,6 +10336,9 @@
 
 .owner-intel-sort-controls {
   display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  flex: 0 0 auto;
   min-width: 0;
   align-items: center;
   justify-content: center;
@@ -10358,6 +10434,24 @@
   width: 100%;
   justify-items: center;
   text-align: center;
+}
+
+.report-shell .report-disclosure-preview-row:has(.trade-war-mode-tabs-header) {
+  justify-content: flex-end;
+}
+
+.report-shell .report-disclosure-preview-row:has(.trade-war-mode-tabs-header) > .analysis-preview-chip-row:empty {
+  display: none;
+}
+
+.report-shell .report-disclosure-preview-row:has(.trade-war-mode-tabs-header) > .report-disclosure-preview-accessory {
+  flex: 0 0 auto;
+}
+
+.report-shell .trade-war-mode-tabs-header {
+  width: max-content;
+  max-width: 100%;
+  flex: 0 0 auto;
 }
 
 .report-shell .command-depth-name {
@@ -10544,7 +10638,8 @@
   }
 
   .owner-intel-sort-controls {
-    width: min(100%, 18.5rem);
+    width: max-content;
+    max-width: 100%;
     gap: 0.18rem;
     padding: 0.14rem;
   }
@@ -10552,10 +10647,19 @@
   .owner-intel-sort-button {
     min-height: 1.48rem;
     min-width: 0;
-    flex: 1 1 0;
+    flex: 0 0 auto;
     padding: 0.18rem 0.3rem;
     font-size: 0.52rem;
     letter-spacing: 0.035em;
+  }
+
+  .report-shell .trade-war-mode-tabs-header {
+    width: max-content;
+    max-width: 100%;
+  }
+
+  .report-shell .trade-war-mode-tabs-header button {
+    flex: 0 0 auto;
   }
 
   .owner-intel-score-label-full {
@@ -11658,7 +11762,7 @@
     min-height: clamp(22rem, 78vw, 24rem);
     border-bottom: 1px solid rgba(0, 200, 232, 0.12);
     background:
-      url("/brand/hero/background/webp/hero-bg-mobile-portrait-430x932.webp") center top / cover no-repeat,
+      url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") center top / cover no-repeat,
       rgba(3, 8, 16, 0.74) !important;
   }
 
@@ -11688,7 +11792,7 @@
 
 @media (max-width: 399px) and (orientation: portrait) {
   .report-shell .report-overview-hero {
-    background-image: url("/brand/hero/background/webp/hero-bg-mobile-portrait-390x844.webp") !important;
+    background-image: url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") !important;
   }
 
   .report-shell .report-header-grid {
@@ -11891,6 +11995,11 @@
   max-width: 100%;
 }
 
+.report-shell .balanced-tile-grid > :is(.owner-summary-tile, .command-depth-tile, .trade-profit-card, .draft-decision-card) {
+  height: auto !important;
+  align-self: stretch;
+}
+
 @media (max-width: 1535px) {
   :is(.report-shell, .manager-command-dialog) .balanced-centered-tile-grid,
   .report-shell .balanced-tile-grid {
@@ -12035,9 +12144,14 @@
 
   .report-dashboard-spotlight-inline {
     display: grid !important;
-    width: min(100%, 62rem);
-    margin: clamp(0.82rem, 2vw, 1.2rem) auto 0;
+    width: 100% !important;
+    margin: clamp(0.82rem, 2vw, 1.2rem) 0 0 !important;
     z-index: 2;
+  }
+
+  .report-shell .report-dashboard-spotlight-inline::before {
+    background-position: right 0 top -30rem !important;
+    background-size: 100% auto !important;
   }
 
   .report-dashboard-spotlight-inline .dashboard-position-ranks,
@@ -12488,7 +12602,8 @@
 
 @media (max-width: 767px) {
   .report-dashboard-spotlight-inline {
-    width: calc(100% - 1rem) !important;
+    width: 100% !important;
+    margin-inline: 0 !important;
     margin-top: 0.58rem !important;
     border-radius: 0.88rem !important;
   }
@@ -13161,7 +13276,7 @@
   .report-shell .overview-command-canvas {
     background:
       linear-gradient(180deg, rgba(3, 8, 12, 0.08) 0%, rgba(3, 8, 12, 0.18) 26rem, rgba(3, 8, 12, 0.56) 50rem, rgba(3, 8, 12, 0.92) 100%),
-      url("/brand/hero/background/webp/hero-bg-mobile-portrait-long-430x1200.webp") center top / cover no-repeat,
+      url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") center top / cover no-repeat,
       linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       rgba(3, 8, 16, 0.62) !important;
@@ -13172,7 +13287,7 @@
   .report-shell .overview-command-canvas {
     background:
       linear-gradient(180deg, rgba(3, 8, 12, 0.08) 0%, rgba(3, 8, 12, 0.18) 24rem, rgba(3, 8, 12, 0.56) 48rem, rgba(3, 8, 12, 0.92) 100%),
-      url("/brand/hero/background/webp/hero-bg-mobile-portrait-long-390x1100.webp") center top / cover no-repeat,
+      url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") center top / cover no-repeat,
       linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       rgba(3, 8, 16, 0.62) !important;
@@ -13187,14 +13302,48 @@
 }
 
 .report-shell .report-overview-metrics {
-  width: min(100%, 40rem) !important;
-  grid-template-columns: minmax(5.75rem, 1fr) minmax(5.75rem, 1fr) minmax(8.5rem, 1.18fr) minmax(5.75rem, 1fr) minmax(5.75rem, 1fr) !important;
-  background: rgba(4, 11, 20, 0.58) !important;
+  width: min(100%, 48rem) !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  border-color: rgba(103, 232, 249, 0.18) !important;
+  background:
+    linear-gradient(180deg, rgba(4, 14, 24, 0.42), rgba(2, 8, 16, 0.28)) !important;
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 28px rgba(103, 232, 249, 0.03) !important;
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+}
+
+.report-shell .report-overview-metrics .dashboard-metric-card {
+  border-left-color: rgba(103, 232, 249, 0.13) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(103, 232, 249, 0.11), transparent 58%),
+    linear-gradient(180deg, rgba(2, 12, 22, 0.28), rgba(2, 6, 14, 0.14)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+}
+
+.report-shell .report-overview-metrics .dashboard-metric-card[data-tone="good"] {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(34, 197, 94, 0.13), transparent 58%),
+    linear-gradient(180deg, rgba(2, 12, 22, 0.26), rgba(2, 6, 14, 0.14)) !important;
+}
+
+.report-shell .report-overview-metrics .dashboard-metric-card[data-tone="warn"] {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(244, 160, 32, 0.13), transparent 58%),
+    linear-gradient(180deg, rgba(2, 12, 22, 0.26), rgba(2, 6, 14, 0.14)) !important;
+}
+
+.report-shell .report-overview-metrics .dashboard-metric-card[data-tone="danger"] {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(239, 68, 68, 0.12), transparent 58%),
+    linear-gradient(180deg, rgba(2, 12, 22, 0.26), rgba(2, 6, 14, 0.14)) !important;
 }
 
 .report-shell .report-overview-metrics-3 {
-  width: min(100%, 29rem) !important;
-  grid-template-columns: minmax(7.25rem, 1fr) minmax(8.5rem, 1.08fr) minmax(7.25rem, 1fr) !important;
+  width: min(100%, 48rem) !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
 }
 
 .report-shell .report-overview-metrics-2 {
@@ -13233,6 +13382,24 @@
 .report-shell .report-overview-metrics .dashboard-balance-metric > span,
 .report-shell .report-overview-metrics .dashboard-balance-metric > em {
   min-width: 0;
+}
+
+.report-shell .report-overview-metrics .dashboard-metric-card {
+  min-height: 8.35rem;
+  padding: clamp(0.62rem, 1vw, 0.86rem) clamp(0.66rem, 1.04vw, 0.92rem);
+}
+
+.report-shell .report-overview-metrics .dashboard-metric-card > strong,
+.report-shell .report-overview-metrics .dashboard-target-lockup > strong,
+.report-shell .report-overview-metrics .dashboard-target-metric > strong,
+.report-shell .report-overview-metrics .dashboard-badge-list-metric > strong,
+.report-shell .report-overview-metrics .dashboard-delta-metric > strong {
+  font-size: clamp(0.92rem, 1.05vw, 1.14rem);
+}
+
+.report-shell .report-overview-metrics .dashboard-metric-card > em,
+.report-shell .report-overview-metrics .dashboard-metric-card > small {
+  font-size: clamp(0.56rem, 0.62vw, 0.66rem);
 }
 
 .report-shell .report-dashboard-spotlight {
@@ -13709,6 +13876,40 @@
   display: none !important;
 }
 
+.report-shell .value-board__manager {
+  justify-content: center;
+  overflow: visible;
+}
+
+.report-shell .value-board__manager .ranking-owner-chip {
+  display: none !important;
+}
+
+.report-shell .value-board__manager .ranking-owner-avatar-wrap,
+.report-shell .value-board__manager .ranking-owner-avatar-only,
+.report-shell .value-board__manager .ranking-owner-avatar-fallback {
+  display: inline-flex !important;
+  width: 1.72rem !important;
+  min-width: 1.72rem !important;
+  height: 1.72rem !important;
+  min-height: 1.72rem !important;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.report-shell .value-board__manager .ranking-owner-avatar-only,
+.report-shell .value-board__manager .ranking-owner-avatar-fallback {
+  border: 1px solid rgba(34, 211, 238, 0.34);
+  background: rgba(2, 6, 23, 0.72);
+  color: #fed7aa;
+  font-size: 0.54rem;
+  font-weight: 1000;
+  line-height: 1;
+  object-fit: cover;
+}
+
 .report-shell .waiver-intel-card .available-manager-label {
   display: none !important;
 }
@@ -13724,13 +13925,109 @@
 }
 
 .report-shell .rookie-draft-manager-cell .manager-chip {
-  width: auto !important;
+  width: 1.85rem !important;
+  min-width: 1.85rem !important;
+  min-height: 1.85rem !important;
   max-width: 1.85rem !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: visible !important;
   gap: 0 !important;
 }
 
 .report-shell .rookie-draft-manager-cell .interactive-identity-name {
   display: none !important;
+}
+
+.report-shell .rookie-draft-manager-cell .manager-chip-icon-only .interactive-identity-avatar {
+  width: 1.85rem !important;
+  min-width: 1.85rem !important;
+  height: 1.85rem !important;
+  min-height: 1.85rem !important;
+}
+
+@media (max-width: 767px) {
+  .report-shell .rookie-draft-row {
+    grid-template-columns: 2.35rem minmax(0, 1fr) max-content !important;
+    grid-template-areas:
+      "pick player change"
+      "team age manager"
+      "draft draftValue draftValue"
+      "now currentValue currentValue" !important;
+    align-items: center !important;
+    gap: 0.42rem 0.5rem !important;
+    padding: 0.68rem 0.72rem !important;
+  }
+
+  .report-shell .rookie-draft-team-cell,
+  .report-shell .rookie-draft-age-cell,
+  .report-shell .rookie-draft-manager-cell,
+  .report-shell .rookie-draft-rank-cell,
+  .report-shell .rookie-draft-value-cell {
+    position: static !important;
+    display: inline-flex !important;
+    width: max-content !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 1.36rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .report-shell .rookie-draft-team-cell {
+    grid-area: team !important;
+    justify-self: start !important;
+  }
+
+  .report-shell .rookie-draft-age-cell {
+    grid-area: age !important;
+    justify-self: center !important;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.56);
+    padding: 0.14rem 0.36rem;
+    color: #cbd5e1;
+    font-size: 0.58rem;
+    font-weight: 950;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .report-shell .rookie-draft-manager-cell {
+    grid-area: manager !important;
+    justify-self: end !important;
+  }
+
+  .report-shell .rookie-draft-rank-cell-draft {
+    grid-area: draft !important;
+  }
+
+  .report-shell .rookie-draft-value-cell[data-label="Draft"] {
+    grid-area: draftValue !important;
+  }
+
+  .report-shell .rookie-draft-rank-cell-current {
+    grid-area: now !important;
+  }
+
+  .report-shell .rookie-draft-value-cell[data-label="Now"] {
+    grid-area: currentValue !important;
+    justify-self: start !important;
+  }
+
+  .report-shell .rookie-draft-rank-cell::before,
+  .report-shell .rookie-draft-value-cell::before {
+    content: none !important;
+    margin-right: 0 !important;
+  }
+
+  .report-shell .rookie-draft-rank-cell,
+  .report-shell .rookie-draft-value-cell {
+    padding-inline: 0.42rem !important;
+    font-size: 0.58rem !important;
+    letter-spacing: 0 !important;
+    white-space: nowrap !important;
+  }
 }
 
 /* Final audit fixes: keep Rankings archive/admin headers inside their shells. */
@@ -14417,9 +14714,9 @@
    Since the image is 100% auto, its rendered height scales with vw — a vw offset keeps position proportional. */
 .report-shell .overview-command-canvas {
   background:
-    linear-gradient(90deg, rgba(3, 8, 12, 0.16) 0%, rgba(3, 8, 12, 0.05) 36%, rgba(3, 8, 12, 0) 74%, rgba(3, 8, 12, 0) 100%),
-    linear-gradient(180deg, rgba(3, 8, 12, 0) 0%, rgba(3, 8, 12, 0.08) 42rem, rgba(3, 8, 12, 0.3) 98rem, rgba(3, 8, 12, 0.78) 100%),
-    url("/brand/backgrounds/webp/page/page-bg-desktop-1920x3000.webp") center calc(-55vw) / 100% auto no-repeat,
+    linear-gradient(90deg, rgba(3, 8, 12, 0.18) 0%, rgba(3, 8, 12, 0.08) 36%, rgba(3, 8, 12, 0) 74%, rgba(3, 8, 12, 0) 100%),
+    linear-gradient(180deg, rgba(3, 8, 12, 0.04) 0%, rgba(3, 8, 12, 0.08) 42rem, rgba(3, 8, 12, 0.26) 98rem, rgba(3, 8, 12, 0.76) 100%),
+    url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") right 0 top -4rem / 100% auto no-repeat,
     radial-gradient(circle at 76% 3%, rgba(244, 160, 32, 0.08), transparent 24rem),
     radial-gradient(circle at 30% 0%, rgba(0, 200, 232, 0.07), transparent 28rem),
     linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
@@ -14430,9 +14727,7 @@
 }
 
 .report-shell .report-overview-hero {
-  background:
-    url("/brand/hero/background/webp/hero-bg-desktop-long-1920x1200.webp") center -3.5rem / cover no-repeat,
-    rgba(3, 8, 16, 0.3) !important;
+  background: transparent !important;
 }
 
 .report-shell .report-overview-hero::after {
@@ -14442,8 +14737,11 @@
 }
 
 .report-shell .report-dashboard-spotlight::before {
-  background-image: url("/brand/backgrounds/webp/right-panel/right-panel-desktop-tall-460x1600.webp") !important;
-  background-position: center -10.5rem !important;
+  background-image: image-set(
+    url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-768x1024.png") 1x,
+    url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-long-1086x1448.png") 2x
+  ) !important;
+  background-position: right top !important;
   background-size: cover !important;
   opacity: 1 !important;
 }
@@ -14451,9 +14749,9 @@
 @media (max-width: 1500px) {
   .report-shell .overview-command-canvas {
     background:
-      linear-gradient(90deg, rgba(3, 8, 12, 0.16) 0%, rgba(3, 8, 12, 0.05) 36%, rgba(3, 8, 12, 0) 74%, rgba(3, 8, 12, 0) 100%),
-      linear-gradient(180deg, rgba(3, 8, 12, 0) 0%, rgba(3, 8, 12, 0.08) 38rem, rgba(3, 8, 12, 0.32) 88rem, rgba(3, 8, 12, 0.8) 100%),
-      url("/brand/backgrounds/webp/page/page-bg-laptop-1366x2600.webp") center calc(-63vw) / 100% auto no-repeat,
+      linear-gradient(90deg, rgba(3, 8, 12, 0.18) 0%, rgba(3, 8, 12, 0.08) 36%, rgba(3, 8, 12, 0) 74%, rgba(3, 8, 12, 0) 100%),
+      linear-gradient(180deg, rgba(3, 8, 12, 0.04) 0%, rgba(3, 8, 12, 0.08) 38rem, rgba(3, 8, 12, 0.28) 88rem, rgba(3, 8, 12, 0.78) 100%),
+      url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") right 0 top -3rem / 100% auto no-repeat,
       radial-gradient(circle at 76% 3%, rgba(244, 160, 32, 0.08), transparent 24rem),
       radial-gradient(circle at 30% 0%, rgba(0, 200, 232, 0.07), transparent 28rem),
       linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
@@ -14462,16 +14760,16 @@
   }
 
   .report-shell .report-overview-hero {
-    background-image: url("/brand/hero/background/webp/hero-bg-laptop-1366x768.webp") !important;
-    background-position: center -2.85rem !important;
+    background-image: none !important;
+    background-position: initial !important;
   }
 }
 
 @media (max-width: 1023px) {
   .report-shell .overview-command-canvas {
     background:
-      linear-gradient(180deg, rgba(3, 8, 12, 0.08) 0%, rgba(3, 8, 12, 0.22) 34rem, rgba(3, 8, 12, 0.6) 78rem, rgba(3, 8, 12, 0.94) 100%),
-      url("/brand/backgrounds/webp/page/page-bg-tablet-portrait-768x2600.webp") center top / 100% auto no-repeat,
+      linear-gradient(180deg, rgba(3, 8, 12, 0.04) 0%, rgba(3, 8, 12, 0.1) 24rem, rgba(3, 8, 12, 0.28) 58rem, rgba(3, 8, 12, 0.82) 100%),
+      url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") right 0 top -3rem / 100% auto no-repeat,
       linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       rgba(3, 8, 16, 0.66) !important;
@@ -14484,20 +14782,39 @@
   }
 
   .report-shell .report-dashboard-spotlight::before {
-    background-image: url("/brand/backgrounds/webp/right-panel/right-panel-tablet-768x1800.webp") !important;
-    background-position: center top !important;
+    background-image: image-set(
+      url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-768x1024.png") 1x,
+      url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-long-1086x1448.png") 2x
+    ) !important;
+    background-position: right top !important;
+    background-size: cover !important;
+  }
+}
+
+@media (min-width: 700px) and (max-width: 767px) {
+  .report-shell .overview-command-canvas {
+    background-size: auto, 116% auto, 42px 42px, 42px 42px, auto !important;
+  }
+
+  .report-shell .report-dashboard-spotlight::before {
+    background-image: image-set(
+      url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-768x1024.png") 1x,
+      url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-long-1086x1448.png") 2x
+    ) !important;
+    background-position: right 0 top -3rem !important;
+    background-size: 100% auto !important;
   }
 }
 
 @media (max-width: 699px) and (orientation: portrait) {
   .report-shell .overview-command-canvas {
     background:
-      linear-gradient(180deg, rgba(3, 8, 12, 0.04) 0%, rgba(3, 8, 12, 0.16) 34rem, rgba(3, 8, 12, 0.52) 74rem, rgba(3, 8, 12, 0.9) 100%),
-      url("/brand/backgrounds/webp/page/page-bg-mobile-430x2800.webp") center -9.5rem / 100% auto no-repeat,
+      linear-gradient(180deg, rgba(3, 8, 12, 0.22) 0%, rgba(3, 8, 12, 0.12) 20rem, rgba(3, 8, 12, 0.24) 48rem, rgba(3, 8, 12, 0.82) 100%),
+      url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") 100% -3rem / 146% auto no-repeat,
       linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       rgba(3, 8, 16, 0.62) !important;
-    background-size: auto, 100% auto, 40px 40px, 40px 40px, auto !important;
+    background-size: auto, 146% auto, 40px 40px, 40px 40px, auto !important;
     background-repeat: no-repeat, no-repeat, repeat, repeat, no-repeat !important;
   }
 
@@ -14508,24 +14825,29 @@
 
   .report-shell .report-overview-hero::after {
     background:
-      linear-gradient(90deg, rgba(3, 8, 12, 0.5) 0%, rgba(3, 8, 12, 0.24) 58%, rgba(3, 8, 12, 0.04) 100%),
-      linear-gradient(180deg, rgba(3, 8, 12, 0) 0%, rgba(3, 8, 12, 0.12) 58%, rgba(3, 8, 12, 0.48) 100%) !important;
+      linear-gradient(90deg, rgba(3, 8, 12, 0.46) 0%, rgba(3, 8, 12, 0.2) 58%, rgba(3, 8, 12, 0.04) 100%),
+      linear-gradient(180deg, rgba(3, 8, 12, 0.04) 0%, rgba(3, 8, 12, 0.1) 58%, rgba(3, 8, 12, 0.34) 100%) !important;
   }
 
   .report-shell .report-dashboard-spotlight::before {
-    background-image: url("/brand/backgrounds/webp/right-panel/right-panel-mobile-long-430x2400.webp") !important;
-    background-position: center top !important;
+    background-image: image-set(
+      url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-768x1024.png") 1x,
+      url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-long-1086x1448.png") 2x
+    ) !important;
+    background-position: right 0 top -3rem !important;
+    background-size: 100% auto !important;
   }
 }
 
 @media (max-width: 399px) and (orientation: portrait) {
   .report-shell .overview-command-canvas {
     background:
-      linear-gradient(180deg, rgba(3, 8, 12, 0.04) 0%, rgba(3, 8, 12, 0.16) 32rem, rgba(3, 8, 12, 0.54) 72rem, rgba(3, 8, 12, 0.9) 100%),
-      url("/brand/backgrounds/webp/page/page-bg-mobile-small-390x2600.webp") center top / 100% auto no-repeat,
+      linear-gradient(180deg, rgba(3, 8, 12, 0.24) 0%, rgba(3, 8, 12, 0.12) 19rem, rgba(3, 8, 12, 0.26) 46rem, rgba(3, 8, 12, 0.84) 100%),
+      url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") 100% -2.75rem / 156% auto no-repeat,
       linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 200, 232, 0.025) 1px, transparent 1px),
       rgba(3, 8, 16, 0.62) !important;
+    background-size: auto, 156% auto, 40px 40px, 40px 40px, auto !important;
   }
 
   .report-shell .report-overview-hero {
@@ -14534,8 +14856,12 @@
   }
 
   .report-shell .report-dashboard-spotlight::before {
-    background-image: url("/brand/backgrounds/webp/right-panel/right-panel-mobile-small-390x1800.webp") !important;
-    background-position: center top !important;
+    background-image: image-set(
+      url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-768x1024.png") 1x,
+      url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-long-1086x1448.png") 2x
+    ) !important;
+    background-position: right 0 top -2.5rem !important;
+    background-size: 100% auto !important;
   }
 }
 
@@ -14605,6 +14931,10 @@
 .report-shell .dashboard-overview-section-stack,
 .report-shell .report-command-section-stack {
   padding-inline: 0 !important;
+}
+
+.report-shell .dashboard-overview-section-stack {
+  --dd-readable-name-font: 0.78rem;
 }
 
 .report-shell .report-tab-content {
@@ -14734,6 +15064,56 @@
   .report-shell .weekly-momentum-grid,
   .report-shell .trending-card-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+}
+
+.report-shell .weekly-momentum-grid {
+  display: grid !important;
+  width: min(100%, 82rem);
+  margin-inline: auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr)) !important;
+  align-items: stretch;
+}
+
+.report-shell .trending-card-grid {
+  display: grid !important;
+  width: min(100%, 82rem);
+  margin-inline: auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr)) !important;
+  align-items: stretch;
+}
+
+.report-shell :is(.weekly-momentum-wrap, .weekly-momentum-section-stack, .weekly-momentum-section, .trending-card-wrap, .trending-section-stack, .trending-section) {
+  width: 100%;
+  min-width: 0;
+}
+
+.report-shell .weekly-momentum-grid > .weekly-momentum-tile,
+.report-shell .trending-card-grid > .trending-player-card {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  height: auto;
+}
+
+@media (min-width: 1280px) {
+  .report-shell .weekly-momentum-grid,
+  .report-shell .trending-card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr)) !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .report-shell .weekly-momentum-grid,
+  .report-shell .trending-card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.25rem), 1fr)) !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .report-shell .weekly-momentum-grid,
+  .report-shell .trending-card-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 }
 
@@ -14976,6 +15356,17 @@
   ) {
   font-size: var(--dd-readable-name-font) !important;
   line-height: 1.08 !important;
+}
+
+.report-shell :is(.report-disclosure-summary, .report-disclosure-preview-row, .report-disclosure-preview-slot) .analysis-preview-chip .analysis-preview-manager-value .analysis-preview-manager-name,
+.report-shell :is(.report-disclosure-summary, .report-disclosure-preview-row, .report-disclosure-preview-slot) .analysis-preview-chip .analysis-preview-player .interactive-identity .interactive-identity-name {
+  font-size: 0.68rem !important;
+  font-weight: 900 !important;
+  line-height: 1.02 !important;
+}
+
+.report-shell .analysis-preview-chip :is(.analysis-preview-manager-value, .analysis-preview-player .interactive-identity) {
+  align-items: center;
 }
 
 .report-shell
@@ -15326,6 +15717,11 @@
   .report-shell .report-tab-label-short {
     display: inline !important;
   }
+
+  .report-shell .report-dashboard-spotlight-inline::before {
+    background-position: right 0 top -30rem !important;
+    background-size: 100% auto !important;
+  }
 }
 
 @media (min-width: 768px) and (max-width: 900px) {
@@ -15449,12 +15845,207 @@
     background-position:
       center,
       center,
-      center 42rem,
+      100% -3rem,
       center,
       center,
       0 0,
       0 0,
       center !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .report-shell .report-disclosure-summary:has(.trade-war-mode-tabs-header) {
+    justify-items: center !important;
+  }
+
+  .report-shell .report-disclosure-summary:has(.trade-war-mode-tabs-header) .report-disclosure-preview-row {
+    display: flex !important;
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    justify-self: center !important;
+    justify-content: center !important;
+  }
+
+  .report-shell .report-disclosure-summary:has(.trade-war-mode-tabs-header) .report-disclosure-preview-accessory {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .report-shell .report-disclosure-summary:has(.trade-war-mode-tabs-header) .trade-war-mode-tabs-header {
+    margin-inline: auto !important;
+  }
+
+  .report-shell .report-disclosure-summary:has(.rankings-header-context-pill) {
+    justify-items: center !important;
+  }
+
+  .report-shell .report-disclosure-summary:has(.rankings-header-context-pill) .report-disclosure-preview-row {
+    display: flex !important;
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    justify-self: center !important;
+    justify-content: center !important;
+  }
+
+  .report-shell .report-disclosure-summary:has(.rankings-header-context-pill) .report-disclosure-preview-accessory {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .report-shell .report-disclosure-summary:has(.rankings-header-context-pill) .rankings-header-context-pill {
+    margin-inline: auto !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .report-shell .report-disclosure-summary:has(.trade-war-mode-tabs-header) .report-disclosure-preview-row {
+    transform: translateX(0.82rem);
+  }
+
+  .report-shell .report-disclosure-summary:has(.rankings-header-context-pill) .report-disclosure-preview-row {
+    transform: translateX(0.82rem);
+  }
+}
+
+/* College rankings desktop close-up: there is no college rank-movement column,
+   so collapse that dead track and keep prospect score/position rank adjacent. */
+@media (min-width: 1181px) {
+  .report-shell .rankings-player-grid.value-board__rows-devy :is(.value-board__row-header, .value-board__row) {
+    grid-template-columns:
+      minmax(2.7rem, 2.7rem)
+      minmax(11.5rem, 0.62fr)
+      minmax(4.75rem, 0.5fr)
+      minmax(3.45rem, 0.36fr)
+      minmax(4.2rem, 0.42fr)
+      minmax(9.25rem, 0.72fr)
+      minmax(4.6rem, 0.62fr)
+      minmax(4.8rem, 0.64fr) !important;
+    gap: 0.34rem !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows-devy .value-board__team {
+    grid-column: 3 !important;
+    justify-content: center !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows-devy .value-board__meta {
+    grid-column: 4 !important;
+    justify-content: center !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows-devy .value-board__age {
+    grid-column: 5 !important;
+    justify-content: center !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows-devy .value-board__manager {
+    grid-column: 6 !important;
+    justify-content: flex-end !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows-devy .value-board__movement {
+    display: none !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows-devy .value-board__prospect-score {
+    grid-column: 7 !important;
+    justify-self: center !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows-devy .value-board__value {
+    grid-column: 8 !important;
+    justify-self: center !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows-devy .ranking-devy-line {
+    grid-column: 2 / -1 !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows-devy .value-board__row-header span:nth-child(n + 6) {
+    text-align: center !important;
+  }
+}
+
+/* Rankings desktop polish: the wide table has room for larger player, team,
+   school, and manager marks, so desktop rows should not look sparse. */
+@media (min-width: 1181px) {
+  .report-shell .rankings-header-context-pill {
+    display: inline-flex;
+    min-height: 2.02rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(251, 146, 60, 0.38);
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 18% 10%, rgba(251, 146, 60, 0.2), transparent 54%),
+      linear-gradient(135deg, rgba(124, 45, 18, 0.66), rgba(2, 6, 23, 0.78));
+    padding: 0.42rem 0.78rem;
+    color: #fed7aa;
+    font-size: 0.68rem;
+    font-weight: 1000;
+    letter-spacing: 0.075em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      0 0 18px rgba(249, 115, 22, 0.12);
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows .value-board__player :is(.player-chip img, .player-chip > span[aria-hidden="true"], .ranking-player-image) {
+    width: 2.46rem !important;
+    min-width: 2.46rem !important;
+    height: 2.46rem !important;
+    min-height: 2.46rem !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows .value-board__team {
+    --ranking-team-mark-size: 2.12rem;
+    justify-content: center !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows-devy .value-board__team {
+    --ranking-team-mark-size: 2.28rem;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows .value-board__team :is(.team-logo-pill, .team-logo-pill-fallback, .ranking-college-pill, .ranking-college-pill-icon-only),
+  .report-shell .rankings-player-grid.value-board__rows .value-board__team :is(.team-logo-pill img, .ranking-college-pill img, .ranking-college-fallback-icon) {
+    width: var(--ranking-team-mark-size) !important;
+    min-width: var(--ranking-team-mark-size) !important;
+    max-width: var(--ranking-team-mark-size) !important;
+    height: var(--ranking-team-mark-size) !important;
+    min-height: var(--ranking-team-mark-size) !important;
+    flex: 0 0 var(--ranking-team-mark-size) !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows .value-board__manager .ranking-owner-avatar-wrap,
+  .report-shell .rankings-player-grid.value-board__rows .value-board__manager .ranking-owner-avatar-only,
+  .report-shell .rankings-player-grid.value-board__rows .value-board__manager .ranking-owner-avatar-fallback {
+    width: 2.04rem !important;
+    min-width: 2.04rem !important;
+    height: 2.04rem !important;
+    min-height: 2.04rem !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .report-shell .rankings-header-context-pill {
+    display: inline-flex;
+    min-height: 1.88rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(251, 146, 60, 0.38);
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(124, 45, 18, 0.58), rgba(2, 6, 23, 0.78));
+    padding: 0.34rem 0.62rem;
+    color: #fed7aa;
+    font-size: 0.64rem;
+    font-weight: 1000;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
   }
 }
 
@@ -15465,8 +16056,8 @@
 
   .report-shell .report-header-logo-left {
     display: block !important;
-    width: min(15.25rem, 100%) !important;
-    height: clamp(3.55rem, 4.4vw, 4.35rem) !important;
+    width: min(13.75rem, 100%) !important;
+    height: clamp(3rem, 3.8vw, 3.65rem) !important;
     object-position: left bottom !important;
   }
 }
@@ -15496,7 +16087,7 @@
   .report-shell .overview-command-canvas {
     background-position:
       center,
-      center 44rem,
+      100% -3rem,
       0 0,
       0 0,
       center !important;
@@ -15511,7 +16102,7 @@
   .report-shell .overview-command-canvas {
     background-position:
       center,
-      center 24rem,
+      100% -3rem,
       0 0,
       0 0,
       center !important;
@@ -15526,7 +16117,7 @@
   .report-shell .overview-command-canvas {
     background-position:
       center,
-      center -7.5rem,
+      100% -2.75rem,
       0 0,
       0 0,
       center !important;
@@ -15581,6 +16172,17 @@
 
   .report-shell .report-overview-hero-copy h1 {
     justify-content: center !important;
+    filter:
+      drop-shadow(0 1px 1px rgba(0, 0, 0, 0.98))
+      drop-shadow(0 4px 8px rgba(0, 0, 0, 0.88))
+      drop-shadow(0 10px 22px rgba(0, 0, 0, 0.72)) !important;
+  }
+
+  .report-shell .report-overview-hero-copy p {
+    text-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.98),
+      0 3px 8px rgba(0, 0, 0, 0.86),
+      0 8px 18px rgba(0, 0, 0, 0.68) !important;
   }
 
   .report-shell .report-overview-pills {
@@ -15588,11 +16190,57 @@
     margin-inline: auto !important;
   }
 
+  .report-shell .report-overview-pills span {
+    background: rgba(3, 16, 26, 0.54) !important;
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.38),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.84) !important;
+  }
+
+  .report-shell .report-overview-metrics {
+    border-color: rgba(103, 232, 249, 0.2) !important;
+    background:
+      linear-gradient(180deg, rgba(4, 14, 24, 0.34), rgba(2, 8, 16, 0.2)) !important;
+    box-shadow:
+      0 14px 32px rgba(0, 0, 0, 0.32),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 0 26px rgba(103, 232, 249, 0.035) !important;
+    backdrop-filter: blur(8px) saturate(1.12);
+    -webkit-backdrop-filter: blur(8px) saturate(1.12);
+  }
+
   /* Center all metric tiles */
   .report-shell .report-overview-metrics .dashboard-metric-card {
     display: grid !important;
     justify-items: center !important;
+    border-left-color: rgba(103, 232, 249, 0.14) !important;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(103, 232, 249, 0.13), transparent 58%),
+      linear-gradient(180deg, rgba(2, 12, 22, 0.22), rgba(2, 6, 14, 0.1)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
     text-align: center !important;
+    text-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.92),
+      0 3px 8px rgba(0, 0, 0, 0.64) !important;
+  }
+
+  .report-shell .report-overview-metrics .dashboard-metric-card[data-tone="good"] {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(34, 197, 94, 0.16), transparent 58%),
+      linear-gradient(180deg, rgba(2, 12, 22, 0.2), rgba(2, 6, 14, 0.1)) !important;
+  }
+
+  .report-shell .report-overview-metrics .dashboard-metric-card[data-tone="warn"] {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(244, 160, 32, 0.16), transparent 58%),
+      linear-gradient(180deg, rgba(2, 12, 22, 0.2), rgba(2, 6, 14, 0.1)) !important;
+  }
+
+  .report-shell .report-overview-metrics .dashboard-metric-card[data-tone="danger"] {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(239, 68, 68, 0.14), transparent 58%),
+      linear-gradient(180deg, rgba(2, 12, 22, 0.2), rgba(2, 6, 14, 0.1)) !important;
   }
 
   /* Stack League Health tile vertically: label → circle → sublabel */
@@ -15633,12 +16281,27 @@
 .report-shell .report-dashboard-shell {
   gap: 0 !important;
   flex: 1 0 auto;
+  align-items: stretch !important;
   padding-bottom: 0 !important;
 }
 
-.report-shell .report-dashboard-main,
+.report-shell .report-dashboard-main {
+  align-items: stretch !important;
+  min-height: 0 !important;
+}
+
 .report-shell .overview-command-canvas {
-  min-height: 100%;
+  min-height: 100% !important;
+}
+
+.report-shell .report-dashboard-spotlight {
+  align-self: stretch !important;
+  height: 100%;
+}
+
+.report-shell .report-dashboard-spotlight-inline {
+  align-self: start !important;
+  height: auto !important;
 }
 
 .report-shell .report-footer {
@@ -15811,6 +16474,39 @@
 }
 
 @media (max-width: 767px) {
+  .report-shell .report-footer-primary-actions {
+    display: grid;
+    width: min(100%, 22rem);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .report-shell .report-footer-admin-row {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+
+  .report-shell .report-footer .report-ai-voice-trigger,
+  .report-shell .report-footer .report-switch-league-trigger {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    justify-self: stretch;
+    padding-inline: 0.68rem !important;
+  }
+
+  .report-shell .report-footer .report-header-action-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .report-shell .dashboard-overview-section-stack {
+    --dd-readable-name-font: clamp(0.62rem, 2.45vw, 0.66rem);
+  }
+
   .report-shell .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview {
     display: flex !important;
     grid-column: 1 / -1 !important;
@@ -15835,5 +16531,1997 @@
   .report-shell .draft-analysis-stack .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip:nth-child(n + 4),
   .report-shell .draft-year-card-grid .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip:nth-child(n + 5) {
     display: none !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview {
+    display: grid !important;
+    width: min(100%, 24rem) !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.35rem), 1fr));
+    align-items: stretch;
+    justify-content: center !important;
+    gap: 0.42rem !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-summary > .analysis-preview-chip-row-single.report-disclosure-preview {
+    grid-template-columns: minmax(0, min(100%, 18rem));
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row .analysis-preview-chip {
+    width: 100% !important;
+    max-width: none !important;
+    justify-content: flex-start;
+    gap: 0.3rem;
+    padding-inline: 0.5rem;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip > .analysis-preview-chip-label,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row .analysis-preview-chip > .analysis-preview-chip-label {
+    display: inline-flex !important;
+    flex: 0 0 auto;
+    max-width: min(42%, 5.8rem);
+    overflow: visible;
+    font-size: 0.54rem;
+    letter-spacing: 0.035em;
+    white-space: nowrap;
+  }
+
+  .report-shell .dashboard-overview-section-stack .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-full {
+    display: none !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-compact {
+    display: inline-block !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .analysis-preview-chip > strong {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .report-shell .dashboard-overview-section-stack .analysis-preview-manager-value {
+    width: 100%;
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    gap: 0.24rem;
+  }
+
+  .report-shell .dashboard-overview-section-stack .analysis-preview-manager-name {
+    max-width: none !important;
+    min-width: 0;
+    font-size: var(--dd-readable-name-font) !important;
+    font-weight: 800;
+    line-height: 1.08;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row:has(.owner-intel-sort-controls) > .analysis-preview-chip-row {
+    width: min(100%, 24rem);
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row-middle {
+    grid-template-columns: minmax(0, min(100%, 21rem)) !important;
+    grid-template-areas:
+      "accessory"
+      "lead"
+      "trail" !important;
+    width: min(100%, 24rem) !important;
+    justify-self: center;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row-middle .report-disclosure-preview-slot {
+    justify-content: center !important;
+  }
+
+  .report-shell .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview,
+  .report-shell .report-disclosure-preview-row > .analysis-preview-chip-row.report-disclosure-preview,
+  .report-shell .report-disclosure-preview-slot > .analysis-preview-chip-row.report-disclosure-preview {
+    display: grid !important;
+    width: min(100%, 23rem) !important;
+    max-width: 100% !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.1rem), 1fr)) !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+    gap: 0.32rem !important;
+  }
+
+  .report-shell .report-disclosure-summary {
+    --dd-readable-pill-font: clamp(0.5rem, 2.15vw, 0.58rem);
+    --dd-readable-name-font: clamp(0.6rem, 2.32vw, 0.66rem);
+  }
+
+  .report-shell .report-disclosure-summary > .analysis-preview-chip-row-single.report-disclosure-preview,
+  .report-shell .report-disclosure-preview-row > .analysis-preview-chip-row-single.report-disclosure-preview,
+  .report-shell .report-disclosure-preview-slot > .analysis-preview-chip-row-single.report-disclosure-preview {
+    width: min(100%, 13.5rem) !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .report-disclosure-preview-row .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip {
+    display: inline-flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 1.72rem !important;
+    justify-content: flex-start !important;
+    gap: 0.22rem !important;
+    padding: 0.28rem 0.38rem !important;
+    font-size: clamp(0.5rem, 2.15vw, 0.58rem) !important;
+    line-height: 1 !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip > .analysis-preview-chip-label,
+  .report-shell .report-disclosure-preview-row .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip > .analysis-preview-chip-label,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip > .analysis-preview-chip-label {
+    flex: 0 0 auto !important;
+    max-width: min(43%, 4.75rem) !important;
+    gap: 0.18rem !important;
+    overflow: hidden !important;
+    font-size: clamp(0.46rem, 1.95vw, 0.52rem) !important;
+    letter-spacing: 0.03em !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-full {
+    display: none !important;
+  }
+
+  .report-shell .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-compact {
+    display: inline-block !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-chip > strong,
+  .report-shell .report-disclosure-preview-row .analysis-preview-chip > strong,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-chip > strong {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-manager-value,
+  .report-shell .report-disclosure-preview-row .analysis-preview-manager-value,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-manager-value {
+    width: 100% !important;
+    max-width: none !important;
+    gap: 0.18rem !important;
+    justify-content: flex-start !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-manager-avatar,
+  .report-shell .report-disclosure-preview-row .analysis-preview-manager-avatar,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-manager-avatar {
+    width: 1.08rem !important;
+    height: 1.08rem !important;
+    flex-basis: 1.08rem !important;
+    font-size: 0.48rem !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-manager-name,
+  .report-shell .report-disclosure-preview-row .analysis-preview-manager-name,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-manager-name {
+    max-width: none !important;
+    overflow: hidden !important;
+    font-size: clamp(0.6rem, 2.32vw, 0.66rem) !important;
+    font-weight: 800 !important;
+    line-height: 1.05 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-player .interactive-identity-name,
+  .report-shell .report-disclosure-preview-row .analysis-preview-player .interactive-identity-name,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-player .interactive-identity-name {
+    max-width: none !important;
+    overflow: hidden !important;
+    font-size: clamp(0.6rem, 2.32vw, 0.66rem) !important;
+    font-weight: 800 !important;
+    line-height: 1.05 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell :is(
+    .report-metric-pill,
+    .owner-metric-pill,
+    .command-mini-badge,
+    .trade-habit-pill,
+    .manager-intel-pill,
+    .weekly-momentum-pills span,
+    .weekly-momentum-values span,
+    .trending-player-card-pills span,
+    .trade-market-pills span,
+    .waiver-intel-pills span,
+    .player-tile-pills span,
+    .recent-transaction-player-pills span,
+    .rankings-active-profile,
+    .ranking-card-rank-pill,
+    .ranking-trend-pill,
+    .position-rank-pill,
+    .value-pill
+  ) {
+    min-height: 1.3rem !important;
+    padding-inline: 0.42rem !important;
+    font-size: clamp(0.5rem, 2vw, 0.58rem) !important;
+    letter-spacing: 0.035em !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack :is(.command-depth-grid, .position-counts-tile-grid).balanced-tile-grid {
+    align-items: flex-start;
+  }
+
+  .report-shell .dashboard-overview-section-stack :is(.command-depth-tile, .owner-summary-tile) {
+    height: auto !important;
+    align-self: flex-start;
+  }
+
+  .report-shell .dashboard-overview-section-stack .taxi-triage-depth-tile {
+    min-height: 6.4rem !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .position-count-summary-tile {
+    min-height: 7.2rem !important;
+  }
+
+  .report-shell .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview,
+  .report-shell .report-disclosure-preview-row > .analysis-preview-chip-row.report-disclosure-preview,
+  .report-shell .report-disclosure-preview-slot > .analysis-preview-chip-row.report-disclosure-preview,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row:has(.owner-intel-sort-controls) > .analysis-preview-chip-row {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.34rem !important;
+  }
+
+  .report-shell .report-disclosure-summary > .analysis-preview-chip-row-single.report-disclosure-preview,
+  .report-shell .report-disclosure-preview-row > .analysis-preview-chip-row-single.report-disclosure-preview,
+  .report-shell .report-disclosure-preview-slot > .analysis-preview-chip-row-single.report-disclosure-preview,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-summary > .analysis-preview-chip-row-single.report-disclosure-preview {
+    width: 100% !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .report-disclosure-preview-row .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row .analysis-preview-chip {
+    width: auto !important;
+    max-width: min(12rem, calc(50% - 0.18rem)) !important;
+    flex: 0 1 auto !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-chip-row-single.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .report-disclosure-preview-row .analysis-preview-chip-row-single.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-chip-row-single.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-summary .analysis-preview-chip-row-single.report-disclosure-preview .analysis-preview-chip {
+    max-width: min(100%, 15rem) !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-chip > strong,
+  .report-shell .report-disclosure-preview-row .analysis-preview-chip > strong,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-chip > strong,
+  .report-shell .dashboard-overview-section-stack .analysis-preview-chip > strong {
+    width: auto !important;
+    flex: 0 1 auto !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-manager-value,
+  .report-shell .report-disclosure-preview-row .analysis-preview-manager-value,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-manager-value,
+  .report-shell .dashboard-overview-section-stack .analysis-preview-manager-value {
+    width: auto !important;
+    flex: 0 1 auto !important;
+    justify-content: center !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-chip > .analysis-preview-chip-label,
+  .report-shell .report-disclosure-preview-row .analysis-preview-chip > .analysis-preview-chip-label,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-chip > .analysis-preview-chip-label,
+  .report-shell .dashboard-overview-section-stack .analysis-preview-chip > .analysis-preview-chip-label {
+    max-width: none !important;
+    text-align: center !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 900px) {
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row:has(.owner-intel-sort-controls) {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.44rem !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row:has(.owner-intel-sort-controls) > .report-disclosure-preview-accessory {
+    order: 1 !important;
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row:has(.owner-intel-sort-controls) .owner-intel-sort-controls {
+    width: max-content !important;
+    max-width: 100% !important;
+    margin-inline: auto !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row:has(.owner-intel-sort-controls) > .analysis-preview-chip-row {
+    order: 2 !important;
+    display: grid !important;
+    width: min(100%, 28rem) !important;
+    max-width: 100% !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+    justify-self: center !important;
+    gap: 0.38rem !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row:has(.owner-intel-sort-controls) .analysis-preview-chip {
+    width: 100% !important;
+    max-width: none !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row:has(.owner-intel-sort-controls) .analysis-preview-chip > .analysis-preview-chip-label {
+    max-width: none !important;
+    overflow: visible !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row:has(.owner-intel-sort-controls) .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-full {
+    display: inline-block !important;
+  }
+
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row:has(.owner-intel-sort-controls) .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-compact {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 900px) {
+  .report-shell .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview,
+  .report-shell .report-disclosure-preview-row > .analysis-preview-chip-row.report-disclosure-preview,
+  .report-shell .report-disclosure-preview-slot > .analysis-preview-chip-row.report-disclosure-preview,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row:has(.owner-intel-sort-controls) > .analysis-preview-chip-row {
+    display: flex !important;
+    width: auto !important;
+    max-width: 100% !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.34rem !important;
+  }
+
+  .report-shell .report-disclosure-summary > .analysis-preview-chip-row-single.report-disclosure-preview,
+  .report-shell .report-disclosure-preview-row > .analysis-preview-chip-row-single.report-disclosure-preview,
+  .report-shell .report-disclosure-preview-slot > .analysis-preview-chip-row-single.report-disclosure-preview,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-summary > .analysis-preview-chip-row-single.report-disclosure-preview {
+    width: auto !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .report-disclosure-preview-row .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-summary .analysis-preview-chip-row.report-disclosure-preview .analysis-preview-chip,
+  .report-shell .dashboard-overview-section-stack .report-disclosure-preview-row .analysis-preview-chip {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: min(100%, 14rem) !important;
+    flex: 0 1 auto !important;
+    justify-content: flex-start !important;
+    gap: 0.28rem !important;
+    padding: 0.3rem 0.48rem !important;
+    text-align: left !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-chip > .analysis-preview-chip-label,
+  .report-shell .report-disclosure-preview-row .analysis-preview-chip > .analysis-preview-chip-label,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-chip > .analysis-preview-chip-label,
+  .report-shell .dashboard-overview-section-stack .analysis-preview-chip > .analysis-preview-chip-label {
+    display: inline-flex !important;
+    max-width: none !important;
+    flex: 0 0 auto !important;
+    overflow: visible !important;
+    gap: 0.2rem !important;
+    text-align: left !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .analysis-preview-chip-label-hidden > .analysis-preview-chip-label {
+    display: inline-flex !important;
+  }
+
+  .report-shell .analysis-preview-chip-label-hidden .analysis-preview-chip-label-text {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    clip: auto !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-full {
+    display: none !important;
+  }
+
+  .report-shell .analysis-preview-chip-label-has-compact .analysis-preview-chip-label-text-compact {
+    display: inline-block !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-chip > strong,
+  .report-shell .report-disclosure-preview-row .analysis-preview-chip > strong,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-chip > strong,
+  .report-shell .dashboard-overview-section-stack .analysis-preview-chip > strong {
+    width: auto !important;
+    min-width: 0 !important;
+    flex: 0 1 auto !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-manager-value,
+  .report-shell .report-disclosure-preview-row .analysis-preview-manager-value,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-manager-value,
+  .report-shell .dashboard-overview-section-stack .analysis-preview-manager-value {
+    width: auto !important;
+    max-width: min(100%, 10.5rem) !important;
+    flex: 0 1 auto !important;
+    justify-content: flex-start !important;
+  }
+
+  .report-shell .report-disclosure-summary .analysis-preview-manager-name,
+  .report-shell .report-disclosure-preview-row .analysis-preview-manager-name,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-manager-name,
+  .report-shell .dashboard-overview-section-stack .analysis-preview-manager-name,
+  .report-shell .report-disclosure-summary .analysis-preview-player .interactive-identity-name,
+  .report-shell .report-disclosure-preview-row .analysis-preview-player .interactive-identity-name,
+  .report-shell .report-disclosure-preview-slot .analysis-preview-player .interactive-identity-name,
+  .report-shell .dashboard-overview-section-stack .analysis-preview-player .interactive-identity-name {
+    max-width: min(8.5rem, 35vw) !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .analysis-preview-chip > .analysis-preview-chip-label {
+    display: inline-flex !important;
+    max-width: none !important;
+    flex: 0 0 auto !important;
+    overflow: visible !important;
+    gap: 0.2rem !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .analysis-preview-chip > strong {
+    width: auto !important;
+    min-width: 0 !important;
+    flex: 0 1 auto !important;
+  }
+
+  .report-shell :is(.report-disclosure-summary, .report-disclosure-preview-row, .report-disclosure-preview-slot)
+    .analysis-preview-chip:is(.analysis-preview-chip-manager-preview, .analysis-preview-chip-starter-room)
+    > .analysis-preview-chip-label.analysis-preview-chip-label-has-compact {
+    display: inline-flex !important;
+  }
+
+  .report-shell :is(.report-disclosure-summary, .report-disclosure-preview-row, .report-disclosure-preview-slot)
+    .analysis-preview-chip:is(.analysis-preview-chip-manager-preview, .analysis-preview-chip-starter-room)
+    > .analysis-preview-chip-label-has-compact
+    > .analysis-preview-chip-label-text-full {
+    display: none !important;
+  }
+
+  .report-shell :is(.report-disclosure-summary, .report-disclosure-preview-row, .report-disclosure-preview-slot)
+    .analysis-preview-chip:is(.analysis-preview-chip-manager-preview, .analysis-preview-chip-starter-room)
+    > .analysis-preview-chip-label-has-compact
+    > .analysis-preview-chip-label-text-compact {
+    display: inline-block !important;
+  }
+}
+
+/* Cascade-winning board rows: later rules must not hide ranking or draft values on mobile/tablet. */
+@media (max-width: 900px) {
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__row {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) max-content !important;
+    grid-template-areas:
+      "player score"
+      "meta manager"
+      "movement value"
+      "trend value" !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    align-items: center !important;
+    gap: 0.42rem 0.58rem !important;
+    overflow: hidden !important;
+    padding: 0.72rem !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__player {
+    grid-area: player !important;
+    min-width: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__player :is(.player-chip, .ranking-player-identity) {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__player :is(.player-chip > span:last-child, .ranking-player-identity > span:last-child) {
+    display: -webkit-box !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+    text-overflow: ellipsis !important;
+    white-space: normal !important;
+    font-size: clamp(0.88rem, 2.8vw, 1.02rem) !important;
+    line-height: 1.05 !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__score {
+    grid-area: score !important;
+    display: inline-flex !important;
+    min-width: 0 !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    justify-self: end !important;
+    gap: 0.34rem !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__mobile-primary {
+    display: none !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__rank {
+    display: inline-flex !important;
+    width: auto !important;
+    min-width: 2.1rem !important;
+    min-height: 1.44rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding-inline: 0.46rem !important;
+    font-size: 0.7rem !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__value {
+    grid-area: value !important;
+    display: inline-grid !important;
+    width: auto !important;
+    min-width: 4.65rem !important;
+    max-width: 5.8rem !important;
+    align-self: center !important;
+    justify-self: end !important;
+    place-items: center !important;
+    padding: 0.18rem 0.44rem !important;
+    text-align: center !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__value strong {
+    font-size: clamp(0.9rem, 3vw, 1.08rem) !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__value-label {
+    display: block !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    font-size: 0.44rem !important;
+    line-height: 1 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__mobile-meta {
+    grid-area: meta !important;
+    display: flex !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0.24rem !important;
+    padding-right: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) :is(.value-board__team, .value-board__meta, .value-board__age) {
+    display: inline-flex !important;
+    min-width: 0 !important;
+    align-items: center !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__previous-season {
+    display: none !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__manager {
+    grid-area: manager !important;
+    position: static !important;
+    display: inline-flex !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    align-self: center !important;
+    justify-self: end !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .ranking-owner-avatar-wrap {
+    display: inline-flex !important;
+    width: 1.86rem !important;
+    min-width: 1.86rem !important;
+    height: 1.86rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__movement {
+    grid-area: movement !important;
+    position: static !important;
+    display: flex !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    align-self: center !important;
+    justify-self: start !important;
+    gap: 0.28rem !important;
+    overflow: hidden !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__movement .ranking-movement-pill,
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__trend .ranking-trend-pill {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__trend {
+    grid-area: trend !important;
+    display: flex !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    justify-self: start !important;
+    padding-right: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-row {
+    display: grid !important;
+    grid-template-columns: 2.45rem minmax(0, 1fr) max-content !important;
+    grid-template-areas:
+      "pick player change"
+      "team age manager"
+      "draftRank draftValue draftValue"
+      "currentRank currentValue currentValue" !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    align-items: center !important;
+    gap: 0.42rem 0.54rem !important;
+    overflow: hidden !important;
+    padding: 0.72rem !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-player-cell {
+    grid-area: player !important;
+    min-width: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-player-cell .player-chip {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-player-cell .player-chip > span:last-child {
+    display: -webkit-box !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+    text-overflow: ellipsis !important;
+    white-space: normal !important;
+    font-size: clamp(0.86rem, 2.8vw, 1rem) !important;
+    line-height: 1.05 !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-pick-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-team-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-age-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-manager-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-rank-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-value-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-change-cell {
+    position: static !important;
+    display: inline-flex !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    align-items: center !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-pick-cell {
+    grid-area: pick !important;
+    width: auto !important;
+    min-width: 2.18rem !important;
+    min-height: 1.44rem !important;
+    justify-self: start !important;
+    justify-content: center !important;
+    padding: 0.16rem 0.38rem !important;
+    border: 1px solid rgba(103, 232, 249, 0.26) !important;
+    border-radius: 999px !important;
+    background: rgba(8, 47, 73, 0.44) !important;
+    color: #67e8f9 !important;
+    font-size: 0.7rem !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-team-cell {
+    grid-area: team !important;
+    justify-self: start !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-age-cell {
+    grid-area: age !important;
+    width: auto !important;
+    min-height: 1.36rem !important;
+    justify-self: center !important;
+    justify-content: center !important;
+    padding: 0.14rem 0.36rem !important;
+    border: 1px solid rgba(148, 163, 184, 0.2) !important;
+    border-radius: 999px !important;
+    background: rgba(2, 6, 23, 0.56) !important;
+    color: #cbd5e1 !important;
+    font-size: 0.58rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-manager-cell {
+    grid-area: manager !important;
+    width: auto !important;
+    justify-self: end !important;
+    justify-content: flex-end !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-rank-cell-draft {
+    grid-area: draftRank !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-value-cell[data-label="Draft"] {
+    grid-area: draftValue !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-rank-cell-current {
+    grid-area: currentRank !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-value-cell[data-label="Now"] {
+    grid-area: currentValue !important;
+    justify-self: start !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-change-cell {
+    grid-area: change !important;
+    width: auto !important;
+    justify-self: end !important;
+    justify-content: flex-end !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-rank-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-value-cell {
+    width: auto !important;
+    min-height: 1.36rem !important;
+    justify-content: center !important;
+    padding: 0.16rem 0.42rem !important;
+    font-size: 0.58rem !important;
+    letter-spacing: 0 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-rank-cell::before,
+  .report-shell .draft-year-card-grid .rookie-draft-value-cell::before {
+    content: none !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-gain-cell {
+    min-width: 3.35rem !important;
+    max-width: 5rem !important;
+    padding-inline: 0.34rem !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .report-shell .draft-year-card-grid :is(.rookie-draft-age-mobile, .rookie-draft-change-team) {
+    display: none !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-player-cell :is(.draft-opportunity-note, .draft-market-move-note, .draft-window-note) {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 900px) {
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__row {
+    grid-template-columns: minmax(12rem, 1fr) 7.8rem 5.4rem !important;
+    grid-template-areas:
+      "player movement value"
+      "meta trend manager" !important;
+    gap: 0.46rem 0.72rem !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__score {
+    display: contents !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__rank {
+    display: none !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-row {
+    grid-template-columns: 2.5rem minmax(12rem, 1fr) max-content max-content 4.9rem !important;
+    grid-template-areas:
+      "pick player team manager change"
+      "age draftRank draftValue currentRank currentValue" !important;
+    gap: 0.46rem 0.62rem !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-age-cell {
+    justify-self: start !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__row {
+    grid-template-columns: minmax(0, 1fr) max-content !important;
+    grid-template-areas:
+      "player score"
+      "meta manager"
+      "movement value"
+      "trend value" !important;
+    padding: 0.66rem !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__rank {
+    min-width: 1.9rem !important;
+    padding-inline: 0.34rem !important;
+    font-size: 0.64rem !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__value {
+    min-width: 4.15rem !important;
+    max-width: 4.75rem !important;
+    padding-inline: 0.32rem !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__value strong {
+    font-size: 0.88rem !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-row {
+    grid-template-columns: 2.2rem minmax(0, 1fr) max-content !important;
+    grid-template-areas:
+      "pick player change"
+      "team age manager"
+      "draftRank draftValue draftValue"
+      "currentRank currentValue currentValue" !important;
+    gap: 0.4rem 0.48rem !important;
+    padding: 0.66rem !important;
+  }
+
+  .report-shell .draft-year-card-grid .rookie-draft-rank-cell,
+  .report-shell .draft-year-card-grid .rookie-draft-value-cell {
+    padding-inline: 0.34rem !important;
+    font-size: 0.54rem !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 900px) {
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__row {
+    grid-template-columns: minmax(12rem, 1fr) 2.8rem 7.8rem 5.4rem !important;
+    grid-template-areas:
+      "player rank movement value"
+      "meta manager trend value" !important;
+  }
+
+  .report-shell .rankings-player-grid.value-board__rows:not(.value-board__rows-devy) .value-board__rank {
+    grid-area: rank !important;
+    display: inline-flex !important;
+    justify-self: center !important;
+  }
+}
+
+/* Tab hero intel cards: keep the new three-card summary readable after the
+   older report-responsive overrides have finished centering the hero chrome. */
+.report-shell .report-overview-metrics,
+.report-shell .report-overview-metrics-3 {
+  width: min(100%, 48rem) !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+.report-shell .report-overview-metrics .dashboard-metric-card {
+  justify-items: stretch !important;
+  min-height: 8.35rem !important;
+  padding: clamp(0.66rem, 1vw, 0.9rem) !important;
+  text-align: left !important;
+}
+
+.report-shell .report-overview-metrics .dashboard-balance-metric {
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  grid-template-rows: auto auto auto !important;
+  align-content: start !important;
+  justify-items: stretch !important;
+}
+
+.report-shell .report-overview-metrics .dashboard-balance-metric > span,
+.report-shell .report-overview-metrics .dashboard-balance-metric > em,
+.report-shell .report-overview-metrics .dashboard-balance-metric > small {
+  grid-column: 2 !important;
+}
+
+.report-shell .report-overview-metrics .dashboard-balance-graph {
+  grid-row: 1 / span 3 !important;
+  grid-column: 1 !important;
+  width: 2.72rem !important;
+  height: 2.72rem !important;
+}
+
+.report-shell .report-overview-metrics .dashboard-mini-bars,
+.report-shell .report-overview-metrics .dashboard-metric-badges {
+  width: 100%;
+}
+
+.report-shell .report-overview-metrics .dashboard-target-lockup {
+  justify-content: flex-start;
+}
+
+@media (max-width: 640px) {
+  .report-shell .report-overview-metrics,
+  .report-shell .report-overview-metrics-3 {
+    width: min(100%, 24rem) !important;
+    grid-template-columns: 1fr !important;
+    border-radius: 0.62rem !important;
+  }
+
+  .report-shell .report-overview-metrics .dashboard-metric-card {
+    min-height: 0 !important;
+    border-left: 0 !important;
+    border-top: 1px solid rgba(103, 232, 249, 0.14) !important;
+    padding: 0.78rem 0.86rem !important;
+  }
+
+  .report-shell .report-overview-metrics .dashboard-metric-card:first-child {
+    border-top: 0 !important;
+  }
+}
+
+/* League Audit compact status cards. Scope this to Overview so the other tab
+   hero intel cards keep their richer tab-specific treatments. */
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics {
+  display: grid !important;
+  width: min(100%, 35rem) !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 0.42rem !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card {
+  display: grid !important;
+  min-width: 0 !important;
+  min-height: 4.55rem !important;
+  align-content: center !important;
+  justify-items: stretch !important;
+  gap: 0.16rem !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(103, 232, 249, 0.18) !important;
+  border-radius: 0.5rem !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(103, 232, 249, 0.12), transparent 62%),
+    linear-gradient(180deg, rgba(3, 13, 23, 0.66), rgba(2, 8, 16, 0.48)) !important;
+  padding: 0.55rem 0.62rem !important;
+  text-align: left !important;
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card[data-tone="good"] {
+  border-color: rgba(34, 197, 94, 0.24) !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(34, 197, 94, 0.13), transparent 62%),
+    linear-gradient(180deg, rgba(3, 13, 23, 0.64), rgba(2, 8, 16, 0.46)) !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card[data-tone="warn"] {
+  border-color: rgba(244, 160, 32, 0.26) !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(244, 160, 32, 0.14), transparent 62%),
+    linear-gradient(180deg, rgba(3, 13, 23, 0.64), rgba(2, 8, 16, 0.46)) !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > span,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > strong,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > em,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > small {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > span {
+  display: block !important;
+  overflow: hidden !important;
+  color: rgba(125, 249, 255, 0.92) !important;
+  font-size: 0.52rem !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.07em !important;
+  line-height: 1.05 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > strong,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong {
+  display: block !important;
+  overflow: hidden !important;
+  color: #f8fafc !important;
+  font-size: clamp(0.92rem, 1.05vw, 1.05rem) !important;
+  font-weight: 950 !important;
+  line-height: 1.05 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > em {
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  color: rgba(226, 232, 240, 0.72) !important;
+  font-size: 0.56rem !important;
+  font-style: normal !important;
+  font-weight: 800 !important;
+  line-height: 1.18 !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > small,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-badges,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-avatar {
+  display: none !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-metric {
+  grid-template-columns: 2rem minmax(0, 1fr) !important;
+  grid-template-rows: auto auto auto !important;
+  gap: 0.05rem 0.48rem !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-metric > span,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-metric > em {
+  grid-column: 2 !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-graph {
+  grid-row: 1 / span 3 !important;
+  grid-column: 1 !important;
+  width: 1.86rem !important;
+  height: 1.86rem !important;
+  align-self: center !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-graph strong {
+  max-width: 1.42rem !important;
+  font-size: 0.55rem !important;
+  white-space: nowrap !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup {
+  display: block !important;
+}
+
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-meter-metric i {
+  height: 0.2rem !important;
+  margin-top: 0.06rem !important;
+}
+
+@media (max-width: 767px) {
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics {
+    width: min(100%, 24rem) !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.34rem !important;
+  }
+
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card {
+    min-height: 4.3rem !important;
+    padding: 0.5rem 0.52rem !important;
+  }
+}
+
+/* Final tab hero metric modules: portrait-style scouting tiles with one-line
+   titles, centered signal visuals, and a short reason pinned to the bottom. */
+.report-shell .report-overview-hero .report-overview-metrics,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics,
+.report-shell .report-overview-metrics-3 {
+  display: grid !important;
+  width: min(100%, 32rem) !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 0.56rem !important;
+  justify-content: center !important;
+  margin-inline: auto !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card {
+  position: relative !important;
+  display: grid !important;
+  min-width: 0 !important;
+  min-height: 11.35rem !important;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: stretch !important;
+  justify-items: stretch !important;
+  gap: 0.42rem !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(103, 232, 249, 0.2) !important;
+  border-radius: 0.62rem !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(103, 232, 249, 0.13), transparent 58%),
+    linear-gradient(180deg, rgba(3, 13, 23, 0.74), rgba(2, 8, 16, 0.5)) !important;
+  padding: 0.74rem !important;
+  text-align: left !important;
+  box-shadow:
+    0 13px 28px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card[data-tone="good"],
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card[data-tone="good"] {
+  border-color: rgba(34, 197, 94, 0.28) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(34, 197, 94, 0.14), transparent 58%),
+    linear-gradient(180deg, rgba(3, 13, 23, 0.74), rgba(2, 8, 16, 0.5)) !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card[data-tone="warn"],
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card[data-tone="warn"] {
+  border-color: rgba(244, 160, 32, 0.32) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(244, 160, 32, 0.15), transparent 58%),
+    linear-gradient(180deg, rgba(3, 13, 23, 0.74), rgba(2, 8, 16, 0.5)) !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card[data-tone="danger"],
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card[data-tone="danger"] {
+  border-color: rgba(248, 113, 113, 0.32) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(248, 113, 113, 0.14), transparent 58%),
+    linear-gradient(180deg, rgba(3, 13, 23, 0.74), rgba(2, 8, 16, 0.5)) !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > span,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > span {
+  display: block !important;
+  align-self: start !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  color: rgba(125, 249, 255, 0.95) !important;
+  font-size: clamp(0.55rem, 0.68vw, 0.64rem) !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.08em !important;
+  line-height: 1.05 !important;
+  text-align: center !important;
+  text-overflow: ellipsis !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > strong,
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup,
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong,
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-delta-metric > strong,
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-badge-list-metric > strong,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > strong,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  color: #f8fafc !important;
+  font-size: clamp(1.05rem, 1.34vw, 1.3rem) !important;
+  font-weight: 950 !important;
+  line-height: 1.02 !important;
+  text-align: center !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup {
+  display: grid !important;
+  align-self: center !important;
+  justify-items: center !important;
+  gap: 0.42rem !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-avatar,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-avatar {
+  display: grid !important;
+  width: 2.35rem !important;
+  height: 2.35rem !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > em,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > em {
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  color: rgba(226, 232, 240, 0.76) !important;
+  font-size: clamp(0.58rem, 0.7vw, 0.66rem) !important;
+  font-style: normal !important;
+  font-weight: 850 !important;
+  line-height: 1.18 !important;
+  text-align: center !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > small,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > small {
+  display: block !important;
+  align-self: end !important;
+  margin-top: auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  border-top: 1px solid rgba(103, 232, 249, 0.12);
+  padding-top: 0.42rem;
+  color: rgba(226, 232, 240, 0.68) !important;
+  font-size: clamp(0.58rem, 0.68vw, 0.64rem) !important;
+  font-weight: 750 !important;
+  line-height: 1.22 !important;
+  text-align: center !important;
+  overflow-wrap: anywhere !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-balance-metric,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-metric {
+  grid-template-columns: 1fr !important;
+  grid-template-rows: auto minmax(0, 1fr) auto auto !important;
+  justify-items: center !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-balance-metric > span,
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-balance-metric > em,
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-balance-metric > small,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-metric > span,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-metric > em,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-metric > small {
+  grid-column: 1 !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-balance-graph,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-graph {
+  grid-row: 2 !important;
+  grid-column: 1 !important;
+  align-self: center !important;
+  justify-self: center !important;
+  width: 3.35rem !important;
+  height: 3.35rem !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-balance-graph strong,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-graph strong {
+  max-width: 2.54rem !important;
+  font-size: 0.82rem !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-meter-metric i,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-meter-metric i {
+  align-self: center !important;
+  height: 0.36rem !important;
+  margin-top: 0.12rem !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-badges,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-badges {
+  display: flex !important;
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+@media (max-width: 900px) {
+  .report-shell .report-overview-hero .report-overview-metrics,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics {
+    width: min(100%, 31rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card {
+    min-height: 10.8rem !important;
+    padding: 0.66rem !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .report-shell .report-overview-hero .report-overview-metrics,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics {
+    width: min(100%, 23rem) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: clamp(0.22rem, 1.4vw, 0.34rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card {
+    min-height: clamp(7.35rem, 24vw, 8.75rem) !important;
+    gap: clamp(0.18rem, 0.9vw, 0.28rem) !important;
+    padding: clamp(0.36rem, 1.5vw, 0.52rem) clamp(0.3rem, 1.25vw, 0.46rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > span,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > span {
+    font-size: clamp(0.43rem, 1.72vw, 0.52rem) !important;
+    letter-spacing: clamp(0.025em, 0.32vw, 0.045em) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > strong,
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong,
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-delta-metric > strong,
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-badge-list-metric > strong,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > strong,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong {
+    font-size: clamp(0.68rem, 3vw, 0.92rem) !important;
+    line-height: 1.08 !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-delta-metric > strong {
+    gap: 0.18rem !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-delta-metric > strong b {
+    width: 0.42rem !important;
+    height: 0.42rem !important;
+    border-width: 1.5px !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > em,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > em {
+    font-size: clamp(0.43rem, 1.65vw, 0.52rem) !important;
+    line-height: 1.1 !important;
+    -webkit-line-clamp: 2;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > small,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > small {
+    padding-top: clamp(0.18rem, 0.9vw, 0.28rem) !important;
+    font-size: clamp(0.42rem, 1.55vw, 0.5rem) !important;
+    line-height: 1.1 !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-balance-graph,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-graph {
+    width: clamp(2rem, 8vw, 2.55rem) !important;
+    height: clamp(2rem, 8vw, 2.55rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-balance-graph strong,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-balance-graph strong {
+    max-width: 1.85rem !important;
+    font-size: clamp(0.58rem, 2.1vw, 0.68rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-target-avatar,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-avatar {
+    width: clamp(1.42rem, 5.5vw, 1.85rem) !important;
+    height: clamp(1.42rem, 5.5vw, 1.85rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-meter-metric i,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-meter-metric i {
+    height: 0.24rem !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-badges {
+    gap: 0.12rem !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-badges b {
+    padding: 0.12rem 0.22rem !important;
+    font-size: clamp(0.38rem, 1.35vw, 0.46rem) !important;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1100px) {
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > strong,
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong,
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-delta-metric > strong,
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-badge-list-metric > strong,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > strong,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong {
+    font-size: clamp(0.92rem, 1.04vw, 1.05rem) !important;
+    line-height: 1.08 !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-delta-metric > strong {
+    gap: 0.24rem !important;
+  }
+}
+
+/* Hero metric alignment pass: desktop/tablet metrics sit directly under the
+   copy block; mobile uses the full row while keeping card contents centered. */
+.report-shell .report-overview-hero {
+  justify-items: start !important;
+}
+
+.report-shell .report-overview-hero-copy {
+  justify-items: start !important;
+  margin-inline: 0 !important;
+  text-align: left !important;
+}
+
+.report-shell .report-overview-hero-copy h1 {
+  justify-content: start !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics {
+  width: min(100%, 31rem) !important;
+  justify-self: start !important;
+  margin-inline: 0 auto !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup {
+  display: flex !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  align-self: center !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: clamp(0.22rem, 0.7vw, 0.42rem) !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-avatar,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-avatar {
+  width: clamp(1.35rem, 2.1vw, 2rem) !important;
+  height: clamp(1.35rem, 2.1vw, 2rem) !important;
+  flex: 0 0 auto !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  font-size: clamp(0.76rem, 1vw, 1.06rem) !important;
+  line-height: 1.02 !important;
+  text-align: left !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-delta-metric > strong b {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  .report-shell .report-overview-hero {
+    justify-items: stretch !important;
+  }
+
+  .report-shell .report-overview-hero-copy {
+    justify-items: center !important;
+    margin-inline: auto !important;
+    text-align: center !important;
+  }
+
+  .report-shell .report-overview-hero-copy h1 {
+    justify-content: center !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics {
+    width: 100% !important;
+    justify-self: stretch !important;
+    margin-inline: 0 !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup {
+    gap: clamp(0.14rem, 0.8vw, 0.24rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-target-avatar,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-avatar {
+    width: clamp(1.1rem, 4.6vw, 1.45rem) !important;
+    height: clamp(1.1rem, 4.6vw, 1.45rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong {
+    font-size: clamp(0.5rem, 2.35vw, 0.72rem) !important;
+    letter-spacing: 0 !important;
+  }
+}
+
+/* Manager metric lockups: avatar gets its own row and names resize/wrap instead
+   of clipping inside narrow hero tiles. */
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup {
+  display: grid !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  align-self: center !important;
+  justify-items: center !important;
+  justify-content: center !important;
+  gap: clamp(0.22rem, 0.62vw, 0.36rem) !important;
+  text-align: center !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-avatar,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-avatar {
+  display: grid !important;
+  width: clamp(1.75rem, 2.75vw, 2.35rem) !important;
+  height: clamp(1.75rem, 2.75vw, 2.35rem) !important;
+  flex: 0 0 auto !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  flex: initial !important;
+  font-size: clamp(0.86rem, 1.08vw, 1.08rem) !important;
+  line-height: 1.04 !important;
+  letter-spacing: 0 !important;
+  text-align: center !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong[data-name-size="compact"],
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong[data-name-size="compact"] {
+  font-size: clamp(0.68rem, 0.86vw, 0.88rem) !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong[data-name-size="tight"],
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong[data-name-size="tight"] {
+  font-size: clamp(0.55rem, 0.72vw, 0.72rem) !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong[data-name-size="micro"],
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong[data-name-size="micro"] {
+  font-size: clamp(0.48rem, 0.62vw, 0.62rem) !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-helper-stack,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-helper-stack {
+  display: grid !important;
+  min-width: 0 !important;
+  gap: 0.08rem !important;
+  text-align: center !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-helper-stack b,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-helper-stack b {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  color: rgba(248, 250, 252, 0.88) !important;
+  font-size: 0.95em !important;
+  font-weight: 950 !important;
+  line-height: 1.05 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-helper-stack span,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-helper-stack span {
+  display: block !important;
+  min-width: 0 !important;
+  color: rgba(226, 232, 240, 0.68) !important;
+  line-height: 1.05 !important;
+}
+
+@media (max-width: 640px) {
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-target-avatar,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-avatar {
+    width: clamp(1.25rem, 5vw, 1.62rem) !important;
+    height: clamp(1.25rem, 5vw, 1.62rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong {
+    font-size: clamp(0.52rem, 2.12vw, 0.72rem) !important;
+    line-height: 1.02 !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong[data-name-size="compact"],
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong[data-name-size="compact"] {
+    font-size: clamp(0.46rem, 1.86vw, 0.62rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong[data-name-size="tight"],
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong[data-name-size="tight"] {
+    font-size: clamp(0.38rem, 1.5vw, 0.5rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong[data-name-size="micro"],
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong[data-name-size="micro"] {
+    font-size: clamp(0.34rem, 1.28vw, 0.43rem) !important;
+  }
+}
+
+/* Compact hero metric pass: remove the oversized report-card spacing and keep
+   the three intel tiles tight under the hero copy. */
+.report-shell .report-overview-hero .report-overview-metrics,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics {
+  width: min(100%, 30.25rem) !important;
+  gap: clamp(0.36rem, 0.8vw, 0.5rem) !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card {
+  min-height: clamp(7.05rem, 10vw, 8.15rem) !important;
+  grid-template-rows: auto auto auto auto !important;
+  align-content: start !important;
+  gap: clamp(0.22rem, 0.46vw, 0.34rem) !important;
+  padding: clamp(0.54rem, 0.86vw, 0.68rem) !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > span,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > span {
+  font-size: clamp(0.5rem, 0.6vw, 0.58rem) !important;
+  line-height: 1 !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > strong,
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup > strong,
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-delta-metric > strong,
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-badge-list-metric > strong,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > strong,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup > strong {
+  font-size: clamp(0.86rem, 1.06vw, 1.08rem) !important;
+  line-height: 1.02 !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-meter-metric i,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-meter-metric i {
+  align-self: start !important;
+  height: 0.24rem !important;
+  margin-block: 0.04rem !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-mini-bars,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-mini-bars {
+  gap: 0.12rem !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-mini-bar-row,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-mini-bar-row {
+  grid-template-columns: 1.32rem minmax(0, 1fr) 1.42rem !important;
+  gap: 0.2rem !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-mini-bar-row b,
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-mini-bar-row em,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-mini-bar-row b,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-mini-bar-row em {
+  font-size: clamp(0.46rem, 0.58vw, 0.54rem) !important;
+  line-height: 1 !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-lockup,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-lockup {
+  gap: clamp(0.16rem, 0.44vw, 0.26rem) !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-target-avatar,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-target-avatar {
+  width: clamp(1.48rem, 2.2vw, 1.92rem) !important;
+  height: clamp(1.48rem, 2.2vw, 1.92rem) !important;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > em,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > em {
+  font-size: clamp(0.5rem, 0.62vw, 0.58rem) !important;
+  line-height: 1.12 !important;
+  -webkit-line-clamp: 2;
+}
+
+.report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > small,
+.report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > small {
+  margin-top: 0 !important;
+  border-top-color: rgba(103, 232, 249, 0.08) !important;
+  padding-top: clamp(0.16rem, 0.44vw, 0.26rem) !important;
+  font-size: clamp(0.48rem, 0.58vw, 0.55rem) !important;
+  line-height: 1.12 !important;
+}
+
+@media (max-width: 640px) {
+  .report-shell .report-overview-hero .report-overview-metrics,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics {
+    width: 100% !important;
+    gap: clamp(0.22rem, 1vw, 0.32rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card {
+    min-height: clamp(5.85rem, 19vw, 6.8rem) !important;
+    gap: clamp(0.14rem, 0.64vw, 0.22rem) !important;
+    padding: clamp(0.32rem, 1.2vw, 0.44rem) !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-metric-card > small,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-metric-card > small {
+    display: block !important;
+    font-size: clamp(0.38rem, 1.28vw, 0.46rem) !important;
+    line-height: 1.05 !important;
+  }
+
+  .report-shell .report-overview-hero .report-overview-metrics .dashboard-mini-bar-row,
+  .report-shell .report-overview-hero[data-dashboard-tab="overview"] .report-overview-metrics .dashboard-mini-bar-row {
+    grid-template-columns: 1rem minmax(0, 1fr) 1.08rem !important;
+    gap: 0.12rem !important;
+  }
+}
+
+/* Full roster rankings should use the disclosure width instead of the older
+   centered 72rem value-board cap. */
+.report-shell .rankings-table-section {
+  width: 100% !important;
+}
+
+.report-shell .rankings-table-section > :is(.rankings-hero-panel, .rankings-result-count, .value-board__toolbar, .value-board__rows) {
+  width: 100% !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
+}
+
+/* Tablet rankings controls: match the clean mobile stack instead of squeezing
+   position buttons beside the league selector. */
+@media (min-width: 768px) and (max-width: 1180px) {
+  .rankings-controls.value-board__toolbar {
+    display: grid !important;
+    grid-template-columns: minmax(9.25rem, 0.38fr) minmax(0, 0.62fr) !important;
+    align-items: stretch !important;
+    gap: 0.48rem !important;
+  }
+
+  .rankings-controls.value-board__toolbar .rankings-league-type-control {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .rankings-controls.value-board__toolbar .value-board__search {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .rankings-controls.value-board__toolbar .value-board__filters {
+    display: grid !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    width: 100% !important;
+    grid-template-columns: repeat(auto-fit, minmax(3.1rem, 1fr)) !important;
+    gap: 0.32rem !important;
+    margin-left: 0 !important;
+    overflow: visible !important;
+  }
+
+  .rankings-controls.value-board__toolbar .value-board__sort,
+  .rankings-controls.value-board__toolbar .value-board__class {
+    display: grid !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 3 !important;
+    width: 100% !important;
+    gap: 0.32rem !important;
+    overflow: visible !important;
+  }
+
+  .rankings-controls.value-board__toolbar .value-board__sort {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .rankings-controls.value-board__toolbar .value-board__class {
+    grid-template-columns: repeat(auto-fit, minmax(4.8rem, 1fr)) !important;
+  }
+
+  .rankings-controls-devy.value-board__toolbar .value-board__class {
+    grid-row: 2 !important;
+  }
+
+  .rankings-controls-devy.value-board__toolbar .value-board__sort {
+    grid-row: 3 !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .rankings-controls-devy.value-board__toolbar .value-board__filters {
+    grid-row: 3 !important;
+  }
+
+  .rankings-controls.value-board__toolbar :is(.value-board__filters, .value-board__sort, .value-board__class) button {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (min-width: 1181px) {
+  .rankings-controls-devy.value-board__toolbar {
+    display: grid !important;
+    grid-template-columns:
+      minmax(9rem, 0.68fr)
+      minmax(15rem, 1.32fr)
+      minmax(18rem, 1.45fr)
+      minmax(16rem, 1.22fr) !important;
+    align-items: center !important;
+    gap: 0.52rem !important;
+  }
+
+  .rankings-controls-devy.value-board__toolbar .rankings-league-type-control,
+  .rankings-controls-devy.value-board__toolbar .value-board__search,
+  .rankings-controls-devy.value-board__toolbar .value-board__class,
+  .rankings-controls-devy.value-board__toolbar .value-board__sort,
+  .rankings-controls-devy.value-board__toolbar .value-board__filters {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+  }
+
+  .rankings-controls-devy.value-board__toolbar .rankings-league-type-control {
+    grid-column: 1 !important;
+  }
+
+  .rankings-controls-devy.value-board__toolbar .value-board__search {
+    grid-column: 2 !important;
+  }
+
+  .rankings-controls-devy.value-board__toolbar .value-board__class {
+    grid-column: 3 !important;
+  }
+
+  .rankings-controls-devy.value-board__toolbar .value-board__filters {
+    grid-column: 4 !important;
+  }
+
+  .rankings-controls-devy.value-board__toolbar :is(.value-board__class, .value-board__sort, .value-board__filters) {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 0.34rem !important;
+    overflow: visible !important;
+  }
+
+  .rankings-controls-devy.value-board__toolbar :is(.value-board__class, .value-board__sort, .value-board__filters) button {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    padding-inline: 0.34rem !important;
+  }
+}
+
+.rankings-controls.value-board__toolbar:not(.rankings-controls-devy) .value-board__sort {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+@media (max-width: 767px) {
+  .rankings-controls-devy.value-board__toolbar .value-board__class {
+    order: 3 !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .rankings-controls-devy.value-board__toolbar .value-board__sort {
+    order: 4 !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .rankings-controls-devy.value-board__toolbar .value-board__filters {
+    order: 4 !important;
+  }
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-rookie-pill {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  border: 1px solid rgba(192, 132, 252, 0.42);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 25% 18%, rgba(216, 180, 254, 0.26), transparent 58%),
+    linear-gradient(135deg, rgba(88, 28, 135, 0.72), rgba(49, 46, 129, 0.52));
+  padding: 0.16rem 0.5rem 0.16rem 0.22rem;
+  color: #f3e8ff;
+  font-size: 0.55rem;
+  font-weight: 1000;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 0 18px rgba(168, 85, 247, 0.16);
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-rookie-star {
+  display: inline-grid;
+  width: 1.28rem;
+  height: 1.28rem;
+  flex: 0 0 1.28rem;
+  place-items: center;
+  background:
+    radial-gradient(circle at 36% 30%, rgba(255, 255, 255, 0.42), transparent 30%),
+    linear-gradient(135deg, #d946ef 0%, #8b5cf6 48%, #6d28d9 100%);
+  clip-path: polygon(50% 0%, 61% 31%, 94% 22%, 72% 50%, 91% 79%, 58% 68%, 50% 100%, 42% 68%, 9% 79%, 28% 50%, 6% 22%, 39% 31%);
+  color: #ffffff;
+  font-size: 0.52rem;
+  font-weight: 1000;
+  letter-spacing: 0;
+  text-shadow: 0 1px 4px rgba(30, 27, 75, 0.85);
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-rookie-label {
+  color: #f3e8ff;
+  letter-spacing: 0.06em;
+}
+
+.report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-empty {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.42);
+  color: rgba(203, 213, 225, 0.72);
+}
+
+@media (max-width: 767px) {
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-rookie-pill {
+    gap: 0.18rem;
+    padding: 0.08rem 0.26rem 0.08rem 0.08rem;
+    font-size: 0.48rem;
+  }
+
+  .report-shell .value-board__rows:not(.value-board__rows-devy) .ranking-last-season-rookie-star {
+    width: 1.05rem;
+    height: 1.05rem;
+    flex-basis: 1.05rem;
+    font-size: 0.45rem;
   }
 }

@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MutableRefObject } from "react";
 import * as THREE from "three";
 import "@/styles/loader-kit-backdrop.css";
@@ -369,10 +369,12 @@ function LoaderKitCore({
   variant,
   managerAnchorRefs,
   managerAnchorSlots,
+  onSceneReady,
 }: {
   variant: "panel" | "ambient";
   managerAnchorRefs: MutableRefObject<Array<HTMLSpanElement | null>>;
   managerAnchorSlots: ManagerAnchorSlot[];
+  onSceneReady: () => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const footballSpinRef = useRef<THREE.Group>(null);
@@ -382,6 +384,7 @@ function LoaderKitCore({
   const sparksRef = useRef<Array<THREE.Mesh | null>>([]);
   const pointerRef = useRef({ x: 0, y: 0 });
   const projectedManagerPositionRef = useRef(new THREE.Vector3());
+  const hasReportedSceneReadyRef = useRef(false);
   const viewportWidth = useThree(state => state.size.width);
   const isCompactViewport = viewportWidth < 700;
 
@@ -415,6 +418,11 @@ function LoaderKitCore({
   }, []);
 
   useFrame(({ clock, camera, size }) => {
+    if (!hasReportedSceneReadyRef.current) {
+      hasReportedSceneReadyRef.current = true;
+      requestAnimationFrame(onSceneReady);
+    }
+
     const time = clock.getElapsedTime();
     const { x, y } = pointerRef.current;
 
@@ -582,11 +590,18 @@ function LoaderKitCore({
 
 export default function LoaderKitBackdrop({ variant = "panel", managerAnchors }: LoaderKitBackdropProps) {
   const managerAnchorRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const [isSceneReady, setIsSceneReady] = useState(false);
   const visibleManagerAnchors = managerAnchors || [];
   const managerAnchorSlots = useMemo(
     () => createManagerAnchorSlots(visibleManagerAnchors.length),
     [visibleManagerAnchors.length]
   );
+
+  useEffect(() => {
+    setIsSceneReady(false);
+    const fallbackTimer = window.setTimeout(() => setIsSceneReady(true), 900);
+    return () => window.clearTimeout(fallbackTimer);
+  }, [variant]);
 
   return (
     <div className={`loader-kit-backdrop loader-kit-backdrop--${variant}`} aria-hidden="true">
@@ -603,10 +618,13 @@ export default function LoaderKitBackdrop({ variant = "panel", managerAnchors }:
             variant={variant}
             managerAnchorRefs={managerAnchorRefs}
             managerAnchorSlots={managerAnchorSlots}
+            onSceneReady={() => setIsSceneReady(true)}
           />
         </Canvas>
       </div>
-      <ManagerAnchors anchors={visibleManagerAnchors} anchorRefs={managerAnchorRefs} slots={managerAnchorSlots} />
+      {isSceneReady ? (
+        <ManagerAnchors anchors={visibleManagerAnchors} anchorRefs={managerAnchorRefs} slots={managerAnchorSlots} />
+      ) : null}
       <div className="loader-kit-backdrop__matrix" />
       <div className="loader-kit-backdrop__vignette" />
     </div>

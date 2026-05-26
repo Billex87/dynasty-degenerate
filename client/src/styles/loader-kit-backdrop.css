@@ -51,6 +51,7 @@
   inset: 0;
   z-index: 3;
   pointer-events: none;
+  animation: loader-kit-manager-anchors-in 260ms ease-out both;
 }
 
 .loader-kit-backdrop__manager-anchor {
@@ -265,6 +266,16 @@
 @keyframes loader-kit-manager-spin {
   to {
     transform: rotate(1turn);
+  }
+}
+
+@keyframes loader-kit-manager-anchors-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
   }
 }
 

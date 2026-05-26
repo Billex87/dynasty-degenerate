@@ -81,6 +81,12 @@ import {
   type LeagueValueMode,
 } from "@/lib/leagueValueMode";
 import {
+  getBestDraftAdpValueManager,
+  getBestDraftSignalManager,
+  getDraftSignalPicks,
+  getWorstDraftSignalManager,
+} from "@/lib/draftDashboardMetrics";
+import {
   buildManagerPositionRoomPreview,
   buildRosterStarterPreview,
   buildTaxiTriagePreview,
@@ -467,10 +473,17 @@ function normalizeReportTab(value?: string | null): string | null {
     .replace(/^tab=/, "")
     .trim()
     .toLowerCase();
+  const aliases: Record<string, (typeof REPORT_TAB_VALUES)[number]> = {
+    pulse: "momentum",
+    rank: "rankings",
+    trade: "trades",
+    drafts: "draft",
+  };
+  const canonical = aliases[normalized] || normalized;
   return REPORT_TAB_VALUES.includes(
-    normalized as (typeof REPORT_TAB_VALUES)[number]
+    canonical as (typeof REPORT_TAB_VALUES)[number]
   )
-    ? normalized
+    ? canonical
     : null;
 }
 
@@ -706,12 +719,47 @@ function OwnerIntelSortControls({
   );
 }
 
+function LeagueRosterScannerModeControls({
+  value,
+  onChange,
+}: {
+  value: OwnerIntelSortMode;
+  onChange: (nextValue: OwnerIntelSortMode) => void;
+}) {
+  return (
+    <span
+      className="trade-war-mode-tabs trade-war-mode-tabs-header"
+      role="tablist"
+      aria-label="Scout leaguemates value view"
+    >
+      {OWNER_INTEL_SORT_OPTIONS.map(option => (
+        <button
+          key={option.key}
+          type="button"
+          role="tab"
+          className={`trade-war-mode-tab trade-war-mode-tab-${option.key} ${
+            value === option.key ? "active" : ""
+          }`}
+          aria-selected={value === option.key}
+          onClick={event => {
+            event.preventDefault();
+            event.stopPropagation();
+            onChange(option.key);
+          }}
+        >
+          {option.label}
+        </button>
+      ))}
+    </span>
+  );
+}
+
 function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
   const preview = buildRosterStarterPreview(data);
   return [
     {
       label: "Strongest",
-      compactLabel: "Strongest",
+      compactLabel: "Best",
       value: renderPreviewManagerIdentity(
         preview.strongestStarterManager,
         data.managerAvatars
@@ -722,7 +770,7 @@ function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
     preview.weakestStarterManager
       ? {
           label: "Weakest",
-          compactLabel: "Weakest",
+          compactLabel: "Weak",
           value: renderPreviewManagerIdentity(
             preview.weakestStarterManager,
             data.managerAvatars
@@ -745,6 +793,7 @@ function buildTaxiPreviewMetrics(data: ReportData): PreviewMetric[] {
             preview.promoteCount === 1
               ? "Promotable"
               : `Promotable (${preview.promoteCount})`,
+          compactLabel: "Promote",
           value: renderPreviewManagerIdentity(
             preview.mostPromotableManager,
             data.managerAvatars
@@ -756,6 +805,7 @@ function buildTaxiPreviewMetrics(data: ReportData): PreviewMetric[] {
     preview.mostCuttableManager
       ? {
           label: preview.cutCount === 1 ? "Cuts" : `Cuts (${preview.cutCount})`,
+          compactLabel: "Cuts",
           value: renderPreviewManagerIdentity(
             preview.mostCuttableManager,
             data.managerAvatars
@@ -806,7 +856,7 @@ function buildOwnerIntelPreviewMetrics(
   return [
     ordered[0]
       ? {
-          label: "Apex",
+          label: "Truth",
           value: renderPreviewManagerIdentity(
             ordered[0].manager,
             data.managerAvatars
@@ -817,7 +867,7 @@ function buildOwnerIntelPreviewMetrics(
       : null,
     ordered[ordered.length - 1]
       ? {
-          label: "Cellar",
+          label: "Trash",
           value: renderPreviewManagerIdentity(
             ordered[ordered.length - 1].manager,
             data.managerAvatars
@@ -842,6 +892,7 @@ function buildManagerPositionRoomPreviewMetrics(
             preview.needToDropCount === 1
               ? "Must Drop (1)"
               : `Must Drop (${preview.needToDropCount})`,
+          compactLabel: "Drop",
           value: renderPreviewManagerIdentity(
             preview.needToDropManager,
             data.managerAvatars
@@ -856,6 +907,7 @@ function buildManagerPositionRoomPreviewMetrics(
             preview.openRoomCount === 1
               ? "Can Add (1)"
               : `Can Add (${preview.openRoomCount})`,
+          compactLabel: "Add",
           value: renderPreviewManagerIdentity(
             preview.openRoomManager,
             data.managerAvatars
@@ -1051,7 +1103,7 @@ function buildDraftPreviewMetrics(
   data: ReportData,
   mode: LeagueValueMode
 ): PreviewMetric[] {
-  const picks = data.draftPicks || [];
+  const picks = getDraftSignalPicks(data, mode);
   const topGain = [...picks].sort(
     (a, b) => (b.valueGain || 0) - (a.valueGain || 0)
   )[0];
@@ -1065,6 +1117,18 @@ function buildDraftPreviewMetrics(
   const hitRate = picks.length
     ? `${Math.round((hitCount / picks.length) * 100)}%`
     : "-";
+  const renderDraftPreviewPlayer = (
+    pick: NonNullable<ReportData["draftPicks"]>[number]
+  ) => (
+    <PlayerPill
+      playerId={pick.player_id}
+      playerName={pick.playerName}
+      team={pick.playerDetails?.team}
+      position={pick.playerDetails?.position || pick.playerPos}
+      className="analysis-preview-player"
+    />
+  );
+
   return [
     {
       label: "Picks",
@@ -1074,7 +1138,7 @@ function buildDraftPreviewMetrics(
     topGain
       ? {
           label: mode === "redraft" ? "Best Current Gain" : "Top Value Gain",
-          value: topGain.playerName,
+          value: renderDraftPreviewPlayer(topGain),
           tone: "good",
         }
       : null,
@@ -1240,10 +1304,10 @@ function buildCombinedTrendingPreviewMetrics(data: ReportData): PreviewMetric[] 
   return [
     topAdd
       ? {
-          label: `Top add (${formatPreviewCount(topAdd.count)})`,
+          label: "Top add",
           value: renderPreviewPlayerMetric(
             renderTrendingPreviewPlayer(topAdd),
-            null
+            formatPreviewCount(topAdd.count)
           ),
           tone: "good",
           hideLabel: true,
@@ -1251,10 +1315,10 @@ function buildCombinedTrendingPreviewMetrics(data: ReportData): PreviewMetric[] 
       : null,
     topDrop
       ? {
-          label: `Top drop (${formatPreviewCount(topDrop.count)})`,
+          label: "Top drop",
           value: renderPreviewPlayerMetric(
             renderTrendingPreviewPlayer(topDrop),
-            null
+            formatPreviewCount(topDrop.count)
           ),
           tone: "danger",
           hideLabel: true,
@@ -1471,6 +1535,7 @@ type ReportDeltaAction = {
   id: string;
   decision: AIActionQueueItem["decision"];
   label: string;
+  action: string;
   target: string;
   confidence: number;
 };
@@ -1874,7 +1939,7 @@ function getReportDeltaPlayerFingerprint(player?: ReportDeltaPlayer | null) {
 
 function getReportDeltaActionFingerprint(action?: ReportDeltaAction | null) {
   if (!action) return "none";
-  return `${action.id}:${action.decision}:${action.target}:${action.confidence}`;
+  return `${action.id}:${action.decision}:${action.action}:${action.target}:${action.confidence}`;
 }
 
 function getReportDeltaSnapshotSignature(snapshot: Omit<ReportDeltaSnapshot, "signature">) {
@@ -1908,6 +1973,7 @@ function buildReportDeltaAction(
       id: action.id,
       decision: action.decision,
       label: action.label,
+      action: action.action,
       target: action.target,
       confidence: action.confidence,
     };
@@ -1999,6 +2065,12 @@ function getReportDeltaActionTone(action?: ReportDeltaAction | null): ReportDelt
   return "info";
 }
 
+function describeReportDeltaAction(action?: ReportDeltaAction | null): string {
+  if (!action) return "no primary action";
+  const verb = String(action.action || action.label || "").trim();
+  return verb ? `${verb}: ${action.target}` : action.target;
+}
+
 function describeReportDeltaPlayer(player?: ReportDeltaPlayer | null): string {
   if (!player) return "No player";
   const meta = [player.position, player.team].filter(Boolean).join(" · ");
@@ -2020,13 +2092,13 @@ function buildReportDeltaChanges(
     changes.push({
       id: "action",
       label: "Decision changed",
-      summary: `${getAIActionDecisionLabel(currentAction.decision)}: ${currentAction.target}`,
+      summary: describeReportDeltaAction(currentAction),
       detail: previousAction
-        ? `Previously ${previousAction.target}; now ${currentAction.label}.`
-        : `${currentAction.label} is the current primary action.`,
+        ? `Previously ${describeReportDeltaAction(previousAction)}. Now ${describeReportDeltaAction(currentAction)}.`
+        : `${describeReportDeltaAction(currentAction)} is the current primary action.`,
       tone: getReportDeltaActionTone(currentAction),
       receipts: [
-        `Previous: ${previousAction ? previousAction.target : "no action"}`,
+        `Previous: ${previousAction ? describeReportDeltaAction(previousAction) : "no action"}`,
         `Current confidence: ${currentAction.confidence}%`,
         `Mode: ${current.valueMode}`,
       ],
@@ -3056,8 +3128,8 @@ function formatDashboardCompactNumber(value?: number | null): string {
     return "-";
   const rounded = Math.round(value);
   if (Math.abs(rounded) >= 1000000)
-    return `$${Math.round(rounded / 100000) / 10}M`;
-  if (Math.abs(rounded) >= 1000) return `$${Math.round(rounded / 1000)}K`;
+    return `${Math.round(rounded / 100000) / 10}M`;
+  if (Math.abs(rounded) >= 1000) return `${Math.round(rounded / 1000)}K`;
   return rounded.toLocaleString();
 }
 
@@ -3101,12 +3173,14 @@ function DashboardMetricCard({
   subLabel,
   tone = "neutral",
   className = "",
+  helper,
 }: {
   label: string;
   value: ReactNode;
   subLabel?: string;
   tone?: "neutral" | "info" | "good" | "warn" | "danger";
   className?: string;
+  helper?: ReactNode;
 }) {
   return (
     <div
@@ -3116,6 +3190,7 @@ function DashboardMetricCard({
       <span>{label}</span>
       <strong>{value}</strong>
       {subLabel && <em>{subLabel}</em>}
+      {helper && <small>{helper}</small>}
     </div>
   );
 }
@@ -3126,12 +3201,14 @@ function DashboardRingMetric({
   score,
   label,
   tone = "good",
+  helper,
 }: {
   title: string;
   value?: ReactNode;
   score: number | null;
   label: string;
   tone?: "info" | "good" | "warn" | "danger";
+  helper?: ReactNode;
 }) {
   const clampedScore =
     score === null ? 0 : Math.max(0, Math.min(100, Math.round(score)));
@@ -3150,6 +3227,7 @@ function DashboardRingMetric({
         <strong>{value ?? score ?? "-"}</strong>
       </div>
       <em>{label}</em>
+      {helper && <small>{helper}</small>}
     </div>
   );
 }
@@ -3185,12 +3263,14 @@ function DashboardMeterMetric({
   subLabel,
   score,
   tone = "info",
+  helper,
 }: {
   label: string;
   value: ReactNode;
   subLabel?: string;
   score: number | null;
   tone?: "info" | "good" | "warn" | "danger";
+  helper?: ReactNode;
 }) {
   const clampedScore =
     score === null ? 0 : Math.max(0, Math.min(100, Math.round(score)));
@@ -3204,7 +3284,191 @@ function DashboardMeterMetric({
         aria-hidden="true"
       />
       {subLabel && <em>{subLabel}</em>}
+      {helper && <small>{helper}</small>}
     </div>
+  );
+}
+
+function DashboardMiniBarStack({ metric }: { metric: DashboardHeroMetric }) {
+  const bars = (metric.bars || []).slice(0, 4);
+  const maxValue = Math.max(1, ...bars.map(bar => Math.max(0, bar.value)));
+
+  return (
+    <div
+      className="dashboard-metric-card dashboard-mini-bar-stack"
+      data-tone={metric.tone || "neutral"}
+    >
+      <span>{metric.label}</span>
+      {metric.targetManager ? (
+        <div className="dashboard-target-lockup">
+          <div className="dashboard-target-avatar" aria-hidden="true">
+            <DashboardManagerAvatar
+              manager={metric.targetManager}
+              avatarUrl={metric.avatarUrl}
+            />
+          </div>
+          <strong>{metric.value}</strong>
+        </div>
+      ) : (
+        <strong>{metric.value}</strong>
+      )}
+      {metric.subLabel && <em>{metric.subLabel}</em>}
+      {bars.length ? (
+        <div className="dashboard-mini-bars" aria-hidden="true">
+          {bars.map(bar => (
+            <div
+              key={bar.label}
+              className="dashboard-mini-bar-row"
+              data-tone={bar.tone || metric.tone || "info"}
+            >
+              <b>{bar.label}</b>
+              <i>
+                <span
+                  style={
+                    {
+                      "--dashboard-bar-score": `${Math.max(
+                        6,
+                        Math.round((Math.max(0, bar.value) / maxValue) * 100)
+                      )}%`,
+                    } as CSSProperties
+                  }
+                />
+              </i>
+              <em>{bar.displayValue ?? bar.value}</em>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {metric.helper && <small>{metric.helper}</small>}
+    </div>
+  );
+}
+
+function DashboardDeltaMetric({ metric }: { metric: DashboardHeroMetric }) {
+  const valueTitle = typeof metric.value === "string" ? metric.value : undefined;
+  const nameSize = getDashboardTargetNameSize(metric.value);
+
+  return (
+    <div
+      className="dashboard-metric-card dashboard-delta-metric"
+      data-tone={metric.tone || "neutral"}
+      data-direction={metric.deltaDirection || "flat"}
+    >
+      <span>{metric.label}</span>
+      {metric.targetManager ? (
+        <div className="dashboard-target-lockup">
+          <div className="dashboard-target-avatar" aria-hidden="true">
+            <DashboardManagerAvatar
+              manager={metric.targetManager}
+              avatarUrl={metric.avatarUrl}
+            />
+          </div>
+          <strong title={valueTitle} data-name-size={nameSize}>
+            {metric.value}
+          </strong>
+        </div>
+      ) : (
+        <strong title={valueTitle}>{metric.value}</strong>
+      )}
+      {metric.subLabel && <em>{metric.subLabel}</em>}
+      {metric.helper && <small>{metric.helper}</small>}
+    </div>
+  );
+}
+
+function DashboardTargetMetric({ metric }: { metric: DashboardHeroMetric }) {
+  const valueTitle = typeof metric.value === "string" ? metric.value : undefined;
+  const nameSize = getDashboardTargetNameSize(metric.value);
+
+  return (
+    <div
+      className="dashboard-metric-card dashboard-target-metric"
+      data-tone={metric.tone || "neutral"}
+    >
+      <span>{metric.label}</span>
+      <div className="dashboard-target-lockup">
+        {metric.targetManager && (
+          <div className="dashboard-target-avatar" aria-hidden="true">
+            <DashboardManagerAvatar
+              manager={metric.targetManager}
+              avatarUrl={metric.avatarUrl}
+            />
+          </div>
+        )}
+        <strong title={valueTitle} data-name-size={nameSize}>
+          {metric.value}
+        </strong>
+      </div>
+      {metric.subLabel && <em>{metric.subLabel}</em>}
+      {metric.badges?.length ? (
+        <div className="dashboard-metric-badges">
+          {metric.badges.slice(0, 3).map((badge, index) => (
+            <b key={index} data-tone={badge.tone || metric.tone || "info"}>
+              {badge.label}
+            </b>
+          ))}
+        </div>
+      ) : null}
+      {metric.helper && <small>{metric.helper}</small>}
+    </div>
+  );
+}
+
+function DashboardBadgeListMetric({ metric }: { metric: DashboardHeroMetric }) {
+  const valueTitle = typeof metric.value === "string" ? metric.value : undefined;
+  const nameSize = getDashboardTargetNameSize(metric.value);
+
+  return (
+    <div
+      className="dashboard-metric-card dashboard-badge-list-metric"
+      data-tone={metric.tone || "neutral"}
+    >
+      <span>{metric.label}</span>
+      {metric.targetManager ? (
+        <div className="dashboard-target-lockup">
+          <div className="dashboard-target-avatar" aria-hidden="true">
+            <DashboardManagerAvatar
+              manager={metric.targetManager}
+              avatarUrl={metric.avatarUrl}
+            />
+          </div>
+          <strong title={valueTitle} data-name-size={nameSize}>
+            {metric.value}
+          </strong>
+        </div>
+      ) : (
+        <strong title={valueTitle}>{metric.value}</strong>
+      )}
+      {metric.subLabel && <em>{metric.subLabel}</em>}
+      {metric.badges?.length ? (
+        <div className="dashboard-metric-badges">
+          {metric.badges.slice(0, 4).map((badge, index) => (
+            <b key={index} data-tone={badge.tone || metric.tone || "info"}>
+              {badge.label}
+            </b>
+          ))}
+        </div>
+      ) : null}
+      {metric.helper && <small>{metric.helper}</small>}
+    </div>
+  );
+}
+
+function getDashboardTargetNameSize(value: ReactNode) {
+  if (typeof value !== "string") return "normal";
+  const length = value.trim().length;
+  if (length >= 18) return "micro";
+  if (length >= 14) return "tight";
+  if (length >= 10) return "compact";
+  return "normal";
+}
+
+function renderDashboardHelperStack(primary: string, secondary: string) {
+  return (
+    <span className="dashboard-helper-stack">
+      <b>{primary}</b>
+      <span>{secondary}</span>
+    </span>
   );
 }
 
@@ -3556,7 +3820,24 @@ function getReportDashboardHeroCopy(
 }
 
 type DashboardMetricTone = "neutral" | "info" | "good" | "warn" | "danger";
-type DashboardVisualMetricKind = "standard" | "ring" | "meter";
+type DashboardVisualMetricKind =
+  | "standard"
+  | "ring"
+  | "meter"
+  | "bars"
+  | "delta"
+  | "target"
+  | "badges";
+type DashboardMetricBar = {
+  label: string;
+  value: number;
+  displayValue?: ReactNode;
+  tone?: DashboardMetricTone;
+};
+type DashboardMetricBadge = {
+  label: ReactNode;
+  tone?: DashboardMetricTone;
+};
 
 type DashboardHeroMetric = {
   key: string;
@@ -3564,8 +3845,14 @@ type DashboardHeroMetric = {
   label: string;
   value: ReactNode;
   subLabel?: string;
+  helper?: ReactNode;
   score?: number | null;
   tone?: DashboardMetricTone;
+  bars?: DashboardMetricBar[];
+  badges?: DashboardMetricBadge[];
+  targetManager?: string | null;
+  avatarUrl?: string | null;
+  deltaDirection?: "up" | "down" | "flat";
 };
 
 type DashboardSpotlightBlock = {
@@ -3606,6 +3893,7 @@ function DashboardVisualMetric({ metric }: { metric: DashboardHeroMetric }) {
         score={metric.score ?? null}
         label={metric.subLabel || ""}
         tone={getDashboardVisualTone(tone)}
+        helper={metric.helper}
       />
     );
   }
@@ -3618,8 +3906,25 @@ function DashboardVisualMetric({ metric }: { metric: DashboardHeroMetric }) {
         subLabel={metric.subLabel}
         score={metric.score ?? null}
         tone={getDashboardVisualTone(tone)}
+        helper={metric.helper}
       />
     );
+  }
+
+  if (metric.kind === "bars") {
+    return <DashboardMiniBarStack metric={metric} />;
+  }
+
+  if (metric.kind === "delta") {
+    return <DashboardDeltaMetric metric={metric} />;
+  }
+
+  if (metric.kind === "target") {
+    return <DashboardTargetMetric metric={metric} />;
+  }
+
+  if (metric.kind === "badges") {
+    return <DashboardBadgeListMetric metric={metric} />;
   }
 
   return (
@@ -3628,6 +3933,7 @@ function DashboardVisualMetric({ metric }: { metric: DashboardHeroMetric }) {
       value={metric.value}
       subLabel={metric.subLabel}
       tone={tone}
+      helper={metric.helper}
     />
   );
 }
@@ -3904,242 +4210,1036 @@ function getDashboardLeagueDraftStats(reportData: ReportData) {
   );
 }
 
+function isDashboardMeaningfulHole(summary?: string | null): boolean {
+  const normalized = String(summary || "").trim();
+  return Boolean(
+    normalized &&
+      !/^no major roster hole flagged$/i.test(normalized) &&
+      !/^none$/i.test(normalized)
+  );
+}
+
+function getDashboardManagerValueRows(reportData: ReportData) {
+  const managers = getReportDashboardManagers(reportData);
+  return managers
+    .map(manager => {
+      const growth = reportData.managerRosterValueGrowth?.find(
+        row => row.manager === manager
+      );
+      const overview = reportData.leagueOverview?.find(
+        row => row.manager === manager
+      );
+      const power = reportData.powerRankings?.find(
+        row => row.manager === manager
+      );
+      const value =
+        getDashboardNumber(growth, ["total_val"]) ??
+        getDashboardNumber(overview, ["total_val"]) ??
+        getDashboardNumber(power, ["rosterValue"]) ??
+        null;
+      return { manager, value, overview, power };
+    })
+    .filter((row): row is typeof row & { value: number } => row.value !== null);
+}
+
+function getDashboardMarketSpread(reportData: ReportData) {
+  const valueRows = getDashboardManagerValueRows(reportData).sort(
+    (a, b) => b.value - a.value
+  );
+  const top = valueRows[0] || null;
+  const bottom = valueRows[valueRows.length - 1] || null;
+  const gap = top && bottom ? top.value - bottom.value : null;
+  const gapPercent =
+    gap !== null && bottom?.value ? Math.round((gap / bottom.value) * 100) : null;
+  return {
+    top,
+    bottom,
+    gap,
+    gapPercent,
+    score: top?.value ? clampDashboardScore(((gap || 0) / top.value) * 100) : null,
+  };
+}
+
+function getDashboardPlayerAssetValue(player?: unknown): number {
+  return (
+    getDashboardNumber(player, [
+      "value",
+      "seasonValue",
+      "ktcValue",
+      "currentKtcValue",
+    ]) || 0
+  );
+}
+
+function getDashboardTopHeavy(reportData: ReportData) {
+  const rows = (reportData.managerRosterIntelligence || [])
+    .map(row => {
+      const starterValue =
+        getDashboardNumber(row, ["starterSeasonValue", "starterValue"]) || 0;
+      const benchValue = getDashboardNumber(row, ["benchValue"]) || 0;
+      const starterValuePct = getDashboardNumber(row, ["starterValuePct"]) || 0;
+      const gap = starterValue - benchValue;
+      return {
+        manager: row.manager,
+        gap,
+        starterValuePct,
+        score: Math.max(0, gap) + starterValuePct * 500,
+      };
+    })
+    .filter(row => row.gap > 0 || row.starterValuePct > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return rows[0] || null;
+}
+
+function getDashboardThinIce(reportData: ReportData) {
+  const rows = (reportData.managerRosterIntelligence || [])
+    .map(row => {
+      const healthScore = getDashboardNumber(row, ["rosterHealthScore"]);
+      const availabilityRisk = row.starterAvailability?.riskLevel;
+      const riskScore =
+        availabilityRisk === "high" ? 30 : availabilityRisk === "medium" ? 16 : 0;
+      const positionWeaknesses = Object.values(row.positionGrades || {}).filter(
+        grade =>
+          grade.rank === null ||
+          /thin|weak|bad|poor|f|d/i.test(`${grade.grade} ${grade.note}`)
+      ).length;
+      const holeScore = isDashboardMeaningfulHole(row.holes?.summary) ? 12 : 0;
+      const flexScore =
+        typeof row.holes?.flexDepth === "number"
+          ? Math.max(0, 3 - row.holes.flexDepth) * 5
+          : 0;
+      const holeSummary = row.holes?.summary || "";
+      const weakestCoveragePosition = (["QB", "RB", "WR", "TE"] as const)
+        .map(position => {
+          const grade = row.positionGrades?.[position];
+          const gradeText = `${grade?.grade || ""} ${grade?.note || ""}`;
+          const weakGrade =
+            grade?.rank === null ||
+            /thin|weak|bad|poor|f|d|behind|trail/i.test(gradeText);
+          const holeMatch =
+            new RegExp(`\\b${position}\\b|${position.toLowerCase()}\\d?|${position.toLowerCase()} room`, "i").test(
+              holeSummary
+            );
+          const starterMatch = row.weakestStarter?.pos === position;
+          return {
+            position,
+            score:
+              (weakGrade ? 20 : 0) +
+              (holeMatch ? 14 : 0) +
+              (starterMatch ? 10 : 0) +
+              (grade?.rank ? Math.min(12, Math.max(0, grade.rank - 12) / 4) : 0),
+          };
+        })
+        .sort((a, b) => b.score - a.score)[0];
+      const score =
+        riskScore +
+        (row.weakestStarter ? 16 : 0) +
+        holeScore +
+        flexScore +
+        positionWeaknesses * 6 +
+        (healthScore !== null ? Math.max(0, 62 - healthScore) : 0);
+
+      return {
+        manager: row.manager,
+        score,
+        riskLevel: availabilityRisk || "low",
+        coverage:
+          weakestCoveragePosition && weakestCoveragePosition.score > 0
+            ? `${weakestCoveragePosition.position} backup plan sucks`
+            : null,
+        hole:
+          isDashboardMeaningfulHole(holeSummary)
+            ? holeSummary.split(",")[0]?.trim()
+            : null,
+      };
+    })
+    .filter(row => row.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return rows[0] || null;
+}
+
+function getDashboardBenchRot(reportData: ReportData) {
+  const rows = (reportData.managerRosterIntelligence || [])
+    .map(row => {
+      const lowValuePlayers = [
+        ...(row.droppablePlayers || []),
+        ...(row.benchPlayers || []),
+        ...(row.taxiPlayers || []),
+      ].filter(player => getDashboardPlayerAssetValue(player) <= 750);
+      const uniquePlayers = new Map<string, unknown>();
+      lowValuePlayers.forEach((player, index) => {
+        const key =
+          getDashboardPlayerId(player) ||
+          (player && typeof player === "object"
+            ? String((player as unknown as Record<string, unknown>).name || index)
+            : String(index));
+        uniquePlayers.set(key, player);
+      });
+      const players = Array.from(uniquePlayers.values()) as unknown[];
+      const deadValue = players.reduce<number>(
+        (sum, player) => sum + getDashboardPlayerAssetValue(player),
+        0
+      );
+      const count = players.length;
+      return {
+        manager: row.manager,
+        count,
+        deadValue,
+        score: count * 1000 + deadValue,
+      };
+    })
+    .filter(row => row.count > 0 || row.deadValue > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return rows[0] || null;
+}
+
+function getDashboardManagerWeeklyMovement(reportData: ReportData) {
+  type ManagerWeeklyMovementRow = {
+    manager: string;
+    gain: number;
+    loss: number;
+    net: number;
+    topGainPlayer?: string;
+    topLossPlayer?: string;
+  };
+  const movement = new Map<
+    string,
+    ManagerWeeklyMovementRow
+  >();
+  const ensure = (manager: string) => {
+    const existing = movement.get(manager);
+    if (existing) return existing;
+    const next: ManagerWeeklyMovementRow = { manager, gain: 0, loss: 0, net: 0 };
+    movement.set(manager, next);
+    return next;
+  };
+
+  (reportData.weeklyRisers || []).forEach(player => {
+    if (!player.owner || isPlaceholderManagerName(player.owner)) return;
+    const row = ensure(player.owner);
+    const diff = Math.max(0, player.diff || 0);
+    row.gain += diff;
+    row.net += diff;
+    if (!row.topGainPlayer || diff > 0) row.topGainPlayer = player.name;
+  });
+
+  (reportData.weeklyFallers || []).forEach(player => {
+    if (!player.owner || isPlaceholderManagerName(player.owner)) return;
+    const row = ensure(player.owner);
+    const diff = Math.min(0, player.diff || 0);
+    row.loss += diff;
+    row.net += diff;
+    if (!row.topLossPlayer || diff < 0) row.topLossPlayer = player.name;
+  });
+
+  const rows = Array.from(movement.values());
+  return {
+    heat:
+      rows
+        .filter(row => row.gain > 0)
+        .sort((a, b) => b.gain - a.gain)[0] || null,
+    tilt:
+      rows
+        .filter(row => row.loss < 0)
+        .sort((a, b) => a.loss - b.loss)[0] || null,
+  };
+}
+
+function getDashboardTrendStack(reportData: ReportData) {
+  type TrendStackRow = {
+    manager: string;
+    playerKeys: Set<string>;
+    addCount: number;
+    topAddPlayer: string | null;
+    topAddCount: number;
+  };
+  const rows = new Map<string, TrendStackRow>();
+  const ensure = (manager: string) => {
+    const existing = rows.get(manager);
+    if (existing) return existing;
+    const next: TrendStackRow = {
+      manager,
+      playerKeys: new Set<string>(),
+      addCount: 0,
+      topAddPlayer: null,
+      topAddCount: 0,
+    };
+    rows.set(manager, next);
+    return next;
+  };
+  const addPlayer = (
+    player: NonNullable<ReportData["trendingAdds"]>[number]
+  ) => {
+    if (!player.owner || isPlaceholderManagerName(player.owner)) return;
+    const row = ensure(player.owner);
+    const playerKey = player.player_id || `${player.name}-${player.pos}`;
+    if (row.playerKeys.has(playerKey)) return;
+    const count = Math.max(0, player.count || 0);
+    row.playerKeys.add(playerKey);
+    row.addCount += count;
+    if (count > row.topAddCount) {
+      row.topAddPlayer = player.name;
+      row.topAddCount = count;
+    }
+  };
+
+  [...(reportData.trendingAdds || [])]
+    .sort((a, b) => b.count - a.count || (b.ktcValue || 0) - (a.ktcValue || 0))
+    .slice(0, 5)
+    .forEach(addPlayer);
+
+  return (
+    Array.from(rows.values())
+      .map(row => ({
+        manager: row.manager,
+        movers: row.playerKeys.size,
+        addCount: row.addCount,
+        topAddPlayer: row.topAddPlayer,
+        topAddCount: row.topAddCount,
+        score: row.addCount * 100 + row.playerKeys.size,
+      }))
+      .filter(row => row.addCount > 0)
+      .sort((a, b) => b.score - a.score)[0] || null
+  );
+}
+
+function getDashboardTiltRead(reportData: ReportData, teamCount: number) {
+  const pressureManagers = new Map<string, number>();
+  (reportData.weeklyFallers || []).forEach(player => {
+    if (!player.owner || isPlaceholderManagerName(player.owner)) return;
+    const pressure =
+      Math.abs(player.pct_change || 0) * 2 + Math.abs(player.diff || 0) / 450;
+    pressureManagers.set(
+      player.owner,
+      (pressureManagers.get(player.owner) || 0) + pressure
+    );
+  });
+  (reportData.managerRosterIntelligence || []).forEach(row => {
+    const healthScore = getDashboardNumber(row, ["rosterHealthScore"]);
+    if (healthScore !== null && healthScore < 50) {
+      pressureManagers.set(row.manager, (pressureManagers.get(row.manager) || 0) + 2);
+    }
+  });
+  return {
+    count: pressureManagers.size,
+    manager:
+      Array.from(pressureManagers.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+      null,
+    score: teamCount ? clampDashboardScore((pressureManagers.size / teamCount) * 100) : null,
+  };
+}
+
+function getDashboardBestBuyWindow(reportData: ReportData) {
+  const faller =
+    [...(reportData.weeklyFallers || [])]
+      .filter(player => (player.val_now || 0) > 0)
+      .sort(
+        (a, b) =>
+          Math.abs(b.diff || 0) - Math.abs(a.diff || 0) ||
+          (a.pct_change || 0) - (b.pct_change || 0)
+      )[0] || null;
+  if (faller) {
+    return {
+      value: faller.name,
+      subLabel: `${faller.owner || "Market"} ${formatDashboardSignedPercentLabel(faller.pct_change)}`,
+      helper: "Target before they recover.",
+      tone: "danger" as DashboardMetricTone,
+    };
+  }
+
+  const drop =
+    [...(reportData.trendingDrops || [])].sort(
+      (a, b) => (b.count || 0) - (a.count || 0)
+    )[0] || null;
+  return {
+    value: drop?.name || "No clean dip",
+    subLabel: drop ? `${formatDashboardWholeNumber(drop.count)} drops` : "Not enough movement",
+    helper: drop ? "Drop heat creates leverage." : "No obvious buy window yet.",
+    tone: drop ? ("warn" as DashboardMetricTone) : ("neutral" as DashboardMetricTone),
+  };
+}
+
+function getDashboardTopDog(reportData: ReportData) {
+  const ranked =
+    [...(reportData.powerRankings || [])].sort((a, b) => a.rank - b.rank)[0] ||
+    null;
+  if (ranked) {
+    return {
+      manager: ranked.manager,
+      subLabel: `${Math.round(ranked.score)} power score`,
+      badges: [
+        { label: `#${ranked.rank}`, tone: "good" as DashboardMetricTone },
+        { label: ranked.tier, tone: "info" as DashboardMetricTone },
+      ],
+    };
+  }
+
+  const overview =
+    [...(reportData.leagueOverview || [])].sort(
+      (a, b) => a.rank_value - b.rank_value
+    )[0] || null;
+  return overview
+    ? {
+        manager: overview.manager,
+        subLabel: formatDashboardCompactNumber(overview.total_val),
+        badges: [
+          { label: `#${overview.rank_value}`, tone: "good" as DashboardMetricTone },
+        ],
+      }
+    : null;
+}
+
+function getDashboardFraudWatch(reportData: ReportData) {
+  const intelByManager = new Map(
+    (reportData.managerRosterIntelligence || []).map(row => [row.manager, row])
+  );
+  const candidates = (reportData.leagueOverview || [])
+    .map(row => {
+      const intel = intelByManager.get(row.manager);
+      const health = getDashboardNumber(intel, ["rosterHealthScore"]);
+      const weakness =
+        (health !== null ? Math.max(0, 70 - health) : 0) +
+        (intel?.weakestStarter ? 8 : 0) +
+        (isDashboardMeaningfulHole(intel?.holes?.summary) ? 10 : 0) +
+        (intel?.starterAvailability?.riskLevel === "high" ? 8 : 0);
+      const rankPressure = Math.max(0, 8 - (row.rank_value || 99));
+      return {
+        manager: row.manager,
+        score: weakness + rankPressure * 2,
+        subLabel:
+          health !== null
+            ? `${Math.round(health)} health, rank #${row.rank_value}`
+            : `Rank #${row.rank_value}`,
+      };
+    })
+    .filter(row => row.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return candidates[0] || null;
+}
+
+function getDashboardLoadedCore(reportData: ReportData) {
+  const powerRow =
+    [...(reportData.powerRankings || [])]
+      .sort((a, b) => b.starterStrength - a.starterStrength || a.rank - b.rank)[0] ||
+    null;
+  if (powerRow) {
+    return {
+      manager: powerRow.manager,
+      subLabel: powerRow.starterStrength >= 80 ? "Elite starters" : "Best starters",
+      score: powerRow.starterStrength,
+    };
+  }
+
+  const intelRow =
+    [...(reportData.managerRosterIntelligence || [])]
+      .sort(
+        (a, b) =>
+          (getDashboardNumber(b, ["starterSeasonValue", "starterValue"]) || 0) -
+          (getDashboardNumber(a, ["starterSeasonValue", "starterValue"]) || 0)
+      )[0] || null;
+  return intelRow
+    ? {
+        manager: intelRow.manager,
+        subLabel: "Best starters",
+        score: null,
+      }
+    : null;
+}
+
+function getDashboardPaperTiger(reportData: ReportData) {
+  const depthRanks = [...(reportData.managerRosterIntelligence || [])]
+    .map(row => ({
+      manager: row.manager,
+      benchValue: getDashboardNumber(row, ["benchValue"]) || 0,
+    }))
+    .sort((a, b) => b.benchValue - a.benchValue)
+    .map((row, index) => ({ ...row, depthRank: index + 1 }));
+  const depthByManager = new Map(depthRanks.map(row => [row.manager, row]));
+  const candidates = (reportData.powerRankings || [])
+    .map(row => {
+      const depth = depthByManager.get(row.manager);
+      if (!depth) return null;
+      const mismatch = depth.depthRank - row.rank;
+      return {
+        manager: row.manager,
+        rank: row.rank,
+        depthRank: depth.depthRank,
+        mismatch,
+        score: mismatch * 100 + Math.max(0, 100 - row.starterStrength),
+      };
+    })
+    .filter(
+      (row): row is NonNullable<typeof row> =>
+        row !== null && row.mismatch > 0
+    )
+    .sort((a, b) => b.score - a.score);
+  return candidates[0] || null;
+}
+
+function getDashboardDepthCheck(reportData: ReportData) {
+  const intelRow =
+    [...(reportData.managerRosterIntelligence || [])]
+      .map(row => ({
+        manager: row.manager,
+        benchValue: getDashboardNumber(row, ["benchValue"]) || 0,
+      }))
+      .filter(row => row.benchValue > 0)
+      .sort((a, b) => b.benchValue - a.benchValue)[0] || null;
+
+  return intelRow
+    ? {
+        manager: intelRow.manager,
+        subLabel: "Best bench support",
+        benchValue: intelRow.benchValue,
+      }
+    : null;
+}
+
+function getDashboardPowerGap(reportData: ReportData) {
+  const powerRows = [...(reportData.powerRankings || [])].sort(
+    (a, b) => a.rank - b.rank
+  );
+  if (powerRows.length >= 2) {
+    const top = powerRows[0];
+    const median = powerRows[Math.floor(powerRows.length / 2)];
+    const last = powerRows[powerRows.length - 1];
+    const gap = Math.round(top.score - median.score);
+    return {
+      value: `${gap > 0 ? "+" : ""}${gap}`,
+      subLabel: `#1 to median`,
+      score: clampDashboardScore(((top.score - last.score) / Math.max(1, top.score)) * 100),
+    };
+  }
+
+  const spread = getDashboardMarketSpread(reportData);
+  return {
+    value: spread.gap !== null ? formatDashboardCompactNumber(spread.gap) : "-",
+    subLabel: "Top-to-bottom value gap",
+    score: spread.score,
+  };
+}
+
+function getDashboardContenderWall(reportData: ReportData, teamCount: number) {
+  const timelineRows = reportData.dynastyTimelines || [];
+  const contenders = timelineRows.filter(row => row.contenderScore >= 70);
+  if (timelineRows.length) {
+    return {
+      count: contenders.length,
+      score: teamCount ? clampDashboardScore((contenders.length / teamCount) * 100) : null,
+      top:
+        [...timelineRows].sort(
+          (a, b) => b.contenderScore - a.contenderScore
+        )[0] || null,
+    };
+  }
+
+  const powerRows = reportData.powerRankings || [];
+  const powerContenders = powerRows.filter(
+    row => row.score >= 75 || /contend|elite|favorite/i.test(row.tier)
+  );
+  return {
+    count: powerContenders.length,
+    score: teamCount ? clampDashboardScore((powerContenders.length / teamCount) * 100) : null,
+    top:
+      [...powerRows].sort((a, b) => b.score - a.score)[0] || null,
+  };
+}
+
+function getDashboardBestTradeMark(reportData: ReportData) {
+  const tradeCounts = new Map(
+    (reportData.tradeTendencies || []).map(row => [row.manager, row.tradeCount])
+  );
+  const candidates = (reportData.managerRosterIntelligence || [])
+    .map(row => {
+      const health = getDashboardNumber(row, ["rosterHealthScore"]);
+      const hasNeed = Boolean(row.tradePlan?.needPosition);
+      const hasAsset =
+        Boolean(row.tradeChip) ||
+        Boolean(row.bestBenchStash) ||
+        (row.benchValue || 0) > 0 ||
+        (row.tradeableDepth || []).length > 0;
+      const score =
+        (hasNeed ? 10 : 0) +
+        (row.weakestStarter ? 8 : 0) +
+        (isDashboardMeaningfulHole(row.holes?.summary) ? 8 : 0) +
+        (health !== null ? Math.max(0, 65 - health) / 4 : 0) +
+        (hasAsset ? 5 : 0) +
+        Math.min(4, tradeCounts.get(row.manager) || 0);
+      return {
+        manager: row.manager,
+        score,
+        need:
+          row.tradePlan?.needPosition ||
+          (isDashboardMeaningfulHole(row.holes?.summary)
+            ? row.holes.summary.split(",")[0]?.trim()
+            : null),
+        hasAsset,
+      };
+    })
+    .filter(row => row.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return candidates[0] || null;
+}
+
+function getDashboardTradeLedger(reportData: ReportData) {
+  const rows = reportData.tradeTendencies || [];
+  return {
+    champ:
+      [...rows].sort((a, b) => (b.profit || 0) - (a.profit || 0))[0] || null,
+    loser:
+      [...rows].sort((a, b) => (a.profit || 0) - (b.profit || 0))[0] || null,
+  };
+}
+
+function getDashboardTradeShark(reportData: ReportData) {
+  const activeRows = (reportData.tradeTendencies || []).filter(
+    row => (row.tradeCount || 0) > 0
+  );
+  const qualifiedRows = activeRows.filter(row => (row.tradeCount || 0) >= 3);
+  const pool = qualifiedRows.length ? qualifiedRows : activeRows;
+  const row =
+    [...pool].sort(
+      (a, b) =>
+        (b.winPct || 0) - (a.winPct || 0) ||
+        (b.wins || 0) - (a.wins || 0) ||
+        (b.profit || 0) - (a.profit || 0) ||
+        (b.tradeCount || 0) - (a.tradeCount || 0)
+    )[0] || null;
+
+  if (!row) {
+    return {
+      manager: null,
+      value: "No trades yet",
+      subLabel: "0 deals logged",
+      helper: "Are you all allergic to trading?",
+      tone: "neutral" as DashboardMetricTone,
+    };
+  }
+
+  const losses = Math.max(0, (row.tradeCount || 0) - (row.wins || 0));
+  const qualified = (row.tradeCount || 0) >= 3;
+  return {
+    manager: row.manager,
+    value: row.manager,
+    subLabel: qualified
+      ? `${row.winPct}% win rate`
+      : `${row.wins || 0}-${losses} record`,
+    helper: qualified
+      ? "Wins deals, not arguments."
+      : "Leader until the sample grows.",
+    tone: qualified ? ("good" as DashboardMetricTone) : ("warn" as DashboardMetricTone),
+  };
+}
+
+function getDashboardNeedHeat(reportData: ReportData): DashboardMetricBar[] {
+  const positions = ["QB", "RB", "WR", "TE"] as const;
+  const counts = new Map<(typeof positions)[number], number>(
+    positions.map(position => [position, 0])
+  );
+  (reportData.managerRosterIntelligence || []).forEach(row => {
+    if (row.tradePlan?.needPosition) {
+      counts.set(row.tradePlan.needPosition, (counts.get(row.tradePlan.needPosition) || 0) + 2);
+    }
+    const summary = row.holes?.summary || "";
+    positions.forEach(position => {
+      const grade = row.positionGrades?.[position];
+      if (
+        new RegExp(`\\b${position}\\b`, "i").test(summary) ||
+        (grade && /thin|weak|bad|poor|f|d/i.test(`${grade.grade} ${grade.note}`))
+      ) {
+        counts.set(position, (counts.get(position) || 0) + 1);
+      }
+    });
+  });
+
+  return positions
+    .map(position => ({
+      label: position,
+      value: counts.get(position) || 0,
+      displayValue:
+        (counts.get(position) || 0) >= 5
+          ? "High"
+          : (counts.get(position) || 0) >= 2
+            ? "Med"
+            : "Low",
+      tone:
+        (counts.get(position) || 0) >= 5
+          ? ("danger" as DashboardMetricTone)
+          : (counts.get(position) || 0) >= 2
+            ? ("warn" as DashboardMetricTone)
+            : ("info" as DashboardMetricTone),
+    }))
+    .sort((a, b) => b.value - a.value);
+}
+
+function getDashboardPickHoarder(reportData: ReportData) {
+  const portfolio =
+    [...(reportData.pickPortfolios || [])].sort((a, b) => {
+      const pickDiff =
+        (b.futurePicks?.length || 0) - (a.futurePicks?.length || 0);
+      return pickDiff || (b.totalValue || 0) - (a.totalValue || 0);
+    })[0] || null;
+  if (portfolio) {
+    const pickCount =
+      portfolio.futurePicks?.length ||
+      (portfolio.count2026 || 0) + (portfolio.count2027 || 0) + (portfolio.count2028 || 0);
+    return {
+      manager: portfolio.manager,
+      value: `${pickCount} picks`,
+      subLabel: formatDashboardCompactNumber(portfolio.totalValue),
+      badges: [
+        { label: `${portfolio.ownPicks} own`, tone: "info" as DashboardMetricTone },
+        { label: `${portfolio.acquiredPicks} raided`, tone: "warn" as DashboardMetricTone },
+      ],
+    };
+  }
+
+  const draftStat =
+    [...(reportData.draftStats || [])].sort(
+      (a, b) => (b.totalPicks || 0) - (a.totalPicks || 0)
+    )[0] || null;
+  return draftStat
+    ? {
+        manager: draftStat.manager,
+        value: `${draftStat.totalPicks} picks`,
+        subLabel: "Historical draft volume",
+        badges: [{ label: "Past drafts", tone: "info" as DashboardMetricTone }],
+      }
+    : null;
+}
+
+function getDashboardFutureGm(reportData: ReportData, leagueValueMode: LeagueValueMode) {
+  const best = getBestDraftSignalManager(reportData, leagueValueMode);
+  if (!best) return null;
+  const decided = (best.hits || 0) + (best.misses || 0);
+  const hitRate = decided ? Math.round(((best.hits || 0) / decided) * 100) : null;
+  const isRedraft = leagueValueMode === "redraft";
+  return {
+    manager: best.manager,
+    value: formatDashboardSignedNumber(best.avgKtcGain),
+    subLabel: isRedraft
+      ? "Avg value gained per pick"
+      : "Avg rookie value gained per pick",
+    badges: [
+      { label: `${best.totalPicks} picks`, tone: "info" as DashboardMetricTone },
+      {
+        label: hitRate === null ? "Hit rate pending" : `${hitRate}% hits`,
+        tone:
+          hitRate === null
+            ? ("neutral" as DashboardMetricTone)
+            : hitRate >= 50
+              ? ("good" as DashboardMetricTone)
+              : ("warn" as DashboardMetricTone),
+      },
+    ],
+  };
+}
+
+function getDashboardDraftLiability(reportData: ReportData, leagueValueMode: LeagueValueMode) {
+  const worstManager = getWorstDraftSignalManager(reportData, leagueValueMode);
+  const decided = worstManager
+    ? (worstManager.hits || 0) + (worstManager.misses || 0)
+    : 0;
+  const hitRate = decided && worstManager
+    ? Math.round(((worstManager.hits || 0) / decided) * 100)
+    : null;
+  return worstManager
+    ? {
+        manager: worstManager.manager,
+        value: formatDashboardSignedNumber(worstManager.avgKtcGain),
+        subLabel: "Worst rookie value per pick",
+        badges: [
+          { label: `${worstManager.totalPicks} picks`, tone: "info" as DashboardMetricTone },
+          {
+            label: hitRate === null ? "Hit rate pending" : `${hitRate}% hits`,
+            tone:
+              hitRate === null
+                ? ("neutral" as DashboardMetricTone)
+                : hitRate >= 50
+                  ? ("warn" as DashboardMetricTone)
+                  : ("danger" as DashboardMetricTone),
+          },
+        ],
+      }
+    : null;
+}
+
+function getDashboardAdpThief(reportData: ReportData, leagueValueMode: LeagueValueMode) {
+  const adpManager = getBestDraftAdpValueManager(reportData, leagueValueMode);
+
+  return adpManager
+    ? {
+        manager: adpManager.manager,
+        value: `+${Math.round(adpManager.totalAdpValue)} ADP`,
+        subLabel: "Total rookie ADP value banked",
+        badges: [
+          {
+            label: `${adpManager.adpValuePickCount} steals`,
+            tone: "good" as DashboardMetricTone,
+          },
+          {
+            label: `${adpManager.totalPicks} picks`,
+            tone: "info" as DashboardMetricTone,
+          },
+        ],
+      }
+    : null;
+}
+
 function getReportDashboardHeroConfig({
   activeTab,
   leagueValueMode,
   reportData,
-  leagueBalanceScore,
 }: {
   activeTab: ReportDashboardTab;
   leagueValueMode: LeagueValueMode;
   reportData: ReportData;
-  leagueBalanceScore: number | null;
 }): {
   pillLabel: string;
   pills: string[];
   metrics: DashboardHeroMetric[];
 } {
   const teamCount = getDashboardTeamCount(reportData);
-  const leagueValue = getDashboardLeagueValue(reportData);
-  const rosteredPlayerCount = getDashboardRosteredPlayerCount(reportData);
-  const tradeCount = reportData.tradeHistory?.length || 0;
   const weeklyRisers = [...(reportData.weeklyRisers || [])].sort(
     (a, b) => (b.pct_change || 0) - (a.pct_change || 0)
   );
   const weeklyFallers = [...(reportData.weeklyFallers || [])].sort(
     (a, b) => (a.pct_change || 0) - (b.pct_change || 0)
   );
-  const topAdd = [...(reportData.trendingAdds || [])].sort(
-    (a, b) => (b.count || 0) - (a.count || 0)
-  )[0];
-  const topDrop = [...(reportData.trendingDrops || [])].sort(
-    (a, b) => (b.count || 0) - (a.count || 0)
-  )[0];
-  const rankingRows = getDashboardRankingRows(reportData, leagueValueMode);
-  const rankingRowCount = getDashboardRankingRowCount(
-    reportData,
-    leagueValueMode
-  );
-  const rosteredRankingRows = rankingRows.filter(row => row.owner).length;
-  const rankingCoverageScore = rankingRows.length
-    ? (rosteredRankingRows / rankingRows.length) * 100
-    : null;
-  const topBoardPlayer = getDashboardTopRankingPlayer(
-    reportData,
-    leagueValueMode
-  );
-  const tradeManagers = getDashboardLeagueTradeManagers(reportData);
-  const biggestTradeGap =
-    [...(reportData.tradeHistory || [])].sort(
-      (a, b) => Math.abs(b.point_gap || 0) - Math.abs(a.point_gap || 0)
-    )[0] || null;
-  const topTradeProfit =
-    [...(reportData.tradeTendencies || [])].sort(
-      (a, b) => (b.profit || 0) - (a.profit || 0)
-    )[0] || null;
   const draftTotals = getDashboardLeagueDraftStats(reportData);
-  const leagueDraftHitRate = getDashboardDraftHitRate(draftTotals);
-  const avgDraftChange = draftTotals.managerCount
-    ? draftTotals.avgKtcGainTotal / draftTotals.managerCount
-    : null;
   const aiScore = reportData.leagueDiagnostics?.aiConfidence?.score ?? null;
+  const getMetricAvatarUrl = (manager?: string | null) =>
+    manager
+      ? getDashboardManagerAvatar(manager, reportData.managerAvatars)
+      : null;
 
   if (activeTab === "momentum") {
+    const movement = getDashboardManagerWeeklyMovement(reportData);
+    const trendStack = getDashboardTrendStack(reportData);
+
     return {
       pillLabel: "Momentum signals",
       pills: ["Market movement", "Waiver heat", "Buy windows", "Sell pressure"],
       metrics: [
         {
-          key: "top-riser",
-          label: "Top Riser",
-          value: getDashboardPlayerName(weeklyRisers[0]),
-          subLabel: formatDashboardSignedPercentLabel(weeklyRisers[0]?.pct_change),
-          tone: "good",
+          key: "heat-check",
+          kind: "delta",
+          label: "Heat Check",
+          value: movement.heat?.manager || "No heater",
+          subLabel: movement.heat
+            ? `${formatDashboardSignedNumber(movement.heat.gain)} in 7 days`
+            : "No roster gained value",
+          targetManager: movement.heat?.manager,
+          avatarUrl: getMetricAvatarUrl(movement.heat?.manager),
+          tone: movement.heat ? "good" : "neutral",
+          deltaDirection: movement.heat ? "up" : "flat",
+          helper: movement.heat?.topGainPlayer
+            ? renderDashboardHelperStack(
+                movement.heat.topGainPlayer,
+                "Sparked the surge."
+              )
+            : "Roster gain leader is not available yet.",
         },
         {
-          key: "top-faller",
-          label: "Top Faller",
-          value: getDashboardPlayerName(weeklyFallers[0]),
-          subLabel: formatDashboardSignedPercentLabel(weeklyFallers[0]?.pct_change),
-          tone: "danger",
+          key: "cold-streak",
+          kind: "delta",
+          label: "Cold Streak",
+          value: movement.tilt?.manager || "No crash",
+          subLabel: movement.tilt
+            ? `${formatDashboardSignedNumber(movement.tilt.loss)} in 7 days`
+            : "No roster lost value",
+          targetManager: movement.tilt?.manager,
+          avatarUrl: getMetricAvatarUrl(movement.tilt?.manager),
+          tone: movement.tilt ? "danger" : "neutral",
+          deltaDirection: movement.tilt ? "down" : "flat",
+          helper: movement.tilt?.topLossPlayer
+            ? renderDashboardHelperStack(
+                movement.tilt.topLossPlayer,
+                "Triggered the slide."
+              )
+            : "No major weekly damage logged.",
         },
         {
-          key: "adds",
-          kind: "meter",
-          label: "Waiver Adds",
-          value: topAdd ? formatDashboardWholeNumber(topAdd.count) : "-",
-          subLabel: topAdd?.name || "Trending adds",
-          score: getDashboardActivityScore(topAdd?.count || 0, 10000),
-          tone: "good",
-        },
-        {
-          key: "drops",
-          label: "Drop Heat",
-          value: topDrop ? formatDashboardWholeNumber(topDrop.count) : "-",
-          subLabel: topDrop?.name || "Drop pressure",
-          tone: topDrop ? "danger" : "neutral",
+          key: "trend-stack",
+          kind: "target",
+          label: "Trend Stack",
+          value: trendStack?.manager || "No trend stack",
+          subLabel: trendStack
+            ? `${formatPreviewCount(trendStack.addCount) || 0} adds`
+            : "No add movement logged",
+          targetManager: trendStack?.manager,
+          avatarUrl: getMetricAvatarUrl(trendStack?.manager),
+          tone: trendStack ? "warn" : "neutral",
+          helper: trendStack?.topAddPlayer
+            ? renderDashboardHelperStack(
+                trendStack.topAddPlayer,
+                `${formatPreviewCount(trendStack.topAddCount) || 0} adds`
+              )
+            : "No add leader logged.",
         },
       ],
     };
   }
 
   if (activeTab === "rankings") {
-    const profileLabel = getDashboardRankingProfileLabel(
-      reportData,
-      leagueValueMode
-    );
-    const hasRankingRows = rankingRows.length > 0;
-    const boardLoadScore = hasRankingRows
-      ? rankingCoverageScore
-      : rankingRowCount
-        ? 55
-        : null;
-    const boardLoadTone: DashboardMetricTone = hasRankingRows
-      ? rankingCoverageScore !== null && rankingCoverageScore >= 55
-        ? "good"
-        : "warn"
-      : rankingRowCount
-        ? "info"
-        : "warn";
-    const sourceBlendLabel = reportData.rankings?.sourceWeightProfiles
-      ? "Weighted"
-      : "Default";
+    const loadedCore = getDashboardLoadedCore(reportData);
+    const paperTiger = getDashboardPaperTiger(reportData);
+    const depthCheck = getDashboardDepthCheck(reportData);
     return {
       pillLabel: "Ranking signals",
       pills: ["Format matched", "Rostered values", "Prospect board", "Source blend"],
       metrics: [
         {
-          key: "coverage",
-          kind: "meter",
-          label: "Board Load",
-          value: hasRankingRows ? "Live" : rankingRowCount ? "Metadata" : "-",
-          subLabel: hasRankingRows
-            ? `${formatDashboardWholeNumber(rosteredRankingRows)} rostered`
-            : rankingRowCount
-              ? `${formatDashboardWholeNumber(rankingRowCount)} indexed`
-              : "No board data",
-          score: boardLoadScore,
-          tone: boardLoadTone,
+          key: "loaded-core",
+          kind: "target",
+          label: "Loaded Core",
+          value: loadedCore?.manager || "No core found",
+          subLabel: loadedCore?.subLabel || "Starter strength hidden",
+          targetManager: loadedCore?.manager,
+          avatarUrl: getMetricAvatarUrl(loadedCore?.manager),
+          tone: loadedCore ? "good" : "neutral",
+          helper: "The lineup has teeth.",
         },
         {
-          key: "source-blend",
-          label: "Source Blend",
-          value: sourceBlendLabel,
-          subLabel: profileLabel,
-          tone: reportData.rankings?.sourceWeightProfiles ? "good" : "info",
+          key: "paper-tiger",
+          kind: "target",
+          label: "Paper Tiger",
+          value: paperTiger?.manager || "No paper tiger",
+          subLabel: paperTiger
+            ? `#${paperTiger.rank} rank, #${paperTiger.depthRank} depth`
+            : "Rank/depth mismatch hidden",
+          targetManager: paperTiger?.manager,
+          avatarUrl: getMetricAvatarUrl(paperTiger?.manager),
+          tone: paperTiger ? "danger" : "neutral",
+          helper: "Looks better than it is.",
+        },
+        {
+          key: "depth-check",
+          kind: "target",
+          label: "Depth Check",
+          value: depthCheck?.manager || "No depth edge",
+          subLabel: depthCheck?.subLabel || "Bench support hidden",
+          targetManager: depthCheck?.manager,
+          avatarUrl: getMetricAvatarUrl(depthCheck?.manager),
+          tone: depthCheck ? "good" : "neutral",
+          helper: "Built to survive Sundays.",
         },
       ],
     };
   }
 
   if (activeTab === "trades") {
-    const handshakeRate = getDashboardHandshakeRate(reportData);
+    const tradeLedger = getDashboardTradeLedger(reportData);
+    const tradeShark = getDashboardTradeShark(reportData);
+    const champProfitScore = tradeLedger.champ
+      ? clampDashboardScore(Math.min(100, Math.abs(tradeLedger.champ.profit || 0) / 50))
+      : null;
+    const loserProfitScore = tradeLedger.loser
+      ? clampDashboardScore(Math.min(100, Math.abs(tradeLedger.loser.profit || 0) / 50))
+      : null;
     return {
       pillLabel: "Trade signals",
       pills: ["Roster scanner", "Value gaps", "Profit leaders", "Market behavior"],
       metrics: [
         {
-          key: "trades",
-          label: "Trades",
-          value: tradeCount,
-          subLabel: "Ledger count",
-          tone: tradeCount ? "info" : "warn",
+          key: "trade-reaper",
+          kind: "delta",
+          label: "Trade Reaper",
+          value: tradeLedger.champ?.manager || "No winner yet",
+          subLabel: tradeLedger.champ
+            ? `${formatDashboardSignedNumber(tradeLedger.champ.profit)} all-time`
+            : "No trade profit data",
+          score: champProfitScore,
+          targetManager: tradeLedger.champ?.manager,
+          avatarUrl: getMetricAvatarUrl(tradeLedger.champ?.manager),
+          tone: tradeLedger.champ ? "good" : "neutral",
+          deltaDirection: tradeLedger.champ ? "up" : "flat",
+          helper: "Always leaves richer.",
         },
         {
-          key: "active-managers",
-          kind: "meter",
-          label: "Managers",
-          value: `${tradeManagers}/${teamCount || "-"}`,
-          subLabel: "Trade market",
-          score: teamCount ? (tradeManagers / teamCount) * 100 : null,
-          tone: tradeManagers >= Math.max(teamCount / 2, 1) ? "good" : "warn",
+          key: "league-donor",
+          kind: "delta",
+          label: "League Donor",
+          value: tradeLedger.loser?.manager || "No victim yet",
+          subLabel: tradeLedger.loser
+            ? `${formatDashboardSignedNumber(tradeLedger.loser.profit)} all-time`
+            : "No trade loss data",
+          score: loserProfitScore,
+          targetManager: tradeLedger.loser?.manager,
+          avatarUrl: getMetricAvatarUrl(tradeLedger.loser?.manager),
+          tone: tradeLedger.loser ? "danger" : "neutral",
+          deltaDirection: tradeLedger.loser ? "down" : "flat",
+          helper: "Charity work, but worse.",
         },
         {
-          key: "handshake",
-          kind: "ring",
-          label: "Clean Rate",
-          value: formatDashboardPercentLabel(handshakeRate),
-          subLabel: "Clean gaps",
-          score: handshakeRate,
-          tone:
-            handshakeRate === null
-              ? "neutral"
-              : handshakeRate >= 45
-                ? "good"
-                : "warn",
-        },
-        {
-          key: "profit",
-          label: "Top Profit",
-          value: formatDashboardSignedNumber(topTradeProfit?.profit),
-          subLabel: topTradeProfit?.manager || "No leader",
-          tone: getDashboardHeroToneForSignedValue(topTradeProfit?.profit),
-        },
-        {
-          key: "biggest-gap",
-          label: "Biggest Gap",
-          value: formatDashboardWholeNumber(Math.abs(biggestTradeGap?.point_gap || 0)),
-          subLabel: biggestTradeGap
-            ? `${biggestTradeGap.team_a} vs ${biggestTradeGap.team_b}`
-            : "No trades",
-          tone: biggestTradeGap ? "danger" : "neutral",
+          key: "deal-demon",
+          kind: "target",
+          label: "Deal Demon",
+          value: tradeShark.value,
+          subLabel: tradeShark.subLabel,
+          targetManager: tradeShark.manager,
+          avatarUrl: getMetricAvatarUrl(tradeShark.manager),
+          tone: tradeShark.tone,
+          helper: tradeShark.helper,
         },
       ],
     };
   }
 
   if (activeTab === "draft") {
+    const futureGm = getDashboardFutureGm(reportData, leagueValueMode);
+    const liability = getDashboardDraftLiability(reportData, leagueValueMode);
+    const adpThief = getDashboardAdpThief(reportData, leagueValueMode);
     return {
       pillLabel: "Draft signals",
       pills: ["Capital efficiency", "Hit rate", "Passed value", "Rookie runway"],
       metrics: [
         {
-          key: "hit-rate",
-          kind: "ring",
-          label: "Hits",
-          value: formatDashboardPercentLabel(leagueDraftHitRate),
-          subLabel: "Hits vs misses",
-          score: leagueDraftHitRate,
-          tone:
-            leagueDraftHitRate === null
-              ? "neutral"
-              : leagueDraftHitRate >= 50
-                ? "good"
-                : "warn",
+          key: "future-gm",
+          kind: "badges",
+          label: "Future GM",
+          value: futureGm?.manager || "No GM yet",
+          subLabel: futureGm?.subLabel || "No efficiency data",
+          badges: futureGm?.badges || [{ label: "Pending", tone: "neutral" }],
+          targetManager: futureGm?.manager,
+          avatarUrl: getMetricAvatarUrl(futureGm?.manager),
+          tone: futureGm ? "good" : "neutral",
+          helper: futureGm
+            ? `${futureGm.value} average pick value.`
+            : "Best pick efficiency is not available.",
         },
         {
-          key: "starters",
-          label: "Starters",
-          value: formatDashboardWholeNumber(draftTotals.starters),
-          subLabel: "Drafted starters",
-          tone: draftTotals.starters ? "good" : "neutral",
+          key: "draft-liability",
+          kind: "badges",
+          label: "Draft Liability",
+          value: liability?.manager || "No leak found",
+          subLabel: liability
+            ? `${liability.value} avg rookie value`
+            : "Not enough draft ROI",
+          badges: liability?.badges || [{ label: "Pending", tone: "neutral" }],
+          targetManager: liability?.manager,
+          avatarUrl: getMetricAvatarUrl(liability?.manager),
+          tone: liability ? "danger" : "neutral",
+          helper: liability
+            ? liability.subLabel
+            : "Worst pick efficiency is not available.",
         },
         {
-          key: "avg-change",
-          label: "Avg Change",
-          value: formatDashboardSignedNumber(avgDraftChange),
-          subLabel: "Value movement",
-          tone: getDashboardHeroToneForSignedValue(avgDraftChange),
+          key: "adp-thief",
+          kind: "badges",
+          label: "ADP Thief",
+          value: adpThief?.manager || "No ADP theft",
+          subLabel: adpThief?.subLabel || "No ADP value data",
+          badges: adpThief?.badges || [{ label: "Pending", tone: "neutral" }],
+          targetManager: adpThief?.manager,
+          avatarUrl: getMetricAvatarUrl(adpThief?.manager),
+          tone: adpThief ? "good" : "neutral",
+          helper: adpThief
+            ? `${adpThief.manager} banked ${adpThief.value} by waiting past market cost.`
+            : "Best total ADP value is not available.",
         },
       ],
     };
@@ -4195,50 +5295,53 @@ function getReportDashboardHeroConfig({
     };
   }
 
-  const balanceLabel =
-    leagueBalanceScore === null
-      ? "Current"
-      : leagueBalanceScore >= 80
-        ? "Strong"
-        : leagueBalanceScore >= 65
-          ? "Good"
-          : leagueBalanceScore >= 50
-            ? "Watch"
-            : "Uneven";
+  const topHeavy = getDashboardTopHeavy(reportData);
+  const thinIce = getDashboardThinIce(reportData);
+  const benchRot = getDashboardBenchRot(reportData);
 
   return {
     pillLabel: "Overview signals",
-    pills: ["League value", "League health", "Roster coverage"],
+    pills: ["League health", "Weak spots", "Value spread"],
     metrics: [
       {
-        key: "league-value",
-        label: "League Value",
-        value: leagueValue ? formatDashboardCompactNumber(leagueValue) : "-",
-        subLabel: teamCount ? `${teamCount} manager rosters` : "All managers",
-        tone: "good",
+        key: "top-heavy",
+        kind: "target",
+        label: "Top Heavy",
+        value: topHeavy?.manager || "No imbalance",
+        subLabel: topHeavy
+          ? `Starters carry ${topHeavy.starterValuePct}%`
+          : "Starter/bench gap hidden",
+        targetManager: topHeavy?.manager,
+        avatarUrl: getMetricAvatarUrl(topHeavy?.manager),
+        tone: topHeavy ? "warn" : "neutral",
+        helper: "Bench gets ugly fast.",
       },
       {
-        key: "balance",
-        kind: "ring",
-        label: "League Health",
-        value: leagueBalanceScore ?? "-",
-        subLabel: balanceLabel,
-        score: leagueBalanceScore,
-        tone:
-          leagueBalanceScore === null
-            ? "neutral"
-            : leagueBalanceScore >= 65
-              ? "good"
-              : leagueBalanceScore >= 50
-                ? "warn"
-                : "danger",
+        key: "thin-ice",
+        kind: "target",
+        label: "Thin Ice",
+        value: thinIce?.manager || "No cracks found",
+        subLabel:
+          thinIce?.coverage ||
+          thinIce?.hole ||
+          (thinIce ? `${thinIce.riskLevel} availability risk` : "Depth risk hidden"),
+        targetManager: thinIce?.manager,
+        avatarUrl: getMetricAvatarUrl(thinIce?.manager),
+        tone: thinIce ? "danger" : "neutral",
+        helper: "No safety net.",
       },
       {
-        key: "rostered-players",
-        label: "Rostered Players",
-        value: rosteredPlayerCount ?? "-",
-        subLabel: "Whole league rosters",
-        tone: rosteredPlayerCount ? "info" : "warn",
+        key: "bench-rot",
+        kind: "target",
+        label: "Bench Rot",
+        value: benchRot?.manager || "No rot found",
+        subLabel: benchRot
+          ? `${benchRot.count} low value spots`
+          : "No obvious cut pile",
+        targetManager: benchRot?.manager,
+        avatarUrl: getMetricAvatarUrl(benchRot?.manager),
+        tone: benchRot ? "danger" : "neutral",
+        helper: "Dead weight on the bench.",
       },
     ],
   };
@@ -4249,24 +5352,25 @@ function ReportOverviewHero({
   activeTab,
   leagueValueMode,
   reportData,
-  leagueBalanceScore,
 }: {
   leagueName: string;
   activeTab: ReportDashboardTab;
   leagueValueMode: LeagueValueMode;
   reportData: ReportData;
-  leagueBalanceScore: number | null;
 }) {
   const heroCopy = getReportDashboardHeroCopy(activeTab);
   const heroConfig = getReportDashboardHeroConfig({
     activeTab,
     leagueValueMode,
     reportData,
-    leagueBalanceScore,
   });
+  const normalizedHeroTab = normalizeReportTab(activeTab) || "overview";
 
   return (
-    <section className="report-overview-hero">
+    <section
+      className="report-overview-hero"
+      data-dashboard-tab={normalizedHeroTab}
+    >
       <div className="report-overview-hero-copy">
         <h1>
           {heroCopy.headline.split("\n").map(line => (
@@ -4275,14 +5379,10 @@ function ReportOverviewHero({
         </h1>
         <p className="report-overview-hero-subline">{heroCopy.subline}</p>
         <p>{heroCopy.body}</p>
-        <div className="report-overview-pills" aria-label={heroConfig.pillLabel}>
-          {heroConfig.pills.map(pill => (
-            <span key={pill}>{pill}</span>
-          ))}
-        </div>
       </div>
       <div
         className={`report-overview-metrics report-overview-metrics-${heroConfig.metrics.length}`}
+        data-dashboard-tab={normalizedHeroTab}
         aria-label={`${leagueName} ${heroConfig.pillLabel.toLowerCase()}`}
       >
         {heroConfig.metrics.map(metric => (
@@ -4862,6 +5962,8 @@ function ReportDashboardSpotlight({
   managerAvatars?: Record<string, string | null | undefined>;
   variant?: "sidebar" | "inline";
 }) {
+  const [inlineSpotlightOpen, setInlineSpotlightOpen] = useState(false);
+
   if (!manager) return null;
 
   const intel = reportData.managerRosterIntelligence?.find(
@@ -5031,13 +6133,33 @@ function ReportDashboardSpotlight({
       </div>
     </>
   );
+  const inlineTronTheme: AITronTheme =
+    activeTab === "trades"
+      ? "blue"
+      : activeTab === "draft" || activeTab === "rankings"
+        ? "amber"
+        : "cyan";
+  const inlineSpotlightClassName = [
+    "report-dashboard-spotlight-inline",
+    inlineSpotlightOpen
+      ? "report-dashboard-spotlight"
+      : "ai-surface-r3f ai-neural-surface-tron ai-neural-surface-window dashboard-spotlight-inline-tron",
+  ].filter(Boolean).join(" ");
 
   if (variant === "inline") {
     return (
       <details
-        className="report-dashboard-spotlight report-dashboard-spotlight-inline"
+        className={inlineSpotlightClassName}
         aria-label="Manager spotlight"
+        onToggle={(event) => setInlineSpotlightOpen(event.currentTarget.open)}
       >
+        {!inlineSpotlightOpen && (
+          <AITronSurface
+            theme={inlineTronTheme}
+            density="small"
+            routeKey={`dashboard-spotlight-${activeTab}-${manager}`}
+          />
+        )}
         <summary className="dashboard-spotlight-inline-summary">
           {spotlightHeader}
           <span className="dashboard-spotlight-inline-copy">
@@ -10410,6 +11532,8 @@ export default function Home() {
   const [leagueFormat, setLeagueFormat] = useState("");
   const [ownerIntelSortMode, setOwnerIntelSortMode] =
     useState<OwnerIntelSortMode>("dynasty");
+  const [leagueRosterScannerMode, setLeagueRosterScannerMode] =
+    useState<OwnerIntelSortMode>("dynasty");
   const [isLoading, setIsLoading] = useState(false);
   const [loadingManagerAnchors, setLoadingManagerAnchors] = useState<
     LoaderManagerAnchor[]
@@ -12067,17 +13191,6 @@ export default function Home() {
     const dashboardManagers = getReportDashboardManagers(reportDataForView);
     const dashboardViewerManager =
       effectiveViewerManager || dashboardManagers[0] || null;
-    const dashboardHealthScores = (
-      reportDataForView.managerRosterIntelligence || []
-    )
-      .map(row => getDashboardNumber(row, ["rosterHealthScore"]))
-      .filter((value): value is number => value !== null);
-    const dashboardLeagueHealthScore = dashboardHealthScores.length
-      ? Math.round(
-          dashboardHealthScores.reduce((sum, value) => sum + value, 0) /
-            dashboardHealthScores.length
-        )
-      : null;
     const hasManagerViewOptions = reportManagerNames.length > 1;
     const showTradeMarketRadar =
       reportData.weeklyRisers.some(player => player.val_now >= 2500) ||
@@ -12306,7 +13419,6 @@ export default function Home() {
                     activeTab={resolvedActiveTab}
                     leagueValueMode={leagueValueMode}
                     reportData={reportDataForView}
-                    leagueBalanceScore={dashboardLeagueHealthScore}
                   />
                   <ReportSinceLastReportBrief
                     changes={reportDeltaChanges}
@@ -12803,6 +13915,14 @@ export default function Home() {
                           title="Scout Leaguemates"
                           kicker="Manager rank inventory"
                           openSignal={rosterScannerFocusKey}
+                          previewAccessory={
+                            !isRedraftReport ? (
+                              <LeagueRosterScannerModeControls
+                                value={leagueRosterScannerMode}
+                                onChange={setLeagueRosterScannerMode}
+                              />
+                            ) : undefined
+                          }
                         >
                           <LeagueRosterScanner
                             data={reportData.managerRosterIntelligence}
@@ -12819,6 +13939,24 @@ export default function Home() {
                             currentStandings={reportData.currentStandings}
                             leagueValueMode={leagueValueMode}
                             focusKey={rosterScannerFocusKey}
+                            mode={
+                              !isRedraftReport
+                                ? leagueRosterScannerMode
+                                : undefined
+                            }
+                            onModeChange={
+                              !isRedraftReport
+                                ? nextMode => {
+                                    if (
+                                      nextMode === "dynasty" ||
+                                      nextMode === "contender" ||
+                                      nextMode === "rebuilder"
+                                    ) {
+                                      setLeagueRosterScannerMode(nextMode);
+                                    }
+                                  }
+                                : undefined
+                            }
                           />
                         </CollapsibleReportSection>
                       ) : null}
@@ -12865,6 +14003,11 @@ export default function Home() {
                         <CollapsibleReportSection
                           title="College Rankings"
                           kicker="Future rookie pipeline"
+                          previewAccessory={
+                            <span className="rankings-header-context-pill">
+                              2021-2027 Tracked
+                            </span>
+                          }
                         >
                           {rankingsQuery.isLoading && !rankingsForReport ? (
                             <div className="rankings-empty-state">
@@ -13154,7 +14297,7 @@ export default function Home() {
                   <div className="report-footer-primary-actions">
                     {(canOpenAdminToolsEntry ||
                       (canViewAdminFeatureExpansion && hasManagerViewOptions)) && (
-                      <div className="flex w-full max-w-[32rem] items-stretch justify-center gap-1.5 sm:w-auto sm:max-w-none sm:gap-2">
+                      <div className="report-footer-admin-row flex w-full max-w-[32rem] items-stretch justify-center gap-1.5 sm:w-auto sm:max-w-none sm:gap-2">
                         {canOpenAdminToolsEntry && (
                           <Button
                             type="button"
@@ -13201,7 +14344,7 @@ export default function Home() {
                     <Button
                       onClick={handleAnalyzeAnotherLeague}
                       variant="outline"
-                      className="report-header-action report-footer-primary-action !w-full max-w-[32rem] sm:!w-auto sm:max-w-none"
+                      className="report-header-action report-footer-primary-action report-switch-league-trigger !w-full max-w-[32rem] sm:!w-auto sm:max-w-none"
                       aria-label="Switch to another league report"
                     >
                       <span className="report-header-action-label">

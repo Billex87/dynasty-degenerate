@@ -161,6 +161,14 @@ export type PreviewMetric = {
   className?: string;
 };
 
+const BAD_SIGNAL_PREVIEW_LABEL_PATTERN = /\b(?:trash|weak|weakest|drop|drops|faller|fallers|low|lowest|worst|dead|drag|cut|cuts|risk|risky|fraud|cooked|hole|liability|leak|miss|misses)\b/i;
+
+function getPreviewMetricSignalClass(metric: PreviewMetric) {
+  if (metric.tone !== 'warn') return null;
+  const labelText = `${metric.label} ${metric.compactLabel || ''}`;
+  return BAD_SIGNAL_PREVIEW_LABEL_PATTERN.test(labelText) ? 'analysis-preview-chip-bad-signal' : null;
+}
+
 export function PreviewMetricChips({
   metrics,
   className,
@@ -188,6 +196,7 @@ export function PreviewMetricChips({
             metric.icon && 'analysis-preview-chip-has-icon',
             metric.hideLabel && 'analysis-preview-chip-label-hidden',
             metric.tone && `analysis-preview-chip-${metric.tone}`,
+            getPreviewMetricSignalClass(metric),
             metric.className,
           )}
         >

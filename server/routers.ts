@@ -5423,17 +5423,8 @@ async function fetchLastSeasonPositionRanks(
   season: string
 ): Promise<Record<string, LastSeasonPlayerRank>> {
   const rankPositions = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
-  const uniquePlayerIds = Array.from(new Set(playerIds))
-    .filter((playerId) => {
-      const position = normalizeSeasonLineupPosition(players[playerId]?.position);
-      return Boolean(position && rankPositions.includes(position));
-    });
   const rankMap = await buildSleeperSeasonRankMap(season, players, scoringSettings, rankPositions, getUserLoadSnapshotOptions());
-  return Object.fromEntries(
-    uniquePlayerIds
-      .map((playerId) => [playerId, rankMap[playerId]])
-      .filter((entry): entry is [string, LastSeasonPlayerRank] => Boolean(entry[1]))
-  );
+  return rankMap;
 }
 
 async function fetchDraftSlotsBySeason(

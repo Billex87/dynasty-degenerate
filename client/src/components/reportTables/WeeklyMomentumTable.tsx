@@ -14,7 +14,6 @@ import {
   VALUE_BLEND_HISTORY_START_LABEL,
   ValueTrendIcon,
 } from '../ReportTables';
-import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { getPlayerValueForMode, normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
@@ -64,7 +63,7 @@ export default function WeeklyMomentumTable({
           {displaySections.map(section => (
             <section key={section.title} className="weekly-momentum-section">
               <h4>{section.title}</h4>
-              <div className="weekly-momentum-grid balanced-tile-grid" style={getBalancedGridStyle(Math.max(section.data.length, 5), 5)}>
+              <div className="weekly-momentum-grid">
                 {section.data.slice(0, 5).map((row) => {
                   const playerDetails = row.playerDetails || (row.player_id ? playerDetailsById?.[row.player_id] : undefined);
                   const isPositive = row.pct_change >= 0;
