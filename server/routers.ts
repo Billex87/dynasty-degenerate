@@ -15,7 +15,7 @@ import type { KTCValues, LastSeasonPlayerRank } from "./reportGenerator";
 import { getKtcSnapshotFromDaysAgo, getKtcSnapshotOnOrBeforeDate } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
-import { buildFantasyProsRookieAdpData } from "./fantasyProsRookieAdp";
+import { buildSleeperRookieAdpData } from "./sleeperRookieAdp";
 import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBaselines";
 import { fetchPlayerHeadshot, getCachedImage } from "./imageProxy";
 import { cleanName, getPickValue, getPlayerName, getPlayerValue, playerNameKeyVariants } from "./leagueAnalysis";
@@ -6834,12 +6834,12 @@ export const appRouter = router({
               leagueValueMode,
             });
             const draftDerivedAdpData = calculateADPFromPicks(draftPicks);
-            const fantasyProsRookieAdpData = leagueValueMode === 'dynasty'
-              ? await buildFantasyProsRookieAdpData(draftPicks, players)
+            const sleeperRookieAdpData = leagueValueMode === 'dynasty'
+              ? await buildSleeperRookieAdpData(draftPicks, players, leagueValueOptions)
               : {};
             const adpData = {
               ...draftDerivedAdpData,
-              ...fantasyProsRookieAdpData,
+              ...sleeperRookieAdpData,
             };
             if (draftPicks.length > 0) {
               const rookieValues2025 = getRookieValueBaseline('2025');
