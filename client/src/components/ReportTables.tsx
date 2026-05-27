@@ -72,6 +72,7 @@ import {
   renderManagerName,
   TradeFitReadCard,
   TradeLedgerManagerName,
+  TradeOutcomePanelDisplay,
   TradeSideManager,
   TradeValuePill,
   type ManagerAvatars,
@@ -1325,48 +1326,12 @@ function renderOutcomeAssetLine(asset: TradeOutcomeAsset) {
 
 function TradeOutcomePanel({ outcome }: { outcome: TradeOutcomeReview }) {
   return (
-    <div className="trade-outcome-card">
-      <div className="trade-outcome-header">
-        <div>
-          <span className="trade-outcome-kicker">{outcome.statusLabel}</span>
-          <h4>True Trade Outcome</h4>
-          <p>
-            {outcome.windowSubtitle}. Observed through{" "}
-            {outcome.observedThroughLabel}.
-          </p>
-        </div>
-        <span className="trade-outcome-status">{outcome.statusLabel}</span>
-      </div>
-      <p className="trade-outcome-verdict">{outcome.verdict}</p>
-      <div className="trade-outcome-metrics">
-        {outcome.metrics.map(metric => (
-          <div
-            key={metric.label}
-            className={`trade-outcome-metric trade-outcome-metric-${metric.tone}`}
-          >
-            <span>{metric.label}</span>
-            <strong>{metric.value}</strong>
-            <small>{metric.note}</small>
-          </div>
-        ))}
-      </div>
-      <div className="trade-outcome-sides">
-        {outcome.sides.map(side => (
-          <div key={side.manager} className="trade-outcome-side">
-            <div className="trade-outcome-side-top">
-              <span>{side.manager}</span>
-              <strong>{side.evaluation.total.toLocaleString()}</strong>
-            </div>
-            <ul>{side.assets.slice(0, 4).map(renderOutcomeAssetLine)}</ul>
-          </div>
-        ))}
-      </div>
-      <ul className="trade-outcome-notes">
-        {outcome.notes.map(note => (
-          <li key={note}>{note}</li>
-        ))}
-      </ul>
-    </div>
+    <TradeOutcomePanelDisplay
+      outcome={outcome}
+      renderAssetLine={asset =>
+        renderOutcomeAssetLine(asset as TradeOutcomeSide["assets"][number])
+      }
+    />
   );
 }
 

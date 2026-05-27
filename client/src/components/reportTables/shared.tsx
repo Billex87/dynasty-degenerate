@@ -34,6 +34,24 @@ export type TradeFitReadDisplay = {
   tone: "good" | "warn" | "neutral";
   target?: ManagerIntelPlayer | null;
 };
+export type TradeOutcomePanelData = {
+  statusLabel: string;
+  windowSubtitle: string;
+  observedThroughLabel: string;
+  verdict: string;
+  metrics: Array<{
+    label: string;
+    value: string;
+    note: string;
+    tone: "good" | "bad" | "neutral";
+  }>;
+  notes: string[];
+  sides: Array<{
+    manager: string;
+    evaluation: { total: number };
+    assets: unknown[];
+  }>;
+};
 
 export const VALUE_BLEND_HISTORY_START_LABEL = "May 7, 2026";
 export const FIRST_FULL_BLEND_WEEK_LABEL = "May 12, 2026 after the 6 PM scrape";
@@ -349,6 +367,59 @@ export function TradeFitReadCard({
           />
         </button>
       )}
+    </div>
+  );
+}
+
+export function TradeOutcomePanelDisplay({
+  outcome,
+  renderAssetLine,
+}: {
+  outcome: TradeOutcomePanelData;
+  renderAssetLine: (asset: unknown) => ReactNode;
+}) {
+  return (
+    <div className="trade-outcome-card">
+      <div className="trade-outcome-header">
+        <div>
+          <span className="trade-outcome-kicker">{outcome.statusLabel}</span>
+          <h4>True Trade Outcome</h4>
+          <p>
+            {outcome.windowSubtitle}. Observed through{" "}
+            {outcome.observedThroughLabel}.
+          </p>
+        </div>
+        <span className="trade-outcome-status">{outcome.statusLabel}</span>
+      </div>
+      <p className="trade-outcome-verdict">{outcome.verdict}</p>
+      <div className="trade-outcome-metrics">
+        {outcome.metrics.map(metric => (
+          <div
+            key={metric.label}
+            className={`trade-outcome-metric trade-outcome-metric-${metric.tone}`}
+          >
+            <span>{metric.label}</span>
+            <strong>{metric.value}</strong>
+            <small>{metric.note}</small>
+          </div>
+        ))}
+      </div>
+      <div className="trade-outcome-sides">
+        {outcome.sides.map(side => (
+          <div key={side.manager} className="trade-outcome-side">
+            <div className="trade-outcome-side-top">
+              <span>{side.manager}</span>
+              <strong>{side.evaluation.total.toLocaleString()}</strong>
+            </div>
+            <ul>{side.assets.slice(0, 4).map(renderAssetLine)}</ul>
+          </div>
+        ))}
+      </div>
+      <ul className="trade-outcome-notes">
+        {outcome.notes.map(note => (
+          <li key={note}>{note}</li>
+        ))}
+      </ul>
     </div>
   );
 }
