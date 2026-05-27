@@ -35,6 +35,7 @@ import { getVoicedAIActionLabel } from "@/lib/aiVoice";
 import { buildPlayerActionArchetypeRead } from "@/lib/playerActionArchetype";
 import {
   buildPlayerModalData,
+  clampPercentValue,
   formatCompactValue,
   getAiNeuralSurfaceClass,
   parsePositionRankValue,
@@ -55,10 +56,6 @@ function normalizeManagerKey(value: string | null | undefined): string {
     .toLowerCase()
     .replace(/\s+/g, "")
     .replace(/\d+$/g, "");
-}
-
-function clampPercentValue(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 function WaiverRankPill({

@@ -56,6 +56,7 @@ import {
 import { AITronSurface, type AITronTheme } from "./AITronSurface";
 import {
   buildPlayerModalData,
+  clampPercentValue,
   FeatureCard,
   formatCompactValue,
   getAiNeuralSurfaceClass,
@@ -5822,11 +5823,6 @@ type CommandSwapSignal = {
   label: string;
   detail?: string;
 };
-
-function clampPercentValue(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(100, Math.round(value)));
-}
 
 function getFiniteNumber(value: unknown): number | null {
   const numeric =

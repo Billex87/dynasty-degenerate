@@ -40,6 +40,11 @@ export function formatCompactValue(value: number | null | undefined): string {
   return value.toLocaleString();
 }
 
+export function clampPercentValue(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
 export function PositionRankPill({ rank }: { rank?: string | null }) {
   const displayRank = rank || "-";
   return (
