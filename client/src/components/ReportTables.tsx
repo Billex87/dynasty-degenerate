@@ -60,16 +60,21 @@ import {
   FeatureCard,
   formatCompactValue,
   formatOutcomeDeltaLabel,
+  formatOutcomeDate,
   getAiNeuralSurfaceClass,
   getManagerHeadingClassName,
+  getOutcomeAssetStatus,
+  getOutcomePlayerSeasonValue,
   getPlayerStatusClass,
   getPlayerStatusLabel,
   getTradeGapVerdict as getSharedTradeGapVerdict,
+  getTradeLensNumber,
   IntelligenceMetric,
   normalizeManagerKey,
   OwnerMetricPill,
   OwnerSummaryTile,
   parsePositionRankValue,
+  parseTradeOutcomeDate,
   PositionRankPill,
   renderManagerName,
   TradeFitReadCard,
@@ -80,6 +85,7 @@ import {
   TradeSideManager,
   TradeSideImpactRead,
   TradeValuePill,
+  addYears,
   type ManagerAvatars,
   type PlayerDetailsById,
 } from "./reportTables/shared";
@@ -403,12 +409,6 @@ function getTradeRowBuildLens(
       leagueValueMode
     )
   );
-}
-
-function getTradeLensNumber(value: number | null | undefined): number | null {
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.round(value)
-    : null;
 }
 
 function getTradeLedgerPlayerValue(
@@ -792,44 +792,6 @@ type TradeOutcomeReview = {
   sides: TradeOutcomeSide[];
   records: TradeOutcomeRecord[];
 };
-
-function parseTradeOutcomeDate(date: string): Date {
-  return new Date(`${date}T00:00:00Z`);
-}
-
-function addYears(date: Date, years: number): Date {
-  const next = new Date(date);
-  next.setUTCFullYear(next.getUTCFullYear() + years);
-  return next;
-}
-
-function formatOutcomeDate(date: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
-}
-
-function getOutcomePlayerSeasonValue(details?: PlayerDetails): number {
-  return (
-    getTradeLensNumber(
-      details?.valueProfile?.seasonValue ??
-        details?.valueProfile?.fantasyProsSeasonValue
-    ) ??
-    getTradeLensNumber(details?.lastSeasonFantasyPoints) ??
-    0
-  );
-}
-
-function getOutcomeAssetStatus(details?: PlayerDetails): string | null {
-  const status = getPlayerAvailability(details).label;
-  if (status && !/^(active|healthy)$/i.test(status)) return status;
-  const avgMissed = getTradeLensNumber(details?.avgGamesMissed);
-  if (avgMissed && avgMissed >= 3) return `${avgMissed} avg missed games`;
-  return null;
-}
 
 function getOutcomeAssetsFromItems(
   items: string,
