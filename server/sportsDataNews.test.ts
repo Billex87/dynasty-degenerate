@@ -46,4 +46,45 @@ describe('SportsDataIO news normalization', () => {
       source: 'SportsDataIO/RotoBaller',
     });
   });
+
+  it('normalizes alternate headline, date, url, and team field names', () => {
+    const [row] = __testing.normalizeSportsDataIoNewsRows([{
+      Subject: 'Injury update',
+      Article: 'Full participant in practice.',
+      OriginalSource: 'SportsDataIO',
+      OriginalSourceUrl: 'https://example.com/injury-update',
+      PublishedDate: '2026-05-17T18:30:00Z',
+      FantasyPlayerName: 'Amon-Ra St. Brown',
+      PlayerTeamID: 'DET',
+    }]);
+
+    expect(row).toMatchObject({
+      title: 'Injury update',
+      summary: 'Full participant in practice.',
+      source: 'SportsDataIO',
+      url: 'https://example.com/injury-update',
+      publishedAt: '2026-05-17T18:30:00Z',
+      playerName: 'Amon-Ra St. Brown',
+      team: 'DET',
+    });
+  });
+
+  it('drops rows without a usable headline after HTML cleanup', () => {
+    const rows = __testing.normalizeSportsDataIoNewsRows([
+      {
+        Title: '<b>&nbsp;</b>',
+        Content: 'Body without a headline.',
+      },
+      {
+        Title: 'Usable headline',
+        Content: '<p>HTML summary</p>',
+      },
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      title: 'Usable headline',
+      summary: 'HTML summary',
+    });
+  });
 });

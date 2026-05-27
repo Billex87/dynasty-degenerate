@@ -33,6 +33,16 @@ function valueTimeline(deltaPct: number, delta = 300): NonNullable<PlayerDetails
   };
 }
 
+function valueTimelineWithSourceChange(deltaPct: number, delta = 300): NonNullable<PlayerDetails['valueTimeline']> {
+  return {
+    ...valueTimeline(deltaPct, delta),
+    summary: {
+      ...valueTimeline(deltaPct, delta).summary,
+      sourceSetChanged: true,
+    },
+  };
+}
+
 function cohort(overrides: Partial<NonNullable<PlayerDetails['playerCohort']>> = {}): NonNullable<PlayerDetails['playerCohort']> {
   return {
     playerId: 'p1',
@@ -291,6 +301,147 @@ describe('player trajectory signals', () => {
     expect(signal?.evidence.join(' ')).toContain('Age curve');
   });
 
+  it('flags post-hype windows when market falls but runway and role evidence remain', () => {
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Discounted Prospect',
+      position: 'WR',
+      age: 22,
+      valueProfile: {
+        dynastyValue: 3600,
+        marketKtc: 3500,
+        fantasyCalcDynasty: 3700,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+      valueTimeline: valueTimeline(-12, -520),
+      usageTrend: {
+        season: '2025',
+        games: 12,
+        targets: 72,
+        carries: 0,
+        receptions: 44,
+        fantasyPointsPpr: 125,
+        fantasyPointsPprPerGame: 10.4,
+        avgTargetShare: 0.19,
+        avgOffenseSnapPct: 0.66,
+        recentTargets: 24,
+        recentCarries: 0,
+        rollingWindows: [{
+          games: 3,
+          weeks: [15, 16, 17],
+          targetsPerGame: 7.7,
+          carriesPerGame: 0,
+          receptionsPerGame: 4.3,
+          fantasyPointsPprPerGame: 12,
+          targetDeltaPerGame: 1.3,
+          carryDeltaPerGame: 0,
+          note: 'Role stabilized late.',
+        }],
+        targetTrend: 'up',
+        carryTrend: 'flat',
+        note: 'Targets improved after a slow start.',
+      },
+      rosterRoom: {
+        opportunityDelta: {
+          netOpportunityScore: 38,
+          incumbentPromotionScore: 20,
+          qualitySignal: 'minor-opening',
+          note: 'Some room opened for a young receiver.',
+        },
+      } as PlayerDetails['rosterRoom'],
+      playerCohort: cohort({
+        outcomeBucket: 'steady',
+        draftCapital: {
+          round: 1,
+          pick: 22,
+          tier: 'premium',
+          label: 'Round 1, pick 22',
+          opportunityWindow: 'protected-runway',
+          patienceScore: 88,
+          note: 'Premium draft capital supports patience.',
+        },
+      }),
+      playerSituationDelta: situation({
+        primaryLabel: 'draft-capital-patience',
+        labels: ['draft-capital-patience'],
+        action: 'monitor',
+        score: 66,
+        summary: 'Draft capital still supports patience.',
+      }),
+    }), 'wr3');
+
+    expect(signal).toMatchObject({
+      label: 'post-hype-window',
+      action: 'monitor',
+      tone: 'info',
+      readout: {
+        headline: 'Post-Hype Window: Discounted Prospect',
+      },
+    });
+    expect(signal?.readout.detail).toContain('market has cooled');
+  });
+
+  it('keeps balanced profiles as stable holds', () => {
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Balanced Starter',
+      position: 'QB',
+      age: 27,
+      valueProfile: {
+        dynastyValue: 5100,
+        marketKtc: 5050,
+        fantasyCalcDynasty: 5150,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+      valueTimeline: valueTimeline(2, 100),
+      usageTrend: {
+        season: '2025',
+        games: 17,
+        targets: 0,
+        carries: 60,
+        receptions: 0,
+        fantasyPointsPpr: 310,
+        fantasyPointsPprPerGame: 18.2,
+        avgTargetShare: 0,
+        avgOffenseSnapPct: 0.99,
+        recentTargets: 0,
+        recentCarries: 10,
+        targetTrend: 'flat',
+        carryTrend: 'flat',
+        note: 'Role stayed stable.',
+      },
+      rosterRoom: {
+        opportunityDelta: {
+          netOpportunityScore: 0,
+          incumbentPromotionScore: 0,
+          qualitySignal: 'neutral',
+          note: 'No major room change.',
+        },
+      } as PlayerDetails['rosterRoom'],
+      playerCohort: cohort({
+        position: 'QB',
+        outcomeBucket: 'steady',
+        confidence: 70,
+      }),
+      playerSituationDelta: situation({
+        position: 'QB',
+        score: 58,
+        confidence: 70,
+        primaryLabel: 'stable-role',
+        labels: [],
+        action: 'hold',
+        summary: 'Stable starting profile.',
+      }),
+    }), 'qb1');
+
+    expect(signal).toMatchObject({
+      label: 'stable-hold',
+      action: 'hold',
+      tone: 'neutral',
+      readout: {
+        decision: "Don't force it",
+      },
+    });
+  });
+
   it('keeps thin profiles source-limited instead of inventing a strong read', () => {
     const signals = buildPlayerTrajectorySignals({
       playerDetailsById: {
@@ -315,5 +466,72 @@ describe('player trajectory signals', () => {
     expect(signals.te1.missingSignals).toContain('stored value timeline');
     expect(signals.te1.missingSignals).toContain('cohort profile');
     expect(signals.te1.readout.whatChangesThis.join(' ')).toContain('stored value timeline');
+  });
+
+  it('tracks value-source changes as caution flags', () => {
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Source Shift Player',
+      position: 'TE',
+      age: 25,
+      valueProfile: {
+        dynastyValue: 2600,
+        marketKtc: 2500,
+        fantasyCalcDynasty: 2700,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+      valueTimeline: valueTimelineWithSourceChange(5, 120),
+      usageTrend: {
+        season: '2025',
+        games: 15,
+        targets: 70,
+        carries: 0,
+        receptions: 48,
+        fantasyPointsPpr: 150,
+        fantasyPointsPprPerGame: 10,
+        avgTargetShare: 0.18,
+        avgOffenseSnapPct: 0.7,
+        recentTargets: 18,
+        recentCarries: 0,
+        targetTrend: 'flat',
+        carryTrend: 'flat',
+        note: 'Role was mostly stable.',
+      },
+      rosterRoom: {
+        opportunityDelta: {
+          netOpportunityScore: 5,
+          incumbentPromotionScore: 0,
+          qualitySignal: 'neutral',
+          note: 'No major room change.',
+        },
+      } as PlayerDetails['rosterRoom'],
+      playerCohort: cohort({
+        position: 'TE',
+        outcomeBucket: 'steady',
+      }),
+      playerSituationDelta: situation({
+        position: 'TE',
+        score: 56,
+        primaryLabel: 'stable-role',
+        labels: [],
+        action: 'hold',
+        summary: 'Stable tight end profile.',
+      }),
+    }), 'te2');
+
+    expect(signal?.cautionFlags).toContain('value source mix changed');
+    expect(signal?.readout.whatChangesThis.join(' ')).toContain('Resolve caution flags');
+  });
+
+  it('does not emit trajectory signals for unsupported positions', () => {
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Defense Streamer',
+      position: 'DEF',
+      valueProfile: {
+        dynastyValue: 100,
+        sources: ['KTC'],
+      },
+    }), 'def1');
+
+    expect(signal).toBeNull();
   });
 });
