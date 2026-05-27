@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { TrendingDown, TrendingUp } from "lucide-react";
 import type { ReportData } from "@shared/types";
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
@@ -13,6 +12,7 @@ import {
   buildPlayerModalData,
   formatCompactValue,
   PositionRankPill,
+  ValueTrendIcon,
   type ManagerAvatars,
   type PlayerDetailsById,
 } from "./shared";
@@ -24,18 +24,6 @@ function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
       managerName={manager}
     />
   );
-}
-
-function ValueTrendIcon({
-  value,
-  className = "h-3.5 w-3.5",
-}: {
-  value?: number | null;
-  className?: string;
-}) {
-  if (!value) return null;
-  const Icon = value > 0 ? TrendingUp : TrendingDown;
-  return <Icon className={className} aria-hidden="true" />;
 }
 
 export default function TradeMarketRadar({
