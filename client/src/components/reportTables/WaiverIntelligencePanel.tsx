@@ -35,10 +35,12 @@ import { buildPlayerActionArchetypeRead } from "@/lib/playerActionArchetype";
 import {
   buildPlayerModalData,
   clampPercentValue,
+  FIRST_FULL_BLEND_WEEK_LABEL,
   formatCompactValue,
   getAiNeuralSurfaceClass,
   parsePositionRankValue,
   PositionRankPill,
+  VALUE_BLEND_HISTORY_START_LABEL,
   WaiverRankPill,
   type ManagerAvatars,
   type PlayerDetailsById,
@@ -104,8 +106,6 @@ const WAIVER_POSITIONS: WaiverPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
 const WAIVER_SPECIAL_TEAMS_POSITIONS = ["K", "DEF"] as const;
 const WAIVER_RECOMMENDATION_LIMIT = 2;
 const WAIVER_RECOMMENDATION_MINIMUM = 1;
-export const VALUE_BLEND_HISTORY_START_LABEL = "May 7, 2026";
-export const FIRST_FULL_BLEND_WEEK_LABEL = "May 12, 2026 after the 6 PM scrape";
 
 export function buildWaiverValueCards({
   data,
