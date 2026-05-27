@@ -24,7 +24,7 @@ import {
   PositionRankPill,
   type ManagerAvatars,
   type PlayerDetailsById,
-} from '../ReportTables';
+} from './shared';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';

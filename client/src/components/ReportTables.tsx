@@ -50,7 +50,6 @@ import { PlayerDetailModal, type PlayerModalData } from "./PlayerDetailModal";
 import { TeamLogoPill } from "./TeamLogoPill";
 import {
   EmptyState,
-  MetricPill,
   PlayerIdentityRow,
   ReportCard,
 } from "./reportPrimitives";
@@ -58,6 +57,13 @@ import { AITronSurface, type AITronTheme } from "./AITronSurface";
 import {
   buildPlayerModalData,
   formatCompactValue,
+  getManagerHeadingClassName,
+  getPlayerStatusClass,
+  getPlayerStatusLabel,
+  IntelligenceMetric,
+  OwnerMetricPill,
+  OwnerSummaryTile,
+  parsePositionRankValue,
   PositionRankPill,
   type ManagerAvatars,
   type PlayerDetailsById,
@@ -70,10 +76,7 @@ import {
 } from "@/lib/leagueValueMode";
 import { getPositionRankClass } from "@/lib/positionRank";
 import { getTeamTileStyle } from "@/lib/teamTileStyle";
-import {
-  getPlayerAvailability,
-  getPlayerAvailabilityClass,
-} from "@/lib/playerStatus";
+import { getPlayerAvailability } from "@/lib/playerStatus";
 import {
   compareManagersByViewerAndStanding,
   sortRowsByViewerAndStanding,
@@ -86,7 +89,18 @@ import {
 import { viewerOwnedHighlightClass } from "@/lib/viewerHighlight";
 import { getBalancedGridStyle } from "@/lib/balancedGrid";
 
-export { buildPlayerModalData, formatCompactValue, PositionRankPill };
+export {
+  buildPlayerModalData,
+  formatCompactValue,
+  getManagerHeadingClassName,
+  getPlayerStatusClass,
+  getPlayerStatusLabel,
+  IntelligenceMetric,
+  OwnerMetricPill,
+  OwnerSummaryTile,
+  parsePositionRankValue,
+  PositionRankPill,
+};
 export type { ManagerAvatars, PlayerDetailsById };
 type CurrentPositionRankById = ReportData["currentPositionRankById"];
 type LeagueOverviewRows = ReportData["leagueOverview"];
@@ -106,24 +120,6 @@ function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
       managerName={manager}
     />
   );
-}
-
-export function getManagerHeadingClassName(
-  manager: string | null | undefined
-): string {
-  const length = (manager || "").replace(/\s+/g, "").length;
-  if (length >= 20) return "manager-modal-name manager-modal-name-xxlong";
-  if (length >= 15) return "manager-modal-name manager-modal-name-xlong";
-  if (length >= 10) return "manager-modal-name manager-modal-name-long";
-  return "manager-modal-name";
-}
-
-export function getPlayerStatusLabel(details?: PlayerDetails | null): string {
-  return getPlayerAvailability(details).label;
-}
-
-export function getPlayerStatusClass(details?: PlayerDetails | null): string {
-  return getPlayerAvailabilityClass(details);
 }
 
 function stableTradeSeed(value: string): number {
@@ -3467,15 +3463,6 @@ type TradeFitRead = {
   target?: ManagerIntelPlayer | null;
 };
 
-export function parsePositionRankValue(
-  rank: string | null | undefined
-): number | null {
-  const match = String(rank || "").match(/\d+/);
-  if (!match) return null;
-  const value = Number(match[0]);
-  return Number.isFinite(value) ? value : null;
-}
-
 function formatSignedCompactValue(value: number | null | undefined): string {
   if (value === null || value === undefined) return "-";
   return `${value > 0 ? "+" : ""}${formatCompactValue(value)}`;
@@ -5594,33 +5581,6 @@ function PlayerInsightTile({
   );
 }
 
-export function IntelligenceMetric({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string;
-  value: React.ReactNode;
-  tone?: "neutral" | "positive" | "negative";
-}) {
-  const toneClass =
-    tone === "positive"
-      ? "text-emerald-300"
-      : tone === "negative"
-        ? "text-rose-300"
-        : "text-slate-100";
-  return (
-    <div
-      className={`intelligence-metric intelligence-metric-${tone} rounded-xl border border-cyan-300/15 bg-slate-950/45 px-3 py-2`}
-    >
-      <div className="text-[0.62rem] font-black uppercase tracking-[0.16em] text-cyan-300/80">
-        {label}
-      </div>
-      <div className={`mt-1 text-lg font-black ${toneClass}`}>{value}</div>
-    </div>
-  );
-}
-
 function ManagerMiniLine({
   manager,
   managerAvatars,
@@ -6484,88 +6444,6 @@ function orderOwnerBadgesForCompactRows(badges: OwnerSignalTag[]) {
   }
 
   return ordered;
-}
-
-export function OwnerMetricPill({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string;
-  value: React.ReactNode;
-  tone?: "neutral" | "good" | "warn" | "danger" | "info";
-}) {
-  return <MetricPill label={label} value={value} tone={tone} />;
-}
-
-export function OwnerSummaryTile({
-  manager,
-  avatarUrl,
-  children,
-  onClick,
-  className = "",
-}: {
-  manager: string;
-  avatarUrl?: string | null;
-  children: React.ReactNode;
-  onClick?: () => void;
-  className?: string;
-}) {
-  const isViewerTile = className.includes("viewer-owned-highlight");
-  const content = (
-    <>
-      {avatarUrl && (
-        <>
-          <img src={avatarUrl} alt="" className="owner-summary-wash" />
-          <img src={avatarUrl} alt="" className="owner-summary-mark" />
-        </>
-      )}
-      <span className="owner-summary-scrim" />
-      <span className="owner-summary-main">
-        <ChampionAvatarFrame
-          managerName={manager}
-          className="owner-summary-avatar-frame"
-        >
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={manager}
-              className="owner-summary-avatar"
-            />
-          ) : (
-            <span className="owner-summary-avatar">
-              {manager[0]?.toUpperCase() || "?"}
-            </span>
-          )}
-        </ChampionAvatarFrame>
-        <span className="owner-summary-name-lockup">
-          <span className="owner-summary-name">{manager}</span>
-        </span>
-      </span>
-      <span className="owner-summary-metrics">{children}</span>
-      {isViewerTile && (
-        <span className="active-owner-badge">
-          <span>Your</span>
-          <span>Team</span>
-        </span>
-      )}
-    </>
-  );
-
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        className={`owner-summary-tile ${className}`}
-        onClick={onClick}
-        aria-label={`Open ${manager} owner details`}
-      >
-        {content}
-      </button>
-    );
-  }
-
-  return <div className={`owner-summary-tile ${className}`}>{content}</div>;
 }
 
 function OwnerQuickModal({
