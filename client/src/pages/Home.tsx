@@ -40,7 +40,6 @@ import {
   Swords,
 } from "lucide-react";
 import { toast } from "sonner";
-import { LoadingAnimation } from "@/features/report/components/LoadingAnimation";
 import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
 import { HeaderCssLights } from "@/components/HeaderCssLights";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -95,6 +94,14 @@ import {
   type ReportDeltaChange,
   type ReportDeltaTone,
 } from "@/features/report/components/ReportDeltaBrief";
+import {
+  AdminAccessDialog,
+  AdminUnlockDialog,
+  AnalysisLoadingDialog,
+  ClownEasterEggDialog,
+  type AnalysisLoadingLeague,
+  type LoadingTransitionPhase,
+} from "@/features/report/components/ReportDialogs";
 import {
   getLeagueModeCopy,
   getPlayerRankForMode,
@@ -331,12 +338,6 @@ const SHOW_ASSISTANT_FEATURE_RADAR =
     import.meta.env.VITE_SHOW_ASSISTANT_FEATURE_RADAR || "true"
   ).toLowerCase() !== "false";
 
-type LoadingTransitionPhase =
-  | "loading"
-  | "success"
-  | "reveal"
-  | "kick"
-  | "done";
 type ReportLoadSource = "browser-cache" | "server";
 type ReportLoadCacheStatus = "browser" | "hit" | "miss" | "unknown";
 type ReportAnalysisMode = "blocking" | "background";
@@ -10289,11 +10290,8 @@ export default function Home() {
     LoaderManagerAnchor[]
   >([]);
   const [isReportRefreshing, setIsReportRefreshing] = useState(false);
-  const [analysisCompleteMessage, setAnalysisCompleteMessage] = useState<{
-    leagueName: string;
-    leagueFormat: string;
-    leagueLogo: string | null;
-  } | null>(null);
+  const [analysisCompleteMessage, setAnalysisCompleteMessage] =
+    useState<AnalysisLoadingLeague | null>(null);
   const [previewLoadingLoopTick, setPreviewLoadingLoopTick] = useState(0);
   const previewMode =
     typeof window === "undefined"
@@ -11654,36 +11652,6 @@ export default function Home() {
     return () => window.removeEventListener("hashchange", syncTabFromUrl);
   }, [reportData]);
 
-  const clownEasterEggDialog = (
-    <Dialog open={isClownModalOpen} onOpenChange={setIsClownModalOpen}>
-      <DialogContent className="clown-easter-egg-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg">
-        <DialogHeader className="text-center">
-          <DialogTitle className="athletic-headline text-3xl text-orange-400">
-            Rival Alert
-          </DialogTitle>
-          <DialogDescription className="text-cyan-100/75">
-            This username unlocked a special screen.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="clown-easter-egg-body">
-          <div className="clown-easter-egg-face" aria-hidden="true">
-            🤡
-          </div>
-          <p className="clown-easter-egg-copy">Rival league energy detected.</p>
-        </div>
-        <DialogFooter className="sm:justify-center">
-          <Button
-            type="button"
-            onClick={handleClownDismiss}
-            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
-          >
-            Back To Login
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-
   const leaguePickerDialog = orderedUserLeagues.length ? (
     <Dialog open={isLeaguePickerOpen} onOpenChange={setIsLeaguePickerOpen}>
       <DialogContent className="league-switch-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-2xl">
@@ -11782,140 +11750,48 @@ export default function Home() {
           : resolvedActiveTab === "autopilot"
             ? "autopilot-orbit"
             : "report-shell";
-  const loadingDialog = (
-    <Dialog
-      key="analysis-loading-dialog"
-      open={isLoading}
-      onOpenChange={() => undefined}
-    >
-      <DialogContent
-        className={`analysis-loading-dialog analysis-loading-dialog-${loadingTransitionPhase} border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg`}
-        overlayClassName={`analysis-loading-overlay analysis-loading-overlay-${loadingTransitionPhase}`}
-        style={{
-          filter: "none",
-          backdropFilter: "none",
-        }}
-        showCloseButton={false}
-        onEscapeKeyDown={event => event.preventDefault()}
-        onPointerDownOutside={event => event.preventDefault()}
-      >
-        <DialogHeader className="sr-only">
-          <DialogTitle>
-            {analysisCompleteMessage
-              ? "League Report Ready"
-              : "Analyzing League"}
-          </DialogTitle>
-          <DialogDescription>
-            {analysisCompleteMessage
-              ? "The league report is ready."
-              : "Generating the selected league report."}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="analysis-loading-modal-body">
-          <LoadingAnimation
-            key={previewMode === "loading-loop" ? `loading-loop-${previewLoadingLoopTick}` : "loading"}
-            isComplete={Boolean(analysisCompleteMessage)}
-            phase={loadingTransitionPhase}
-            leagueName={loadingLeague?.leagueName}
-            leagueFormat={loadingLeague?.leagueFormat}
-            leagueLogo={loadingLeague?.leagueLogo}
-            managerAnchors={loadingManagerAnchors}
-          />
-        </div>
-      </DialogContent>
-    </Dialog>
+  const clownEasterEggDialog = (
+    <ClownEasterEggDialog
+      open={isClownModalOpen}
+      onOpenChange={setIsClownModalOpen}
+      onDismiss={handleClownDismiss}
+    />
   );
-
   const adminAccessDialog = (
-    <Dialog
+    <AdminAccessDialog
       open={isAdminAccessModalOpen}
+      passphrase={adminPassphrase}
+      isPending={adminLoginMutation.isPending}
       onOpenChange={open => {
         if (open) return;
         setIsAdminAccessModalOpen(false);
         setAdminPassphrase("");
       }}
-    >
-      <DialogContent className="admin-unlock-dialog border-orange-400/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/30 sm:max-w-lg">
-        <DialogHeader className="text-center sm:text-center">
-          <DialogTitle className="athletic-headline text-center text-3xl text-orange-300">
-            Unlock Admin Tools
-          </DialogTitle>
-          <DialogDescription className="text-center text-slate-300">
-            If you do not have the passphrase, stay in regular report view.
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          className="space-y-4"
-          onSubmit={event => {
-            event.preventDefault();
-            adminLoginMutation.mutate({ passphrase: adminPassphrase });
-          }}
-        >
-          <Input
-            type="password"
-            value={adminPassphrase}
-            onChange={event => setAdminPassphrase(event.target.value)}
-            placeholder="Admin passphrase"
-            autoComplete="current-password"
-            className="admin-unlock-passphrase-input border-orange-400/20 bg-slate-950/80 text-center text-slate-100 placeholder:text-center placeholder:text-slate-500"
-          />
-          <DialogFooter className="gap-2 sm:items-center sm:justify-center">
-            <Button
-              type="submit"
-              disabled={!adminPassphrase.trim() || adminLoginMutation.isPending}
-              className="admin-unlock-primary-button w-full font-black sm:w-auto"
-            >
-              {adminLoginMutation.isPending
-                ? "Unlocking..."
-                : "Unlock Admin Tools"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full border-slate-700 text-slate-200 hover:bg-slate-900 sm:w-auto"
-              onClick={() => {
-                setIsAdminAccessModalOpen(false);
-                setAdminPassphrase("");
-              }}
-            >
-              Stay in Regular View
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-
-  const adminUnlockDialog = (
-    <Dialog
-      open={hasAuthenticatedAdminPermissions && isAdminUnlockModalOpen}
-      onOpenChange={open => {
-        if (!open) handleAdminUnlockModalDismiss();
+      onPassphraseChange={setAdminPassphrase}
+      onSubmit={() => adminLoginMutation.mutate({ passphrase: adminPassphrase })}
+      onStayRegularView={() => {
+        setIsAdminAccessModalOpen(false);
+        setAdminPassphrase("");
       }}
-    >
-      <DialogContent className="admin-unlock-dialog border-orange-400/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/30 sm:max-w-lg">
-        <DialogHeader className="text-center sm:text-center">
-          <DialogTitle className="athletic-headline text-center text-3xl text-orange-300">
-            Congrats
-          </DialogTitle>
-          <DialogDescription className="text-center text-slate-300">
-            Your admin session has premium AI reads, blueprint
-            reports, league power tools and market signals
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="sm:items-center sm:justify-center">
-          <Button
-            type="button"
-            onClick={handleAdminUnlockModalDismiss}
-            className="admin-unlock-primary-button w-full font-black sm:w-auto"
-          >
-            Enter Command Center
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    />
   );
-
+  const adminUnlockDialog = (
+    <AdminUnlockDialog
+      open={hasAuthenticatedAdminPermissions && isAdminUnlockModalOpen}
+      onDismiss={handleAdminUnlockModalDismiss}
+    />
+  );
+  const loadingDialog = (
+    <AnalysisLoadingDialog
+      open={isLoading}
+      previewMode={previewMode}
+      previewLoadingLoopTick={previewLoadingLoopTick}
+      analysisCompleteMessage={analysisCompleteMessage}
+      loadingTransitionPhase={loadingTransitionPhase}
+      loadingLeague={loadingLeague}
+      loadingManagerAnchors={loadingManagerAnchors}
+    />
+  );
   if (reportData && !analysisCompleteMessage) {
     const leagueValueMode = normalizeLeagueValueMode(
       reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode
