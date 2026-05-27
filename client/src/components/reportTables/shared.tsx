@@ -1,10 +1,15 @@
 import type { ReportData } from "@shared/types";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import { getPositionRankPillClass } from "@/lib/positionRank";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
+import { ChampionAvatarFrame } from "../ManagerChampionships";
 import type { PlayerModalData } from "../PlayerDetailModal";
 
 export type ManagerAvatars = ReportData["managerAvatars"];
 export type PlayerDetailsById = ReportData["playerDetailsById"];
+
+export const VALUE_BLEND_HISTORY_START_LABEL = "May 7, 2026";
+export const FIRST_FULL_BLEND_WEEK_LABEL = "May 12, 2026 after the 6 PM scrape";
 
 export function formatCompactValue(value: number | null | undefined): string {
   if (!value) return "-";
@@ -17,6 +22,56 @@ export function PositionRankPill({ rank }: { rank?: string | null }) {
   return (
     <span className={getPositionRankPillClass(displayRank)}>{displayRank}</span>
   );
+}
+
+export function renderActivityManagerAvatar(
+  manager: string | null | undefined,
+  managerAvatars?: ManagerAvatars
+) {
+  if (!manager) {
+    return (
+      <span
+        className="activity-manager-avatar activity-manager-avatar-empty"
+        aria-label="Available player"
+        title="Available"
+      >
+        FA
+      </span>
+    );
+  }
+
+  const avatarUrl = managerAvatars?.[manager];
+  const initial = manager.trim()[0]?.toUpperCase() || "?";
+
+  return (
+    <span
+      className="activity-manager-avatar"
+      aria-label={`Rostered by ${manager}`}
+      title={manager}
+    >
+      <ChampionAvatarFrame managerName={manager} showAccolades={false}>
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" />
+        ) : (
+          <span aria-hidden="true" className="activity-manager-avatar-fallback">
+            {initial}
+          </span>
+        )}
+      </ChampionAvatarFrame>
+    </span>
+  );
+}
+
+export function ValueTrendIcon({
+  value,
+  className = "h-3.5 w-3.5",
+}: {
+  value?: number | null;
+  className?: string;
+}) {
+  if (!value) return null;
+  const Icon = value > 0 ? TrendingUp : TrendingDown;
+  return <Icon className={className} aria-hidden="true" />;
 }
 
 export function buildPlayerModalData({

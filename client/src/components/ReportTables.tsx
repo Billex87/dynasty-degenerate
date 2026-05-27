@@ -26,8 +26,6 @@ import {
   ShieldCheck,
   Star,
   Target,
-  TrendingDown,
-  TrendingUp,
   X as XIcon,
 } from "lucide-react";
 import type {
@@ -120,46 +118,6 @@ export function getManagerHeadingClassName(
   return "manager-modal-name";
 }
 
-export function renderActivityManagerAvatar(
-  manager: string | null | undefined,
-  managerAvatars?: ManagerAvatars
-) {
-  if (!manager) {
-    return (
-      <span
-        className="activity-manager-avatar activity-manager-avatar-empty"
-        aria-label="Available player"
-        title="Available"
-      >
-        FA
-      </span>
-    );
-  }
-
-  const avatarUrl = managerAvatars?.[manager];
-  const initial = manager.trim()[0]?.toUpperCase() || "?";
-
-  return (
-    <span
-      className="activity-manager-avatar"
-      aria-label={`Rostered by ${manager}`}
-      title={manager}
-    >
-      <ChampionAvatarFrame managerName={manager} showAccolades={false}>
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" />
-        ) : (
-          <span aria-hidden="true" className="activity-manager-avatar-fallback">
-            {initial}
-          </span>
-        )}
-      </ChampionAvatarFrame>
-    </span>
-  );
-}
-
-
-
 export function getPlayerStatusLabel(details?: PlayerDetails | null): string {
   return getPlayerAvailability(details).label;
 }
@@ -187,9 +145,6 @@ function normalizeManagerKey(value: string | null | undefined): string {
 function normalizeReportManagerName(manager?: string | null): string {
   return manager?.trim().toLowerCase() || "";
 }
-
-export const VALUE_BLEND_HISTORY_START_LABEL = "May 7, 2026";
-export const FIRST_FULL_BLEND_WEEK_LABEL = "May 12, 2026 after the 6 PM scrape";
 
 function renderTradeSummaryManager(
   manager: string,
@@ -5732,18 +5687,6 @@ function PlayerMiniLine({
       {meta && <span className="command-mini-meta">{meta}</span>}
     </div>
   );
-}
-
-export function ValueTrendIcon({
-  value,
-  className = "h-3.5 w-3.5",
-}: {
-  value?: number | null;
-  className?: string;
-}) {
-  if (!value) return null;
-  const Icon = value > 0 ? TrendingUp : TrendingDown;
-  return <Icon className={className} aria-hidden="true" />;
 }
 
 function WaiverRankPill({

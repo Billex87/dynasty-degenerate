@@ -13,7 +13,7 @@ import {
   type PlayerDetailsById,
   VALUE_BLEND_HISTORY_START_LABEL,
   ValueTrendIcon,
-} from '../ReportTables';
+} from './shared';
 import { getPlayerValueForMode, normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';

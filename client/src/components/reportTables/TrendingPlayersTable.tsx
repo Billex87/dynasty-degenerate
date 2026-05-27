@@ -10,7 +10,7 @@ import {
   renderActivityManagerAvatar,
   type ManagerAvatars,
   type PlayerDetailsById,
-} from '../ReportTables';
+} from './shared';
 import { getPlayerValueForMode, normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
