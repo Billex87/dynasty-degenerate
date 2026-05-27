@@ -77,6 +77,11 @@ import {
 } from "@/features/home/lib/portfolioRows";
 import { getLeagueFallbackInitials } from "@/features/home/lib/leagueIdentity";
 import {
+  getKtcAdminIdentity,
+  type AdminViewMode,
+  normalizeAdminViewMode,
+} from "@/features/home/lib/adminMode";
+import {
   getValidSleeperUserId,
   normalizeViewerIdentifier,
 } from "@/features/home/lib/sleeperIdentity";
@@ -368,13 +373,6 @@ function persistReportLoadTelemetry(event: ReportLoadTelemetryEvent) {
   } catch {
     // Timing telemetry should never block report rendering.
   }
-}
-
-function getKtcAdminIdentity(
-  user?: SleeperUserSession | null,
-  fallbackUsername?: string
-): string | null {
-  return user?.username || user?.displayName || fallbackUsername || null;
 }
 
 type AdminAuthUser = {
@@ -721,10 +719,6 @@ function buildTradePreviewMetrics(
   }
 }
 
-function normalizeAdminViewMode(value: unknown): AdminViewMode | null {
-  return value === "admin" || value === "regular" ? value : null;
-}
-
 type SleeperLeagueOption = {
   leagueId: string;
   name: string;
@@ -758,8 +752,6 @@ type SleeperUserSession = {
   hasAdminPermissions?: boolean;
   isPrivilegedReportViewer?: boolean;
 };
-
-type AdminViewMode = "admin" | "regular";
 
 type CachedReport = {
   cacheVersion?: string;
