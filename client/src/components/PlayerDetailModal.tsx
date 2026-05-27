@@ -407,10 +407,7 @@ export function PlayerDetailModal({
   const teamColors = team ? NFL_TEAM_COLORS[team] || null : null;
   const collegeTileStyle = isCollegeProspect ? getCollegeTileStyle(prospectCollege) : undefined;
   const tileAccent = isCollegeProspect ? '#fbbf24' : getReadableTeamAccent(teamColors);
-  const boardPositionRank = pick.boardPositionRank || currentRank;
   const sourcePositionRank = pick.sourcePositionRank || (currentRank !== '-' ? currentRank : null);
-  const sourceOverallRank = pick.sourceOverallRank || prospectProfile?.fantasyProsDevyRank || prospectProfile?.overallRank || null;
-  const sourceRankLabel = sourceOverallRank ? `#${sourceOverallRank.toLocaleString()}` : sourcePositionRank || currentRank;
   const modalBackground = isCollegeProspect
     ? `radial-gradient(circle at 15% 6%, color-mix(in srgb, var(--team-primary, #7c2d12) 38%, transparent), transparent 28%), radial-gradient(circle at 95% 0%, color-mix(in srgb, var(--team-secondary, #0f172a) 46%, transparent), transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, #070b13 100%)`
     : teamColors
@@ -432,12 +429,6 @@ export function PlayerDetailModal({
   const athleticProfile = details?.athleticProfile || null;
   const fortyTime = formatFortyTime(athleticProfile?.forty || prospectProfile?.fortyYardDash);
   const verticalJump = formatVerticalJump(athleticProfile?.vertical);
-  const prospectHeaderInfoRows = [
-    ['College', prospectCollege || details?.college || '-'],
-    ['40 Time', fortyTime],
-    ['Vertical', verticalJump],
-    ['Birthday', formatBirthday(details?.birthDate) || '-'],
-  ] as const;
   const playerBioRows = !isCollegeProspect ? [
     ['College', prospectCollege ? (
       <ProspectCollegePill
@@ -459,16 +450,14 @@ export function PlayerDetailModal({
     ['Depth Chart', formatDepthChartRole(details, true)],
     ['Years Exp', details?.yearsExp],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
-  const prospectMetricRows = prospectProfile ? [
-    ['Projected Rookie Pick', prospectProfile.projectedRookiePick],
-    ['Board Rank', boardPositionRank],
-    ['Source Rank', sourceRankLabel],
-    ['Position Rank', sourcePositionRank || prospectProfile.fantasyProsDevyPositionRank || (prospectProfile.positionRank ? `${prospectProfile.position}${prospectProfile.positionRank}` : null)],
-    ['Draft Class', prospectProfile.draftYear],
-    ['Class', prospectProfile.classYear],
-    ['Size', [prospectProfile.height, prospectProfile.weight].filter(Boolean).join(' / ')],
-    ['Role', prospectProfile.role],
-  ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
+  const prospectPositionRank = sourcePositionRank || prospectProfile?.fantasyProsDevyPositionRank || (prospectProfile?.positionRank ? `${prospectProfile.position}${prospectProfile.positionRank}` : null);
+  const prospectSize = prospectProfile ? [prospectProfile.height, prospectProfile.weight].filter(Boolean).join(' / ') : '';
+  const prospectProfileRows = (isCollegeProspect ? [
+    ['Projected Rookie Pick', prospectProfile?.projectedRookiePick],
+    ['School', prospectCollege || details?.college],
+    ['Size', prospectSize],
+    ['40 Time', fortyTime],
+  ] : []).filter(([, value]) => value !== null && value !== undefined && value !== '' && value !== '-') as Array<[string, ReactNode]>;
   const combineMetricRows = [
     ['Broad', formatBroadJump(athleticProfile?.broadJump)],
     ['Bench', formatBenchReps(athleticProfile?.bench)],
@@ -748,23 +737,15 @@ export function PlayerDetailModal({
                         #{jerseyNumber}
                       </span>
                     )}
-                    <span className={getPositionRankPillClass(position, 'player-modal-position-pill')}>
-                      {position}
+                    <span className={getPositionRankPillClass(isCollegeProspect ? prospectPositionRank || position : position, 'player-modal-position-pill')}>
+                      {isCollegeProspect ? prospectPositionRank || position : position}
                     </span>
+                    {isCollegeProspect && prospectProfile?.draftYear ? (
+                      <span className="inline-flex min-h-[1.72rem] items-center justify-center rounded-full border border-cyan-300/25 bg-cyan-400/10 px-3 py-0 text-xs font-black leading-none text-cyan-100">
+                        {prospectProfile.draftYear} Class
+                      </span>
+                    ) : null}
                   </div>
-                  {isCollegeProspect && (
-                    <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
-                      {prospectHeaderInfoRows.map(([label, value]) => (
-                        <InlineInfoTile
-                          key={label}
-                          label={label}
-                          value={value}
-                          teamColors={teamColors}
-                          tileAccent={tileAccent}
-                        />
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -825,18 +806,22 @@ export function PlayerDetailModal({
               </div>
             )}
 
-            {isCollegeProspect && prospectMetricRows.length > 0 ? (
-              <div className="player-prospect-metric-grid mx-auto max-w-xl">
-                {prospectMetricRows.map(([label, value]) => (
-                  <InfoTile
-                    key={String(label)}
-                    label={String(label)}
-                    value={value as ReactNode}
-                    teamColors={teamColors}
-                    tileAccent={tileAccent}
-                    valueClassName={isPositionRankValue(value) ? getPositionRankPillClass(String(value)) : undefined}
-                  />
-                ))}
+            {isCollegeProspect && prospectProfileRows.length > 0 ? (
+              <div className="mx-auto max-w-xl space-y-2">
+                <p className="player-modal-section-kicker text-center text-[0.68rem] font-black uppercase tracking-[0.2em] text-cyan-300/80">
+                  Profile
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+                  {prospectProfileRows.map(([label, value]) => (
+                    <InfoTile
+                      key={String(label)}
+                      label={String(label)}
+                      value={value}
+                      teamColors={teamColors}
+                      tileAccent={tileAccent}
+                    />
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="player-modal-metric-grid mx-auto grid max-w-xl gap-2 sm:gap-3">
@@ -1276,7 +1261,7 @@ export function PlayerDetailModal({
                   ))}
                 </div>
               )}
-              {combineMetricRows.length > 0 && (
+              {!isCollegeProspect && combineMetricRows.length > 0 && (
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                   {combineMetricRows.map(([label, value]) => (
                     <InfoTile

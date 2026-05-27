@@ -155,8 +155,8 @@ function getMissedDraftLabel(reason: 'need' | 'position' | 'close' | 'value' | '
   if (reason === 'adp') return 'ADP Miss';
   if (reason === 'need') return 'Need Miss';
   if (reason === 'position') return 'Position Miss';
-  if (reason === 'close') return 'Just Missed';
-  return 'Better Board Value';
+  if (reason === 'close') return 'Missed';
+  return 'Board Value';
 }
 
 function isMeaningfulAdpFall(pick: DraftPick, candidate: DraftPick): boolean {

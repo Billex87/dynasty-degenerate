@@ -128,7 +128,7 @@ describe('draft opportunity map', () => {
     expect(result[getDraftPickKey(drafted)]).toMatchObject({
       playerName: 'Josh Allen',
       reason: 'close',
-      label: 'Just Missed',
+      label: 'Missed',
     });
   });
 });

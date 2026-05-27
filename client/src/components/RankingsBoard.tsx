@@ -810,7 +810,7 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
           ) : player.age ? (
             <span className="value-board__age-pill" title={`${player.age} year old`}>
               <span className="value-board__age-full">{player.age} Year Old</span>
-              <span className="value-board__age-short">{player.age} YO</span>
+              <span className="value-board__age-short">{player.age} Y.O.</span>
             </span>
           ) : (
             <span className="value-board__age-empty">-</span>

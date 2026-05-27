@@ -45,10 +45,11 @@ type SortDirection = 'asc' | 'desc';
 const DRAFT_SORT_COLUMNS: readonly Exclude<SortColumn, null>[] = ['pick', 'adp', 'currentAdp', 'currentValue', 'valueChange'];
 const DRAFT_SORT_DIRECTIONS: readonly SortDirection[] = ['asc', 'desc'];
 
-function formatDraftAge(age?: number | string | null): string {
+function formatDraftAge(age?: number | string | null, style: 'short' | 'long' = 'long'): string {
   const numericAge = Number(age);
   if (!Number.isFinite(numericAge) || numericAge <= 0) return '-';
-  return `${Number.isInteger(numericAge) ? numericAge : numericAge.toFixed(1)} yrs`;
+  const ageText = Number.isInteger(numericAge) ? String(numericAge) : numericAge.toFixed(1);
+  return style === 'short' ? `${ageText} Y.O.` : `${ageText} Year Old`;
 }
 
 function formatDraftAdp(adp?: number | null): string {
@@ -592,8 +593,8 @@ export function DraftAnalysis({
           const yearPicks = draftPicksByYear[draftYear] || [];
           const draftGroupKind = getDraftGroupKind(draftYear, yearPicks, leagueValueMode);
           const isStartupDraftGroup = draftGroupKind === 'startup';
-          const adpColumnLabel = isStartupDraftGroup ? 'Then ADP' : 'ADP';
-          const adpColumnTitle = isStartupDraftGroup ? 'Drafted ADP' : 'ADP';
+          const adpColumnLabel = isStartupDraftGroup ? 'Draft ADP' : 'ADP';
+          const adpColumnTitle = isStartupDraftGroup ? 'Draft ADP' : 'ADP';
           const currentAdpColumnLabel = 'Now ADP';
           const draftYearSectionId = `year:${draftYear}`;
           const isDraftBoardOpen = activeDraftSectionId === draftYearSectionId;
@@ -673,7 +674,8 @@ export function DraftAnalysis({
                         const gainClass = (pick.valueGain ?? 0) > 0 ? 'is-positive' : (pick.valueGain ?? 0) < 0 ? 'is-negative' : '';
                         const opportunity = draftOpportunityByPick[getDraftPickKey(pick)];
                         const managerDisplayName = pick.managerDisplayName || pick.manager;
-                        const ageLabel = formatDraftAge(details?.age);
+                        const ageLabel = formatDraftAge(details?.age, 'long');
+                        const tableAgeLabel = formatDraftAge(details?.age, 'short');
                         const draftRankLabel = pick.positionRankMay2025 || pick.playerPos || 'N/A';
                         const currentRankLabel = pick.currentPositionRank || pick.playerPos || 'N/A';
                         const currentValue = getDraftCurrentValue(pick, leagueValueMode);
@@ -690,7 +692,20 @@ export function DraftAnalysis({
                             style={getTeamTileStyle(details?.team)}
                             onClick={() => openDraftPlayer(pick)}
                           >
-                            <span className="rookie-draft-pick-cell" data-label="Pick">#{pick.pick}</span>
+                            <span className="rookie-draft-pick-cell" data-label="Pick">
+                              <span
+                                className="rookie-draft-pick-manager-preview"
+                                title={managerDisplayName}
+                                aria-label={managerDisplayName}
+                              >
+                                {managerAvatars?.[pick.manager] ? (
+                                  <img src={managerAvatars[pick.manager] || ''} alt="" />
+                                ) : (
+                                  <span aria-hidden="true">{managerDisplayName[0]?.toUpperCase() || '?'}</span>
+                                )}
+                              </span>
+                              <span className="rookie-draft-pick-number">#{pick.pick}</span>
+                            </span>
                             <span
                               className="rookie-draft-adp-cell"
                               data-label={adpColumnLabel}
@@ -719,9 +734,9 @@ export function DraftAnalysis({
                               <DraftOpportunityNote opportunity={opportunity} />
                             </span>
                             <span className="rookie-draft-team-cell">
-                              {details?.team ? <TeamLogoPill team={details.team} /> : <span className="rookie-draft-team-empty">FA</span>}
+                              <TeamLogoPill team={details?.team || null} />
                             </span>
-                            <span className="rookie-draft-age-cell" data-label="Age">{ageLabel}</span>
+                            <span className="rookie-draft-age-cell" data-label="Age">{tableAgeLabel}</span>
                             <span className="rookie-draft-manager-cell">
                               <ManagerNameWithAvatar
                                 avatarUrl={managerAvatars?.[pick.manager]}
@@ -730,10 +745,22 @@ export function DraftAnalysis({
                                 hideName
                               />
                             </span>
-                            <span className={getPositionRankPillClass(draftRankLabel, 'rookie-draft-rank-cell rookie-draft-rank-cell-draft')} data-label="Draft">{draftRankLabel}</span>
-                            <span className="rookie-draft-value-cell" data-label="Draft" title={pick.draftValueSource || undefined}>{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
-                            <span className={getPositionRankPillClass(currentRankLabel, 'rookie-draft-rank-cell rookie-draft-rank-cell-current')} data-label="Now">{currentRankLabel}</span>
-                            <span className="rookie-draft-value-cell" data-label="Now" title={pick.currentValueSource || undefined}>{currentValue ? currentValue.toLocaleString() : 'N/A'}</span>
+                            <span className={getPositionRankPillClass(draftRankLabel, 'rookie-draft-rank-cell rookie-draft-rank-cell-draft')} data-label="Draft" data-mobile-label="Then">
+                              <span className="rookie-draft-mobile-cell-label">Draft</span>
+                              <span className="rookie-draft-mobile-cell-main">{draftRankLabel}</span>
+                            </span>
+                            <span className="rookie-draft-value-cell" data-label="Draft" data-mobile-label="Then" title={pick.draftValueSource || undefined}>
+                              <span className="rookie-draft-mobile-cell-label">Draft</span>
+                              <span className="rookie-draft-mobile-cell-main">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
+                            </span>
+                            <span className={getPositionRankPillClass(currentRankLabel, 'rookie-draft-rank-cell rookie-draft-rank-cell-current')} data-label="Now" data-mobile-label="Now">
+                              <span className="rookie-draft-mobile-cell-label">Now</span>
+                              <span className="rookie-draft-mobile-cell-main">{currentRankLabel}</span>
+                            </span>
+                            <span className="rookie-draft-value-cell" data-label="Now" data-mobile-label="Now" title={pick.currentValueSource || undefined}>
+                              <span className="rookie-draft-mobile-cell-label">Now</span>
+                              <span className="rookie-draft-mobile-cell-main">{currentValue ? currentValue.toLocaleString() : 'N/A'}</span>
+                            </span>
                             <span className="rookie-draft-change-cell" aria-label={`${pick.playerName} value change`}>
                               <span className="rookie-draft-age-mobile" data-label="Age">{ageLabel}</span>
                               {details?.team ? (
@@ -751,9 +778,14 @@ export function DraftAnalysis({
                             </span>
                             <span className="rookie-draft-mobile-context">
                               <span className="rookie-draft-mobile-context-chip rookie-draft-mobile-context-team">
-                                {details?.team ? <TeamLogoPill team={details.team} /> : <span className="rookie-draft-team-empty">FA</span>}
+                                <TeamLogoPill team={details?.team || null} />
                               </span>
-                              <span className="rookie-draft-mobile-context-chip">{ageLabel}</span>
+                              <span className="rookie-draft-mobile-context-chip rookie-draft-mobile-context-age">{ageLabel}</span>
+                              <span className={getPositionRankPillClass(currentRankLabel || draftRankLabel, 'rookie-draft-mobile-context-chip rookie-draft-mobile-rank-combo')}>
+                                <span>{draftRankLabel}</span>
+                                <span aria-hidden="true">/</span>
+                                <span>{currentRankLabel}</span>
+                              </span>
                               <span
                                 className="rookie-draft-mobile-context-chip rookie-draft-mobile-context-manager"
                                 title={managerDisplayName}
@@ -765,23 +797,53 @@ export function DraftAnalysis({
                                   <span aria-hidden="true">{managerDisplayName[0]?.toUpperCase() || '?'}</span>
                                 )}
                               </span>
-                              <span className="rookie-draft-mobile-context-chip">
-                                <small>{isStartupDraftGroup ? 'Then ADP' : 'ADP'}</small>
-                                {formatDraftAdp(pick.adp)}
+                              <span className="rookie-draft-mobile-adp-cluster">
+                                <span className={`rookie-draft-mobile-context-chip rookie-draft-mobile-context-adp${isStartupDraftGroup ? ' rookie-draft-mobile-context-adp-then' : ''}`}>
+                                  <small>{isStartupDraftGroup ? 'Then' : 'ADP'}</small>
+                                  <span>{formatDraftAdp(pick.adp)}</span>
+                                </span>
+                                {isStartupDraftGroup ? (
+                                  <span className="rookie-draft-mobile-context-chip rookie-draft-mobile-context-adp rookie-draft-mobile-context-adp-now">
+                                    <small>Now</small>
+                                    <span>{formatDraftAdp(pick.currentAdp)}</span>
+                                  </span>
+                                ) : null}
                               </span>
                               {isStartupDraftGroup ? (
-                                <span className="rookie-draft-mobile-context-chip">
-                                  <small>Now ADP</small>
-                                  {formatDraftAdp(pick.currentAdp)}
+                                <span className="rookie-draft-startup-mobile-market" aria-hidden="true">
+                                  <span className="rookie-draft-startup-mobile-market-row">
+                                    <span className="rookie-draft-startup-mobile-adp is-now">{formatDraftAdp(pick.currentAdp)}</span>
+                                    <span className={getPositionRankPillClass(currentRankLabel, 'rookie-draft-startup-mobile-rank')}>{currentRankLabel}</span>
+                                    <span className="rookie-draft-startup-mobile-value is-now">{currentValue ? currentValue.toLocaleString() : 'N/A'}</span>
+                                    <span className="rookie-draft-startup-mobile-pick">#{pick.pick}</span>
+                                  </span>
+                                  <span className="rookie-draft-startup-mobile-market-row">
+                                    <span className="rookie-draft-startup-mobile-adp is-then">{formatDraftAdp(pick.adp)}</span>
+                                    <span className={getPositionRankPillClass(draftRankLabel, 'rookie-draft-startup-mobile-rank')}>{draftRankLabel}</span>
+                                    <span className="rookie-draft-startup-mobile-value is-then">{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
+                                    <span
+                                      className="rookie-draft-startup-mobile-manager"
+                                      title={managerDisplayName}
+                                      aria-label={managerDisplayName}
+                                    >
+                                      {managerAvatars?.[pick.manager] ? (
+                                        <img src={managerAvatars[pick.manager] || ''} alt="" />
+                                      ) : (
+                                        <span aria-hidden="true">{managerDisplayName[0]?.toUpperCase() || '?'}</span>
+                                      )}
+                                    </span>
+                                  </span>
                                 </span>
                               ) : null}
-                              <span className="rookie-draft-mobile-context-chip">
+                              <span className="rookie-draft-mobile-context-chip rookie-draft-mobile-context-value">
                                 <small>Draft</small>
-                                {draftRankLabel} {pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}
+                                <strong>{draftRankLabel}</strong>
+                                <span>{pick.ktcValue ? pick.ktcValue.toLocaleString() : 'N/A'}</span>
                               </span>
-                              <span className="rookie-draft-mobile-context-chip">
+                              <span className="rookie-draft-mobile-context-chip rookie-draft-mobile-context-value">
                                 <small>Now</small>
-                                {currentRankLabel} {currentValue ? currentValue.toLocaleString() : 'N/A'}
+                                <strong>{currentRankLabel}</strong>
+                                <span>{currentValue ? currentValue.toLocaleString() : 'N/A'}</span>
                               </span>
                             </span>
                           </button>
