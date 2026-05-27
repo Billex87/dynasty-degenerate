@@ -1,4 +1,4 @@
-import { Crown, X as XIcon } from "lucide-react";
+import { X as XIcon } from "lucide-react";
 import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData, TradeTimePickAsset } from "@shared/types";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
 import { ChampionAvatarFrame } from "../ManagerChampionships";
@@ -20,6 +20,8 @@ import {
   normalizeManagerKey,
   PositionRankPill,
   renderManagerName,
+  TradeBuildPill,
+  TradeSideManager,
   TradeSummaryManager,
   TradeValuePill,
   type ManagerAvatars,
@@ -78,50 +80,13 @@ function renderTradeSideManager(
   managerAvatars?: ManagerAvatars,
   buildLens?: ManagerBuildLens
 ) {
-  const avatarUrl = managerAvatars?.[manager];
-  const initial = manager.trim()[0]?.toUpperCase() || "?";
-
   return (
-    <span
-      className={`trade-side-manager ${isWinner ? "trade-side-manager-winner" : "trade-side-manager-other"}`}
-    >
-      <span className="trade-mobile-avatar-wrap">
-        <ChampionAvatarFrame managerName={manager} showAccolades={false}>
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={manager}
-              className="h-7 w-7 flex-shrink-0 rounded-full border border-cyan-300/30 object-cover shadow-sm shadow-black/30"
-            />
-          ) : (
-            <span
-              aria-hidden="true"
-              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-800 text-[11px] font-bold text-orange-300"
-            >
-              {initial}
-            </span>
-          )}
-        </ChampionAvatarFrame>
-        {isWinner && (
-          <Crown className="trade-winner-crown" aria-hidden="true" />
-        )}
-      </span>
-      <span className="trade-side-manager-lockup">
-        <span className="trade-side-manager-name">{manager}</span>
-        {buildLens && <ManagerBuildPill lens={buildLens} />}
-      </span>
-    </span>
-  );
-}
-
-function ManagerBuildPill({ lens }: { lens: ManagerBuildLens }) {
-  return (
-    <span
-      className={`trade-build-pill trade-build-pill-${lens.tone}`}
-      title={lens.reason}
-    >
-      {lens.label}
-    </span>
+    <TradeSideManager
+      manager={manager}
+      isWinner={isWinner}
+      managerAvatars={managerAvatars}
+      buildLens={buildLens}
+    />
   );
 }
 
@@ -133,7 +98,7 @@ export function renderTradeLedgerManagerName(
   return (
     <span className="trade-ledger-manager-lockup">
       {renderManagerName(manager, managerAvatars)}
-      {buildLens && <ManagerBuildPill lens={buildLens} />}
+      {buildLens && <TradeBuildPill lens={buildLens} />}
     </span>
   );
 }

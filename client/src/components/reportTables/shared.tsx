@@ -18,6 +18,11 @@ import {
 
 export type ManagerAvatars = ReportData["managerAvatars"];
 export type PlayerDetailsById = ReportData["playerDetailsById"];
+export type TradeBuildLens = {
+  label: string;
+  tone: "contender" | "rebuilder" | "middle";
+  reason: string;
+};
 
 export const VALUE_BLEND_HISTORY_START_LABEL = "May 7, 2026";
 export const FIRST_FULL_BLEND_WEEK_LABEL = "May 12, 2026 after the 6 PM scrape";
@@ -167,6 +172,64 @@ export function TradeSummaryManager({
           )}
         </span>
         <span className="min-w-0">{manager}</span>
+      </span>
+    </span>
+  );
+}
+
+export function TradeBuildPill({ lens }: { lens: TradeBuildLens }) {
+  return (
+    <span
+      className={`trade-build-pill trade-build-pill-${lens.tone}`}
+      title={lens.reason}
+    >
+      {lens.label}
+    </span>
+  );
+}
+
+export function TradeSideManager({
+  manager,
+  isWinner,
+  managerAvatars,
+  buildLens,
+}: {
+  manager: string;
+  isWinner: boolean;
+  managerAvatars?: ManagerAvatars;
+  buildLens?: TradeBuildLens;
+}) {
+  const avatarUrl = managerAvatars?.[manager];
+  const initial = manager.trim()[0]?.toUpperCase() || "?";
+
+  return (
+    <span
+      className={`trade-side-manager ${isWinner ? "trade-side-manager-winner" : "trade-side-manager-other"}`}
+    >
+      <span className="trade-mobile-avatar-wrap">
+        <ChampionAvatarFrame managerName={manager} showAccolades={false}>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={manager}
+              className="h-7 w-7 flex-shrink-0 rounded-full border border-cyan-300/30 object-cover shadow-sm shadow-black/30"
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-800 text-[11px] font-bold text-orange-300"
+            >
+              {initial}
+            </span>
+          )}
+        </ChampionAvatarFrame>
+        {isWinner && (
+          <Crown className="trade-winner-crown" aria-hidden="true" />
+        )}
+      </span>
+      <span className="trade-side-manager-lockup">
+        <span className="trade-side-manager-name">{manager}</span>
+        {buildLens && <TradeBuildPill lens={buildLens} />}
       </span>
     </span>
   );
