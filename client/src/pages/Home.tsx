@@ -12321,7 +12321,7 @@ export default function Home() {
                             {leagueFormatPills.map(chip => (
                               <span
                                 key={chip}
-                                className="report-league-format-pill"
+                                className="report-inline-pill report-league-format-pill"
                               >
                                 {chip}
                               </span>
@@ -12947,7 +12947,7 @@ export default function Home() {
                           title="College Rankings"
                           kicker="Future rookie pipeline"
                           previewAccessory={
-                            <span className="rankings-header-context-pill">
+                            <span className="report-inline-pill rankings-header-context-pill">
                               2021-2027 Tracked
                             </span>
                           }

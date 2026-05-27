@@ -73,7 +73,7 @@ export function MetricPill({
   return (
     <span
       className={cn(
-        'report-metric-pill owner-metric-pill',
+        'report-inline-pill report-metric-pill owner-metric-pill',
         `report-metric-pill-${tone}`,
         ownerTone !== 'neutral' && `owner-metric-pill-${ownerTone}`,
         className,
