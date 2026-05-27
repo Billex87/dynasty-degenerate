@@ -11,7 +11,6 @@ import {
 import "@/styles/home-backgrounds-v12.css";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -31,8 +30,6 @@ import {
   PremiumFxLayer,
   type PremiumFxVariant,
 } from "@/components/PremiumFxLayer";
-import { SupportButton } from "@/components/SupportButton";
-import { FeedbackButton } from "@/components/FeedbackButton";
 import { ManagerChampionshipProvider } from "@/components/ManagerChampionships";
 import {
   PlayerPill,
@@ -61,21 +58,16 @@ import {
   ReportOverviewHero,
 } from "@/features/report/components/ReportDashboardShowcase";
 import { ReportFooterActions } from "@/features/report/components/ReportFooterActions";
-import {
-  HomeFooterChrome,
-  HomeHeaderChrome,
-} from "@/features/home/components/HomeChrome";
-import { HomeLandingFeatureCards } from "@/features/home/components/HomeLandingFeatureCards";
+import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
 import {
   ChangeLeagueDialog,
   LeaguePickerDialog,
 } from "@/features/home/components/HomeLeagueDialogs";
 import {
-  HomePortfolioPanel,
+  type HomeLeagueSelectionLeague,
   type HomePortfolioLeague,
   type HomePortfolioRow,
 } from "@/features/home/components/HomeLeagueSelection";
-import { RecentEntrySuggestions } from "@/features/home/components/RecentEntrySuggestions";
 import {
   ReportSinceLastReportBrief,
   type ReportDeltaChange,
@@ -2674,15 +2666,6 @@ function getLoadingSuccessTitleClassName(leagueName: string): string {
     return "loading-success-title loading-success-title-compact";
   if (length >= 20) return "loading-success-title loading-success-title-long";
   return "loading-success-title";
-}
-
-function HomeActionRow() {
-  return (
-    <div className="home-action-row">
-      <SupportButton className="home-action-button" />
-      <FeedbackButton className="home-action-button" />
-    </div>
-  );
 }
 
 export default function Home() {
@@ -5366,207 +5349,44 @@ export default function Home() {
 
   return (
     <>
-      <div className="home-shell min-h-screen flex flex-col premium-fx-host" style={reportData && analysisCompleteMessage ? { opacity: 0 } : undefined}>
-        <HomeHeaderChrome onBrandClick={handleStartOver} />
-        <main className="home-main flex flex-col items-center justify-center">
-          <div
-            className={`home-hero home-hero-dashboard${showHomePortfolioPanel ? " home-hero-dashboard-portfolio" : ""}`}
-          >
-            {/* Main Title */}
-            <div className="home-hero-copy space-y-3 sm:space-y-4 text-center">
-              <h2
-                className="athletic-title home-title"
-                aria-label="Fuck vibes. Use AI."
-              >
-                <span className="home-title-primary" data-text="FUCK VIBES.">
-                  FUCK VIBES...
-                </span>
-                <span className="home-title-accent" data-text="USE AI.">
-                  USE AI.
-                </span>
-              </h2>
-              <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 mx-auto">
-                Your league mates are guessing.{" "}
-                <span className="home-subtitle-ai">WE'RE NOT!</span>
-              </p>
-              <p className="home-subtitle-detail">
-                We use AI to expose roster cracks,
-                <br />
-                {" "}
-                trade windows, lineup leverage, and draft value before the rest
-                of your league realizes
-                <br />
-                {" "}
-                they're playing for second place.
-              </p>
-            </div>
-
-            {/* Input Section */}
-            <div className="home-analyze-card space-y-3 sm:space-y-4 p-4 sm:p-8">
-              <div className="text-center">
-                <label className="home-field-label block text-sm font-semibold text-slate-200 mb-2">
-                  Enter Sleeper. Start Winning.
-                </label>
-                <div className="home-username-row flex flex-col gap-1.5 sm:flex-row sm:gap-2.5 w-full">
-                  <div className="home-autocomplete-anchor flex-1 w-full sm:w-auto">
-                    <Input
-                      id="sleeper-username"
-                      name="sleeper-username"
-                      type="text"
-                      aria-label="Enter Your Sleeper Username"
-                      autoComplete="username"
-                      list="sleeper-username-history"
-                      placeholder="Sleeper username"
-                      value={sleeperUsername}
-                      onChange={e => setSleeperUsername(e.target.value)}
-                      onFocus={() => setFocusedAutocomplete("username")}
-                      onBlur={() =>
-                        window.setTimeout(
-                          () => setFocusedAutocomplete(null),
-                          120
-                        )
-                      }
-                      className="w-full bg-slate-900 border-cyan-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-cyan-300 text-center sm:text-left"
-                      onKeyDown={e => e.key === "Enter" && handleFindLeagues()}
-                    />
-                    <datalist id="sleeper-username-history">
-                      {sleeperUsernameHistory.map(value => (
-                        <option key={value} value={value} />
-                      ))}
-                    </datalist>
-                    {focusedAutocomplete === "username" ? (
-                      <RecentEntrySuggestions
-                        label="Recent Sleeper usernames"
-                        options={usernameAutocompleteOptions}
-                        onSelect={value => {
-                          setSleeperUsername(value);
-                          setFocusedAutocomplete(null);
-                        }}
-                      />
-                    ) : null}
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={handleFindLeagues}
-                    disabled={userLeaguesMutation.isPending}
-                    className="home-find-leagues-button h-12 w-full shrink-0 rounded-lg border border-orange-400/40 bg-gradient-to-r from-orange-500 to-orange-600 px-5 font-bold text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
-                  >
-                    {userLeaguesMutation.isPending
-                      ? "Finding Leagues..."
-                      : "Find Leagues"}
-                  </Button>
-                </div>
-              </div>
-
-              {SHOW_LEGACY_LEAGUE_ID_LOGIN ? (
-                <>
-                  <div className="home-id-divider">
-                    <span>or use a league ID</span>
-                  </div>
-
-                  <div className="text-center">
-                    <label className="home-field-label block text-sm font-semibold text-slate-200 mb-2">
-                      Enter Your Sleeper League ID
-                    </label>
-                    <div className="home-autocomplete-anchor w-full">
-                      <Input
-                        id="sleeper-league-id"
-                        name="sleeper-league-id"
-                        type="text"
-                        aria-label="Enter Your Sleeper League ID"
-                        autoComplete="on"
-                        inputMode="numeric"
-                        list="sleeper-league-id-history"
-                        placeholder="Find in your Sleeper app settings or URL"
-                        value={leagueId}
-                        onChange={e => setLeagueId(e.target.value)}
-                        onFocus={() => setFocusedAutocomplete("league")}
-                        onBlur={() =>
-                          window.setTimeout(
-                            () => setFocusedAutocomplete(null),
-                            120
-                          )
-                        }
-                        className="w-full bg-slate-900 border-orange-500/30 text-white placeholder:text-slate-500 h-12 text-base focus:border-orange-400 text-center"
-                        onKeyDown={e => e.key === "Enter" && handleAnalyze()}
-                      />
-                      <datalist id="sleeper-league-id-history">
-                        {leagueIdHistory.map(value => (
-                          <option key={value} value={value} />
-                        ))}
-                      </datalist>
-                      {focusedAutocomplete === "league" ? (
-                        <RecentEntrySuggestions
-                          label="Recent Sleeper league IDs"
-                          options={leagueIdAutocompleteOptions}
-                          onSelect={value => {
-                            setLeagueId(value);
-                            setFocusedAutocomplete(null);
-                          }}
-                        />
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={() => handleAnalyze()}
-                    disabled={isLoading}
-                    className="home-analyze-button w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-base gap-2 rounded-lg transition-all duration-200 shadow-lg"
-                  >
-                    Run Degenerate Analysis
-                  </Button>
-                </>
-              ) : null}
-            </div>
-
-            {!showHomePortfolioPanel ? (
-              <div className="home-weapons-callout">
-                <p className="home-weapons-callout-title">
-                  <span className="home-weapons-callout-blue">
-                    THESE AREN’T FEATURES.
-                  </span>
-                  <span className="home-weapons-callout-orange">
-                    THEY’RE WEAPONS.
-                  </span>
-                </p>
-                <p className="home-weapons-callout-copy">
-                  <span className="home-weapons-copy-line">
-                    Run the scan. Find the weakness. Send the offer.
-                  </span>
-                  <br />
-                  {" "}
-                  <span className="home-weapons-copy-line">
-                    Make them regret inviting you.
-                  </span>
-                </p>
-              </div>
-            ) : null}
-
-            {showHomePortfolioPanel ? (
-              <HomePortfolioPanel
-                rows={homePortfolioRows}
-                filteredRows={filteredHomePortfolioRows}
-                leagues={orderedUserLeagues}
-                isLoading={isHomePortfolioLoading}
-                query={portfolioSearch}
-                onQueryChange={setPortfolioSearch}
-                onLeagueSelect={handleAnalyzeLeagueOption}
-              />
-            ) : null}
-
-            {/* Features Grid */}
-            <HomeLandingFeatureCards />
-          </div>
-        </main>
-
-        {!reportData && (
-          <div className="home-footer mt-auto px-4 py-1">
-            <HomeFooterChrome showBrand={!isLoading} />
-          </div>
-        )}
-        {leaguePickerDialog}
-        {clownEasterEggDialog}
-      </div>
+      <HomeSignedOutLanding
+        showHomePortfolioPanel={showHomePortfolioPanel}
+        homePortfolioRows={homePortfolioRows}
+        filteredHomePortfolioRows={filteredHomePortfolioRows}
+        orderedUserLeagues={orderedUserLeagues}
+        isHomePortfolioLoading={isHomePortfolioLoading}
+        portfolioSearch={portfolioSearch}
+        onPortfolioSearchChange={setPortfolioSearch}
+        onAnalyzeLeagueOption={handleAnalyzeLeagueOption}
+        leagueId={leagueId}
+        sleeperUsername={sleeperUsername}
+        onSleeperUsernameChange={setSleeperUsername}
+        usernameAutocompleteHistory={sleeperUsernameHistory}
+        leagueIdHistory={leagueIdHistory}
+        onLeagueIdChange={setLeagueId}
+        focusedAutocomplete={focusedAutocomplete}
+        onFocusedAutocompleteChange={setFocusedAutocomplete}
+        usernameAutocompleteOptions={usernameAutocompleteOptions}
+        leagueIdAutocompleteOptions={leagueIdAutocompleteOptions}
+        onUsernameAutocompleteSelect={value => {
+          setSleeperUsername(value);
+          setFocusedAutocomplete(null);
+        }}
+        onLeagueIdAutocompleteSelect={value => {
+          setLeagueId(value);
+          setFocusedAutocomplete(null);
+        }}
+        handleFindLeagues={handleFindLeagues}
+        isFindLeaguesPending={userLeaguesMutation.isPending}
+        showLegacyLeagueIdLogin={SHOW_LEGACY_LEAGUE_ID_LOGIN}
+        handleAnalyze={() => handleAnalyze()}
+        isAnalysisBusy={isLoading}
+        showLoadingFooter={!reportData}
+        onStartOver={handleStartOver}
+        isLandingFaded={Boolean(reportData && analysisCompleteMessage)}
+        leaguePickerDialog={leaguePickerDialog}
+        clownEasterEggDialog={clownEasterEggDialog}
+      />
       {adminAccessDialog}
       {adminUnlockDialog}
       {loadingDialog}
