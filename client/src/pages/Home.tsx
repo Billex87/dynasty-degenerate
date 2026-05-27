@@ -23,11 +23,10 @@ import {
 } from "@/components/PremiumFxLayer";
 import { ManagerChampionshipProvider } from "@/components/ManagerChampionships";
 import {
-  type PreviewMetric,
-} from "@/components/reportPrimitives";
-import {
   buildCombinedTrendingPreviewMetrics,
   buildDraftPreviewMetrics,
+  buildTradeProposalPreviewMetrics,
+  buildTradePreviewMetrics,
   buildLeagueFormatPills,
   buildManagerPositionRoomPreviewMetrics,
   buildMomentumPreviewMetrics,
@@ -35,10 +34,7 @@ import {
   buildRecentTransactionPreviewMetrics,
   buildRosterPreviewMetrics,
   buildTaxiPreviewMetrics,
-  formatTradeProposalPreviewDate,
-  formatTradeProposalPreviewStatus,
-  getTradeProposalPreviewTone,
-  renderPreviewManagerIdentity,
+  getReportManagerNames,
 } from "@/features/report/lib/reportOverviewPreview";
 import {
   CollapsibleReportSection,
@@ -72,8 +68,6 @@ import {
 import {
   buildHomePortfolioRows,
   filterHomePortfolioRows,
-  normalizePortfolioLeaguePlayer,
-  type PortfolioLeaguePlayer,
 } from "@/features/home/lib/portfolioRows";
 import { getLeagueFallbackInitials } from "@/features/home/lib/leagueIdentity";
 import {
@@ -83,7 +77,6 @@ import {
 } from "@/features/home/lib/adminMode";
 import {
   getValidSleeperUserId,
-  normalizeViewerIdentifier,
 } from "@/features/home/lib/sleeperIdentity";
 import {
   getFilteredAutocompleteOptions,
@@ -110,6 +103,25 @@ import {
   REPORT_TAB_VALUES,
   updateReportTabUrl,
 } from "@/features/home/lib/reportRouteState";
+import {
+  type AnalysisLeaguePreview,
+  type CachedSleeperUser,
+  type LeagueRankResult,
+  type SleeperLeagueOption,
+  type SleeperUserSession,
+  buildCachedSleeperUser,
+  buildLoadingManagerAnchors,
+  buildPreviewLoadingManagerAnchors,
+  findCachedSleeperUser,
+  findKnownSleeperLeague,
+  getAnalysisLeaguePreview,
+  getLeagueIdAnalysisPreview,
+  getOrderedLeagueOptions,
+  mergeLeagueRanks,
+  readCachedSleeperUsers,
+  rememberCachedSleeperLeagueShortcut,
+  rememberCachedSleeperUser,
+} from "@/features/home/lib/leagueHistory";
 import {
   type HomeLeagueSelectionLeague,
   type HomePortfolioRow,
@@ -138,8 +150,6 @@ import {
   getWorstDraftAdpValueManager,
 } from "@/lib/draftDashboardMetrics";
 import { sanitizeCachedReport } from "@/lib/reportCacheSanitizer";
-import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
-import { isPlaceholderManagerName } from "@/lib/managerDisplay";
 import { UNAUTHED_ERR_MSG } from "@shared/const";
 import type { ReportData } from "@shared/types";
 import { buildAutopilotData } from "@/lib/autopilot/buildAutopilotData";
@@ -318,11 +328,8 @@ const SLEEPER_SESSION_KEY = "dynasty-degenerates:sleeper-session:v1";
 const LEAGUE_ID_HISTORY_KEY = "dynasty-degenerates:league-id-history:v1";
 const SLEEPER_USERNAME_HISTORY_KEY =
   "dynasty-degenerates:sleeper-username-history:v1";
-const CACHED_SLEEPER_USERS_KEY = "dynasty-degenerates:sleeper-user-history:v1";
 const ADMIN_UNLOCK_MODAL_DISMISSED_KEY =
   "dynasty-degenerates:admin-unlock-dismissed:v1";
-const MAX_CACHED_SLEEPER_USERS = 5;
-const MAX_RECENT_LEAGUES_PER_USER = 3;
 const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
 const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
 const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 850;
@@ -370,267 +377,6 @@ function hasDraftReportData(reportData?: ReportData | null): boolean {
     return draftYear === currentSeason && draftKind === "main" && hasPlayer;
   });
 }
-
-function formatPreviewNumber(value?: number | null): string {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return "-";
-  if (Math.abs(numeric) >= 1000) return `${Math.round(numeric / 100) / 10}K`;
-  return numeric.toLocaleString();
-}
-
-function formatPreviewDate(value?: string | null): string {
-  if (!value) return "-";
-  const parsed = new Date(value.length === 10 ? `${value}T12:00:00Z` : value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-type TradePreviewSection = "war-room" | "leaderboard" | "theft" | "ledger";
-
-function buildTradeProposalPreviewMetrics(
-  reportData: ReportData
-): PreviewMetric[] {
-  const signals = [
-    ...(reportData.adminTradeProposalSignals || reportData.tradeProposalSignals || []),
-  ].sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
-  const latestSignal = signals[0] || null;
-
-  if (!signals.length) return [];
-
-  return [
-    {
-      label: "Signals",
-      value: signals.length,
-      tone: signals.length ? "info" : "warn",
-    },
-    {
-      label: "Latest",
-      value: latestSignal ? formatTradeProposalPreviewDate(latestSignal.date) : "-",
-      tone: latestSignal ? "good" : "neutral",
-    },
-    {
-      label: "Status",
-      value: latestSignal ? formatTradeProposalPreviewStatus(latestSignal.status) : "-",
-      tone: latestSignal ? getTradeProposalPreviewTone(latestSignal.status) : "neutral",
-    },
-  ];
-}
-
-function getTradeLoserManager(
-  trade?: ReportData["tradeHistory"][number] | null
-): string | null {
-  if (!trade) return null;
-  if (trade.winner === trade.team_a) return trade.team_b;
-  if (trade.winner === trade.team_b) return trade.team_a;
-  if (
-    trade.winners?.includes(trade.team_a) &&
-    !trade.winners.includes(trade.team_b)
-  )
-    return trade.team_b;
-  if (
-    trade.winners?.includes(trade.team_b) &&
-    !trade.winners.includes(trade.team_a)
-  )
-    return trade.team_a;
-  return null;
-}
-
-function buildTradePreviewMetrics(
-  data: ReportData,
-  _mode: LeagueValueMode,
-  section: TradePreviewSection
-): PreviewMetric[] {
-  const tradeHistory = [...(data.tradeHistory || [])];
-  const tradeTendencies = [...(data.tradeTendencies || [])];
-  const tradeTendencyByManager = new Map(
-    tradeTendencies.map(row => [row.manager, row])
-  );
-  const leagueTradeActivity = getReportManagerNames(
-    data,
-    data.viewerManager
-  ).map((manager, index) => {
-    const tendency = tradeTendencyByManager.get(manager);
-    return {
-      manager,
-      tradeCount: tendency?.tradeCount ?? 0,
-      index,
-    };
-  });
-
-  const biggestGap =
-    [...tradeHistory].sort(
-      (a, b) => Math.abs(b.point_gap || 0) - Math.abs(a.point_gap || 0)
-    )[0] || null;
-  const latestTrade =
-    [...tradeHistory].sort((a, b) => b.date.localeCompare(a.date))[0] || null;
-  const bestProfit =
-    [...tradeTendencies].sort((a, b) => b.profit - a.profit)[0] || null;
-  const busiestTrader =
-    [...tradeTendencies].sort((a, b) => b.tradeCount - a.tradeCount)[0] || null;
-  const bestWinRate =
-    [...tradeTendencies].sort((a, b) => b.winPct - a.winPct)[0] || null;
-  const worstProfit =
-    [...tradeTendencies].sort((a, b) => a.profit - b.profit)[0] || null;
-  const quietestTrader =
-    [...leagueTradeActivity].sort(
-      (a, b) => a.tradeCount - b.tradeCount || a.index - b.index
-    )[0] || null;
-  const cookedManager = getTradeLoserManager(biggestGap);
-  const auraManager = biggestGap?.winner || null;
-  const latestTradeGap = latestTrade
-    ? formatPreviewNumber(Math.abs(latestTrade.point_gap || 0))
-    : null;
-
-  switch (section) {
-    case "war-room":
-      return [
-        bestProfit
-          ? {
-              label: `Market Shark (${formatPreviewNumber(bestProfit.profit)})`,
-              value: renderPreviewManagerIdentity(
-                bestProfit.manager,
-                data.managerAvatars
-              ),
-              tone: "good",
-              className: "analysis-preview-chip-manager-preview",
-            }
-          : null,
-        worstProfit
-          ? {
-              label: `Bag Holder (${formatPreviewNumber(worstProfit.profit)})`,
-              value: renderPreviewManagerIdentity(
-                worstProfit.manager,
-                data.managerAvatars
-              ),
-              tone: "danger",
-              className: "analysis-preview-chip-manager-preview",
-            }
-          : null,
-      ].filter(Boolean) as PreviewMetric[];
-    case "leaderboard":
-      return [
-        busiestTrader
-          ? {
-              label: `Most trades (${busiestTrader.tradeCount})`,
-              value: renderPreviewManagerIdentity(
-                busiestTrader.manager,
-                data.managerAvatars
-              ),
-              tone: "info",
-              className: "analysis-preview-chip-manager-preview",
-            }
-          : null,
-        quietestTrader
-          ? {
-              label: `Least trades (${quietestTrader.tradeCount})`,
-              value: renderPreviewManagerIdentity(
-                quietestTrader.manager,
-                data.managerAvatars
-              ),
-              tone: "neutral",
-              className: "analysis-preview-chip-manager-preview",
-            }
-          : null,
-        bestWinRate
-          ? {
-              label: `Best win rate (${bestWinRate.winPct}%)`,
-              value: renderPreviewManagerIdentity(
-                bestWinRate.manager,
-                data.managerAvatars
-              ),
-              tone: "good",
-              className: "analysis-preview-chip-manager-preview",
-            }
-          : null,
-      ].filter(Boolean) as PreviewMetric[];
-    case "theft":
-      return [
-        auraManager
-          ? {
-              label: "Aura Farmer",
-              value: renderPreviewManagerIdentity(
-                auraManager,
-                data.managerAvatars
-              ),
-              tone: "good",
-              className: "analysis-preview-chip-manager-preview",
-            }
-          : null,
-        cookedManager
-          ? {
-              label: `Most cooked${biggestGap ? ` (${formatPreviewNumber(Math.abs(biggestGap.point_gap || 0))})` : ""}`,
-              value: renderPreviewManagerIdentity(
-                cookedManager,
-                data.managerAvatars
-              ),
-              tone: "danger",
-              className: "analysis-preview-chip-manager-preview",
-            }
-          : null,
-      ].filter(Boolean) as PreviewMetric[];
-    case "ledger":
-    default:
-      return [
-        {
-          label: "Trades",
-          value: tradeHistory.length,
-          tone: tradeHistory.length ? "neutral" : "warn",
-        },
-        latestTrade
-          ? {
-              label: "Latest",
-              value: formatPreviewDate(latestTrade.date),
-              tone: "info",
-            }
-          : null,
-        latestTradeGap
-          ? {
-              label: "Last gap",
-              value: latestTradeGap,
-              tone: "warn",
-            }
-          : null,
-      ].filter(Boolean) as PreviewMetric[];
-  }
-}
-
-type SleeperLeagueOption = {
-  leagueId: string;
-  name: string;
-  avatarUrl: string | null;
-  season: string;
-  format: string;
-  mobileFormat: string;
-  totalRosters: number;
-  standingsRank: number | null;
-  powerRank: number | null;
-  rosterPlayers?: PortfolioLeaguePlayer[];
-  managerAnchors?: LoaderManagerAnchor[];
-};
-
-type LeagueRankResult = Pick<
-  SleeperLeagueOption,
-  "leagueId" | "standingsRank" | "powerRank" | "rosterPlayers" | "managerAnchors"
->;
-
-type AnalysisLeaguePreview = {
-  leagueName: string;
-  leagueFormat: string;
-  leagueLogo: string | null;
-};
-
-type SleeperUserSession = {
-  userId: string;
-  username: string;
-  displayName: string;
-  avatarUrl: string | null;
-  hasAdminPermissions?: boolean;
-  isPrivilegedReportViewer?: boolean;
-};
 
 type CachedReport = {
   cacheVersion?: string;
@@ -692,31 +438,6 @@ type SleeperSession = {
   adminViewMode?: AdminViewMode | null;
   savedAt: number;
 };
-
-type CachedSleeperUser = {
-  userId: string;
-  username: string;
-  displayName: string;
-  avatarUrl: string | null;
-  hasAdminPermissions: boolean;
-  isPrivilegedReportViewer?: boolean;
-  leagues: SleeperLeagueOption[];
-  recentLeagueIds: string[];
-  savedAt: number;
-};
-
-function getAnalysisLeaguePreview(
-  league: SleeperLeagueOption
-): AnalysisLeaguePreview {
-  return {
-    leagueName: league.name,
-    leagueFormat:
-      league.format ||
-      league.mobileFormat ||
-      `${league.totalRosters || "?"}-Team League`,
-    leagueLogo: league.avatarUrl,
-  };
-}
 
 function isFreshTimestamp(value: unknown, maxAgeMs: number): boolean {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
@@ -1327,433 +1048,6 @@ function buildReportDeltaChanges(
   }
 
   return changes.sort((a, b) => b.priority - a.priority);
-}
-
-function getLeagueIdAnalysisPreview(leagueId: string): AnalysisLeaguePreview {
-  return {
-    leagueName: "Sleeper League",
-    leagueFormat: `League ID ${leagueId}`,
-    leagueLogo: null,
-  };
-}
-
-function findKnownSleeperLeague(
-  leagueId: string,
-  userLeagues: SleeperLeagueOption[],
-  cachedUsers: CachedSleeperUser[],
-  extraLeagues: SleeperLeagueOption[] = []
-): SleeperLeagueOption | null {
-  const normalizedLeagueId = leagueId.trim();
-  if (!normalizedLeagueId) return null;
-
-  const leagueGroups = [
-    extraLeagues,
-    userLeagues,
-    ...cachedUsers.map(user => user.leagues),
-  ];
-
-  for (const leagues of leagueGroups) {
-    const match = leagues.find(
-      league => league.leagueId === normalizedLeagueId
-    );
-    if (match) return match;
-  }
-
-  return null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
-
-function normalizeLeagueOption(value: unknown): SleeperLeagueOption | null {
-  if (
-    !isRecord(value) ||
-    typeof value.leagueId !== "string" ||
-    typeof value.name !== "string"
-  ) {
-    return null;
-  }
-
-  return {
-    leagueId: value.leagueId,
-    name: value.name,
-    avatarUrl: typeof value.avatarUrl === "string" ? value.avatarUrl : null,
-    season: typeof value.season === "string" ? value.season : "",
-    format: typeof value.format === "string" ? value.format : "",
-    mobileFormat:
-      typeof value.mobileFormat === "string" ? value.mobileFormat : "",
-    totalRosters:
-      typeof value.totalRosters === "number" ? value.totalRosters : 0,
-    standingsRank:
-      typeof value.standingsRank === "number" ? value.standingsRank : null,
-    powerRank: typeof value.powerRank === "number" ? value.powerRank : null,
-    rosterPlayers: Array.isArray(value.rosterPlayers)
-      ? value.rosterPlayers
-          .map(normalizePortfolioLeaguePlayer)
-          .filter((player): player is PortfolioLeaguePlayer => Boolean(player))
-      : undefined,
-    managerAnchors: Array.isArray(value.managerAnchors)
-      ? value.managerAnchors
-          .map(normalizeLoaderManagerAnchor)
-          .filter((anchor): anchor is LoaderManagerAnchor => Boolean(anchor))
-      : undefined,
-  };
-}
-
-function normalizeLoaderManagerAnchor(value: unknown): LoaderManagerAnchor | null {
-  if (!isRecord(value) || typeof value.id !== "string" || !value.id.trim()) {
-    return null;
-  }
-
-  return {
-    id: value.id.trim(),
-    avatarUrl: typeof value.avatarUrl === "string" ? value.avatarUrl : null,
-  };
-}
-
-function normalizeCachedSleeperUser(value: unknown): CachedSleeperUser | null {
-  if (!isRecord(value) || typeof value.username !== "string") return null;
-  const username = value.username.trim();
-  if (!username) return null;
-  const leagues = Array.isArray(value.leagues)
-    ? value.leagues
-        .map(normalizeLeagueOption)
-        .filter((league): league is SleeperLeagueOption => Boolean(league))
-    : [];
-  const validLeagueIds = new Set(leagues.map(league => league.leagueId));
-  const recentLeagueIds = Array.isArray(value.recentLeagueIds)
-    ? value.recentLeagueIds
-        .filter((leagueId): leagueId is string => typeof leagueId === "string")
-        .filter((leagueId, index, list) => list.indexOf(leagueId) === index)
-        .filter(leagueId => validLeagueIds.has(leagueId))
-        .slice(0, MAX_RECENT_LEAGUES_PER_USER)
-    : [];
-  const userId =
-    typeof value.userId === "string" && value.userId.trim()
-      ? value.userId
-      : username;
-  const displayName =
-    typeof value.displayName === "string" && value.displayName.trim()
-      ? value.displayName
-      : username;
-  const hasAdminPermissions =
-    value.hasAdminPermissions === true ||
-    value.isPrivilegedReportViewer === true;
-
-  return {
-    userId,
-    username,
-    displayName,
-    avatarUrl:
-      typeof value.avatarUrl === "string" && value.avatarUrl.trim()
-        ? value.avatarUrl
-        : null,
-    hasAdminPermissions,
-    isPrivilegedReportViewer: hasAdminPermissions,
-    leagues,
-    recentLeagueIds,
-    savedAt: typeof value.savedAt === "number" ? value.savedAt : 0,
-  };
-}
-
-function readCachedSleeperUsers(): CachedSleeperUser[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const parsed = JSON.parse(
-      localStorage.getItem(CACHED_SLEEPER_USERS_KEY) || "[]"
-    );
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map(normalizeCachedSleeperUser)
-      .filter((user): user is CachedSleeperUser => Boolean(user))
-      .sort((a, b) => b.savedAt - a.savedAt)
-      .slice(0, MAX_CACHED_SLEEPER_USERS);
-  } catch {
-    localStorage.removeItem(CACHED_SLEEPER_USERS_KEY);
-    return [];
-  }
-}
-
-function writeCachedSleeperUsers(
-  users: CachedSleeperUser[]
-): CachedSleeperUser[] {
-  const next = users
-    .filter(user => user.username)
-    .sort((a, b) => b.savedAt - a.savedAt)
-    .slice(0, MAX_CACHED_SLEEPER_USERS);
-  try {
-    localStorage.setItem(CACHED_SLEEPER_USERS_KEY, JSON.stringify(next));
-  } catch {
-    // Recent account shortcuts are a convenience only.
-  }
-  return next;
-}
-
-function rememberCachedSleeperUser(
-  user: CachedSleeperUser
-): CachedSleeperUser[] {
-  const normalizedUsername = normalizeViewerIdentifier(user.username);
-  const normalizedUserId = normalizeViewerIdentifier(user.userId);
-  const current = readCachedSleeperUsers();
-  const existing = current.find(
-    cachedUser =>
-      normalizeViewerIdentifier(cachedUser.username) === normalizedUsername ||
-      normalizeViewerIdentifier(cachedUser.userId) === normalizedUserId
-  );
-  const leagueIds = new Set(user.leagues.map(league => league.leagueId));
-  const recentLeagueIds = (
-    user.recentLeagueIds.length
-      ? user.recentLeagueIds
-      : existing?.recentLeagueIds || []
-  )
-    .filter((leagueId, index, list) => list.indexOf(leagueId) === index)
-    .filter(leagueId => leagueIds.has(leagueId))
-    .slice(0, MAX_RECENT_LEAGUES_PER_USER);
-  return writeCachedSleeperUsers([
-    { ...user, recentLeagueIds, savedAt: Date.now() },
-    ...current.filter(
-      cachedUser =>
-        normalizeViewerIdentifier(cachedUser.username) !== normalizedUsername &&
-        normalizeViewerIdentifier(cachedUser.userId) !== normalizedUserId
-    ),
-  ]);
-}
-
-function buildCachedSleeperUser(
-  username: string,
-  user: SleeperUserSession | null | undefined,
-  leagues: SleeperLeagueOption[]
-): CachedSleeperUser {
-  const userId = user?.userId || username;
-  const displayName = user?.displayName || user?.username || username;
-  const hasAdminPermissions =
-    user?.hasAdminPermissions === true ||
-    user?.isPrivilegedReportViewer === true;
-  return {
-    userId,
-    username: user?.username || username,
-    displayName,
-    avatarUrl: user?.avatarUrl || null,
-    hasAdminPermissions,
-    isPrivilegedReportViewer: hasAdminPermissions,
-    leagues,
-    recentLeagueIds: [],
-    savedAt: Date.now(),
-  };
-}
-
-function mergeLeagueRanks(
-  leagues: SleeperLeagueOption[],
-  ranks: LeagueRankResult[]
-): SleeperLeagueOption[] {
-  if (!ranks.length) return leagues;
-  const rankByLeagueId = new Map(ranks.map(rank => [rank.leagueId, rank]));
-  return leagues.map(league => {
-    const rank = rankByLeagueId.get(league.leagueId);
-    if (!rank) return league;
-    return {
-      ...league,
-      standingsRank: rank.standingsRank,
-      powerRank: rank.powerRank,
-      rosterPlayers: rank.rosterPlayers || league.rosterPlayers,
-      managerAnchors: Array.isArray(rank.managerAnchors)
-        ? rank.managerAnchors
-        : league.managerAnchors,
-    };
-  });
-}
-
-function findCachedSleeperUser(
-  users: CachedSleeperUser[],
-  userId?: string | null,
-  username?: string | null
-): CachedSleeperUser | null {
-  const normalizedUserId = normalizeViewerIdentifier(userId);
-  const normalizedUsername = normalizeViewerIdentifier(username);
-  return (
-    users.find(
-      user =>
-        (normalizedUserId &&
-          normalizeViewerIdentifier(user.userId) === normalizedUserId) ||
-        (normalizedUsername &&
-          normalizeViewerIdentifier(user.username) === normalizedUsername)
-    ) ||
-    users[0] ||
-    null
-  );
-}
-
-function getOrderedLeagueOptions(
-  leagues: SleeperLeagueOption[],
-  cachedUser: CachedSleeperUser | null
-): SleeperLeagueOption[] {
-  if (!leagues.length) return [];
-
-  const leagueById = new Map(leagues.map(league => [league.leagueId, league]));
-  const seen = new Set<string>();
-  const recentLeagues = (cachedUser?.recentLeagueIds || [])
-    .map(leagueId => leagueById.get(leagueId))
-    .filter((league): league is SleeperLeagueOption => {
-      if (!league || seen.has(league.leagueId)) return false;
-      seen.add(league.leagueId);
-      return true;
-    });
-
-  return [
-    ...recentLeagues,
-    ...leagues.filter(league => !seen.has(league.leagueId)),
-  ];
-}
-
-function getReportManagerNames(
-  reportData: ReportData,
-  viewerManager?: string | null
-): string[] {
-  const managerNames = new Set<string>();
-  const addManager = (value?: string | null) => {
-    const trimmed = value?.trim();
-    if (trimmed && !isPlaceholderManagerName(trimmed)) {
-      managerNames.add(trimmed);
-    }
-  };
-
-  (reportData.currentStandings || []).forEach(row => addManager(row.manager));
-
-  if (!managerNames.size) {
-    (reportData.leagueOverview || []).forEach(row => addManager(row.manager));
-    (reportData.managerRosterIntelligence || []).forEach(row =>
-      addManager(row.manager)
-    );
-    (reportData.managerPositionCounts || []).forEach(row =>
-      addManager(row.manager)
-    );
-    (reportData.powerRankings || []).forEach(row => addManager(row.manager));
-  }
-
-  if (!managerNames.size) {
-    Object.keys(reportData.managerAvatars || {}).forEach(addManager);
-    Object.keys(reportData.managerChampionships || {}).forEach(addManager);
-    (reportData.standingsHistory || []).forEach(row => addManager(row.manager));
-    (reportData.tradeProfitLeaderboard || []).forEach(row =>
-      addManager(row.manager)
-    );
-    (reportData.tradeTendencies || []).forEach(row => addManager(row.manager));
-    (reportData.dynastyTimelines || []).forEach(row => addManager(row.manager));
-    (reportData.pickPortfolios || []).forEach(row => addManager(row.manager));
-    (reportData.monthlyBlueprintHistory || []).forEach(row =>
-      addManager(row.manager)
-    );
-    (reportData.matchupPreviews || []).forEach(row => addManager(row.manager));
-    (reportData.recentTransactions || []).forEach(row =>
-      addManager(row.manager)
-    );
-    (reportData.draftPicks || []).forEach(row => addManager(row.manager));
-    addManager(reportData.viewerManager);
-  }
-
-  return sortRowsByViewerAndStanding(
-    Array.from(managerNames),
-    manager => manager,
-    {
-      viewerManager,
-      standings: reportData.currentStandings,
-      leagueOverview: reportData.leagueOverview,
-    }
-  );
-}
-
-function buildLoadingManagerAnchors(
-  reportData: ReportData | null,
-  viewerManager?: string | null
-): LoaderManagerAnchor[] {
-  if (!reportData) return [];
-
-  return getReportManagerNames(reportData, viewerManager).map(manager => ({
-    id: manager,
-    avatarUrl: reportData.managerAvatars?.[manager] || null,
-  }));
-}
-
-function buildPreviewLoadingManagerAnchors(count = 12): LoaderManagerAnchor[] {
-  return Array.from({ length: count }, (_, index) => ({
-    id: `preview-manager-${index + 1}`,
-    avatarUrl: null,
-  }));
-}
-
-function rememberCachedSleeperLeagueShortcut({
-  users,
-  user,
-  username,
-  leagues,
-  leagueId,
-}: {
-  users: CachedSleeperUser[];
-  user: SleeperUserSession | null;
-  username: string;
-  leagues: SleeperLeagueOption[];
-  leagueId: string;
-}): CachedSleeperUser[] {
-  const normalizedUsername = normalizeViewerIdentifier(
-    user?.username || username
-  );
-  const normalizedUserId = normalizeViewerIdentifier(user?.userId || username);
-  const leagueIds = new Set(leagues.map(league => league.leagueId));
-  if (!normalizedUsername || !leagueIds.has(leagueId)) return users;
-
-  const existing = findCachedSleeperUser(
-    users,
-    user?.userId || null,
-    user?.username || username
-  );
-  const base = existing || buildCachedSleeperUser(username, user, leagues);
-  const nextRecentLeagueIds = [leagueId, ...(base.recentLeagueIds || [])]
-    .filter((id, index, list) => list.indexOf(id) === index)
-    .filter(id => leagueIds.has(id))
-    .slice(0, MAX_RECENT_LEAGUES_PER_USER);
-  const nextUser: CachedSleeperUser = {
-    ...base,
-    userId: user?.userId || base.userId || username,
-    username: user?.username || base.username || username,
-    displayName: user?.displayName || base.displayName || username,
-    avatarUrl: user?.avatarUrl || base.avatarUrl || null,
-    hasAdminPermissions:
-      user?.hasAdminPermissions === true ||
-      user?.isPrivilegedReportViewer === true ||
-      base.hasAdminPermissions === true ||
-      base.isPrivilegedReportViewer === true,
-    isPrivilegedReportViewer:
-      user?.hasAdminPermissions === true ||
-      user?.isPrivilegedReportViewer === true ||
-      base.hasAdminPermissions === true ||
-      base.isPrivilegedReportViewer === true,
-    leagues,
-    recentLeagueIds: nextRecentLeagueIds,
-    savedAt: Date.now(),
-  };
-
-  return writeCachedSleeperUsers([
-    nextUser,
-    ...users.filter(
-      cachedUser =>
-        normalizeViewerIdentifier(cachedUser.username) !== normalizedUsername &&
-        normalizeViewerIdentifier(cachedUser.userId) !== normalizedUserId
-    ),
-  ]);
-}
-
-function cachedSleeperUserToSessionUser(
-  user: CachedSleeperUser
-): SleeperUserSession {
-  return {
-    userId: user.userId,
-    username: user.username,
-    displayName: user.displayName,
-    avatarUrl: user.avatarUrl,
-    hasAdminPermissions: user.hasAdminPermissions,
-    isPrivilegedReportViewer: user.hasAdminPermissions,
-  };
 }
 
 export default function Home() {

@@ -13,8 +13,10 @@ import {
   getPlayerRankForMode,
   normalizeLeagueValueMode,
   type LeagueValueMode as NormalizedLeagueValueMode,
+  type LeagueValueMode,
 } from "@/lib/leagueValueMode";
 import { isPlaceholderManagerName } from "@/lib/managerDisplay";
+import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
 import { PreviewMetric } from "@/components/reportPrimitives";
 import type { ReportData } from "@shared/types";
 import type { OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
@@ -557,6 +559,291 @@ export function buildRecentTransactionPreviewMetrics(
         hideLabel: true,
       };
     });
+}
+
+export type TradePreviewSection = "war-room" | "leaderboard" | "theft" | "ledger";
+
+function formatTradePreviewNumber(value?: number | null): string {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "-";
+  if (Math.abs(numeric) >= 1000) return `${Math.round(numeric / 100) / 10}K`;
+  return numeric.toLocaleString();
+}
+
+function formatTradePreviewDate(value?: string | null): string {
+  if (!value) return "-";
+  const parsed = new Date(value.length === 10 ? `${value}T12:00:00Z` : value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getTradeLoserManager(
+  trade?: ReportData["tradeHistory"][number] | null
+): string | null {
+  if (!trade) return null;
+  if (trade.winner === trade.team_a) return trade.team_b;
+  if (trade.winner === trade.team_b) return trade.team_a;
+  if (
+    trade.winners?.includes(trade.team_a) &&
+    !trade.winners.includes(trade.team_b)
+  )
+    return trade.team_b;
+  if (
+    trade.winners?.includes(trade.team_b) &&
+    !trade.winners.includes(trade.team_a)
+  )
+    return trade.team_a;
+  return null;
+}
+
+export function getReportManagerNames(
+  reportData: ReportData,
+  viewerManager?: string | null
+): string[] {
+  const managerNames = new Set<string>();
+  const addManager = (value?: string | null) => {
+    const trimmed = value?.trim();
+    if (trimmed && !isPlaceholderManagerName(trimmed)) {
+      managerNames.add(trimmed);
+    }
+  };
+
+  (reportData.currentStandings || []).forEach(row => addManager(row.manager));
+
+  if (!managerNames.size) {
+    (reportData.leagueOverview || []).forEach(row => addManager(row.manager));
+    (reportData.managerRosterIntelligence || []).forEach(row =>
+      addManager(row.manager)
+    );
+    (reportData.managerPositionCounts || []).forEach(row =>
+      addManager(row.manager)
+    );
+    (reportData.powerRankings || []).forEach(row => addManager(row.manager));
+  }
+
+  if (!managerNames.size) {
+    Object.keys(reportData.managerAvatars || {}).forEach(addManager);
+    Object.keys(reportData.managerChampionships || {}).forEach(addManager);
+    (reportData.standingsHistory || []).forEach(row => addManager(row.manager));
+    (reportData.tradeProfitLeaderboard || []).forEach(row =>
+      addManager(row.manager)
+    );
+    (reportData.tradeTendencies || []).forEach(row => addManager(row.manager));
+    (reportData.dynastyTimelines || []).forEach(row => addManager(row.manager));
+    (reportData.pickPortfolios || []).forEach(row => addManager(row.manager));
+    (reportData.monthlyBlueprintHistory || []).forEach(row =>
+      addManager(row.manager)
+    );
+    (reportData.matchupPreviews || []).forEach(row => addManager(row.manager));
+    (reportData.recentTransactions || []).forEach(row => addManager(row.manager));
+    (reportData.draftPicks || []).forEach(row => addManager(row.manager));
+    addManager(reportData.viewerManager);
+  }
+
+  return sortRowsByViewerAndStanding(
+    Array.from(managerNames),
+    manager => manager,
+    {
+      viewerManager,
+      standings: reportData.currentStandings,
+      leagueOverview: reportData.leagueOverview,
+    }
+  );
+}
+
+export function buildTradeProposalPreviewMetrics(
+  reportData: ReportData
+): PreviewMetric[] {
+  const signals = [
+    ...(reportData.adminTradeProposalSignals || reportData.tradeProposalSignals || []),
+  ].sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+  const latestSignal = signals[0] || null;
+
+  if (!signals.length) return [];
+
+  return [
+    {
+      label: "Signals",
+      value: signals.length,
+      tone: signals.length ? "info" : "warn",
+    },
+    {
+      label: "Latest",
+      value: latestSignal ? formatTradeProposalPreviewDate(latestSignal.date) : "-",
+      tone: latestSignal ? "good" : "neutral",
+    },
+    {
+      label: "Status",
+      value: latestSignal
+        ? formatTradeProposalPreviewStatus(latestSignal.status)
+        : "-",
+      tone: latestSignal ? getTradeProposalPreviewTone(latestSignal.status) : "neutral",
+    },
+  ].filter(Boolean) as PreviewMetric[];
+}
+
+export function buildTradePreviewMetrics(
+  data: ReportData,
+  _mode: LeagueValueMode,
+  section: TradePreviewSection
+): PreviewMetric[] {
+  const tradeHistory = [...(data.tradeHistory || [])];
+  const tradeTendencies = [...(data.tradeTendencies || [])];
+  const tradeTendencyByManager = new Map(
+    tradeTendencies.map(row => [row.manager, row])
+  );
+  const leagueTradeActivity = getReportManagerNames(
+    data,
+    data.viewerManager
+  ).map((manager, index) => {
+    const tendency = tradeTendencyByManager.get(manager);
+    return {
+      manager,
+      tradeCount: tendency?.tradeCount ?? 0,
+      index,
+    };
+  });
+
+  const biggestGap =
+    [...tradeHistory].sort(
+      (a, b) => Math.abs(b.point_gap || 0) - Math.abs(a.point_gap || 0)
+    )[0] || null;
+  const latestTrade =
+    [...tradeHistory].sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+  const bestProfit =
+    [...tradeTendencies].sort((a, b) => b.profit - a.profit)[0] || null;
+  const busiestTrader =
+    [...tradeTendencies].sort((a, b) => b.tradeCount - a.tradeCount)[0] || null;
+  const bestWinRate =
+    [...tradeTendencies].sort((a, b) => b.winPct - a.winPct)[0] || null;
+  const worstProfit =
+    [...tradeTendencies].sort((a, b) => a.profit - b.profit)[0] || null;
+  const quietestTrader =
+    [...leagueTradeActivity].sort(
+      (a, b) => a.tradeCount - b.tradeCount || a.index - b.index
+    )[0] || null;
+  const cookedManager = getTradeLoserManager(biggestGap);
+  const auraManager = biggestGap?.winner || null;
+  const latestTradeGap = latestTrade
+    ? formatTradePreviewNumber(Math.abs(latestTrade.point_gap || 0))
+    : null;
+
+  switch (section) {
+    case "war-room":
+      return [
+        bestProfit
+          ? {
+              label: `Market Shark (${formatTradePreviewNumber(bestProfit.profit)})`,
+              value: renderPreviewManagerIdentity(
+                bestProfit.manager,
+                data.managerAvatars
+              ),
+              tone: "good",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+        worstProfit
+          ? {
+              label: `Bag Holder (${formatTradePreviewNumber(worstProfit.profit)})`,
+              value: renderPreviewManagerIdentity(
+                worstProfit.manager,
+                data.managerAvatars
+              ),
+              tone: "danger",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+      ].filter(Boolean) as PreviewMetric[];
+    case "leaderboard":
+      return [
+        busiestTrader
+          ? {
+              label: `Most trades (${busiestTrader.tradeCount})`,
+              value: renderPreviewManagerIdentity(
+                busiestTrader.manager,
+                data.managerAvatars
+              ),
+              tone: "info",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+        quietestTrader
+          ? {
+              label: `Least trades (${quietestTrader.tradeCount})`,
+              value: renderPreviewManagerIdentity(
+                quietestTrader.manager,
+                data.managerAvatars
+              ),
+              tone: "neutral",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+        bestWinRate
+          ? {
+              label: `Best win rate (${bestWinRate.winPct}%)`,
+              value: renderPreviewManagerIdentity(
+                bestWinRate.manager,
+                data.managerAvatars
+              ),
+              tone: "good",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+      ].filter(Boolean) as PreviewMetric[];
+    case "theft":
+      return [
+        auraManager
+          ? {
+              label: "Aura Farmer",
+              value: renderPreviewManagerIdentity(auraManager, data.managerAvatars),
+              tone: "good",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+        cookedManager
+          ? {
+              label: `Most cooked${
+                biggestGap
+                  ? ` (${formatTradePreviewNumber(Math.abs(biggestGap.point_gap || 0))})`
+                  : ""
+              }`,
+              value: renderPreviewManagerIdentity(
+                cookedManager,
+                data.managerAvatars
+              ),
+              tone: "danger",
+              className: "analysis-preview-chip-manager-preview",
+            }
+          : null,
+      ].filter(Boolean) as PreviewMetric[];
+    case "ledger":
+    default:
+      return [
+        {
+          label: "Trades",
+          value: tradeHistory.length,
+          tone: tradeHistory.length ? "neutral" : "warn",
+        },
+        latestTrade
+          ? {
+              label: "Latest",
+              value: formatTradePreviewDate(latestTrade.date),
+              tone: "info",
+            }
+          : null,
+        latestTradeGap
+          ? {
+              label: "Last gap",
+              value: latestTradeGap,
+              tone: "warn",
+            }
+          : null,
+      ].filter(Boolean) as PreviewMetric[];
+  }
 }
 
 export function formatTradeProposalPreviewDate(value?: string | null): string {
