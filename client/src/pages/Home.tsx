@@ -16,15 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -39,7 +30,6 @@ import {
   Crosshair,
   Flame,
   Gavel,
-  Users,
   TrendingUp,
   TrendingDown,
   BarChart3,
@@ -73,6 +63,7 @@ import {
   ReportSectionLoadingFallback,
 } from "@/features/report/components/ReportSectionDisclosure";
 import { AIVoiceModeMenu } from "@/features/report/components/AIVoiceModeMenu";
+import { AdminManagerSwitcher } from "@/features/report/components/AdminManagerSwitcher";
 import { AutopilotErrorFallback } from "@/features/report/components/AutopilotErrorFallback";
 import {
   LeagueRosterScannerModeControls,
@@ -328,7 +319,6 @@ const ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY =
 const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
-const LEAGUE_VIEW_MANAGER_VALUE = "__league__";
 const ADMIN_VALUE_DIAGNOSTIC_START_DATE = "2026-05-07";
 const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
 const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
@@ -2720,99 +2710,6 @@ function HomeActionRow() {
       <SupportButton className="home-action-button" />
       <FeedbackButton className="home-action-button" />
     </div>
-  );
-}
-
-function AdminManagerSwitcher({
-  managers,
-  activeManager,
-  managerAvatars,
-  onSelect,
-}: {
-  managers: string[];
-  activeManager: string | null;
-  managerAvatars?: ReportData["managerAvatars"];
-  onSelect: (manager: string | null) => void;
-}) {
-  if (managers.length < 2) return null;
-
-  const selectedManagerLabel = activeManager || "League View";
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          className="report-header-action report-footer-primary-action !w-auto min-w-0 flex-1 justify-between gap-1.5 px-2.5 sm:!w-auto sm:min-w-[14rem] sm:max-w-[18rem]"
-          aria-label={`View as ${selectedManagerLabel}`}
-        >
-          <span className="flex min-w-0 flex-1 items-center gap-1.5">
-            <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span className="min-w-0 truncate text-cyan-50/85">
-              {selectedManagerLabel}
-            </span>
-          </span>
-          <ChevronDown
-            className="h-3.5 w-3.5 shrink-0 opacity-80"
-            aria-hidden="true"
-          />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="center"
-        className="w-72 border-orange-400/20 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/20"
-      >
-        <DropdownMenuLabel className="px-2 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-400">
-          View As Manager
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator className="bg-slate-800/80" />
-        <DropdownMenuRadioGroup
-          value={activeManager || LEAGUE_VIEW_MANAGER_VALUE}
-          onValueChange={value =>
-            onSelect(value === LEAGUE_VIEW_MANAGER_VALUE ? null : value)
-          }
-        >
-          <DropdownMenuRadioItem
-            value={LEAGUE_VIEW_MANAGER_VALUE}
-            className="gap-3 py-2 pr-3 pl-8"
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-cyan-400/25 bg-slate-900 text-[10px] font-bold text-orange-300">
-                LV
-              </span>
-              <span className="truncate">League View</span>
-            </span>
-          </DropdownMenuRadioItem>
-          {managers.map(manager => {
-            const avatarUrl = managerAvatars?.[manager] || null;
-            return (
-              <DropdownMenuRadioItem
-                key={manager}
-                value={manager}
-                className="gap-3 py-2 pr-3 pl-8"
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  {avatarUrl ? (
-                    <img
-                      src={avatarUrl}
-                      alt=""
-                      aria-hidden="true"
-                      className="h-6 w-6 shrink-0 rounded-full border border-cyan-300/25 object-cover"
-                    />
-                  ) : (
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-cyan-300/25 bg-slate-900 text-[10px] font-bold text-orange-300">
-                      {getLeagueFallbackInitials(manager)}
-                    </span>
-                  )}
-                  <span className="truncate">{manager}</span>
-                </span>
-              </DropdownMenuRadioItem>
-            );
-          })}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 
