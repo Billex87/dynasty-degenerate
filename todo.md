@@ -6,13 +6,22 @@
 ## Final Ship Readiness Gate
 
 - [ ] Before calling the product finished, run a production data/source freshness review: `pnpm audit:source-freshness`, `pnpm audit:league-report-cache`, admin source coverage, source-health logs, and provider telemetry; resolve recurring stale/missing/error sources or document accepted source limitations.
+  - 2026-05-27 run results: `pnpm audit:source-freshness` -> 72 sources loaded, 42 stale, 6 missing, 0 errors; biggest stale families: Devy+FantasyPros weekly ECR.
+  - 2026-05-27 run results: `pnpm audit:league-report-cache` -> 300 rows, 71 fresh, 229 stale; latest cache update was ~1h55m ago; `warm leagues` currently none.
+  - Follow-up: capture admin source-coverage report, source-health logs, and provider telemetry before marking this pass closed.
+  - 2026-05-27 run: `pnpm audit:operations-readiness` added and executed; it consolidates source freshness, source-coverage, source-health events, and provider telemetry into one snapshot.
 - [ ] Before calling the product finished, run a Vercel production usage review after real traffic and at least one cron window: Fluid Active CPU, function invocations, transfer, provisioned memory, top function routes, skipped-cron behavior, and cached-report hit rate.
+  - Pending: review Vercel dashboard metrics after a live production report session and next cron window; no usage validation has been added in this pass.
 - [ ] Once `Home.tsx` refactoring is no longer blocked, finish the homepage/report-entry cleanup: reduce the oversized page into stable feature components, keep route/data/cache behavior unchanged, and verify signed-out, recent-league, admin/view-as, cached-restore, and fresh-analysis paths.
 - [ ] Once CSS refactoring is no longer blocked, finish the high-risk stylesheet cleanup: audit global selectors, remove duplicated or dead rules only with evidence, preserve current visuals, and verify homepage, report shell, player modal, tables, mobile header/footer, and dark command-center surfaces.
 - [ ] Once Home/CSS work is unlocked, run a visual QA pass before final ship: screenshots or browser checks for homepage, generated report, owner intel, player detail modal, waiver, trade, rankings, draft, admin diagnostics, desktop, tablet, mobile, reduced motion, and loading/error/empty states.
 - [ ] Before calling the product finished, run a real-league smoke pass across representative leagues, signed-out flow, signed-in flow, admin mode, cached-report restore, fresh report generation, desktop, tablet, and mobile.
 - [ ] Before calling the product finished, run an AI-read correctness pass so visible recommendations cannot ask for impossible actions: already-starting players, unavailable players, locked games, injured/bye players, stale sources, redraft/dynasty mismatch, roster need already solved, duplicate/conflicting action reads, and missing evidence.
 - [ ] Before calling the product finished, complete an operations/security pass: production env var names, `CRON_SECRET`, admin passphrase/session behavior, provider feature flags, API-key leak response steps, webhook/alert configuration, no secret logging, and rollback notes.
+  - `CRON_SECRET` currently required by cron handlers and guarded in `isCronAuthorized`; add it to production envs now if not already present.
+  - Admin auth hardening already present: production requires `JWT_SECRET` + `ADMIN_LOGIN_PASSWORD`, timing-safe admin passphrase check, and session cookies only via `getSessionCookieOptions`.
+  - Source-health alerting is implemented server-side (`SOURCE_HEALTH_ALERT_WEBHOOK_URL`, min-level filter); production URL still needs to be configured.
+  - Continue to verify no API keys appear in logs/output and capture a documented rollback plan from the deploy/playbook side.
 - [ ] Before charging users or marketing the product publicly, complete legal/product readiness: Terms, Privacy Policy, Refund/Cancellation Policy, data-source disclosures, paid-feature entitlement checks, usage limits, Stripe webhook verification, and support/contact path.
 - [ ] After every active `todo.md` item is checked off, run a full Lighthouse pass against the production-built local app and keep fixing performance, accessibility, best-practices, and SEO issues until the app scores 100 in every category or every remaining non-100 item has a documented product/technical exception.
 - [ ] After the Lighthouse score push, run a full code cleanup pass for unused files, dead components, unused exports, unused styles, stale scripts, obsolete design inputs, old audit artifacts, and retired data-source code; delete what is no longer used and verify build, typecheck, tests, and rendered routes afterward.
@@ -34,6 +43,7 @@
 ## Data Operations Roadmap
 
 - [ ] After the Vercel CPU patch deploys, use [docs/vercel-function-cpu-runbook.md](docs/vercel-function-cpu-runbook.md) to review `vercel-functions-fluid-cpu-duration`, identify the top CPU routes, and decide whether cron warming, cached report opens, rankings endpoints, or dynamic-data refresh need the next reduction pass.
+- [x] Add a unified read-only operations readiness command: `pnpm audit:operations-readiness` to produce a single freshness, coverage, source-health, and provider-telemetry snapshot in one run.
 - [x] Add a Neon/Postgres transfer audit command that reports largest tables, largest JSON payload rows, recent `leagueReportCache` sizes, snapshot payload sizes, and recent source-health volume.
 - [x] Run the Neon transfer audit with production `DATABASE_URL` and record the main transfer drivers.
 - [x] Add transparent compression for large `leagueReportCache` payloads and a one-off compaction command for existing heavy cache rows.
