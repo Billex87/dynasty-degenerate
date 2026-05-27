@@ -15,6 +15,7 @@ import { getTeamTileStyle } from "@/lib/teamTileStyle";
 import {
   buildPlayerModalData,
   formatCompactValue,
+  parsePositionRankValue,
   PositionRankPill,
   type ManagerAvatars,
   type PlayerDetailsById,
@@ -36,13 +37,6 @@ function getAiNeuralSurfaceClass(theme = "neutral", extraClassName = "") {
   ]
     .filter(Boolean)
     .join(" ");
-}
-
-function parsePositionRankValue(rank: string | null | undefined): number | null {
-  const match = String(rank || "").match(/\d+/);
-  if (!match) return null;
-  const value = Number(match[0]);
-  return Number.isFinite(value) ? value : null;
 }
 
 function isWaiverPosition(

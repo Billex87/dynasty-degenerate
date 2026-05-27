@@ -36,6 +36,7 @@ import { buildPlayerActionArchetypeRead } from "@/lib/playerActionArchetype";
 import {
   buildPlayerModalData,
   formatCompactValue,
+  parsePositionRankValue,
   PositionRankPill,
   type ManagerAvatars,
   type PlayerDetailsById,
@@ -66,13 +67,6 @@ function normalizeManagerKey(value: string | null | undefined): string {
     .toLowerCase()
     .replace(/\s+/g, "")
     .replace(/\d+$/g, "");
-}
-
-function parsePositionRankValue(rank: string | null | undefined): number | null {
-  const match = String(rank || "").match(/\d+/);
-  if (!match) return null;
-  const value = Number(match[0]);
-  return Number.isFinite(value) ? value : null;
 }
 
 function clampPercentValue(value: number): number {
