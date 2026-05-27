@@ -29,6 +29,10 @@ function parseLeagueIds(value: string | undefined): string[] {
   );
 }
 
+function isTruthyFlag(value: unknown): boolean {
+  return /^(?:1|true|yes|on)$/i.test(String(value || ''));
+}
+
 function getPacificHour(date: Date): number {
   const hourPart = new Intl.DateTimeFormat('en-CA', {
     timeZone: SNAPSHOT_TIME_ZONE,
@@ -96,6 +100,9 @@ app.get('/api/cron/ktc-snapshot', async (req, res) => {
 app.get('/api/cron/league-report-cache', async (req, res) => {
   const auth = isCronAuthorized(req);
   const forceRun = req.query.force === 'true';
+  const warmRankingsOnReportHit =
+    req.query.rankings === 'true' ||
+    isTruthyFlag(process.env.LEAGUE_REPORT_WARM_RANKINGS_ON_HIT);
   if (!auth.ok) {
     res.status(auth.status).json({ ok: false, error: auth.error });
     return;
@@ -154,7 +161,9 @@ app.get('/api/cron/league-report-cache', async (req, res) => {
       if (!reportCacheHit) {
         await caller.league.analyze({ leagueId, forceRefresh: forceRun });
       }
-      await caller.league.rankings({ leagueId, forceRefresh: forceRun });
+      if (forceRun || !reportCacheHit || warmRankingsOnReportHit) {
+        await caller.league.rankings({ leagueId, forceRefresh: forceRun });
+      }
       results.push({
         leagueId,
         ok: true,

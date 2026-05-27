@@ -20,7 +20,11 @@ The current patch reduces unnecessary active CPU in three places:
   profiles for the full Sleeper player index.
 - Rankings cache misses reuse the existing one-hour Sleeper player-index cache.
 - `/api/cron/league-report-cache` runs once per day and skips fresh report
-  caches by default. Manual authorized `?force=true` still bypasses the cache.
+  caches by default. When the report cache is fresh, it now also skips the
+  separate rankings warmup unless the authorized request uses `?rankings=true`
+  or `LEAGUE_REPORT_WARM_RANKINGS_ON_HIT=true`.
+  Manual authorized `?force=true` still bypasses the report and rankings
+  caches.
 
 ## Post-Deploy Check
 
@@ -52,8 +56,21 @@ Record:
 If `/api/cron/league-report-cache` is still a top CPU user:
 
 - Confirm `LEAGUE_REPORT_WARM_LEAGUE_IDS` only includes leagues worth warming.
+- Confirm authorized scheduled calls are not using `?rankings=true` unless the
+  extra rankings warmup is intentional.
 - Consider disabling the scheduled warmer and relying on on-demand report loads.
 - Keep manual authorized `?force=true` for one-off prewarming.
+
+## Risky CPU Issues Left Untouched In Stage 2B
+
+- Auth-context laziness was left untouched because it affects protected/admin
+  procedure behavior.
+- Vercel handler splitting was left untouched because it changes deployment and
+  cold-start structure across all API shims.
+- Viewer-specific report payload caching was left untouched because report output
+  can depend on viewer/admin context.
+- Broad CDN caching was left untouched because `/api/trpc` mixes public,
+  private, admin, cookie-backed, batched, query, and mutation traffic.
 
 If `/api/trpc/league.analyze` is still a top CPU user:
 
