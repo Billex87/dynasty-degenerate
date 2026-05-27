@@ -17,6 +17,22 @@ export type PlayerDetailsById = ReportData["playerDetailsById"];
 
 export const VALUE_BLEND_HISTORY_START_LABEL = "May 7, 2026";
 export const FIRST_FULL_BLEND_WEEK_LABEL = "May 12, 2026 after the 6 PM scrape";
+const AI_NEURAL_SURFACE_CLASS = "ai-neural-surface";
+
+export function getAiNeuralSurfaceClass(
+  theme: string = "neutral",
+  extraClassName = ""
+) {
+  return [
+    "ai-surface-r3f",
+    "ai-neural-surface-tron",
+    AI_NEURAL_SURFACE_CLASS,
+    `${AI_NEURAL_SURFACE_CLASS}-${theme}`,
+    extraClassName,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
 
 export function formatCompactValue(value: number | null | undefined): string {
   if (!value) return "-";

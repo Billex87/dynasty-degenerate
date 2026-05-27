@@ -58,6 +58,7 @@ import {
   buildPlayerModalData,
   FeatureCard,
   formatCompactValue,
+  getAiNeuralSurfaceClass,
   getManagerHeadingClassName,
   getPlayerStatusClass,
   getPlayerStatusLabel,
@@ -94,6 +95,7 @@ export {
   buildPlayerModalData,
   FeatureCard,
   formatCompactValue,
+  getAiNeuralSurfaceClass,
   getManagerHeadingClassName,
   getPlayerStatusClass,
   getPlayerStatusLabel,
@@ -3399,22 +3401,6 @@ type DynastyAiSuggestion = {
 
 const AI_RECOMMENDATION_BADGE_LABEL = "AI TARGET";
 const AI_RECOMMENDATION_BANNER_LABEL = "AI PICKUP SIGNAL";
-const AI_NEURAL_SURFACE_CLASS = "ai-neural-surface";
-
-export function getAiNeuralSurfaceClass(
-  theme: DynastyAiTheme = "neutral",
-  extraClassName = ""
-) {
-  return [
-    "ai-surface-r3f",
-    "ai-neural-surface-tron",
-    AI_NEURAL_SURFACE_CLASS,
-    `${AI_NEURAL_SURFACE_CLASS}-${theme}`,
-    extraClassName,
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
 
 function getAITronThemeForDynastySurface(
   theme: DynastyAiTheme = "neutral"

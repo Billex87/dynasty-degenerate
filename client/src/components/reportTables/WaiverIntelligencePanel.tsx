@@ -36,6 +36,7 @@ import { buildPlayerActionArchetypeRead } from "@/lib/playerActionArchetype";
 import {
   buildPlayerModalData,
   formatCompactValue,
+  getAiNeuralSurfaceClass,
   parsePositionRankValue,
   PositionRankPill,
   type ManagerAvatars,
@@ -47,19 +48,6 @@ type OwnerIntelRow = NonNullable<ReportData["managerRosterIntelligence"]>[number
 type CountPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 const COUNT_POSITIONS: CountPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
 const AI_RECOMMENDATION_BANNER_LABEL = "AI PICKUP RECEIPTS";
-const AI_NEURAL_SURFACE_CLASS = "ai-neural-surface";
-
-function getAiNeuralSurfaceClass(theme = "neutral", extraClassName = "") {
-  return [
-    "ai-surface-r3f",
-    "ai-neural-surface-tron",
-    AI_NEURAL_SURFACE_CLASS,
-    `${AI_NEURAL_SURFACE_CLASS}-${theme}`,
-    extraClassName,
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
 
 function normalizeManagerKey(value: string | null | undefined): string {
   return String(value || "")
