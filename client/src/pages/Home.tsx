@@ -44,8 +44,6 @@ import {
   ReportSectionAccordionProvider,
   ReportSectionLoadingFallback,
 } from "@/features/report/components/ReportSectionDisclosure";
-import { AIVoiceModeMenu } from "@/features/report/components/AIVoiceModeMenu";
-import { AdminManagerSwitcher } from "@/features/report/components/AdminManagerSwitcher";
 import { AutopilotErrorFallback } from "@/features/report/components/AutopilotErrorFallback";
 import {
   ScheduleEdgePlayerCell,
@@ -62,6 +60,7 @@ import {
   ReportDashboardSpotlight,
   ReportOverviewHero,
 } from "@/features/report/components/ReportDashboardShowcase";
+import { ReportFooterActions } from "@/features/report/components/ReportFooterActions";
 import {
   HomeFooterChrome,
   HomeHeaderChrome,
@@ -5323,75 +5322,25 @@ export default function Home() {
             <div className="report-footer border-t border-orange-500/20 bg-slate-950/80 backdrop-blur">
               <HeaderCssLights className="dd-footer-css-lights" />
               <div className="dd-header-content mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
-                <div className="report-footer-actions">
-                  <div className="report-footer-primary-actions">
-                    {(canOpenAdminToolsEntry ||
-                      (canViewAdminFeatureExpansion && hasManagerViewOptions)) && (
-                      <div className="report-footer-admin-row flex w-full max-w-[32rem] items-stretch justify-center gap-1.5 sm:w-auto sm:max-w-none sm:gap-2">
-                        {canOpenAdminToolsEntry && (
-                          <Button
-                            type="button"
-                            onClick={handleAdminToolsClick}
-                            variant="outline"
-                            className={`report-header-action report-footer-primary-action !w-auto shrink-0 px-2.5 sm:px-3 report-header-admin-toggle ${canViewAdminFeatureExpansion ? "report-header-admin-toggle-active" : ""}`}
-                            aria-pressed={canViewAdminFeatureExpansion}
-                            aria-label={
-                              canViewAdminFeatureExpansion
-                                ? "Switch to regular report view"
-                                : isAdminPassphraseVerifiedForSession
-                                  ? "Switch to admin report view"
-                                  : "Unlock admin tools"
-                            }
-                            title={
-                              canViewAdminFeatureExpansion
-                                ? "Hide admin-only AI annotations and diagnostics"
-                                : isAdminPassphraseVerifiedForSession
-                                  ? "Show admin-only AI annotations and diagnostics"
-                                  : "Enter the admin passphrase for this browser session"
-                            }
-                          >
-                            <span className="report-header-action-label truncate">
-                              {canViewAdminFeatureExpansion
-                                ? "Regular Report"
-                                : "Admin Tools"}
-                            </span>
-                          </Button>
-                        )}
-                        {canViewAdminFeatureExpansion && hasManagerViewOptions && (
-                          <AdminManagerSwitcher
-                            managers={reportManagerNames}
-                            activeManager={effectiveViewerManager}
-                            managerAvatars={reportData.managerAvatars}
-                            onSelect={setAdminViewerManager}
-                          />
-                        )}
-                      </div>
-                    )}
-                    <AIVoiceModeMenu
-                      mode={aiVoiceMode}
-                      onChange={handleAIVoiceModeChange}
-                    />
-                    <Button
-                      onClick={handleAnalyzeAnotherLeague}
-                      variant="outline"
-                      className="report-header-action report-footer-primary-action report-switch-league-trigger !w-full max-w-[32rem] sm:!w-auto sm:max-w-none"
-                      aria-label="Switch to another league report"
-                    >
-                      <span className="report-header-action-label">
-                        Switch League
-                      </span>
-                    </Button>
-                  </div>
-                  <div className="report-footer-secondary-actions">
-                    <SupportButton compact showExternalIcon={false} />
-                    <FeedbackButton
-                      compact
-                      leagueId={leagueId}
-                      leagueName={leagueName}
-                      leagueFormat={leagueFormat}
-                    />
-                  </div>
-                </div>
+                <ReportFooterActions
+                  canOpenAdminToolsEntry={canOpenAdminToolsEntry}
+                  canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+                  isAdminPassphraseVerifiedForSession={
+                    isAdminPassphraseVerifiedForSession
+                  }
+                  hasManagerViewOptions={hasManagerViewOptions}
+                  reportManagerNames={reportManagerNames}
+                  effectiveViewerManager={effectiveViewerManager}
+                  managerAvatars={reportData.managerAvatars}
+                  aiVoiceMode={aiVoiceMode}
+                  onAIVoiceModeChange={handleAIVoiceModeChange}
+                  onAdminToolsClick={handleAdminToolsClick}
+                  onAdminViewerManagerChange={setAdminViewerManager}
+                  onAnalyzeAnotherLeague={handleAnalyzeAnotherLeague}
+                  leagueId={leagueId}
+                  leagueName={leagueName}
+                  leagueFormat={leagueFormat}
+                />
               </div>
             </div>
             </ReportSectionAccordionProvider>
