@@ -567,6 +567,146 @@ describe('player trajectory signals', () => {
     expect(signal?.label).toBe('stable-hold');
   });
 
+  it('flags quarterback market traps when price rises into role-threat evidence', () => {
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Expensive Quarterback',
+      position: 'QB',
+      age: 30,
+      valueProfile: {
+        dynastyValue: 6900,
+        marketKtc: 7000,
+        fantasyCalcDynasty: 6800,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+      valueTimeline: valueTimeline(18, 1050),
+      usageTrend: {
+        season: '2025',
+        games: 16,
+        targets: 0,
+        carries: 38,
+        receptions: 0,
+        fantasyPointsPpr: 255,
+        fantasyPointsPprPerGame: 15.9,
+        avgTargetShare: 0,
+        avgOffenseSnapPct: 0.9,
+        recentTargets: 0,
+        recentCarries: 4,
+        targetTrend: 'flat',
+        carryTrend: 'down',
+        note: 'Late-season rushing volume and job security slipped.',
+      },
+      rosterRoom: {
+        opportunityDelta: {
+          netOpportunityScore: -46,
+          incumbentPromotionScore: 0,
+          qualitySignal: 'major-squeeze',
+          note: 'Team added credible quarterback competition.',
+        },
+      } as PlayerDetails['rosterRoom'],
+      playerCohort: cohort({
+        position: 'QB',
+        outcomeBucket: 'market-over-production',
+        confidence: 76,
+      }),
+      playerSituationDelta: situation({
+        position: 'QB',
+        score: 42,
+        confidence: 72,
+        primaryLabel: 'role-threat',
+        labels: ['role-threat', 'crowded-room'],
+        action: 'monitor',
+        summary: 'Quarterback room added a role threat.',
+      }),
+    }), 'qb3');
+
+    expect(signal).toMatchObject({
+      label: 'market-trap',
+      action: 'avoid',
+      position: 'QB',
+    });
+    expect(signal?.scoreBreakdown.marketMomentum).toBeGreaterThanOrEqual(70);
+    expect(signal?.readout.detail).toContain('headline market price');
+  });
+
+  it('keeps tight end post-hype windows alive when draft runway offsets a market dip', () => {
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Patient Tight End',
+      position: 'TE',
+      age: 23,
+      valueProfile: {
+        dynastyValue: 2800,
+        marketKtc: 2700,
+        fantasyCalcDynasty: 2900,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+      valueTimeline: valueTimeline(-10, -330),
+      usageTrend: {
+        season: '2025',
+        games: 15,
+        targets: 74,
+        carries: 0,
+        receptions: 49,
+        fantasyPointsPpr: 145,
+        fantasyPointsPprPerGame: 9.7,
+        avgTargetShare: 0.19,
+        avgOffenseSnapPct: 0.74,
+        recentTargets: 24,
+        recentCarries: 0,
+        rollingWindows: [{
+          games: 3,
+          weeks: [15, 16, 17],
+          targetsPerGame: 8,
+          carriesPerGame: 0,
+          receptionsPerGame: 5,
+          fantasyPointsPprPerGame: 12.4,
+          targetDeltaPerGame: 1.5,
+          carryDeltaPerGame: 0,
+          note: 'Tight end route involvement improved late.',
+        }],
+        targetTrend: 'up',
+        carryTrend: 'flat',
+        note: 'Role improved late even as market cooled.',
+      },
+      rosterRoom: {
+        opportunityDelta: {
+          netOpportunityScore: 28,
+          incumbentPromotionScore: 14,
+          qualitySignal: 'minor-opening',
+          note: 'Passing-game room remains workable.',
+        },
+      } as PlayerDetails['rosterRoom'],
+      playerCohort: cohort({
+        position: 'TE',
+        outcomeBucket: 'steady',
+        draftCapital: {
+          round: 2,
+          pick: 38,
+          tier: 'premium',
+          label: 'Round 2, pick 38',
+          opportunityWindow: 'protected-runway',
+          patienceScore: 82,
+          note: 'Day-two draft capital keeps runway intact.',
+        },
+      }),
+      playerSituationDelta: situation({
+        position: 'TE',
+        score: 64,
+        primaryLabel: 'draft-capital-patience',
+        labels: ['draft-capital-patience'],
+        action: 'monitor',
+        summary: 'Tight end runway still supports patience.',
+      }),
+    }), 'te3');
+
+    expect(signal).toMatchObject({
+      label: 'post-hype-window',
+      action: 'monitor',
+      position: 'TE',
+    });
+    expect(signal?.readout.detail).toContain('market has cooled');
+    expect(signal?.scoreBreakdown.roleMomentum).toBeGreaterThanOrEqual(58);
+  });
+
   it('keeps thin profiles source-limited instead of inventing a strong read', () => {
     const signals = buildPlayerTrajectorySignals({
       playerDetailsById: {

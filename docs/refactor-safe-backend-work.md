@@ -27,27 +27,29 @@ are active in another thread.
   - `server/sportsDataNews.test.ts`
 - Player trajectory backend tests:
   - `server/playerTrajectory.test.ts`
+- Source freshness audit command:
+  - `pnpm audit:source-freshness`
+- Source freshness summary tests:
+  - `server/sourceFreshnessSummary.test.ts`
 - User-load provider boundary tests:
   - `server/loadTimeProviderPolicy.test.ts`
   - `server/userLoadProviderBoundary.test.ts`
 
 ## Safe Work Still Available
 
-- Add tests for read-only cache cleanup dry-run behavior.
-- Add tests for provider snapshot fallback behavior when a live provider fails.
 - Add tests for source coverage matrix output shape.
-- Add read-only scripts for source freshness summaries.
-- Add more player trajectory fixtures for QB/RB/TE edge cases.
-- Add docs for provider freshness and cache retention thresholds.
+- Add more provider-specific source freshness fixtures as new sources are added.
 
 ## Validation Commands
 
 ```bash
 pnpm test server/playerNews.test.ts server/sportsDataNews.test.ts
 pnpm test server/playerTrajectory.test.ts
+pnpm test server/sourceFreshnessSummary.test.ts server/sourceSnapshotFreshness.test.ts
 pnpm test server/loadTimeProviderPolicy.test.ts server/userLoadProviderBoundary.test.ts
 pnpm run check
 pnpm audit:league-report-cache
+pnpm audit:source-freshness
 ```
 
 Keep commits path-limited while unrelated frontend files are dirty.

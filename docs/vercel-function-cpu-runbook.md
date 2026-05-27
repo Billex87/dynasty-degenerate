@@ -72,6 +72,7 @@ First run the local DB/cache audit:
 
 ```bash
 pnpm audit:league-report-cache
+pnpm audit:source-freshness
 ```
 
 Record:
@@ -81,6 +82,8 @@ Record:
 - latest cache update age
 - last 24h analyze cache-hit rate
 - whether warm leagues are configured
+- source freshness totals, especially stale/missing/error counts
+- oldest loaded source and any recent source-health warnings/errors
 
 In Vercel:
 
@@ -105,14 +108,52 @@ Record:
 - Whether skipped cron responses are cheap `202` responses outside their
   Pacific windows.
 
+## Freshness And Retention Thresholds
+
+The source freshness audit is read-only. It reads stored snapshot metadata and
+source-health events, then reports stale/missing/error sources without calling
+live providers.
+
+```bash
+pnpm audit:source-freshness
+```
+
+Default expected freshness:
+
+| Source family | Expected freshness | CPU note |
+| --- | ---: | --- |
+| KTC/value snapshot | 36 hours | Real cron work is limited to 8 AM and 4 PM Pacific. |
+| Redraft source snapshot | 36 hours | Keep stored-snapshot reads out of report hot paths. |
+| FantasyPros news | 36 hours | Missing is only a warning when the API key and news feature are enabled. |
+| FantasyPros weekly ECR, waiver, projections, player points | 36 hours | Endpoint snapshots should be reused from storage, not refetched on report open. |
+| FantasyPros players and compare players | 7 days | Treat these as slower-moving metadata snapshots. |
+| SportsDataIO/RotoBaller news | 36 hours | Player modals should reuse the stored news snapshot. |
+| Sleeper weekly projections | 36 hours | Keep projection refreshes behind the snapshot job. |
+| ESPN depth charts and DraftSharks SOS | 7 days | DraftSharks remains the approved SOS source boundary. |
+| nflverse usage, injuries, team environment, season stats | 90 days | Historical context can be long-lived and should not refresh on user load. |
+| nflverse roster room | 7 days | Use stored roster-room deltas for player situation readouts. |
+| nflverse combine and contracts | 45 days | Slow-moving context; avoid frequent refreshes. |
+| prospect snapshots | 45 days | Monthly cadence is enough unless draft-content requirements change. |
+
+Cache cleanup thresholds:
+
+| Cache family | Keep | Review trigger |
+| --- | --- | --- |
+| `league-report-v56` | current report cache version | delete only stale older versions after dry-run review |
+| `league-rankings-v13` | current rankings cache version | delete only stale older versions after dry-run review |
+| Fresh report cache rows | normal serving TTL from `server/leagueReportCachePolicy.ts` | do not compact/delete fresh rows just to reduce storage |
+| Stale old-version rows | eligible for dry-run cleanup | review row count and payload bytes before live deletion |
+
 ## Quick Verification Commands
 
 Use these when validating a CPU-focused change:
 
 ```bash
 pnpm test server/leagueReportCacheDecision.test.ts server/pacificCronWindows.test.ts server/leagueReportCachePolicy.test.ts server/fantasyProsEndpointSnapshotSchedule.test.ts
+pnpm test server/sourceFreshnessSummary.test.ts server/sourceSnapshotFreshness.test.ts
 pnpm run check
 pnpm audit:league-report-cache
+pnpm audit:source-freshness
 ```
 
 Do not manually invoke cron routes in production just to test them unless you
