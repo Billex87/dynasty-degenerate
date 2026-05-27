@@ -70,8 +70,13 @@ import {
   LeaguePickerDialog,
 } from "@/features/home/components/HomeLeagueDialogs";
 import {
+  buildHomePortfolioRows,
+  filterHomePortfolioRows,
+  normalizePortfolioLeaguePlayer,
+  type PortfolioLeaguePlayer,
+} from "@/features/home/lib/portfolioRows";
+import {
   type HomeLeagueSelectionLeague,
-  type HomePortfolioLeague,
   type HomePortfolioRow,
 } from "@/features/home/components/HomeLeagueSelection";
 import {
@@ -745,16 +750,6 @@ type LeagueRankResult = Pick<
   SleeperLeagueOption,
   "leagueId" | "standingsRank" | "powerRank" | "rosterPlayers" | "managerAnchors"
 >;
-
-type PortfolioLeaguePlayer = {
-  playerId: string;
-  name: string;
-  position: string | null;
-  team: string | null;
-  value: number;
-  positionRank: string | null;
-  rosterSpot: "active" | "taxi" | "reserve";
-};
 
 type AnalysisLeaguePreview = {
   leagueName: string;
@@ -1542,37 +1537,6 @@ function normalizeLeagueOption(value: unknown): SleeperLeagueOption | null {
   };
 }
 
-function normalizePortfolioLeaguePlayer(
-  value: unknown
-): PortfolioLeaguePlayer | null {
-  if (
-    !isRecord(value) ||
-    typeof value.playerId !== "string" ||
-    typeof value.name !== "string"
-  ) {
-    return null;
-  }
-  const rosterSpot =
-    value.rosterSpot === "taxi" || value.rosterSpot === "reserve"
-      ? value.rosterSpot
-      : "active";
-  const valueScore =
-    typeof value.value === "number" && Number.isFinite(value.value)
-      ? value.value
-      : 0;
-
-  return {
-    playerId: value.playerId,
-    name: value.name,
-    position: typeof value.position === "string" ? value.position : null,
-    team: typeof value.team === "string" ? value.team : null,
-    value: valueScore,
-    positionRank:
-      typeof value.positionRank === "string" ? value.positionRank : null,
-    rosterSpot,
-  };
-}
-
 function normalizeLoaderManagerAnchor(value: unknown): LoaderManagerAnchor | null {
   if (!isRecord(value) || typeof value.id !== "string" || !value.id.trim()) {
     return null;
@@ -1782,108 +1746,6 @@ function getOrderedLeagueOptions(
     ...recentLeagues,
     ...leagues.filter(league => !seen.has(league.leagueId)),
   ];
-}
-
-function normalizePortfolioSearchValue(value?: string | number | null): string {
-  return String(value || "").trim().toLowerCase();
-}
-
-function getHomePortfolioKey(player: PortfolioLeaguePlayer): string {
-  return (
-    player.playerId ||
-    [
-      normalizePortfolioSearchValue(player.name),
-      normalizePortfolioSearchValue(player.position),
-      normalizePortfolioSearchValue(player.team),
-    ]
-      .filter(Boolean)
-      .join(":")
-  );
-}
-
-function buildHomePortfolioRows(
-  leagues: SleeperLeagueOption[]
-): HomePortfolioRow[] {
-  const grouped = new Map<string, HomePortfolioRow>();
-
-  leagues.forEach(league => {
-    const leaguePlayers = Array.isArray(league.rosterPlayers)
-      ? league.rosterPlayers
-      : [];
-    const seenInLeague = new Set<string>();
-
-    leaguePlayers.forEach(player => {
-      const key = getHomePortfolioKey(player);
-      if (!key || seenInLeague.has(key)) return;
-      seenInLeague.add(key);
-
-      const leagueMeta: HomePortfolioLeague = {
-        leagueId: league.leagueId,
-        name: league.name,
-        avatarUrl: league.avatarUrl,
-        format: league.format,
-        mobileFormat: league.mobileFormat,
-      };
-      const existing = grouped.get(key);
-
-      if (!existing) {
-        grouped.set(key, {
-          id: key,
-          playerId: player.playerId,
-          name: player.name,
-          position: player.position,
-          team: player.team,
-          value: player.value,
-          positionRank: player.positionRank,
-          leagueCount: 1,
-          leagueShare: leagues.length ? 1 / leagues.length : 0,
-          rosterSpots: [player.rosterSpot],
-          leagues: [leagueMeta],
-        });
-        return;
-      }
-
-      existing.leagueCount += 1;
-      existing.leagueShare = leagues.length
-        ? existing.leagueCount / leagues.length
-        : 0;
-      existing.leagues.push(leagueMeta);
-      existing.rosterSpots.push(player.rosterSpot);
-      if (player.value > existing.value) existing.value = player.value;
-      if (!existing.positionRank && player.positionRank) {
-        existing.positionRank = player.positionRank;
-      }
-      if (!existing.team && player.team) existing.team = player.team;
-      if (!existing.position && player.position) existing.position = player.position;
-    });
-  });
-
-  return Array.from(grouped.values()).sort((a, b) => {
-    if (b.leagueCount !== a.leagueCount) return b.leagueCount - a.leagueCount;
-    if (b.value !== a.value) return b.value - a.value;
-    return a.name.localeCompare(b.name);
-  });
-}
-
-function filterHomePortfolioRows(
-  rows: HomePortfolioRow[],
-  query: string
-): HomePortfolioRow[] {
-  const normalizedQuery = normalizePortfolioSearchValue(query);
-  if (!normalizedQuery) return rows;
-  return rows.filter(row => {
-    const haystack = [
-      row.name,
-      row.team,
-      row.position,
-      row.positionRank,
-      ...row.leagues.map(league => league.name),
-      ...row.leagues.map(league => league.format),
-    ]
-      .map(normalizePortfolioSearchValue)
-      .join(" ");
-    return haystack.includes(normalizedQuery);
-  });
 }
 
 function getReportManagerNames(
