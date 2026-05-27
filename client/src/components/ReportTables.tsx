@@ -77,7 +77,6 @@ import {
   normalizeLeagueValueMode,
   type LeagueValueMode,
 } from "@/lib/leagueValueMode";
-import { getPositionRankClass } from "@/lib/positionRank";
 import { getTeamTileStyle } from "@/lib/teamTileStyle";
 import { getPlayerAvailability } from "@/lib/playerStatus";
 import {
@@ -5635,27 +5634,6 @@ function PlayerMiniLine({
       <PlayerNameWithHeadshot playerId={playerId} playerName={name} />
       {meta && <span className="command-mini-meta">{meta}</span>}
     </div>
-  );
-}
-
-function WaiverRankPill({
-  label,
-  rank,
-  className,
-}: {
-  label: string;
-  rank: string;
-  className: string;
-}) {
-  return (
-    <span
-      className={`waiver-intel-rank-pill ${className} ${getPositionRankClass(rank)}`}
-      aria-label={`${label} rank ${rank}`}
-      title={`${label} ${rank}`}
-    >
-      <em>{label}</em>
-      <strong>{rank}</strong>
-    </span>
   );
 }
 

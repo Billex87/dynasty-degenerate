@@ -28,7 +28,6 @@ import {
   normalizeLeagueValueMode,
   type LeagueValueMode,
 } from "@/lib/leagueValueMode";
-import { getPositionRankClass } from "@/lib/positionRank";
 import { getTeamTileStyle } from "@/lib/teamTileStyle";
 import { getBalancedGridStyle } from "@/lib/balancedGrid";
 import { getVoicedAIActionLabel } from "@/lib/aiVoice";
@@ -40,6 +39,7 @@ import {
   getAiNeuralSurfaceClass,
   parsePositionRankValue,
   PositionRankPill,
+  WaiverRankPill,
   type ManagerAvatars,
   type PlayerDetailsById,
 } from "./shared";
@@ -56,24 +56,6 @@ function normalizeManagerKey(value: string | null | undefined): string {
     .toLowerCase()
     .replace(/\s+/g, "")
     .replace(/\d+$/g, "");
-}
-
-function WaiverRankPill({
-  label,
-  rank,
-  className = "",
-}: {
-  label: string;
-  rank?: string | null;
-  className?: string;
-}) {
-  if (!rank) return null;
-  return (
-    <span className={`waiver-intel-rank-pill ${className} ${getPositionRankClass(rank)}`}>
-      <em>{label}</em>
-      {rank}
-    </span>
-  );
 }
 
 type WaiverPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";

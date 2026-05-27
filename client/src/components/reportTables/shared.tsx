@@ -2,7 +2,10 @@ import type { ReactNode } from "react";
 import type { PlayerDetails, ReportData } from "@shared/types";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { getPositionRankPillClass } from "@/lib/positionRank";
+import {
+  getPositionRankClass,
+  getPositionRankPillClass,
+} from "@/lib/positionRank";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
 import { ChampionAvatarFrame } from "../ManagerChampionships";
 import type { PlayerModalData } from "../PlayerDetailModal";
@@ -49,6 +52,26 @@ export function PositionRankPill({ rank }: { rank?: string | null }) {
   const displayRank = rank || "-";
   return (
     <span className={getPositionRankPillClass(displayRank)}>{displayRank}</span>
+  );
+}
+
+export function WaiverRankPill({
+  label,
+  rank,
+  className = "",
+}: {
+  label: string;
+  rank?: string | null;
+  className?: string;
+}) {
+  if (!rank) return null;
+  return (
+    <span
+      className={`waiver-intel-rank-pill ${className} ${getPositionRankClass(rank)}`}
+    >
+      <em>{label}</em>
+      {rank}
+    </span>
   );
 }
 
