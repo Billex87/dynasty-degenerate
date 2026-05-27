@@ -16,14 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Bot,
   CheckCircle2,
   ChevronDown,
@@ -83,8 +75,11 @@ import {
   HomeHeaderChrome,
 } from "@/features/home/components/HomeChrome";
 import {
+  ChangeLeagueDialog,
+  LeaguePickerDialog,
+} from "@/features/home/components/HomeLeagueDialogs";
+import {
   HomePortfolioPanel,
-  LeaguePickerCard,
   type HomePortfolioLeague,
   type HomePortfolioRow,
 } from "@/features/home/components/HomeLeagueSelection";
@@ -11652,74 +11647,18 @@ export default function Home() {
     return () => window.removeEventListener("hashchange", syncTabFromUrl);
   }, [reportData]);
 
-  const leaguePickerDialog = orderedUserLeagues.length ? (
-    <Dialog open={isLeaguePickerOpen} onOpenChange={setIsLeaguePickerOpen}>
-      <DialogContent className="league-switch-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-2xl">
-        <DialogHeader className="league-switch-header text-center sm:text-center">
-          <DialogTitle className="athletic-headline league-switch-title-gradient text-3xl">
-            Pick Another League
-          </DialogTitle>
-          <DialogDescription className="league-switch-description text-cyan-100/70">
-            <span className="league-switch-signed-in-line">
-              <span>Signed in as</span>
-              <span className="league-switch-user-chip">
-                {activeCachedSleeperUser?.avatarUrl ? (
-                  <img
-                    src={activeCachedSleeperUser.avatarUrl}
-                    alt=""
-                    aria-hidden="true"
-                    className="league-switch-user-avatar"
-                  />
-                ) : (
-                  <span
-                    className="league-switch-user-fallback"
-                    aria-hidden="true"
-                  >
-                    {(
-                      sleeperUsername ||
-                      activeCachedSleeperUser?.displayName ||
-                      "SA"
-                    )
-                      .trim()
-                      .slice(0, 2)
-                      .toUpperCase()}
-                  </span>
-                )}
-                <strong>
-                  {sleeperUsername ||
-                    activeCachedSleeperUser?.displayName ||
-                    "your Sleeper account"}
-                </strong>
-              </span>
-            </span>
-            {isLeaguePickerIntelBusy ? (
-              <span>Syncing rankings and manager icons</span>
-            ) : null}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="home-league-picker league-switch-picker">
-          {orderedUserLeagues.map(league => (
-            <LeaguePickerCard
-              key={league.leagueId}
-              league={league}
-              onSelect={handleAnalyzeLeagueOption}
-              disabled={isLeaguePickerIntelBusy}
-            />
-          ))}
-        </div>
-        <DialogFooter className="league-switch-footer sm:justify-center">
-          <Button
-            type="button"
-            onClick={handleStartOver}
-            variant="outline"
-            className="league-switch-start-over-button border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
-          >
-            Back to Sign In
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  ) : null;
+  const leaguePickerDialog = (
+    <LeaguePickerDialog
+      open={isLeaguePickerOpen}
+      leagues={orderedUserLeagues}
+      sleeperUsername={sleeperUsername}
+      activeCachedSleeperUser={activeCachedSleeperUser}
+      isLeaguePickerIntelBusy={isLeaguePickerIntelBusy}
+      onOpenChange={setIsLeaguePickerOpen}
+      onLeagueSelect={handleAnalyzeLeagueOption}
+      onStartOver={handleStartOver}
+    />
+  );
 
   const loadingLeague =
     analysisCompleteMessage ||
@@ -12995,39 +12934,12 @@ export default function Home() {
 
             {leaguePickerDialog}
 
-            <Dialog
+            <ChangeLeagueDialog
               open={isChangeLeagueModalOpen}
               onOpenChange={setIsChangeLeagueModalOpen}
-            >
-              <DialogContent className="league-switch-dialog change-league-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-md">
-                <DialogHeader className="change-league-header text-center sm:text-center">
-                  <DialogTitle className="athletic-headline change-league-title text-3xl text-orange-400">
-                    Change Leagues?
-                  </DialogTitle>
-                  <DialogDescription className="change-league-copy">
-                    This report was opened from a league ID, so there is not a
-                    saved Sleeper league list for this session. Stay on this
-                    report, or start over to analyze a different league.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter className="league-switch-footer gap-2 sm:justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setIsChangeLeagueModalOpen(false)}
-                    className="support-button support-button-compact change-league-stay-button"
-                  >
-                    Stay Here
-                  </button>
-                  <Button
-                    type="button"
-                    onClick={handleStartOver}
-                    className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
-                  >
-                    Back to Home
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+              onStay={() => setIsChangeLeagueModalOpen(false)}
+              onStartOver={handleStartOver}
+            />
 
             {clownEasterEggDialog}
           </div>
