@@ -93,6 +93,24 @@ import {
   rememberAutocompleteValue,
 } from "@/features/home/lib/inputHelpers";
 import {
+  AdminAuthUser,
+  canViewAdminTelemetryForUser,
+  persistReportLoadTelemetry,
+  readAdminPassphraseVerifiedForSession,
+  rememberAdminPassphraseVerifiedForSession,
+  ReportAnalysisMode,
+  ReportLoadCacheStatus,
+  ReportLoadSource,
+  type ReportLoadTelemetryEvent,
+} from "@/features/home/lib/adminSessionState";
+import {
+  getInitialReportLeagueIdFromUrl,
+  getInitialReportTabFromUrl,
+  normalizeReportTab,
+  REPORT_TAB_VALUES,
+  updateReportTabUrl,
+} from "@/features/home/lib/reportRouteState";
+import {
   type HomeLeagueSelectionLeague,
   type HomePortfolioRow,
 } from "@/features/home/components/HomeLeagueSelection";
@@ -270,8 +288,6 @@ const REPORT_DELTA_MAX_LEAGUES = 12;
 const REPORT_CACHE_DB_NAME = "dynasty-degenerates-report-cache";
 const REPORT_CACHE_DB_VERSION = 1;
 const REPORT_CACHE_DB_STORE = "reports";
-const REPORT_LOAD_TELEMETRY_KEY =
-  "dynasty-degenerates:report-load-telemetry:v1";
 const REPORT_CACHE_MAX_AGE_MS = 72 * 60 * 60 * 1000;
 // Cached reports render immediately, then refresh volatile Sleeper activity in the background.
 const REPORT_BACKGROUND_REFRESH_AFTER_MS = 0;
@@ -305,8 +321,6 @@ const SLEEPER_USERNAME_HISTORY_KEY =
 const CACHED_SLEEPER_USERS_KEY = "dynasty-degenerates:sleeper-user-history:v1";
 const ADMIN_UNLOCK_MODAL_DISMISSED_KEY =
   "dynasty-degenerates:admin-unlock-dismissed:v1";
-const ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY =
-  "dynasty-degenerates:admin-passphrase-verified-session:v1";
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
 const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
@@ -319,150 +333,9 @@ const SHOW_ASSISTANT_FEATURE_RADAR =
     import.meta.env.VITE_SHOW_ASSISTANT_FEATURE_RADAR || "true"
   ).toLowerCase() !== "false";
 
-type ReportLoadSource = "browser-cache" | "server";
-type ReportLoadCacheStatus = "browser" | "hit" | "miss" | "unknown";
-type ReportAnalysisMode = "blocking" | "background";
-type ReportLoadTelemetryEvent = {
-  leagueId: string;
-  leagueName?: string | null;
-  activeTab: string;
-  source: ReportLoadSource;
-  cacheStatus: ReportLoadCacheStatus;
-  requestMs: number | null;
-  visibleMs: number;
-  payloadVersion: string;
-  createdAt: string;
-};
-
-function readAdminPassphraseVerifiedForSession() {
-  if (typeof window === "undefined") return false;
-  try {
-    return (
-      window.sessionStorage.getItem(ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY) ===
-      "true"
-    );
-  } catch {
-    return false;
-  }
-}
-
-function rememberAdminPassphraseVerifiedForSession() {
-  if (typeof window === "undefined") return;
-  try {
-    window.sessionStorage.setItem(
-      ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY,
-      "true"
-    );
-  } catch {
-    // Admin access still works for the current React session.
-  }
-}
-
-function persistReportLoadTelemetry(event: ReportLoadTelemetryEvent) {
-  if (typeof window === "undefined") return;
-  try {
-    const existing = JSON.parse(
-      window.localStorage.getItem(REPORT_LOAD_TELEMETRY_KEY) || "[]"
-    ) as ReportLoadTelemetryEvent[];
-    window.localStorage.setItem(
-      REPORT_LOAD_TELEMETRY_KEY,
-      JSON.stringify([event, ...existing].slice(0, 25))
-    );
-    window.dispatchEvent(
-      new CustomEvent("dynasty-degenerates:report-load-telemetry", {
-        detail: event,
-      })
-    );
-    if (!import.meta.env.PROD) {
-      console.info("[ReportLoadTelemetry]", event);
-    }
-  } catch {
-    // Timing telemetry should never block report rendering.
-  }
-}
-
-type AdminAuthUser = {
-  role?: string | null;
-  openId?: string | null;
-  name?: string | null;
-  email?: string | null;
-  isPrivilegedAdmin?: boolean | null;
-};
-
-function canViewAdminTelemetryForUser(user?: AdminAuthUser | null): boolean {
-  if (!user) return false;
-  return user.role === "admin" || Boolean(user.isPrivilegedAdmin);
-}
-
 function showMutationErrorToast(error: { message: string }) {
   if (error.message === UNAUTHED_ERR_MSG) return;
   toast.error(`Error: ${error.message}`);
-}
-
-const REPORT_TAB_VALUES = [
-  "overview",
-  "autopilot",
-  "momentum",
-  "rankings",
-  "trades",
-  "draft",
-] as const;
-
-function normalizeReportTab(value?: string | null): string | null {
-  const normalized = String(value || "")
-    .replace(/^#/, "")
-    .replace(/^tab=/, "")
-    .trim()
-    .toLowerCase();
-  const aliases: Record<string, (typeof REPORT_TAB_VALUES)[number]> = {
-    pulse: "momentum",
-    rank: "rankings",
-    trade: "trades",
-    drafts: "draft",
-  };
-  const canonical = aliases[normalized] || normalized;
-  return REPORT_TAB_VALUES.includes(
-    canonical as (typeof REPORT_TAB_VALUES)[number]
-  )
-    ? canonical
-    : null;
-}
-
-function getInitialReportTabFromUrl(): string | null {
-  if (typeof window === "undefined") return null;
-  const hashTab = normalizeReportTab(window.location.hash);
-  if (hashTab) return hashTab;
-  return normalizeReportTab(
-    new URLSearchParams(window.location.search).get("tab")
-  );
-}
-
-function getInitialReportLeagueIdFromUrl(): string | null {
-  if (typeof window === "undefined") return null;
-  const params = new URLSearchParams(window.location.search);
-  const value = params.get("leagueId") || params.get("league");
-  const normalized = String(value || "").trim();
-  return normalized || null;
-}
-
-function updateReportTabUrl(tab: string, leagueId?: string | null) {
-  if (typeof window === "undefined") return;
-  const normalizedTab = normalizeReportTab(tab) || "overview";
-  const params = new URLSearchParams(window.location.search);
-  params.delete("tab");
-  if (leagueId !== undefined) {
-    const normalizedLeagueId = String(leagueId || "").trim();
-    if (normalizedLeagueId) {
-      params.set("leagueId", normalizedLeagueId);
-    } else {
-      params.delete("leagueId");
-      params.delete("league");
-    }
-  }
-  const nextSearch = params.toString();
-  const nextHash = normalizedTab === "overview" ? "" : `#${normalizedTab}`;
-  const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${nextHash}`;
-  window.history.replaceState(null, "", nextUrl);
 }
 
 function hasDraftReportData(reportData?: ReportData | null): boolean {
