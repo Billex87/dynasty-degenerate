@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
-import type { PlayerDetails, ReportData } from "@shared/types";
+import type {
+  ManagerIntelPlayer,
+  PlayerDetails,
+  ReportData,
+} from "@shared/types";
 import { Crown, TrendingDown, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
@@ -22,6 +26,13 @@ export type TradeBuildLens = {
   label: string;
   tone: "contender" | "rebuilder" | "middle";
   reason: string;
+};
+export type TradeFitReadDisplay = {
+  manager: string;
+  label: string;
+  note: string;
+  tone: "good" | "warn" | "neutral";
+  target?: ManagerIntelPlayer | null;
 };
 
 export const VALUE_BLEND_HISTORY_START_LABEL = "May 7, 2026";
@@ -275,6 +286,70 @@ export function TradeFitReadManager({
         )}
       </ChampionAvatarFrame>
     </span>
+  );
+}
+
+export function TradeFitReadCard({
+  read,
+  managerAvatars,
+  playerDetailsById,
+  onPlayerClick,
+}: {
+  read: TradeFitReadDisplay;
+  managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
+  onPlayerClick?: (player: PlayerModalData) => void;
+}) {
+  return (
+    <div
+      key={read.manager}
+      className={`trade-fit-read trade-fit-read-${read.tone}`}
+    >
+      <div className="trade-fit-read-top">
+        <span>{read.label}</span>
+        <TradeFitReadManager
+          manager={read.manager}
+          managerAvatars={managerAvatars}
+        />
+      </div>
+      <p>{read.note}</p>
+      {read.target && (
+        <button
+          type="button"
+          className="trade-fit-target"
+          onClick={event => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!onPlayerClick) return;
+            onPlayerClick(
+              buildPlayerModalData({
+                playerId: read.target?.player_id,
+                playerName: read.target?.name || "",
+                playerPos: read.target?.pos,
+                value: read.target?.value,
+                playerDetails: read.target?.playerDetails,
+                playerDetailsById,
+                manager: read.target?.owner,
+                currentPositionRank:
+                  read.target?.seasonPositionRank ||
+                  read.target?.currentPositionRank,
+              })
+            );
+          }}
+        >
+          <span className="trade-fit-target-label">
+            Trade-date target: {read.target.name}
+          </span>
+          <PositionRankPill
+            rank={
+              read.target.seasonPositionRank ||
+              read.target.currentPositionRank ||
+              read.target.pos
+            }
+          />
+        </button>
+      )}
+    </div>
   );
 }
 

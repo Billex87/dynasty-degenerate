@@ -19,7 +19,7 @@ import {
   normalizeManagerKey,
   PositionRankPill,
   renderManagerName,
-  TradeFitReadManager,
+  TradeFitReadCard,
   TradeLedgerManagerName,
   TradeSideManager,
   TradeSummaryManager,
@@ -117,55 +117,12 @@ function renderTradeFitRead(
   }
 ) {
   return (
-    <div
-      key={read.manager}
-      className={`trade-fit-read trade-fit-read-${read.tone}`}
-    >
-      <div className="trade-fit-read-top">
-        <span>{read.label}</span>
-        <TradeFitReadManager
-          manager={read.manager}
-          managerAvatars={managerAvatars}
-        />
-      </div>
-      <p>{read.note}</p>
-      {read.target && (
-        <button
-          type="button"
-          className="trade-fit-target"
-          onClick={event => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (!onPlayerClick) return;
-            onPlayerClick(
-              buildPlayerModalData({
-                playerId: read.target?.player_id,
-                playerName: read.target?.name || "",
-                playerPos: read.target?.pos,
-                value: read.target?.value,
-                playerDetails: read.target?.playerDetails,
-                playerDetailsById,
-                manager: read.target?.owner,
-                currentPositionRank:
-                  read.target?.seasonPositionRank ||
-                  read.target?.currentPositionRank,
-              })
-            );
-          }}
-        >
-          <span className="trade-fit-target-label">
-            Trade-date target: {read.target.name}
-          </span>
-          <PositionRankPill
-            rank={
-              read.target.seasonPositionRank ||
-              read.target.currentPositionRank ||
-              read.target.pos
-            }
-          />
-        </button>
-      )}
-    </div>
+    <TradeFitReadCard
+      read={read}
+      managerAvatars={managerAvatars}
+      playerDetailsById={playerDetailsById}
+      onPlayerClick={onPlayerClick}
+    />
   );
 }
 
