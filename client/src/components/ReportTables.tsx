@@ -56,6 +56,7 @@ import {
 import { AITronSurface, type AITronTheme } from "./AITronSurface";
 import {
   buildPlayerModalData,
+  FeatureCard,
   formatCompactValue,
   getManagerHeadingClassName,
   getPlayerStatusClass,
@@ -91,6 +92,7 @@ import { getBalancedGridStyle } from "@/lib/balancedGrid";
 
 export {
   buildPlayerModalData,
+  FeatureCard,
   formatCompactValue,
   getManagerHeadingClassName,
   getPlayerStatusClass,
@@ -5799,51 +5801,6 @@ function CommandPlayerTile({
         )}
       </div>
     </button>
-  );
-}
-
-function FeatureCard({
-  number,
-  title,
-  kicker,
-  note,
-  children,
-  className = "",
-  hideNumber = false,
-  hideHeader = false,
-}: {
-  number: number;
-  title: string;
-  kicker: string;
-  note?: string;
-  children: React.ReactNode;
-  className?: string;
-  hideNumber?: boolean;
-  hideHeader?: boolean;
-}) {
-  return (
-    <Card className={`command-feature-card ${className}`}>
-      {!hideHeader && (
-        <div className="command-feature-top">
-          {!hideNumber && (
-            <span className="command-feature-number">
-              {String(number).padStart(2, "0")}
-            </span>
-          )}
-          <div className="min-w-0">
-            <p>{kicker}</p>
-            <h3>{title}</h3>
-          </div>
-        </div>
-      )}
-      <div className="command-feature-body">{children}</div>
-      {note && (
-        <details className="command-feature-note">
-          <summary>What this is based on</summary>
-          <p>{note}</p>
-        </details>
-      )}
-    </Card>
   );
 }
 
