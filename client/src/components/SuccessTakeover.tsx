@@ -6,6 +6,7 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { Environment, MeshReflectorMaterial } from "@react-three/drei";
+import "@/styles/dd-success-takeover.css";
 import confetti from "canvas-confetti";
 import { CheckCircle2 } from "lucide-react";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
