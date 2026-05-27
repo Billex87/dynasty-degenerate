@@ -12,16 +12,7 @@ import "@/styles/home-backgrounds-v12.css";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Bot,
-  TrendingUp,
-  TrendingDown,
-  BarChart3,
-  Repeat2,
-  ClipboardList,
-  ListOrdered,
-} from "lucide-react";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
 import { HeaderCssLights } from "@/components/HeaderCssLights";
@@ -58,6 +49,7 @@ import {
   ReportOverviewHero,
 } from "@/features/report/components/ReportDashboardShowcase";
 import { ReportFooterActions } from "@/features/report/components/ReportFooterActions";
+import { ReportDashboardHeader } from "@/features/report/components/ReportDashboardHeader";
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
 import {
   ChangeLeagueDialog,
@@ -4120,6 +4112,7 @@ export default function Home() {
     reportData?.leagueDiagnostics,
     reportData?.leagueDiagnostics?.valueMode || reportData?.leagueValueMode
   );
+  const leagueLogoInitials = getLeagueFallbackInitials(leagueName);
   const loadingSuccessCardClassName = [
     "loading-success-card",
     analysisCompleteMessage?.leagueLogo ? "loading-success-card-logo" : "",
@@ -4231,192 +4224,22 @@ export default function Home() {
               onValueChange={handleReportTabChange}
               className="report-dashboard-tabs-root"
             >
-            {/* Premium Header */}
-            <div className="report-header sticky top-0 z-50">
-              <HeaderCssLights />
-              <div className="report-header-inner dd-header-content max-w-7xl mx-auto px-4 sm:pl-6 sm:pr-2 md:pl-6 md:pr-1 lg:pr-0 py-3 md:py-2">
-                <div className="report-header-grid">
-                  {/* Left: Brand */}
-                  <div className="report-header-brand min-w-0">
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                      <button
-                        type="button"
-                        className={`report-header-mobile-brand-lockup cursor-pointer border-0 bg-transparent p-0 md:hidden ${hasAdminPermissions ? "report-header-mobile-brand-lockup-admin" : ""}`}
-                        onClick={handleAnalyzeAnotherLeague}
-                        aria-label="Open league picker or return home"
-                      >
-                        <img
-                          src={DYNASTY_MOBILE_REPORT_LOGO_SRC}
-                          alt="Dynasty Degenerates"
-                          className="report-header-mobile-logo"
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        className="report-header-logo-button hidden cursor-pointer border-0 bg-transparent p-0 md:block"
-                        onClick={handleAnalyzeAnotherLeague}
-                        aria-label="Open league picker or return home"
-                      >
-                        <img
-                          src={DYNASTY_REPORT_HEADER_LOGO_SRC}
-                          alt="Dynasty Degenerates"
-                          className="report-header-logo report-header-logo-left"
-                        />
-                      </button>
-                    </div>
-                  </div>
-
-                  <TabsList
-                    className={`${reportTabsClassName} ${canViewAutopilotTab ? "report-tabs-with-autopilot" : ""} report-header-tabs`}
-                    data-active-tab={resolvedActiveTab}
-                    style={reportTabsStyle}
-                  >
-                    <TabsTrigger
-                      value="overview"
-                      className="report-tab"
-                      aria-label="Overview"
-                    >
-                      <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                      <span className="report-tab-label-full" aria-hidden="true">
-                        Overview
-                      </span>
-                      <span className="report-tab-label-short" aria-hidden="true">
-                        View
-                      </span>
-                    </TabsTrigger>
-
-                    {canViewAutopilotTab && (
-                      <TabsTrigger
-                        value="autopilot"
-                        className="report-tab"
-                        aria-label="AI Autopilot"
-                      >
-                        <Bot className="h-4 w-4" aria-hidden="true" />
-                        <span
-                          className="report-tab-label-full"
-                          aria-hidden="true"
-                        >
-                          AI Autopilot
-                        </span>
-                        <span
-                          className="report-tab-label-short"
-                          aria-hidden="true"
-                        >
-                          Auto
-                        </span>
-                      </TabsTrigger>
-                    )}
-
-                    <TabsTrigger
-                      value="momentum"
-                      className="report-tab"
-                      aria-label="Weekly Momentum"
-                    >
-                      <TrendingUp className="h-4 w-4" aria-hidden="true" />
-                      <span className="report-tab-label-full" aria-hidden="true">
-                        Momentum
-                      </span>
-                      <span className="report-tab-label-short" aria-hidden="true">
-                        Pulse
-                      </span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="rankings"
-                      className="report-tab"
-                      aria-label="Rankings"
-                    >
-                      <ListOrdered className="h-4 w-4" aria-hidden="true" />
-                      <span className="report-tab-label-full" aria-hidden="true">
-                        Rankings
-                      </span>
-                      <span className="report-tab-label-short" aria-hidden="true">
-                        Rank
-                      </span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="trades"
-                      className="report-tab"
-                      aria-label="Trade History"
-                    >
-                      <Repeat2 className="h-4 w-4" aria-hidden="true" />
-                      <span className="report-tab-label-full" aria-hidden="true">
-                        Trades
-                      </span>
-                      <span className="report-tab-label-short" aria-hidden="true">
-                        Trade
-                      </span>
-                    </TabsTrigger>
-
-                    {shouldShowDraftHistoryTab && (
-                      <TabsTrigger
-                        value="draft"
-                        className="report-tab"
-                        aria-label="Draft History"
-                      >
-                        <ClipboardList className="h-4 w-4" aria-hidden="true" />
-                        <span
-                          className="report-tab-label-full"
-                          aria-hidden="true"
-                        >
-                          Draft
-                        </span>
-                        <span
-                          className="report-tab-label-short"
-                          aria-hidden="true"
-                        >
-                          Drafts
-                        </span>
-                      </TabsTrigger>
-                    )}
-                  </TabsList>
-
-                  {/* Right: League Name + shortcuts */}
-                  <div className="report-league-zone md:col-start-3">
-                    <button
-                      type="button"
-                      className="report-league-lockup"
-                      onClick={handleHeaderLeagueClick}
-                      aria-label="Open league switcher"
-                    >
-                      <div className="min-w-0 text-right">
-                        <p className="truncate text-sm font-semibold text-orange-400 sm:text-lg md:text-xl">
-                          {leagueName}
-                        </p>
-                        {leagueFormatPills.length > 0 && (
-                          <p
-                            className="report-league-format-row text-[11px] font-medium text-cyan-200/70 sm:text-xs"
-                            aria-label={`League format: ${leagueFormatPills.join(", ")}`}
-                          >
-                            {leagueFormatPills.map(chip => (
-                              <span
-                                key={chip}
-                                className="report-inline-pill report-league-format-pill"
-                              >
-                                {chip}
-                              </span>
-                            ))}
-                          </p>
-                        )}
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      className="report-header-league-avatar"
-                      onClick={handleHeaderLeagueClick}
-                      aria-label="Open league switcher"
-                    >
-                      {leagueLogo ? (
-                        <img src={leagueLogo} alt="" aria-hidden="true" />
-                      ) : (
-                        <span aria-hidden="true">
-                          {getLeagueFallbackInitials(leagueName)}
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ReportDashboardHeader
+              resolvedActiveTab={resolvedActiveTab}
+              hasAdminPermissions={hasAdminPermissions}
+              canViewAutopilotTab={canViewAutopilotTab}
+              shouldShowDraftHistoryTab={shouldShowDraftHistoryTab}
+              reportTabsClassName={reportTabsClassName}
+              reportTabsStyle={reportTabsStyle}
+              leagueName={leagueName}
+              leagueFormatPills={leagueFormatPills}
+              leagueLogo={leagueLogo}
+              leagueLogoInitials={leagueLogoInitials}
+              onHeaderLeagueClick={handleHeaderLeagueClick}
+              onAnalyzeAnotherLeague={handleAnalyzeAnotherLeague}
+              mobileLogoSrc={DYNASTY_MOBILE_REPORT_LOGO_SRC}
+              headerLogoSrc={DYNASTY_REPORT_HEADER_LOGO_SRC}
+            />
 
             {/* Content */}
             <ReportSectionAccordionProvider scopeKey={resolvedActiveTab}>
