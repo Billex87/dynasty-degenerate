@@ -1,6 +1,5 @@
 import { Crown, X as XIcon } from "lucide-react";
 import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData, TradeTimePickAsset } from "@shared/types";
-import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
 import { ChampionAvatarFrame } from "../ManagerChampionships";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
@@ -18,9 +17,11 @@ import {
   buildPlayerModalData,
   formatCompactValue,
   PositionRankPill,
+  renderManagerName,
   type ManagerAvatars,
   type PlayerDetailsById,
 } from "./shared";
+export { renderManagerName } from "./shared";
 
 type CurrentPositionRankById = ReportData["currentPositionRankById"];
 type LeagueOverviewRows = ReportData["leagueOverview"];
@@ -44,15 +45,6 @@ export type TradeFitRead = {
   tone: "good" | "warn" | "neutral";
   target?: ManagerIntelPlayer | null;
 };
-
-export function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
-  return (
-    <ManagerNameWithAvatar
-      avatarUrl={managerAvatars?.[manager]}
-      managerName={manager}
-    />
-  );
-}
 
 export function stableTradeSeed(value: string): number {
   let hash = 0;

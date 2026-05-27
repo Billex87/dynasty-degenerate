@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import type { ReportData } from "@shared/types";
-import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
 import { TeamLogoPill } from "../TeamLogoPill";
 import { PlayerIdentityRow } from "../reportPrimitives";
@@ -12,19 +11,11 @@ import {
   buildPlayerModalData,
   formatCompactValue,
   PositionRankPill,
+  renderManagerName,
   ValueTrendIcon,
   type ManagerAvatars,
   type PlayerDetailsById,
 } from "./shared";
-
-function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
-  return (
-    <ManagerNameWithAvatar
-      avatarUrl={managerAvatars?.[manager]}
-      managerName={manager}
-    />
-  );
-}
 
 export default function TradeMarketRadar({
   risers,

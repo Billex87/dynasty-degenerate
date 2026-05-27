@@ -8,6 +8,7 @@ import {
 } from "@/lib/positionRank";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
 import { ChampionAvatarFrame } from "../ManagerChampionships";
+import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import type { PlayerModalData } from "../PlayerDetailModal";
 import { MetricPill } from "../reportPrimitives";
 import {
@@ -72,6 +73,18 @@ export function WaiverRankPill({
       <em>{label}</em>
       {rank}
     </span>
+  );
+}
+
+export function renderManagerName(
+  manager: string,
+  managerAvatars?: ManagerAvatars
+) {
+  return (
+    <ManagerNameWithAvatar
+      avatarUrl={managerAvatars?.[manager]}
+      managerName={manager}
+    />
   );
 }
 

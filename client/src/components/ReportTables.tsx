@@ -41,7 +41,6 @@ import type {
 export { SleeperWaiverClaimsTable } from "./reportTables/SleeperWaiverClaimsTable";
 export { TradeProposalSignalsTable } from "./reportTables/TradeProposalSignalsTable";
 import { PlayerNameWithHeadshot } from "./PlayerNameWithHeadshot";
-import { ManagerNameWithAvatar } from "./ManagerNameWithAvatar";
 import {
   ChampionAvatarFrame,
   ManagerChampionshipPills,
@@ -68,6 +67,7 @@ import {
   OwnerSummaryTile,
   parsePositionRankValue,
   PositionRankPill,
+  renderManagerName,
   type ManagerAvatars,
   type PlayerDetailsById,
 } from "./reportTables/shared";
@@ -116,15 +116,6 @@ type ManagerCountRow = ReportData["managerPositionCounts"][number];
 type CountPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 
 const COUNT_POSITIONS: CountPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
-
-function renderManagerName(manager: string, managerAvatars?: ManagerAvatars) {
-  return (
-    <ManagerNameWithAvatar
-      avatarUrl={managerAvatars?.[manager]}
-      managerName={manager}
-    />
-  );
-}
 
 function stableTradeSeed(value: string): number {
   let hash = 0;
