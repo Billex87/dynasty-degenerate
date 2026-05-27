@@ -125,46 +125,6 @@ function normalizeReportManagerName(manager?: string | null): string {
   return manager?.trim().toLowerCase() || "";
 }
 
-function renderTradeSummaryManager(
-  manager: string,
-  isWinner: boolean,
-  managerAvatars?: ManagerAvatars
-) {
-  const avatarUrl = managerAvatars?.[manager];
-  const initial = manager.trim()[0]?.toUpperCase() || "?";
-
-  return (
-    <span
-      className={`trade-mobile-manager ${isWinner ? "trade-mobile-winner" : "trade-mobile-loser"}`}
-    >
-      <span className="report-identity-chip manager-chip flex min-w-0 items-center gap-2">
-        <span className="trade-mobile-avatar-wrap">
-          <ChampionAvatarFrame managerName={manager} showAccolades={false}>
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={manager}
-                className="h-7 w-7 flex-shrink-0 rounded-full border border-cyan-300/30 object-cover shadow-sm shadow-black/30"
-              />
-            ) : (
-              <span
-                aria-hidden="true"
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-800 text-[11px] font-bold text-orange-300"
-              >
-                {initial}
-              </span>
-            )}
-          </ChampionAvatarFrame>
-          {isWinner && (
-            <Crown className="trade-winner-crown" aria-hidden="true" />
-          )}
-        </span>
-        <span className="min-w-0">{manager}</span>
-      </span>
-    </span>
-  );
-}
-
 function renderTradeSideManager(
   manager: string,
   isWinner: boolean,
