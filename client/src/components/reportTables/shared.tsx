@@ -56,6 +56,10 @@ export type TradeImpactPill = {
   label: string;
   tone?: "neutral" | "good" | "warn" | "danger" | "info";
 };
+export type TradeGapVerdict = {
+  label: string;
+  className: string;
+};
 
 export const VALUE_BLEND_HISTORY_START_LABEL = "May 7, 2026";
 export const FIRST_FULL_BLEND_WEEK_LABEL = "May 12, 2026 after the 6 PM scrape";
@@ -488,6 +492,62 @@ export function TradeFairnessCardDisplay({
       </button>
     </div>
   );
+}
+
+export function getTradeGapVerdict(
+  gap: number,
+  {
+    largeFireLabel = "Explain That",
+  }: {
+    largeFireLabel?: string;
+  } = {}
+): TradeGapVerdict {
+  if (gap === 0)
+    return { label: "Even Steven", className: "trade-gap-verdict-even" };
+  if (gap < 100)
+    return { label: "Coin Flip", className: "trade-gap-verdict-even" };
+  if (gap < 200)
+    return { label: "Tiny Tax", className: "trade-gap-verdict-soft" };
+  if (gap < 350)
+    return { label: "Tip Jar", className: "trade-gap-verdict-soft" };
+  if (gap < 500)
+    return { label: "Pocket Change", className: "trade-gap-verdict-soft" };
+  if (gap < 650)
+    return { label: "Lunch Money", className: "trade-gap-verdict-medium" };
+  if (gap < 800)
+    return { label: "Got Finessed", className: "trade-gap-verdict-medium" };
+  if (gap < 1000)
+    return { label: "Sneaky L", className: "trade-gap-verdict-medium" };
+  if (gap < 1250)
+    return { label: "Ouch Tax", className: "trade-gap-verdict-hot" };
+  if (gap < 1500)
+    return { label: "Got Robbed", className: "trade-gap-verdict-hot" };
+  if (gap < 1750)
+    return { label: "Trade Mugging", className: "trade-gap-verdict-hot" };
+  if (gap < 2000)
+    return { label: "Hide the Chat", className: "trade-gap-verdict-hot" };
+  if (gap < 2250)
+    return { label: "Call 911", className: "trade-gap-verdict-fire" };
+  if (gap < 2500)
+    return { label: "League Probe", className: "trade-gap-verdict-fire" };
+  if (gap < 2750)
+    return { label: "Veto Bait", className: "trade-gap-verdict-fire" };
+  if (gap < 3000)
+    return { label: largeFireLabel, className: "trade-gap-verdict-fire" };
+  if (gap < 3500)
+    return { label: "Crime Scene", className: "trade-gap-verdict-nuclear" };
+  if (gap < 4000)
+    return { label: "Witness Needed", className: "trade-gap-verdict-nuclear" };
+  if (gap < 5000)
+    return { label: "Delete the App", className: "trade-gap-verdict-nuclear" };
+  if (gap < 6000)
+    return { label: "Call the Lawyer", className: "trade-gap-verdict-nuclear" };
+  if (gap < 7500)
+    return {
+      label: "Generational Fleece",
+      className: "trade-gap-verdict-nuclear",
+    };
+  return { label: "Eternal Shame", className: "trade-gap-verdict-nuclear" };
 }
 
 export function renderManagerName(
