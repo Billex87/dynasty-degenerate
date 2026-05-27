@@ -23,6 +23,7 @@ import {
   TradeLedgerManagerName,
   TradeOutcomePanelDisplay,
   TradeSideManager,
+  TradeSideImpactRead,
   TradeSummaryManager,
   TradeValuePill,
   type ManagerAvatars,
@@ -2778,22 +2779,5 @@ function renderTradeOverviewImpact({
 
   if (impactPills.length === 0 && notes.length === 0) return null;
 
-  return (
-    <div className="trade-side-impact">
-      {(impactPills.length > 0 || notes.length > 0) && (
-        <div className="trade-side-impact-read">
-          {impactPills.length > 0 && (
-            <div className="trade-side-impact-pill-row">
-              {impactPills.map(pill => (
-                <CommandMiniBadge key={pill.label} tone={pill.tone}>
-                  {pill.label}
-                </CommandMiniBadge>
-              ))}
-            </div>
-          )}
-          {notes.length > 0 && <p>{notes.join(" ")}</p>}
-        </div>
-      )}
-    </div>
-  );
+  return <TradeSideImpactRead pills={impactPills} notes={notes} />;
 }

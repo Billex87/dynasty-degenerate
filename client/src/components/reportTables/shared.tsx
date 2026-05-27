@@ -52,6 +52,10 @@ export type TradeOutcomePanelData = {
     assets: unknown[];
   }>;
 };
+export type TradeImpactPill = {
+  label: string;
+  tone?: "neutral" | "good" | "warn" | "danger" | "info";
+};
 
 export const VALUE_BLEND_HISTORY_START_LABEL = "May 7, 2026";
 export const FIRST_FULL_BLEND_WEEK_LABEL = "May 12, 2026 after the 6 PM scrape";
@@ -420,6 +424,33 @@ export function TradeOutcomePanelDisplay({
           <li key={note}>{note}</li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+export function TradeSideImpactRead({
+  pills,
+  notes,
+}: {
+  pills: TradeImpactPill[];
+  notes: string[];
+}) {
+  if (pills.length === 0 && notes.length === 0) return null;
+
+  return (
+    <div className="trade-side-impact">
+      <div className="trade-side-impact-read">
+        {pills.length > 0 && (
+          <div className="trade-side-impact-pill-row">
+            {pills.map(pill => (
+              <CommandMiniBadge key={pill.label} tone={pill.tone}>
+                {pill.label}
+              </CommandMiniBadge>
+            ))}
+          </div>
+        )}
+        {notes.length > 0 && <p>{notes.join(" ")}</p>}
+      </div>
     </div>
   );
 }
