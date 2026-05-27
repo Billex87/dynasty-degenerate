@@ -60,9 +60,9 @@ import {
 import { ReportFooterActions } from "@/features/report/components/ReportFooterActions";
 import { ReportDashboardHeader } from "@/features/report/components/ReportDashboardHeader";
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
+import { HomeDialogs } from "@/features/home/components/HomeDialogs";
 import {
   ChangeLeagueDialog,
-  LeaguePickerDialog,
 } from "@/features/home/components/HomeLeagueDialogs";
 import {
   buildHomePortfolioRows,
@@ -138,10 +138,6 @@ import {
   type ReportDeltaTone,
 } from "@/features/report/components/ReportDeltaBrief";
 import {
-  AdminAccessDialog,
-  AdminUnlockDialog,
-  AnalysisLoadingDialog,
-  ClownEasterEggDialog,
   type AnalysisLoadingLeague,
   type LoadingTransitionPhase,
 } from "@/features/report/components/ReportDialogs";
@@ -2057,19 +2053,6 @@ export default function Home() {
     return () => window.removeEventListener("hashchange", syncTabFromUrl);
   }, [reportData]);
 
-  const leaguePickerDialog = (
-    <LeaguePickerDialog
-      open={isLeaguePickerOpen}
-      leagues={orderedUserLeagues}
-      sleeperUsername={sleeperUsername}
-      activeCachedSleeperUser={activeCachedSleeperUser}
-      isLeaguePickerIntelBusy={isLeaguePickerIntelBusy}
-      onOpenChange={setIsLeaguePickerOpen}
-      onLeagueSelect={handleAnalyzeLeagueOption}
-      onStartOver={handleStartOver}
-    />
-  );
-
   const loadingLeague =
     analysisCompleteMessage ||
     pendingAnalysisLeague ||
@@ -2100,40 +2083,38 @@ export default function Home() {
           : resolvedActiveTab === "autopilot"
             ? "autopilot-orbit"
             : "report-shell";
-  const clownEasterEggDialog = (
-    <ClownEasterEggDialog
-      open={isClownModalOpen}
-      onOpenChange={setIsClownModalOpen}
-      onDismiss={handleClownDismiss}
-    />
-  );
-  const adminAccessDialog = (
-    <AdminAccessDialog
-      open={isAdminAccessModalOpen}
-      passphrase={adminPassphrase}
-      isPending={adminLoginMutation.isPending}
-      onOpenChange={open => {
+  const homeDialogs = (
+    <HomeDialogs
+      isLeaguePickerOpen={isLeaguePickerOpen}
+      leagues={orderedUserLeagues}
+      sleeperUsername={sleeperUsername}
+      activeCachedSleeperUser={activeCachedSleeperUser}
+      isLeaguePickerIntelBusy={isLeaguePickerIntelBusy}
+      onLeaguePickerOpenChange={setIsLeaguePickerOpen}
+      onLeagueSelect={handleAnalyzeLeagueOption}
+      onStartOver={handleStartOver}
+      isClownModalOpen={isClownModalOpen}
+      onClownDismiss={handleClownDismiss}
+      isAdminAccessModalOpen={isAdminAccessModalOpen}
+      adminPassphrase={adminPassphrase}
+      isAdminLoginPending={adminLoginMutation.isPending}
+      onAdminAccessOpenChange={open => {
         if (open) return;
         setIsAdminAccessModalOpen(false);
         setAdminPassphrase("");
       }}
-      onPassphraseChange={setAdminPassphrase}
-      onSubmit={() => adminLoginMutation.mutate({ passphrase: adminPassphrase })}
-      onStayRegularView={() => {
+      onAdminPassphraseChange={setAdminPassphrase}
+      onAdminSubmit={() =>
+        adminLoginMutation.mutate({ passphrase: adminPassphrase })
+      }
+      onAdminStayRegularView={() => {
         setIsAdminAccessModalOpen(false);
         setAdminPassphrase("");
       }}
-    />
-  );
-  const adminUnlockDialog = (
-    <AdminUnlockDialog
-      open={hasAuthenticatedAdminPermissions && isAdminUnlockModalOpen}
-      onDismiss={handleAdminUnlockModalDismiss}
-    />
-  );
-  const loadingDialog = (
-    <AnalysisLoadingDialog
-      open={isLoading}
+      hasAuthenticatedAdminPermissions={hasAuthenticatedAdminPermissions}
+      isAdminUnlockModalOpen={isAdminUnlockModalOpen}
+      onAdminUnlockDismiss={handleAdminUnlockModalDismiss}
+      isLoading={isLoading}
       previewMode={previewMode}
       previewLoadingLoopTick={previewLoadingLoopTick}
       analysisCompleteMessage={analysisCompleteMessage}
@@ -3123,20 +3104,15 @@ export default function Home() {
             </ReportSectionAccordionProvider>
             </Tabs>
 
-            {leaguePickerDialog}
-
             <ChangeLeagueDialog
               open={isChangeLeagueModalOpen}
               onOpenChange={setIsChangeLeagueModalOpen}
               onStay={() => setIsChangeLeagueModalOpen(false)}
               onStartOver={handleStartOver}
             />
-
-            {clownEasterEggDialog}
           </div>
         </ManagerChampionshipProvider>
-        {adminAccessDialog}
-        {adminUnlockDialog}
+        {homeDialogs}
       </>
     );
   }
@@ -3178,12 +3154,8 @@ export default function Home() {
         showLoadingFooter={!reportData}
         onStartOver={handleStartOver}
         isLandingFaded={Boolean(reportData && analysisCompleteMessage)}
-        leaguePickerDialog={leaguePickerDialog}
-        clownEasterEggDialog={clownEasterEggDialog}
+        homeDialogs={homeDialogs}
       />
-      {adminAccessDialog}
-      {adminUnlockDialog}
-      {loadingDialog}
     </>
   );
 }

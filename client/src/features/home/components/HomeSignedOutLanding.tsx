@@ -43,8 +43,7 @@ interface HomeSignedOutLandingProps {
   showLoadingFooter: boolean;
   onStartOver: () => void;
   isLandingFaded: boolean;
-  leaguePickerDialog: ReactNode;
-  clownEasterEggDialog: ReactNode;
+  homeDialogs: ReactNode;
 }
 
 export function HomeSignedOutLanding({
@@ -76,8 +75,7 @@ export function HomeSignedOutLanding({
   showLoadingFooter,
   onStartOver,
   isLandingFaded,
-  leaguePickerDialog,
-  clownEasterEggDialog,
+  homeDialogs,
 }: HomeSignedOutLandingProps) {
   return (
     <>
@@ -274,8 +272,7 @@ export function HomeSignedOutLanding({
             <HomeFooterChrome showBrand={!isAnalysisBusy} />
           </div>
         ) : null}
-        {leaguePickerDialog}
-        {clownEasterEggDialog}
+        {homeDialogs}
       </div>
     </>
   );
