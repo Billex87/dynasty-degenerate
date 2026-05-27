@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 import { PlayerIdentityRow } from "@/components/reportPrimitives";
+import { getLeagueFallbackInitials } from "@/features/home/lib/leagueIdentity";
 
 export type HomeLeagueSelectionLeague = {
   leagueId: string;
@@ -30,12 +31,6 @@ export type HomePortfolioRow = {
   rosterSpots: Array<"active" | "taxi" | "reserve">;
   leagues: HomePortfolioLeague[];
 };
-
-function getLeagueFallbackInitials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
-  return name.trim().slice(0, 2).toUpperCase() || "DD";
-}
 
 function getLeagueCardNameClassName(name: string): string {
   const length = name.trim().length;
