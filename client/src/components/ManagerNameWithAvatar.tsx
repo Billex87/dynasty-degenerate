@@ -20,7 +20,7 @@ export function ManagerNameWithAvatar({
 
   return (
     <div
-      className={`interactive-identity manager-chip flex min-w-0 items-center gap-2${hideName ? ' manager-chip-icon-only' : ''}`}
+      className={`report-identity-chip interactive-identity manager-chip flex min-w-0 items-center gap-2${hideName ? ' manager-chip-icon-only' : ''}`}
       title={hideName ? visibleName : undefined}
       aria-label={hideName ? visibleName : undefined}
     >

@@ -5205,6 +5205,17 @@ button.trade-manager-trade {
   min-width: 0;
 }
 
+.report-shell .report-identity-chip {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.report-shell .report-identity-chip > .interactive-identity-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .report-shell :is(.mobile-stacked-row, .value-board__mobile-card) {
   max-width: 100%;
   overflow: hidden;

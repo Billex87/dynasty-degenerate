@@ -68,7 +68,7 @@ export function PlayerNameWithHeadshot({
   const imageSrc = defenseLogo || headshot || (!isDefense && !directImageFailed ? directHeadshot : null) || fallbackImage;
 
   return (
-    <div className="interactive-identity player-chip flex min-w-0 items-center gap-2">
+    <div className="report-identity-chip interactive-identity player-chip flex min-w-0 items-center gap-2">
       {imageSrc ? (
         <img
           src={imageSrc}

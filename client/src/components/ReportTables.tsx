@@ -202,7 +202,7 @@ function renderTradeSummaryManager(
     <span
       className={`trade-mobile-manager ${isWinner ? "trade-mobile-winner" : "trade-mobile-loser"}`}
     >
-      <span className="manager-chip flex min-w-0 items-center gap-2">
+      <span className="report-identity-chip manager-chip flex min-w-0 items-center gap-2">
         <span className="trade-mobile-avatar-wrap">
           <ChampionAvatarFrame managerName={manager} showAccolades={false}>
             {avatarUrl ? (
