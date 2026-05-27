@@ -88,11 +88,7 @@ import {
   renderManagerName,
   splitTradeItems,
   TradeFitReadCard,
-  TradeFairnessCardDisplay,
   TradeLedgerManagerName,
-  TradeOutcomeAssetLine,
-  TradeOutcomePanelDisplay,
-  TradeSideManager,
   TradeSideImpactRead,
   TradeValuePill,
   addYears,
@@ -100,6 +96,13 @@ import {
   type ManagerAvatars,
   type PlayerDetailsById,
 } from "./reportTables/shared";
+import {
+  TradeDetailPanel as TradeDetailPanelDisplay,
+  type TradeFairnessSuggestion,
+  type TradeOutcomeAsset,
+  type TradeOutcomeRecord,
+  type TradeOutcomeReview,
+} from "./reportTables/TradeOutcomeDisplay";
 import {
   getPlayerRankForMode,
   getPlayerValueForMode,
@@ -160,22 +163,6 @@ const COUNT_POSITIONS: CountPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
 
 function normalizeReportManagerName(manager?: string | null): string {
   return manager?.trim().toLowerCase() || "";
-}
-
-function renderTradeSideManager(
-  manager: string,
-  isWinner: boolean,
-  managerAvatars?: ManagerAvatars,
-  buildLens?: ManagerBuildLens
-) {
-  return (
-    <TradeSideManager
-      manager={manager}
-      isWinner={isWinner}
-      managerAvatars={managerAvatars}
-      buildLens={buildLens}
-    />
-  );
 }
 
 function renderTradeLedgerManagerName(
@@ -662,61 +649,6 @@ function getTradeDisplaySides(
   return { winners, loserName, leftSide, rightSide };
 }
 
-type TradeOutcomeAsset = {
-  id: string;
-  label: string;
-  name: string;
-  kind: "player" | "pick";
-  value: number;
-  basisValue: number;
-  valueDelta: number;
-  seasonValue: number;
-  rank?: string | null;
-  detail?: string | null;
-  outcomeNote?: string | null;
-  status?: string | null;
-  playerId?: string;
-  children?: TradeOutcomeAsset[];
-};
-
-type TradeOutcomeSide = {
-  manager: string;
-  side: TradeDisplaySide;
-  evaluation: TradeLedgerSideEvaluation;
-  assets: TradeOutcomeAsset[];
-  assetValue: number;
-  basisValue: number;
-  valueDelta: number;
-  seasonValue: number;
-};
-
-type TradeOutcomeRecord = {
-  manager: string;
-  seasons: string[];
-  wins: number;
-  losses: number;
-  ties: number;
-  pointsFor: number;
-  latestRank: number | null;
-};
-
-type TradeOutcomeReview = {
-  statusLabel: string;
-  windowLabel: string;
-  windowSubtitle: string;
-  observedThroughLabel: string;
-  verdict: string;
-  metrics: Array<{
-    label: string;
-    value: string;
-    note: string;
-    tone: "good" | "bad" | "neutral";
-  }>;
-  notes: string[];
-  sides: TradeOutcomeSide[];
-  records: TradeOutcomeRecord[];
-};
-
 function getOutcomeAssetsFromItems(
   items: string,
   mode: TradeWarMode,
@@ -1134,90 +1066,6 @@ function buildTradeOutcomeReview({
   };
 }
 
-function renderOutcomeAssetLine(asset: TradeOutcomeAsset) {
-  return <TradeOutcomeAssetLine asset={asset} />;
-}
-
-function TradeOutcomePanel({ outcome }: { outcome: TradeOutcomeReview }) {
-  return (
-    <TradeOutcomePanelDisplay
-      outcome={outcome}
-      renderAssetLine={asset =>
-        renderOutcomeAssetLine(asset as TradeOutcomeSide["assets"][number])
-      }
-    />
-  );
-}
-
-function getTradeFairnessSuggestionCopy(
-  suggestion: TradeFairnessSuggestion
-): string {
-  return `${suggestion.fromManager} should have added ${suggestion.player.name} to ${suggestion.toManager}'s side to make this trade closer to even.`;
-}
-
-function TradeFairnessCard({
-  suggestion,
-  leagueValueMode,
-  managerAvatars,
-  playerDetailsById,
-  onPlayerClick,
-}: {
-  suggestion: TradeFairnessSuggestion;
-  leagueValueMode: ReportData["leagueValueMode"];
-  managerAvatars?: ManagerAvatars;
-  playerDetailsById?: PlayerDetailsById;
-  onPlayerClick?: (player: PlayerModalData) => void;
-}) {
-  const playerDetails =
-    suggestion.player.playerDetails ||
-    playerDetailsById?.[suggestion.player.player_id];
-
-  return (
-    <TradeFairnessCardDisplay
-      description={getTradeFairnessSuggestionCopy(suggestion)}
-      tileStyle={getTeamTileStyle(playerDetails?.team)}
-      onClick={event => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!onPlayerClick) return;
-        onPlayerClick(
-          buildPlayerModalData({
-            playerId: suggestion.player.player_id,
-            playerName: suggestion.player.name,
-            playerPos: suggestion.player.pos,
-            value: suggestion.player.value,
-            playerDetails,
-            playerDetailsById,
-            manager: suggestion.player.owner || suggestion.fromManager,
-            managerAvatarUrl: managerAvatars?.[suggestion.fromManager],
-            currentPositionRank:
-              suggestion.player.currentPositionRank ||
-              suggestion.player.seasonPositionRank,
-          })
-        );
-      }}
-      metric={
-        leagueValueMode === "redraft" ? (
-          <span className="trade-fairness-value">
-            {formatCompactValue(suggestion.displayValue)}
-          </span>
-        ) : (
-          <PositionRankPill
-            rank={suggestion.displayRank || suggestion.player.pos}
-          />
-        )
-      }
-    >
-      <PlayerNameWithHeadshot
-        playerId={suggestion.player.player_id}
-        playerName={suggestion.player.name}
-        team={playerDetails?.team}
-        position={suggestion.player.pos}
-      />
-    </TradeFairnessCardDisplay>
-  );
-}
-
 function TradeDetailPanel({
   row,
   draftPicks = [],
@@ -1291,127 +1139,78 @@ function TradeDetailPanel({
     currentStandings,
     leagueValueMode,
   });
+  const tradeSideCards = [leftSide, rightSide].map(side => {
+    const sideEvaluation = getTradeSideEvaluation(side.manager, tradeEvaluation);
+    const displayItems = splitTradeItems(side.items).filter(
+      item => parseValueAdjustmentItem(item.trim()) === null
+    );
+
+    return {
+      manager: side.manager,
+      isWinner: side.isWinner,
+      total: sideEvaluation.total,
+      lens: sideEvaluation.lens,
+      managerAvatarUrl: managerAvatars?.[side.manager],
+      itemNodes: displayItems.map((item, i) =>
+        renderTradeItem(item, i, {
+          draftPicks,
+          playerDetailsById,
+          currentPositionRankById,
+          onPlayerClick,
+          manager: side.manager,
+          managerAvatarUrl: managerAvatars?.[side.manager],
+          valueMode: sideEvaluation.lens.mode,
+        })
+      ),
+      adjustmentNode:
+        sideEvaluation.adjustment > 0
+          ? renderTradeItem(
+              `VALUE_ADJUSTMENT:+${sideEvaluation.adjustment}`,
+              displayItems.length,
+              {
+                draftPicks,
+                playerDetailsById,
+                currentPositionRankById,
+                onPlayerClick,
+                manager: side.manager,
+                managerAvatarUrl: managerAvatars?.[side.manager],
+                valueMode: sideEvaluation.lens.mode,
+              }
+            )
+          : null,
+      overviewImpactNode: renderTradeOverviewImpact({
+        manager: side.manager,
+        incomingItems: side === leftSide ? rightSide.items : leftSide.items,
+        outgoingItems: side.items,
+        intel: intelByManager.get(side.manager),
+        playerDetailsById,
+      }),
+      fitReadNode: tradeFitReadsByManager.has(side.manager)
+        ? (
+            <div className="trade-side-fit-reads">
+              {renderTradeFitRead(tradeFitReadsByManager.get(side.manager)!, {
+                managerAvatars,
+                playerDetailsById,
+                onPlayerClick,
+              })}
+            </div>
+          )
+        : null,
+    };
+  });
 
   return (
-    <div className="trade-detail-panel">
-      <div className="trade-detail-header">
-        <div className="trade-detail-heading">
-          <div className="trade-detail-kicker">Trade Detail</div>
-          <div className="trade-detail-title">Trade Ledger</div>
-          {tradeLensNote && (
-            <p className="mt-1 max-w-xl text-xs text-cyan-200/75">
-              {tradeLensNote}
-            </p>
-          )}
-        </div>
-        <div
-          className={`trade-detail-decision-bar ${fairnessSuggestion ? "trade-detail-decision-bar-with-balance" : ""}`}
-        >
-          <div className="trade-detail-gap">
-            <span>Value Gap</span>
-            <strong>{tradeEvaluation.pointGap.toLocaleString()}</strong>
-            <small>context-adjusted edge</small>
-          </div>
-          {fairnessSuggestion && (
-            <TradeFairnessCard
-              suggestion={fairnessSuggestion}
-              leagueValueMode={leagueValueMode}
-              managerAvatars={managerAvatars}
-              playerDetailsById={playerDetailsById}
-              onPlayerClick={onPlayerClick}
-            />
-          )}
-        </div>
-      </div>
-      <TradeOutcomePanel outcome={outcomeReview} />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
-        {[leftSide, rightSide].map(side => {
-          const sideEvaluation = getTradeSideEvaluation(
-            side.manager,
-            tradeEvaluation
-          );
-          const displayItems = splitTradeItems(side.items).filter(
-            item => parseValueAdjustmentItem(item.trim()) === null
-          );
-
-          return (
-            <div
-              key={side.manager}
-              className={`trade-side ${side.isWinner ? "trade-side-winner" : "trade-side-loser"}`}
-            >
-              {managerAvatars?.[side.manager] && (
-                <img
-                  src={managerAvatars[side.manager] || ""}
-                  alt=""
-                  className="trade-side-watermark"
-                />
-              )}
-              <div className="trade-side-header relative flex items-center justify-between gap-3 border-b border-orange-300/15 pb-3">
-                <div className="min-w-0">
-                  <span
-                    className={`trade-side-label ${side.isWinner ? "trade-side-label-win" : "trade-side-label-other"}`}
-                  >
-                    {side.isWinner ? "Winner" : "Other Side"}
-                  </span>
-                </div>
-                {renderTradeSideManager(
-                  side.manager,
-                  side.isWinner,
-                  managerAvatars,
-                  sideEvaluation.lens
-                )}
-                <div
-                  className={`trade-side-total ${side.isWinner ? "trade-side-total-win" : "trade-side-total-other"}`}
-                >
-                  <span>Total</span>
-                  <strong>{sideEvaluation.total.toLocaleString()}</strong>
-                </div>
-              </div>
-              <div className="relative pt-3">
-                <div className="trade-side-assets text-sm text-slate-300">
-                  {displayItems.map((item, i) =>
-                    renderTradeItem(item, i, {
-                      draftPicks,
-                      playerDetailsById,
-                      currentPositionRankById,
-                      onPlayerClick,
-                      manager: side.manager,
-                      managerAvatarUrl: managerAvatars?.[side.manager],
-                      valueMode: sideEvaluation.lens.mode,
-                    })
-                  )}
-                  {sideEvaluation.adjustment > 0 &&
-                    renderTradeItem(
-                      `VALUE_ADJUSTMENT:+${sideEvaluation.adjustment}`,
-                      displayItems.length
-                    )}
-                </div>
-                {renderTradeOverviewImpact({
-                  manager: side.manager,
-                  incomingItems: side.items,
-                  outgoingItems:
-                    side === leftSide ? rightSide.items : leftSide.items,
-                  intel: intelByManager.get(side.manager),
-                  playerDetailsById,
-                })}
-                {tradeFitReadsByManager.has(side.manager) && (
-                  <div className="trade-side-fit-reads">
-                    {renderTradeFitRead(
-                      tradeFitReadsByManager.get(side.manager)!,
-                      {
-                        managerAvatars,
-                        playerDetailsById,
-                        onPlayerClick,
-                      }
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <TradeDetailPanelDisplay
+      valueGap={tradeEvaluation.pointGap}
+      tradeLensNote={tradeLensNote}
+      fairnessSuggestion={fairnessSuggestion}
+      outcomeReview={outcomeReview}
+      managerAvatars={managerAvatars}
+      playerDetailsById={playerDetailsById}
+      leagueValueMode={leagueValueMode}
+      onPlayerClick={onPlayerClick}
+      sideCards={tradeSideCards}
+    />
   );
 }
 
@@ -1935,17 +1734,8 @@ function chooseTradeDateTarget({
         }
         return b.value - a.value;
       })[0] || null
-  );
+);
 }
-
-type TradeFairnessSuggestion = {
-  fromManager: string;
-  toManager: string;
-  gap: number;
-  player: ManagerIntelPlayer;
-  displayRank?: string | null;
-  displayValue?: number | null;
-};
 
 function getFairnessPlayerValue(
   player: ManagerIntelPlayer,
