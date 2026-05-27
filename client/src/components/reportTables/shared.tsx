@@ -220,7 +220,7 @@ export function OwnerSummaryTile({
     return (
       <button
         type="button"
-        className={`owner-summary-tile ${className}`}
+        className={`owner-summary-tile owner-summary-button ${className}`}
         onClick={onClick}
         aria-label={`Open ${manager} owner details`}
       >

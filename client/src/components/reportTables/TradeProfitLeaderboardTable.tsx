@@ -8,18 +8,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
-import {
-  ChampionAvatarFrame,
-  ManagerChampionshipPills,
-} from "../ManagerChampionships";
+import { ChampionAvatarFrame, ManagerChampionshipPills } from "../ManagerChampionships";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
-import { EmptyState, MetricPill } from "../reportPrimitives";
+import { EmptyState } from "../reportPrimitives";
 import { getBalancedGridStyle } from "@/lib/balancedGrid";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
 import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
 import { viewerOwnedHighlightClass } from "@/lib/viewerHighlight";
-import { type ManagerAvatars, type PlayerDetailsById } from "./shared";
+import {
+  OwnerMetricPill,
+  OwnerSummaryTile,
+  renderManagerName,
+  type ManagerAvatars,
+  type PlayerDetailsById,
+} from "./shared";
 import {
   TradeDetailPanel,
   buildTradeLedgerEvaluation,
@@ -31,92 +33,6 @@ import {
 type CurrentPositionRankById = ReportData["currentPositionRankById"];
 type DynastyTimelineRows = NonNullable<ReportData["dynastyTimelines"]>;
 type LeagueOverviewRows = ReportData["leagueOverview"];
-
-function renderPartnerName(manager: string, managerAvatars?: ManagerAvatars) {
-  return (
-    <ManagerNameWithAvatar
-      avatarUrl={managerAvatars?.[manager]}
-      managerName={manager}
-    />
-  );
-}
-
-function OwnerMetricPill({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string;
-  value: React.ReactNode;
-  tone?: "neutral" | "good" | "warn" | "danger" | "info";
-}) {
-  return <MetricPill label={label} value={value} tone={tone} />;
-}
-
-function OwnerSummaryTile({
-  manager,
-  avatarUrl,
-  children,
-  onClick,
-  className = "",
-}: {
-  manager: string;
-  avatarUrl?: string | null;
-  children: React.ReactNode;
-  onClick?: () => void;
-  className?: string;
-}) {
-  const isViewerTile = className.includes("viewer-owned-highlight");
-  const content = (
-    <>
-      {avatarUrl && (
-        <>
-          <img src={avatarUrl} alt="" className="owner-summary-wash" />
-          <img src={avatarUrl} alt="" className="owner-summary-mark" />
-        </>
-      )}
-      <span className="owner-summary-scrim" />
-      <span className="owner-summary-main">
-        <ChampionAvatarFrame
-          managerName={manager}
-          className="owner-summary-avatar-frame"
-        >
-          {avatarUrl ? (
-            <img src={avatarUrl} alt={manager} className="owner-summary-avatar" />
-          ) : (
-            <span className="owner-summary-avatar">
-              {manager[0]?.toUpperCase() || "?"}
-            </span>
-          )}
-        </ChampionAvatarFrame>
-        <span className="owner-summary-name-lockup">
-          <span className="owner-summary-name">{manager}</span>
-        </span>
-      </span>
-      <span className="owner-summary-metrics">{children}</span>
-      {isViewerTile && (
-        <span className="active-owner-badge">
-          <span>Your</span>
-          <span>Team</span>
-        </span>
-      )}
-    </>
-  );
-
-  if (!onClick) {
-    return <div className={`owner-summary-tile ${className}`}>{content}</div>;
-  }
-
-  return (
-    <button
-      type="button"
-      className={`owner-summary-tile owner-summary-button ${className}`}
-      onClick={onClick}
-    >
-      {content}
-    </button>
-  );
-}
 
 export default function TradeProfitLeaderboardTable({
   data,
@@ -293,7 +209,7 @@ export default function TradeProfitLeaderboardTable({
                   title={`Likes trading with ${tendency.favoritePartner}`}
                 >
                   <em>Likes with</em>
-                  {renderPartnerName(tendency.favoritePartner, managerAvatars)}
+                  {renderManagerName(tendency.favoritePartner, managerAvatars)}
                 </span>
               )}
             </OwnerSummaryTile>
