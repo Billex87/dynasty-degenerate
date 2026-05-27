@@ -78,8 +78,11 @@ import {
   parsePositionRankValue,
   parseTradePickItem,
   parseTradeOutcomeDate,
+  parseTradePlayerItem,
+  parseValueAdjustmentItem,
   PositionRankPill,
   renderManagerName,
+  splitTradeItems,
   TradeFitReadCard,
   TradeFairnessCardDisplay,
   TradeLedgerManagerName,
@@ -1495,35 +1498,6 @@ function TradeDetailPanel({
   );
 }
 
-function parseTradePlayerItem(trimmed: string) {
-  if (!trimmed.startsWith("PLAYER:")) return null;
-  const payload = trimmed.replace("PLAYER:", "");
-  const parts = payload.split("|");
-  const [playerId, playerName, rawValue, rawTradeDateValue, tradeDate] = parts;
-  const value =
-    rawValue !== undefined && rawValue !== "" ? Number(rawValue) : null;
-  const tradeDateValue =
-    rawTradeDateValue !== undefined && rawTradeDateValue !== ""
-      ? Number(rawTradeDateValue)
-      : null;
-
-  return {
-    playerId,
-    playerName,
-    value: Number.isFinite(value) ? value : null,
-    tradeDateValue: Number.isFinite(tradeDateValue) ? tradeDateValue : null,
-    tradeDate: tradeDate || null,
-  };
-}
-
-function parseValueAdjustmentItem(trimmed: string) {
-  if (!trimmed.startsWith("VALUE_ADJUSTMENT:")) return null;
-  const value = Number(
-    trimmed.replace("VALUE_ADJUSTMENT:", "").replace("+", "")
-  );
-  return Number.isFinite(value) ? value : null;
-}
-
 function renderTradeItem(
   item: string,
   key: number,
@@ -1900,13 +1874,6 @@ function sortTaxiTriageItems(items: TaxiTriageItem[]) {
       a.name.localeCompare(b.name)
     );
   });
-}
-
-function splitTradeItems(items: string): string[] {
-  return items
-    .split(",")
-    .map(item => item.trim())
-    .filter(Boolean);
 }
 
 function getTradeItemSignal(
