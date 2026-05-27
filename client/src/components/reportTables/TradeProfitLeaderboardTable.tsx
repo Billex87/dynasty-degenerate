@@ -18,6 +18,7 @@ import {
   OwnerMetricPill,
   OwnerSummaryTile,
   TradeEmptyState,
+  TradeHabitPill,
   renderManagerName,
   type ManagerAvatars,
   type PlayerDetailsById,
@@ -198,9 +199,9 @@ export default function TradeProfitLeaderboardTable({
                 tone={row.profit >= 0 ? "good" : "danger"}
               />
               {habit && (
-                <span className={`trade-habit-pill ${habit.className}`}>
+                <TradeHabitPill className={habit.className}>
                   {habit.label}
-                </span>
+                </TradeHabitPill>
               )}
               {tendency?.favoritePartner && (
                 <span
@@ -342,25 +343,25 @@ export default function TradeProfitLeaderboardTable({
               </div>
               {selectedManagerTendency && (
                 <div className="trade-manager-tendency-strip">
-                  <span
-                    className={`trade-habit-pill ${getTradeHabit(selectedManagerTendency).className}`}
+                  <TradeHabitPill
+                    className={getTradeHabit(selectedManagerTendency).className}
                   >
                     {getTradeHabit(selectedManagerTendency).label}
-                  </span>
+                  </TradeHabitPill>
                   {selectedManagerTendency.overpaysForPicks && (
-                    <span className="trade-habit-pill trade-habit-warn">
+                    <TradeHabitPill className="trade-habit-warn">
                       Pays For Picks
-                    </span>
+                    </TradeHabitPill>
                   )}
                   {selectedManagerTendency.overpaysForVeterans && (
-                    <span className="trade-habit-pill trade-habit-warn">
+                    <TradeHabitPill className="trade-habit-warn">
                       Vet Shopper
-                    </span>
+                    </TradeHabitPill>
                   )}
                   {selectedManagerTendency.favoritePartner && (
-                    <span className="trade-habit-pill trade-habit-info">
+                    <TradeHabitPill className="trade-habit-info">
                       Likes {selectedManagerTendency.favoritePartner}
-                    </span>
+                    </TradeHabitPill>
                   )}
                 </div>
               )}

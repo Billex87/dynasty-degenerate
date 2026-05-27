@@ -100,6 +100,18 @@ export function TradeEmptyState({
   );
 }
 
+export function TradeHabitPill({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span className={`trade-habit-pill ${className}`.trim()}>{children}</span>
+  );
+}
+
 export function renderManagerName(
   manager: string,
   managerAvatars?: ManagerAvatars
