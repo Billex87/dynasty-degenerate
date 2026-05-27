@@ -31,6 +31,7 @@ import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadR
 import { slimCachedLeagueReportPayload } from "./reportPayloadSlimming";
 import { buildRankingDraftBuzzDetail, buildRankingProfileDetail, buildRankingsMetadata } from "./rankingPayloadViews";
 import { getLeagueReportCacheTtlHours, getLeagueReportCacheTtlMs, getLeagueReportFileCacheMaxFiles, isLeagueReportCacheExpired, shouldPruneLeagueReportFileCacheEntry } from "./leagueReportCachePolicy";
+import { shouldBypassLeagueReportCache } from "./leagueReportCacheDecision";
 import { loadReportStaticInputs } from "./reportStaticInputs";
 import { loadReportSourceDiagnosticsSection, loadReportStaticSections } from "./reportStaticSections";
 import { buildReportPlayerStaticEnrichment, loadReportPlayerStaticEnrichment } from "./reportPlayerEnrichment";
@@ -6386,7 +6387,7 @@ export const appRouter = router({
         const markAnalyzeStep = createLeagueAnalyzeTimer(input.leagueId);
         const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
         const liveRefresh = Boolean(input.liveRefresh);
-        const bypassReportCache = forceRefresh;
+        const bypassReportCache = shouldBypassLeagueReportCache({ forceRefresh, liveRefresh });
         try {
           const cachedReport = await readCachedLeagueReport(reportCacheKey);
           markAnalyzeStep('cache lookup');

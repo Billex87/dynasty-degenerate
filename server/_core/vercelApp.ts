@@ -13,10 +13,14 @@ import {
   getPacificScheduleParts,
   isFantasyProsEndpointSnapshotWindow,
 } from '../fantasyProsEndpointSnapshotSchedule';
+import {
+  LEAGUE_REPORT_SNAPSHOT_HOURS,
+  PACIFIC_TIME_ZONE,
+  getPacificHour,
+  isLeagueReportSnapshotWindow,
+} from '../pacificCronWindows';
 
 const app = express();
-const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
-const SNAPSHOT_HOURS = [8, 16] as const;
 
 function parseLeagueIds(value: string | undefined): string[] {
   return Array.from(
@@ -31,16 +35,6 @@ function parseLeagueIds(value: string | undefined): string[] {
 
 function isTruthyFlag(value: unknown): boolean {
   return /^(?:1|true|yes|on)$/i.test(String(value || ''));
-}
-
-function getPacificHour(date: Date): number {
-  const hourPart = new Intl.DateTimeFormat('en-CA', {
-    timeZone: SNAPSHOT_TIME_ZONE,
-    hour: '2-digit',
-    hour12: false,
-  }).formatToParts(date).find((part) => part.type === 'hour')?.value;
-
-  return Number(hourPart);
 }
 
 function isCronAuthorized(req: express.Request): { ok: true; configuredSecret?: string } | { ok: false; status: number; error: string } {
@@ -73,11 +67,11 @@ app.get('/api/cron/ktc-snapshot', async (req, res) => {
 
   const now = new Date();
   const pacificHour = getPacificHour(now);
-  if (!forceRun && !SNAPSHOT_HOURS.includes(pacificHour as typeof SNAPSHOT_HOURS[number])) {
+  if (!forceRun && !isLeagueReportSnapshotWindow(now)) {
     res.status(202).json({
       ok: true,
       skipped: true,
-      reason: `Snapshot only runs at ${SNAPSHOT_HOURS.join(':00 or ')}:00 ${SNAPSHOT_TIME_ZONE}`,
+      reason: `Snapshot only runs at ${LEAGUE_REPORT_SNAPSHOT_HOURS.join(':00 or ')}:00 ${PACIFIC_TIME_ZONE}`,
       pacificHour,
       snapshotDateKey: getSnapshotDateKey(now),
     });
@@ -110,11 +104,11 @@ app.get('/api/cron/league-report-cache', async (req, res) => {
 
   const now = new Date();
   const pacificHour = getPacificHour(now);
-  if (!forceRun && !SNAPSHOT_HOURS.includes(pacificHour as typeof SNAPSHOT_HOURS[number])) {
+  if (!forceRun && !isLeagueReportSnapshotWindow(now)) {
     res.status(202).json({
       ok: true,
       skipped: true,
-      reason: `Cache warming only runs after ${SNAPSHOT_HOURS.join(':00 or ')}:00 ${SNAPSHOT_TIME_ZONE} snapshots`,
+      reason: `Cache warming only runs after ${LEAGUE_REPORT_SNAPSHOT_HOURS.join(':00 or ')}:00 ${PACIFIC_TIME_ZONE} snapshots`,
       pacificHour,
     });
     return;

@@ -61,6 +61,7 @@
     "build:redraft-strategy-rules": "node scripts/build-redraft-strategy-rules.mjs",
     "audit:rookie-label-backtest": "tsx server/rookieLabelBacktest.ts",
     "audit:weekly-movement": "tsx server/weeklyMovementAnomalyReport.ts",
+    "audit:league-report-cache": "tsx scripts/audit-league-report-cache.ts",
     "compact:league-report-cache": "node scripts/compact-league-report-cache.mjs",
     "cleanup:league-report-cache": "node scripts/cleanup-league-report-cache.mjs",
     "cleanup:league-report-cache:expired": "LEAGUE_REPORT_CACHE_CLEANUP_MODE=expired node scripts/cleanup-league-report-cache.mjs",

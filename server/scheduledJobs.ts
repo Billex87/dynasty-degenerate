@@ -7,35 +7,20 @@ import {
   getPacificScheduleParts,
   isFantasyProsEndpointSnapshotWindow,
 } from './fantasyProsEndpointSnapshotSchedule';
+import {
+  LEAGUE_REPORT_SNAPSHOT_HOURS,
+  PACIFIC_TIME_ZONE,
+  PLAYER_NEWS_REFRESH_HOURS,
+  PLAYER_NEWS_REFRESH_MINUTE,
+  getPacificCronDateParts,
+  isLocalLeagueReportSnapshotTick,
+  isLocalPlayerNewsRefreshTick,
+} from './pacificCronWindows';
 
-const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
-const SNAPSHOT_HOURS = [8, 16];
 const PROSPECT_SNAPSHOT_HOUR = 7;
 const DYNAMIC_REFRESH_HOUR = 18;
 const DYNAMIC_REFRESH_MINUTE = 40;
-const NEWS_REFRESH_HOURS = [8];
-const NEWS_REFRESH_MINUTE = 10;
 const STARTUP_ADP_SNAPSHOT_HOUR = 8;
-
-function getPacificDateParts(date: Date) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: SNAPSHOT_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(date);
-
-  const value = (type: string) => parts.find((part) => part.type === type)?.value || '00';
-
-  return {
-    dateKey: `${value('year')}-${value('month')}-${value('day')}`,
-    hour: Number(value('hour')),
-    minute: Number(value('minute')),
-  };
-}
 
 /**
  * Initialize scheduled jobs
@@ -53,12 +38,12 @@ export function initializeScheduledJobs() {
   
   function checkAndRunKtcSnapshot() {
     const now = new Date();
-    const { dateKey, hour, minute } = getPacificDateParts(now);
+    const { dateKey, hour, minute } = getPacificCronDateParts(now);
     const snapshotRunKey = `${dateKey}-${hour}`;
 
-    if (SNAPSHOT_HOURS.includes(hour) && minute === 0 && lastSnapshotRunKey !== snapshotRunKey) {
+    if (isLocalLeagueReportSnapshotTick(now) && lastSnapshotRunKey !== snapshotRunKey) {
       lastSnapshotRunKey = snapshotRunKey;
-      console.log(`[Scheduled Jobs] Running KTC snapshot at ${now.toISOString()} (${dateKey} ${String(hour).padStart(2, '0')}:00 ${SNAPSHOT_TIME_ZONE})`);
+      console.log(`[Scheduled Jobs] Running KTC snapshot at ${now.toISOString()} (${dateKey} ${String(hour).padStart(2, '0')}:00 ${PACIFIC_TIME_ZONE})`);
       storeKtcSnapshot().catch((error) => {
         console.error('[Scheduled Jobs] Error running KTC snapshot:', error);
       });
@@ -71,7 +56,7 @@ export function initializeScheduledJobs() {
       && lastProspectSnapshotRunMonth !== monthKey
     ) {
       lastProspectSnapshotRunMonth = monthKey;
-      console.log(`[Scheduled Jobs] Running monthly prospect snapshot at ${now.toISOString()} (${dateKey} ${PROSPECT_SNAPSHOT_HOUR}:00 ${SNAPSHOT_TIME_ZONE})`);
+      console.log(`[Scheduled Jobs] Running monthly prospect snapshot at ${now.toISOString()} (${dateKey} ${PROSPECT_SNAPSHOT_HOUR}:00 ${PACIFIC_TIME_ZONE})`);
       storeNflDraftBuzzProspectSnapshot().catch((error) => {
         console.error('[Scheduled Jobs] Error running prospect snapshot:', error);
       });
@@ -84,7 +69,7 @@ export function initializeScheduledJobs() {
     ) {
       lastStartupAdpSnapshotRunMonth = monthKey;
       const rosterRoomSeason = now.getMonth() >= 8 ? String(now.getFullYear() + 1) : String(now.getFullYear());
-      console.log(`[Scheduled Jobs] Running monthly Sleeper startup ADP snapshot at ${now.toISOString()} (${dateKey} ${STARTUP_ADP_SNAPSHOT_HOUR}:00 ${SNAPSHOT_TIME_ZONE})`);
+      console.log(`[Scheduled Jobs] Running monthly Sleeper startup ADP snapshot at ${now.toISOString()} (${dateKey} ${STARTUP_ADP_SNAPSHOT_HOUR}:00 ${PACIFIC_TIME_ZONE})`);
       refreshSleeperStartupAdpSnapshots({ season: rosterRoomSeason }).catch((error) => {
         console.error('[Scheduled Jobs] Error running Sleeper startup ADP snapshot:', error);
       });
@@ -96,7 +81,7 @@ export function initializeScheduledJobs() {
       && lastDynamicRefreshRunKey !== dateKey
     ) {
       lastDynamicRefreshRunKey = dateKey;
-      console.log(`[Scheduled Jobs] Running dynamic data refresh at ${now.toISOString()} (${dateKey} ${DYNAMIC_REFRESH_HOUR}:${String(DYNAMIC_REFRESH_MINUTE).padStart(2, '0')} ${SNAPSHOT_TIME_ZONE})`);
+      console.log(`[Scheduled Jobs] Running dynamic data refresh at ${now.toISOString()} (${dateKey} ${DYNAMIC_REFRESH_HOUR}:${String(DYNAMIC_REFRESH_MINUTE).padStart(2, '0')} ${PACIFIC_TIME_ZONE})`);
       runDynamicDataRefresh().catch((error) => {
         console.error('[Scheduled Jobs] Error running dynamic data refresh:', error);
       });
@@ -104,12 +89,11 @@ export function initializeScheduledJobs() {
 
     const newsRefreshRunKey = `${dateKey}-${hour}-${minute}`;
     if (
-      NEWS_REFRESH_HOURS.includes(hour)
-      && minute === NEWS_REFRESH_MINUTE
+      isLocalPlayerNewsRefreshTick(now)
       && lastNewsRefreshRunKey !== newsRefreshRunKey
     ) {
       lastNewsRefreshRunKey = newsRefreshRunKey;
-      console.log(`[Scheduled Jobs] Running player news refresh at ${now.toISOString()} (${dateKey} ${String(hour).padStart(2, '0')}:${String(NEWS_REFRESH_MINUTE).padStart(2, '0')} ${SNAPSHOT_TIME_ZONE})`);
+      console.log(`[Scheduled Jobs] Running player news refresh at ${now.toISOString()} (${dateKey} ${String(hour).padStart(2, '0')}:${String(PLAYER_NEWS_REFRESH_MINUTE).padStart(2, '0')} ${PACIFIC_TIME_ZONE})`);
       refreshPlayerNewsSnapshots().catch((error) => {
         console.error('[Scheduled Jobs] Error running player news refresh:', error);
       });
@@ -122,7 +106,7 @@ export function initializeScheduledJobs() {
     ) {
       lastFantasyProsEndpointSnapshotRunKey = fantasyProsEndpointSnapshotRunKey;
       const scheduleParts = getPacificScheduleParts(now);
-      console.log(`[Scheduled Jobs] Running FantasyPros endpoint snapshots at ${now.toISOString()} (${scheduleParts.dateKey} ${String(scheduleParts.hour).padStart(2, '0')}:00 ${SNAPSHOT_TIME_ZONE})`);
+      console.log(`[Scheduled Jobs] Running FantasyPros endpoint snapshots at ${now.toISOString()} (${scheduleParts.dateKey} ${String(scheduleParts.hour).padStart(2, '0')}:00 ${PACIFIC_TIME_ZONE})`);
       refreshFantasyProsEndpointSnapshotRefresh().catch((error) => {
         console.error('[Scheduled Jobs] Error running FantasyPros endpoint snapshots:', error);
       });
@@ -132,5 +116,5 @@ export function initializeScheduledJobs() {
   // Check every minute if we should run the snapshot
   setInterval(checkAndRunKtcSnapshot, 60000);
   
-  console.log(`[Scheduled Jobs] Initialized - KTC snapshots run daily at ${SNAPSHOT_HOURS.join(':00 and ')}:00, prospect snapshots run monthly at ${PROSPECT_SNAPSHOT_HOUR}:00, Sleeper startup ADP snapshots run monthly at ${STARTUP_ADP_SNAPSHOT_HOUR}:00, dynamic data refresh runs daily at ${DYNAMIC_REFRESH_HOUR}:${String(DYNAMIC_REFRESH_MINUTE).padStart(2, '0')}, player news refresh runs daily at ${NEWS_REFRESH_HOURS.map((hour) => `${hour}:${String(NEWS_REFRESH_MINUTE).padStart(2, '0')}`).join(', ')}, and FantasyPros endpoint snapshots run ${getFantasyProsEndpointSnapshotScheduleLabel()}`);
+  console.log(`[Scheduled Jobs] Initialized - KTC snapshots run daily at ${LEAGUE_REPORT_SNAPSHOT_HOURS.join(':00 and ')}:00, prospect snapshots run monthly at ${PROSPECT_SNAPSHOT_HOUR}:00, Sleeper startup ADP snapshots run monthly at ${STARTUP_ADP_SNAPSHOT_HOUR}:00, dynamic data refresh runs daily at ${DYNAMIC_REFRESH_HOUR}:${String(DYNAMIC_REFRESH_MINUTE).padStart(2, '0')}, player news refresh runs daily at ${PLAYER_NEWS_REFRESH_HOURS.map((hour) => `${hour}:${String(PLAYER_NEWS_REFRESH_MINUTE).padStart(2, '0')}`).join(', ')}, and FantasyPros endpoint snapshots run ${getFantasyProsEndpointSnapshotScheduleLabel()}`);
 }
