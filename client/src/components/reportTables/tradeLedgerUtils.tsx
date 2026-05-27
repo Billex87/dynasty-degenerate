@@ -14,14 +14,18 @@ import {
 import {
   buildPlayerModalData,
   CommandMiniBadge,
+  didManagerMakeLandedPick,
+  findLandedPick,
   formatCompactValue,
   formatOutcomeDeltaLabel,
   formatOutcomeDate,
+  formatPickRound,
   getOutcomeAssetStatus,
   getOutcomePlayerSeasonValue,
   getTradeGapVerdict as getSharedTradeGapVerdict,
   getTradeLensNumber,
   normalizeManagerKey,
+  parseTradePickItem,
   parseTradeOutcomeDate,
   PositionRankPill,
   renderManagerName,
@@ -38,7 +42,12 @@ import {
   type ManagerAvatars,
   type PlayerDetailsById,
 } from "./shared";
-export { renderManagerName } from "./shared";
+export {
+  didManagerMakeLandedPick,
+  findLandedPick,
+  parseTradePickItem,
+  renderManagerName,
+} from "./shared";
 
 type CurrentPositionRankById = ReportData["currentPositionRankById"];
 type LeagueOverviewRows = ReportData["leagueOverview"];
@@ -1572,172 +1581,6 @@ export function parseValueAdjustmentItem(trimmed: string) {
     trimmed.replace("VALUE_ADJUSTMENT:", "").replace("+", "")
   );
   return Number.isFinite(value) ? value : null;
-}
-
-type TradePickFlipOutcome = {
-  date: string | null;
-  fromRosterId: number | null;
-  toRosterId: number | null;
-  assets: string[];
-};
-
-function parseTradePickFlipOutcome(
-  rawValue: string | undefined
-): TradePickFlipOutcome | null {
-  if (!rawValue?.startsWith("FLIP:")) return null;
-
-  try {
-    const parsed = JSON.parse(
-      decodeURIComponent(rawValue.replace(/^FLIP:/, ""))
-    );
-    const assets = Array.isArray(parsed?.assets)
-      ? parsed.assets.filter(
-          (asset: unknown): asset is string =>
-            typeof asset === "string" && asset.trim().length > 0
-        )
-      : [];
-    if (!assets.length) return null;
-
-    const fromRosterId = Number(parsed?.fromRosterId);
-    const toRosterId = Number(parsed?.toRosterId);
-    return {
-      date: typeof parsed?.date === "string" ? parsed.date : null,
-      fromRosterId: Number.isFinite(fromRosterId) ? fromRosterId : null,
-      toRosterId: Number.isFinite(toRosterId) ? toRosterId : null,
-      assets,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function parseTradePickItem(trimmed: string) {
-  if (!trimmed.startsWith("PICK:")) return null;
-  const payload = trimmed.replace("PICK:", "");
-  const [
-    label,
-    value,
-    metadataDraftYear,
-    metadataRound,
-    metadataOriginalRosterId,
-    metadataFinalOwnerRosterId,
-    metadataFlipOutcome,
-  ] = payload.split("|");
-  const match = label.match(
-    /^(\d{4}) (.+) (\d+)(?:st|nd|rd|th)(?: \((\d+\.\d+)\))?$/
-  );
-  const draftYear = metadataDraftYear || match?.[1] || null;
-  const round = metadataRound
-    ? Number(metadataRound)
-    : match?.[3]
-      ? Number(match[3])
-      : null;
-  const originalRosterId = metadataOriginalRosterId
-    ? Number(metadataOriginalRosterId)
-    : null;
-  const finalOwnerRosterId = metadataFinalOwnerRosterId
-    ? Number(metadataFinalOwnerRosterId)
-    : null;
-  const pickNumber = match?.[4] ?? null;
-
-  return {
-    label,
-    displayLabel:
-      draftYear && round
-        ? `${draftYear} ${formatPickRound(round)}${pickNumber ? ` (${pickNumber})` : ""}`
-        : label,
-    value: value ? Number(value) : null,
-    draftYear,
-    originalOwner: match?.[2] ?? null,
-    originalRosterId: Number.isFinite(originalRosterId)
-      ? originalRosterId
-      : null,
-    finalOwnerRosterId: Number.isFinite(finalOwnerRosterId)
-      ? finalOwnerRosterId
-      : null,
-    flipOutcome: parseTradePickFlipOutcome(metadataFlipOutcome),
-    round,
-    pickNumber,
-  };
-}
-
-function formatPickRound(round: number): string {
-  if (round === 1) return "1st";
-  if (round === 2) return "2nd";
-  if (round === 3) return "3rd";
-  return `${round}th`;
-}
-
-export function findLandedPick(
-  parsedPick: ReturnType<typeof parseTradePickItem>,
-  draftPicks: DraftPick[]
-) {
-  if (!parsedPick?.draftYear || !parsedPick.round) {
-    return null;
-  }
-
-  const byOriginalRosterId = parsedPick.originalRosterId
-    ? draftPicks.find(
-        pick =>
-          pick.draftYear === parsedPick.draftYear &&
-          pick.round === parsedPick.round &&
-          pick.originalRosterId === parsedPick.originalRosterId
-      )
-    : null;
-  const byFinalOwnerRosterId = parsedPick.finalOwnerRosterId
-    ? draftPicks.filter(
-        pick =>
-          pick.draftYear === parsedPick.draftYear &&
-          pick.round === parsedPick.round &&
-          pick.managerRosterId === parsedPick.finalOwnerRosterId
-      )
-    : [];
-  if (byFinalOwnerRosterId.length === 1) return byFinalOwnerRosterId[0];
-
-  const parsedDraftSlot = parsedPick.pickNumber
-    ? Number(parsedPick.pickNumber.split(".")[1])
-    : null;
-  const byFinalOwnerAndSlot = byFinalOwnerRosterId.find(
-    pick =>
-      Number.isFinite(parsedDraftSlot) && pick.draftSlot === parsedDraftSlot
-  );
-  if (byFinalOwnerAndSlot) return byFinalOwnerAndSlot;
-  if (byOriginalRosterId) return byOriginalRosterId;
-  if (!parsedPick.originalOwner) return null;
-
-  const parsedOwner = normalizeManagerKey(parsedPick.originalOwner);
-
-  const candidates = draftPicks.filter(pick => {
-    const baseMatch =
-      pick.draftYear === parsedPick.draftYear &&
-      pick.round === parsedPick.round &&
-      normalizeManagerKey(pick.originalOwner) === parsedOwner;
-
-    if (!baseMatch) return false;
-    if (!Number.isFinite(parsedDraftSlot)) return true;
-    return pick.draftSlot === parsedDraftSlot;
-  });
-
-  if (candidates[0]) return candidates[0];
-
-  const ownerRoundCandidates = draftPicks.filter(
-    pick =>
-      pick.draftYear === parsedPick.draftYear &&
-      pick.round === parsedPick.round &&
-      normalizeManagerKey(pick.originalOwner) === parsedOwner
-  );
-
-  return ownerRoundCandidates.length === 1 ? ownerRoundCandidates[0] : null;
-}
-
-export function didManagerMakeLandedPick(
-  manager: string | undefined,
-  landedPick: DraftPick | null | undefined
-): boolean {
-  if (!manager || !landedPick?.manager) return false;
-  return (
-    normalizeManagerKey(manager) === normalizeManagerKey(landedPick.manager)
-  );
 }
 
 export function renderTradeItem(
