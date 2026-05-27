@@ -31,13 +31,14 @@ are active in another thread.
   - `pnpm audit:source-freshness`
 - Source freshness summary tests:
   - `server/sourceFreshnessSummary.test.ts`
+- Source coverage matrix output-shape tests:
+  - `server/sourceCoverageMatrix.test.ts`
 - User-load provider boundary tests:
   - `server/loadTimeProviderPolicy.test.ts`
   - `server/userLoadProviderBoundary.test.ts`
 
 ## Safe Work Still Available
 
-- Add tests for source coverage matrix output shape.
 - Add more provider-specific source freshness fixtures as new sources are added.
 
 ## Validation Commands
@@ -46,6 +47,7 @@ are active in another thread.
 pnpm test server/playerNews.test.ts server/sportsDataNews.test.ts
 pnpm test server/playerTrajectory.test.ts
 pnpm test server/sourceFreshnessSummary.test.ts server/sourceSnapshotFreshness.test.ts
+pnpm test server/sourceCoverageMatrix.test.ts
 pnpm test server/loadTimeProviderPolicy.test.ts server/userLoadProviderBoundary.test.ts
 pnpm run check
 pnpm audit:league-report-cache
