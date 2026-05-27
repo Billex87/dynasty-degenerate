@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { ChampionAvatarFrame, ManagerChampionshipPills } from "../ManagerChampionships";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
-import { EmptyState } from "../reportPrimitives";
 import { getBalancedGridStyle } from "@/lib/balancedGrid";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
 import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
@@ -18,6 +17,7 @@ import { viewerOwnedHighlightClass } from "@/lib/viewerHighlight";
 import {
   OwnerMetricPill,
   OwnerSummaryTile,
+  TradeEmptyState,
   renderManagerName,
   type ManagerAvatars,
   type PlayerDetailsById,
@@ -154,8 +154,7 @@ export default function TradeProfitLeaderboardTable({
 
   if (!orderedRows.length) {
     return (
-      <EmptyState
-        className="trade-empty-state"
+      <TradeEmptyState
         title="No completed trades found"
         description={
           normalizeLeagueValueMode(leagueValueMode) === "redraft"

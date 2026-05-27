@@ -10,7 +10,7 @@ import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
 import { ChampionAvatarFrame } from "../ManagerChampionships";
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import type { PlayerModalData } from "../PlayerDetailModal";
-import { MetricPill } from "../reportPrimitives";
+import { EmptyState, MetricPill } from "../reportPrimitives";
 import {
   getPlayerAvailability,
   getPlayerAvailabilityClass,
@@ -81,6 +81,22 @@ export function WaiverRankPill({
       <em>{label}</em>
       {rank}
     </span>
+  );
+}
+
+export function TradeEmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <EmptyState
+      className="trade-empty-state"
+      title={title}
+      description={description}
+    />
   );
 }
 

@@ -11,9 +11,9 @@ import {
 } from "@/components/ui/table";
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
-import { EmptyState } from "../reportPrimitives";
 import {
   CommandMiniBadge,
+  TradeEmptyState,
   TradeProposalAssetGroup,
   TradeProposalEmpty,
   TradeProposalMorePill,
@@ -40,8 +40,7 @@ export function SleeperWaiverClaimsTable({
 
   if (!orderedSignals.length) {
     return (
-      <EmptyState
-        className="trade-empty-state"
+      <TradeEmptyState
         title="No hidden waiver claims found"
         description="Sleeper did not return any pending, rejected, cancelled, or failed waiver transactions for this league."
       />

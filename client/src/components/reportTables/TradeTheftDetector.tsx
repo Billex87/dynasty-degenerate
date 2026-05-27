@@ -8,9 +8,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
-import { EmptyState } from "../reportPrimitives";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
-import { type ManagerAvatars, type PlayerDetailsById } from "./shared";
+import {
+  TradeEmptyState,
+  type ManagerAvatars,
+  type PlayerDetailsById,
+} from "./shared";
 import {
   TradeDetailPanel,
   buildTradeLedgerEvaluation,
@@ -63,8 +66,7 @@ export default function TradeTheftDetector({
   );
   if (!data.length) {
     return (
-      <EmptyState
-        className="trade-empty-state"
+      <TradeEmptyState
         title="No completed trades found"
         description={
           normalizeLeagueValueMode(leagueValueMode) === "redraft"

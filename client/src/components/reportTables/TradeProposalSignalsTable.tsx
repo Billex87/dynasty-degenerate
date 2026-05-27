@@ -11,9 +11,9 @@ import {
 } from "@/components/ui/table";
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
-import { EmptyState } from "../reportPrimitives";
 import {
   CommandMiniBadge,
+  TradeEmptyState,
   TradeProposalAssetGroup,
   TradeProposalEmpty,
   TradeProposalMorePill,
@@ -39,8 +39,7 @@ export function TradeProposalSignalsTable({
 
   if (!orderedSignals.length) {
     return (
-      <EmptyState
-        className="trade-empty-state"
+      <TradeEmptyState
         title="No non-complete trades found"
         description="Sleeper did not return any pending, declined, rejected, or cancelled trade transactions for this league."
       />
