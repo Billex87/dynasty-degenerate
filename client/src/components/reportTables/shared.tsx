@@ -148,7 +148,9 @@ export function normalizeManagerKey(value: string | null | undefined): string {
 export function PositionRankPill({ rank }: { rank?: string | null }) {
   const displayRank = rank || "-";
   return (
-    <span className={getPositionRankPillClass(displayRank)}>{displayRank}</span>
+    <span className={`${getPositionRankPillClass(displayRank)} report-inline-pill`}>
+      {displayRank}
+    </span>
   );
 }
 
@@ -164,7 +166,7 @@ export function WaiverRankPill({
   if (!rank) return null;
   return (
     <span
-      className={`waiver-intel-rank-pill ${className} ${getPositionRankClass(rank)}`}
+      className={`waiver-intel-rank-pill report-inline-pill ${className} ${getPositionRankClass(rank)}`}
     >
       <em>{label}</em>
       {rank}
@@ -196,7 +198,9 @@ export function TradeHabitPill({
   className?: string;
 }) {
   return (
-    <span className={`trade-habit-pill ${className}`.trim()}>{children}</span>
+    <span className={`trade-habit-pill report-inline-pill ${className}`.trim()}>
+      {children}
+    </span>
   );
 }
 
@@ -210,7 +214,7 @@ export function TradeValuePill({
   title?: string;
 }) {
   return (
-    <span className={`value-pill ${className}`.trim()} title={title}>
+    <span className={`value-pill report-inline-pill ${className}`.trim()} title={title}>
       {children}
     </span>
   );
@@ -1077,7 +1081,7 @@ export function CommandMiniBadge({
   const Component = as;
   return (
     <Component
-      className={`command-mini-badge command-mini-badge-${tone || "neutral"} ${className}`.trim()}
+      className={`command-mini-badge report-inline-pill command-mini-badge-${tone || "neutral"} ${className}`.trim()}
       title={title}
     >
       {children}
