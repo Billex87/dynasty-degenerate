@@ -118,14 +118,6 @@ type CountPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 
 const COUNT_POSITIONS: CountPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
 
-function stableTradeSeed(value: string): number {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
-}
-
 function normalizeReportManagerName(manager?: string | null): string {
   return manager?.trim().toLowerCase() || "";
 }
@@ -370,15 +362,6 @@ function getTradeGapVerdict(gap: number) {
   return { label: "Eternal Shame", className: "trade-gap-verdict-nuclear" };
 }
 
-function getManagerTradeSwing(
-  trade: ReportData["tradeHistory"][number],
-  manager: string
-) {
-  if (trade.team_a === manager) return trade.team_a_total - trade.team_b_total;
-  if (trade.team_b === manager) return trade.team_b_total - trade.team_a_total;
-  return 0;
-}
-
 function getManagerTradeEvaluationSwing(
   evaluation: TradeLedgerEvaluation,
   manager: string
@@ -397,22 +380,6 @@ function getManagerTradeEvaluationResult(
   if (evaluation.winners.length > 1 && evaluation.winners.includes(manager))
     return "Even Win";
   return evaluation.winners.includes(manager) ? "Win" : "Loss";
-}
-
-function getTradeOpponent(
-  trade: ReportData["tradeHistory"][number],
-  manager: string
-) {
-  return trade.team_a === manager ? trade.team_b : trade.team_a;
-}
-
-function getManagerTradeResult(
-  trade: ReportData["tradeHistory"][number],
-  manager: string
-) {
-  const winners = trade.winners?.length ? trade.winners : [trade.winner];
-  if (winners.length > 1 && winners.includes(manager)) return "Even Win";
-  return winners.includes(manager) ? "Win" : "Loss";
 }
 
 const TRADE_LEDGER_MUTUAL_WIN_GAP = 250;
