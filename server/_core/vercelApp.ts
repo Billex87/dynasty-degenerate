@@ -7,7 +7,7 @@ import { apiErrorHandler, apiNotFoundHandler, configureSecurity } from './securi
 import { storeKtcSnapshot } from '../ktcSnapshotJob';
 import { getSnapshotDateKey } from '../ktcLoader';
 import { getProspectSnapshotMonth, shouldRunMonthlyProspectSnapshot, storeNflDraftBuzzProspectSnapshot } from '../prospectSource';
-import { refreshFantasyProsEndpointSnapshotRefresh, runDynamicDataRefresh } from '../dynamicDataJobs';
+import { refreshFantasyProsEndpointSnapshotRefresh, refreshPlayerNewsSnapshots, runDynamicDataRefresh } from '../dynamicDataJobs';
 import {
   getFantasyProsEndpointSnapshotScheduleLabel,
   getPacificScheduleParts,
@@ -16,7 +16,7 @@ import {
 
 const app = express();
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
-const SNAPSHOT_HOURS = [6, 12, 18] as const;
+const SNAPSHOT_HOURS = [8, 16] as const;
 
 function parseLeagueIds(value: string | undefined): string[] {
   return Array.from(
@@ -245,6 +245,22 @@ app.get('/api/cron/dynamic-data-refresh', async (req, res) => {
   } catch (error) {
     console.error('[Cron] Dynamic data refresh failed', error);
     res.status(500).json({ ok: false, error: 'Dynamic data refresh failed' });
+  }
+});
+
+app.get('/api/cron/player-news-refresh', async (req, res) => {
+  const auth = isCronAuthorized(req);
+  if (!auth.ok) {
+    res.status(auth.status).json({ ok: false, error: auth.error });
+    return;
+  }
+
+  try {
+    const result = await refreshPlayerNewsSnapshots();
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('[Cron] Player news refresh failed', error);
+    res.status(500).json({ ok: false, error: 'Player news refresh failed' });
   }
 });
 

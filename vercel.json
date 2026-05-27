@@ -59,19 +59,27 @@
   "crons": [
     {
       "path": "/api/cron/ktc-snapshot",
-      "schedule": "0 13 * * *"
+      "schedule": "0 15 * * *"
     },
     {
       "path": "/api/cron/ktc-snapshot",
-      "schedule": "0 19 * * *"
+      "schedule": "0 16 * * *"
     },
     {
       "path": "/api/cron/ktc-snapshot",
-      "schedule": "0 1 * * *"
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/ktc-snapshot",
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/league-report-cache",
-      "schedule": "20 13 * * *"
+      "schedule": "20 15 * * *"
+    },
+    {
+      "path": "/api/cron/league-report-cache",
+      "schedule": "20 16 * * *"
     },
     {
       "path": "/api/cron/prospect-snapshot",
@@ -84,6 +92,10 @@
     {
       "path": "/api/cron/dynamic-data-refresh",
       "schedule": "40 1 * * *"
+    },
+    {
+      "path": "/api/cron/player-news-refresh",
+      "schedule": "10 16 * * *"
     },
     {
       "path": "/api/cron/fantasypros-endpoint-snapshots",

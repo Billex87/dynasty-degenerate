@@ -543,6 +543,23 @@ export async function refreshReportEnrichmentSnapshots(options: {
   };
 }
 
+export async function refreshPlayerNewsSnapshots() {
+  const startedAt = Date.now();
+  const playerNews = await loadPlayerNewsBundle({
+    persistSnapshot: true,
+    forceRefresh: true,
+  });
+
+  return {
+    ok: true,
+    durationMs: Date.now() - startedAt,
+    generatedAt: new Date().toISOString(),
+    playerNewsCount: playerNews.sourceCounts.total,
+    fantasyProsNewsCount: playerNews.sourceCounts.fantasyPros,
+    sportsDataIoNewsCount: playerNews.sourceCounts.sportsDataIo,
+  };
+}
+
 export async function runDynamicDataRefresh(options: {
   backfillLimit?: number;
 } = {}) {

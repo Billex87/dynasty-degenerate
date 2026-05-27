@@ -1,0 +1,319 @@
+import { describe, expect, it } from 'vitest';
+import { buildPlayerTrajectorySignal, buildPlayerTrajectorySignals } from './playerTrajectory';
+import type { PlayerDetails } from '../shared/types';
+
+function player(input: Partial<PlayerDetails> & { fullName: string; position: string }): PlayerDetails {
+  return input as PlayerDetails;
+}
+
+function valueTimeline(deltaPct: number, delta = 300): NonNullable<PlayerDetails['valueTimeline']> {
+  return {
+    profileKey: '12_sf_ppr_base',
+    source: 'historical-value-index',
+    allTimePointCount: 220,
+    points: [],
+    extremes: {
+      high: {
+        date: '2026-05-01',
+        value: 5200,
+        sources: ['KTC', 'FantasyCalc'],
+        sourceCount: 2,
+      },
+      low: null,
+    },
+    summary: {
+      startValue: 4000,
+      endValue: 4000 + delta,
+      delta,
+      deltaPct,
+      sourceSetChanged: false,
+      eventCount: 1,
+      note: `Stored value moved ${deltaPct}%.`,
+    },
+  };
+}
+
+function cohort(overrides: Partial<NonNullable<PlayerDetails['playerCohort']>> = {}): NonNullable<PlayerDetails['playerCohort']> {
+  return {
+    playerId: 'p1',
+    name: 'Test Player',
+    position: 'WR',
+    age: 23,
+    value: 4300,
+    lastSeasonPointsPerGame: 12,
+    agePhase: 'early',
+    productionScore: 64,
+    marketScore: 50,
+    marketProductionDelta: -14,
+    outcomeBucket: 'breakout',
+    confidence: 78,
+    calibration: {
+      evidenceGrade: 'strong',
+      evidenceScore: 86,
+      confidenceCap: 88,
+      strongReadEligible: true,
+      missingSignals: [],
+      cautionFlags: [],
+      note: 'Strong cohort read.',
+    },
+    draftCapital: {
+      round: 1,
+      pick: 18,
+      tier: 'premium',
+      label: 'Round 1, pick 18',
+      opportunityWindow: 'protected-runway',
+      patienceScore: 92,
+      note: 'Premium draft capital supports patience.',
+    },
+    peers: [],
+    trace: [],
+    ...overrides,
+  };
+}
+
+function situation(overrides: Partial<NonNullable<PlayerDetails['playerSituationDelta']>> = {}): NonNullable<PlayerDetails['playerSituationDelta']> {
+  return {
+    playerId: 'p1',
+    name: 'Test Player',
+    position: 'WR',
+    score: 78,
+    confidence: 80,
+    primaryLabel: 'role-boost',
+    labels: ['role-boost', 'vacated-opportunity'],
+    action: 'buy',
+    summary: 'Test Player has a role boost from vacated opportunity.',
+    trace: [],
+    missingSignals: [],
+    cautionFlags: [],
+    components: [],
+    freshness: {
+      grade: 'fresh',
+      score: 88,
+      signals: ['usage 2025', 'roster room 2026'],
+      note: 'Fresh situation context.',
+    },
+    dynamicSignals: [],
+    ...overrides,
+  };
+}
+
+describe('player trajectory signals', () => {
+  it('flags players with improving role evidence before the market catches up', () => {
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Ascending Receiver',
+      position: 'WR',
+      age: 23,
+      valueProfile: {
+        dynastyValue: 4300,
+        marketKtc: 4200,
+        fantasyCalcDynasty: 4400,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+      valueTimeline: valueTimeline(4, 170),
+      usageTrend: {
+        season: '2025',
+        team: 'SEA',
+        games: 17,
+        targets: 110,
+        carries: 2,
+        receptions: 75,
+        fantasyPointsPpr: 240,
+        fantasyPointsPprPerGame: 14.1,
+        avgTargetShare: 0.24,
+        avgOffenseSnapPct: 0.82,
+        recentTargets: 34,
+        recentCarries: 1,
+        rollingWindows: [{
+          games: 3,
+          weeks: [15, 16, 17],
+          targetsPerGame: 9.5,
+          carriesPerGame: 0.3,
+          receptionsPerGame: 6,
+          fantasyPointsPprPerGame: 17,
+          targetDeltaPerGame: 2.2,
+          carryDeltaPerGame: 0,
+          note: 'Recent target volume jumped.',
+        }],
+        targetTrend: 'up',
+        carryTrend: 'flat',
+        note: 'Usage trend from 17 games; targets climbed late.',
+      },
+      rosterRoom: {
+        opportunityDelta: {
+          netOpportunityScore: 72,
+          incumbentPromotionScore: 28,
+          qualitySignal: 'major-opening',
+          note: 'Major target volume opened in the room.',
+        },
+      } as PlayerDetails['rosterRoom'],
+      playerCohort: cohort(),
+      playerSituationDelta: situation(),
+    }), 'wr1');
+
+    expect(signal).toMatchObject({
+      label: 'rising-role',
+      action: 'buy',
+      confidenceGrade: 'strong',
+      readout: {
+        decision: 'Do this',
+        headline: 'Rising Role: Ascending Receiver',
+      },
+    });
+    expect(signal?.evidence.join(' ')).toContain('Usage trend');
+    expect(signal?.readout.whyThisFired.join(' ')).toContain('Usage trend');
+    expect(signal?.readout.whatChangesThis.join(' ')).toContain('Role signal flips');
+    expect(signal?.trace.join(' ')).toContain('All first-pass trajectory inputs are present');
+  });
+
+  it('flags market traps when price rises into declining role evidence', () => {
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Priced Up Veteran',
+      position: 'WR',
+      age: 28,
+      valueProfile: {
+        dynastyValue: 5600,
+        marketKtc: 5700,
+        fantasyCalcDynasty: 5500,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+      valueTimeline: valueTimeline(28, 1200),
+      usageTrend: {
+        season: '2025',
+        games: 16,
+        targets: 102,
+        carries: 0,
+        receptions: 65,
+        fantasyPointsPpr: 205,
+        fantasyPointsPprPerGame: 12.8,
+        avgTargetShare: 0.2,
+        avgOffenseSnapPct: 0.71,
+        recentTargets: 12,
+        recentCarries: 0,
+        rollingWindows: [{
+          games: 3,
+          weeks: [15, 16, 17],
+          targetsPerGame: 4,
+          carriesPerGame: 0,
+          receptionsPerGame: 2.7,
+          fantasyPointsPprPerGame: 8,
+          targetDeltaPerGame: -2.1,
+          carryDeltaPerGame: 0,
+          note: 'Recent target volume dipped.',
+        }],
+        targetTrend: 'down',
+        carryTrend: 'flat',
+        note: 'Targets slipped in the recent window.',
+      },
+      rosterRoom: {
+        opportunityDelta: {
+          netOpportunityScore: -62,
+          incumbentPromotionScore: 0,
+          qualitySignal: 'major-squeeze',
+          note: 'Premium competition squeezed the room.',
+        },
+      } as PlayerDetails['rosterRoom'],
+      playerCohort: cohort({
+        outcomeBucket: 'market-over-production',
+        confidence: 74,
+      }),
+      playerSituationDelta: situation({
+        score: 36,
+        confidence: 72,
+        primaryLabel: 'role-threat',
+        labels: ['role-threat', 'crowded-room'],
+        action: 'monitor',
+        summary: 'Role threat from premium competition.',
+      }),
+    }), 'wr2');
+
+    expect(signal).toMatchObject({
+      label: 'market-trap',
+      action: 'avoid',
+      tone: 'danger',
+      readout: {
+        decision: 'Do not do this',
+        status: expect.stringMatching(/^Risk/),
+      },
+    });
+    expect(signal?.scoreBreakdown.marketMomentum).toBeGreaterThanOrEqual(80);
+    expect(signal?.readout.detail).toContain('headline market price');
+  });
+
+  it('flags peak risk for older players with weak situation or injury evidence', () => {
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Aging Runner',
+      position: 'RB',
+      age: 29,
+      valueProfile: {
+        dynastyValue: 4100,
+        marketKtc: 4000,
+        fantasyCalcDynasty: 4200,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+      valueTimeline: valueTimeline(0, 0),
+      usageTrend: {
+        season: '2025',
+        games: 13,
+        targets: 30,
+        carries: 185,
+        receptions: 22,
+        fantasyPointsPpr: 185,
+        fantasyPointsPprPerGame: 14.2,
+        avgTargetShare: 0.08,
+        avgOffenseSnapPct: 0.55,
+        recentTargets: 4,
+        recentCarries: 28,
+        targetTrend: 'down',
+        carryTrend: 'down',
+        note: 'Usage declined late.',
+      },
+      playerCohort: cohort({
+        position: 'RB',
+        outcomeBucket: 'injury-risk',
+        confidence: 70,
+      }),
+      playerSituationDelta: situation({
+        position: 'RB',
+        score: 42,
+        confidence: 64,
+        primaryLabel: 'opportunity-cliff',
+        labels: ['opportunity-cliff'],
+        action: 'sell',
+        summary: 'Aging back profile has opportunity cliff risk.',
+      }),
+    }), 'rb1');
+
+    expect(signal).toMatchObject({
+      label: 'peak-risk',
+      action: 'sell',
+      tone: 'warn',
+    });
+    expect(signal?.evidence.join(' ')).toContain('Age curve');
+  });
+
+  it('keeps thin profiles source-limited instead of inventing a strong read', () => {
+    const signals = buildPlayerTrajectorySignals({
+      playerDetailsById: {
+        te1: player({
+          fullName: 'Thin Tight End',
+          position: 'TE',
+          valueProfile: {
+            dynastyValue: 900,
+          },
+        }),
+      },
+    });
+
+    expect(signals.te1).toMatchObject({
+      label: 'source-limited',
+      confidenceGrade: 'blocked',
+      readout: {
+        decision: 'Insufficient evidence',
+      },
+    });
+    expect(signals.te1.confidence).toBeLessThanOrEqual(44);
+    expect(signals.te1.missingSignals).toContain('stored value timeline');
+    expect(signals.te1.missingSignals).toContain('cohort profile');
+    expect(signals.te1.readout.whatChangesThis.join(' ')).toContain('stored value timeline');
+  });
+});

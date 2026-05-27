@@ -277,7 +277,7 @@ export function PlayerDetailModal({
     },
     { enabled: !!pick?.player_id && isOpen && !isDefenseModalPick && directImageFailed }
   );
-  const { data: playerNewsData } = trpc.players.latestNews.useQuery(
+  const { data: playerNewsData, isFetching: isPlayerNewsFetching } = trpc.players.latestNews.useQuery(
     {
       playerId: pick?.player_id || '',
       playerName: pick?.playerName || '',
@@ -532,6 +532,8 @@ export function PlayerDetailModal({
   const latestNews = playerNewsData?.latestNews ?? details?.latestNews ?? null;
   const hasMeaningfulNews = Boolean(latestNews?.title || latestNews?.summary);
   const latestNewsHref = latestNews?.url || latestNews?.sourceUrl || null;
+  const shouldShowNewsPanel = !isCollegeProspect && !isDefenseModalPick;
+  const sleeperNewsDate = formatSleeperNewsUpdated(details?.sleeperNewsUpdated);
   const rawProspectSummary = details?.prospectProfile?.summary?.trim() || null;
   const prospectSummary = rawProspectSummary && !/\.\.\.$/.test(rawProspectSummary) ? rawProspectSummary : null;
   const playerAiReadEligible = isPlayerAiReadEligible({ position, currentRank, valueProfile });
@@ -1297,11 +1299,11 @@ export function PlayerDetailModal({
 
             {((isAdminView && (sourceValueRows.length > 0 || fantasyProsSourceTrace.length > 0))
               || Boolean(prospectSummary)
-              || hasMeaningfulNews
+              || shouldShowNewsPanel
               || Boolean(details?.availabilityHistory?.length)) && (
               <div className="player-complete-data mx-auto max-w-xl">
                 <div className="player-complete-grid">
-                  {latestNews && hasMeaningfulNews ? (
+                  {shouldShowNewsPanel ? latestNews && hasMeaningfulNews ? (
                     latestNewsHref ? (
                       <a
                         href={latestNewsHref}
@@ -1359,6 +1361,27 @@ export function PlayerDetailModal({
                         ) : null}
                       </div>
                     )
+                  ) : (
+                    <div
+                      className="player-complete-section player-complete-section-wide border-cyan-300/15 bg-slate-950/55 p-4 text-left sm:p-5"
+                      style={{
+                        borderColor: teamColors ? `${tileAccent || teamColors.accent}22` : undefined,
+                        background: teamColors
+                          ? `linear-gradient(135deg, ${teamColors.secondary}18, rgba(2,6,23,0.7) 70%, ${teamColors.primary}20)`
+                          : undefined,
+                      }}
+                    >
+                      <h4>Player News</h4>
+                      <p className="mt-3 break-words text-base font-black leading-tight text-slate-50 sm:text-lg">
+                        {isPlayerNewsFetching ? 'Checking latest player updates' : 'No recent player update attached'}
+                      </p>
+                      <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-cyan-200/75">
+                        {sleeperNewsDate ? `Player file updated ${sleeperNewsDate}` : 'Awaiting source match'}
+                      </p>
+                      <p className="mt-3 break-words text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
+                        A news card will appear here once the latest source refresh includes a matched update for this player.
+                      </p>
+                    </div>
                   ) : null}
                   {prospectSummary ? (
                     <div

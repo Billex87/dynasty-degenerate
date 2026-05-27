@@ -6386,7 +6386,7 @@ export const appRouter = router({
         const markAnalyzeStep = createLeagueAnalyzeTimer(input.leagueId);
         const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
         const liveRefresh = Boolean(input.liveRefresh);
-        const bypassReportCache = forceRefresh || liveRefresh;
+        const bypassReportCache = forceRefresh;
         try {
           const cachedReport = await readCachedLeagueReport(reportCacheKey);
           markAnalyzeStep('cache lookup');
@@ -6400,7 +6400,9 @@ export const appRouter = router({
               leagueId: input.leagueId,
               ipAddress,
               userAgent,
-              note: "Served cached league report with live Sleeper activity",
+              note: liveRefresh
+                ? "Served cached league report with requested live Sleeper activity"
+                : "Served cached league report with live Sleeper activity",
             });
             return {
               ...(cloneReportWithViewerManager(cachedReportWithLiveActivity, input.viewerUserId) as any),

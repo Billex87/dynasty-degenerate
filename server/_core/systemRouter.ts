@@ -240,7 +240,9 @@ export const systemRouter = router({
       const since = new Date(Date.now() - input.lookbackDays * 24 * 60 * 60 * 1000);
       const attempts = await getLoginAttemptsSince(since);
       const successfulAnalyzeEvents = attempts.filter((attempt) => attempt.eventType === 'analyze_league' && attempt.status === 'success');
-      const cachedReports = successfulAnalyzeEvents.filter((attempt) => attempt.note === 'Served cached league report').length;
+      const cachedReports = successfulAnalyzeEvents.filter((attempt) =>
+        typeof attempt.note === 'string' && attempt.note.startsWith('Served cached league report')
+      ).length;
       const generatedReports = successfulAnalyzeEvents.length - cachedReports;
 
       return {
