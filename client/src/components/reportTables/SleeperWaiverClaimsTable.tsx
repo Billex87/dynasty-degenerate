@@ -14,6 +14,8 @@ import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
 import { EmptyState } from "../reportPrimitives";
 import {
   CommandMiniBadge,
+  TradeProposalAssetGroup,
+  TradeProposalEmpty,
   TradeProposalMorePill,
   type ManagerAvatars,
 } from "./shared";
@@ -117,7 +119,7 @@ export function SleeperWaiverClaimsTable({
                           )}
                         </>
                       ) : (
-                        <span className="trade-proposal-empty">Unknown</span>
+                        <TradeProposalEmpty>Unknown</TradeProposalEmpty>
                       )}
                     </div>
                   </TableCell>
@@ -129,59 +131,47 @@ export function SleeperWaiverClaimsTable({
                       }
                     >
                       {claimPlayers.length > 0 && (
-                        <div className="trade-proposal-asset-group">
-                          <span className="trade-proposal-asset-label">
-                            Claim
-                          </span>
-                          <div className="flex flex-wrap gap-2">
-                            {claimPlayers.map(player => (
-                              <PlayerNameWithHeadshot
-                                key={`${signal.id}-claim-${player.playerId || player.playerName}`}
-                                playerId={player.playerId}
-                                playerName={player.playerName}
-                              />
-                            ))}
-                            {signal.playerNames.length >
-                              claimPlayers.length && (
-                              <TradeProposalMorePill
-                                count={
-                                  signal.playerNames.length -
-                                  claimPlayers.length
-                                }
-                              />
-                            )}
-                          </div>
-                        </div>
+                        <TradeProposalAssetGroup label="Claim">
+                          {claimPlayers.map(player => (
+                            <PlayerNameWithHeadshot
+                              key={`${signal.id}-claim-${player.playerId || player.playerName}`}
+                              playerId={player.playerId}
+                              playerName={player.playerName}
+                            />
+                          ))}
+                          {signal.playerNames.length > claimPlayers.length && (
+                            <TradeProposalMorePill
+                              count={
+                                signal.playerNames.length - claimPlayers.length
+                              }
+                            />
+                          )}
+                        </TradeProposalAssetGroup>
                       )}
                       {dropPlayers.length > 0 && (
-                        <div className="trade-proposal-asset-group">
-                          <span className="trade-proposal-asset-label">
-                            Drops
-                          </span>
-                          <div className="flex flex-wrap gap-2">
-                            {dropPlayers.map(player => (
-                              <PlayerNameWithHeadshot
-                                key={`${signal.id}-drop-${player.playerId || player.playerName}`}
-                                playerId={player.playerId}
-                                playerName={player.playerName}
-                              />
-                            ))}
-                            {(signal.dropPlayerNames || []).length >
-                              dropPlayers.length && (
-                              <TradeProposalMorePill
-                                count={
-                                  (signal.dropPlayerNames || []).length -
-                                  dropPlayers.length
-                                }
-                              />
-                            )}
-                          </div>
-                        </div>
+                        <TradeProposalAssetGroup label="Drops">
+                          {dropPlayers.map(player => (
+                            <PlayerNameWithHeadshot
+                              key={`${signal.id}-drop-${player.playerId || player.playerName}`}
+                              playerId={player.playerId}
+                              playerName={player.playerName}
+                            />
+                          ))}
+                          {(signal.dropPlayerNames || []).length >
+                            dropPlayers.length && (
+                            <TradeProposalMorePill
+                              count={
+                                (signal.dropPlayerNames || []).length -
+                                dropPlayers.length
+                              }
+                            />
+                          )}
+                        </TradeProposalAssetGroup>
                       )}
                       {visibleAssets.length === 0 && (
-                        <span className="trade-proposal-empty">
+                        <TradeProposalEmpty>
                           No claim assets returned
-                        </span>
+                        </TradeProposalEmpty>
                       )}
                     </div>
                   </TableCell>

@@ -190,6 +190,25 @@ export function TradeProposalMorePill({ count }: { count: number }) {
   return <span className="trade-proposal-more-pill">+{count} more</span>;
 }
 
+export function TradeProposalEmpty({ children }: { children: ReactNode }) {
+  return <span className="trade-proposal-empty">{children}</span>;
+}
+
+export function TradeProposalAssetGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="trade-proposal-asset-group">
+      <span className="trade-proposal-asset-label">{label}</span>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
 export function OwnerSummaryTile({
   manager,
   avatarUrl,

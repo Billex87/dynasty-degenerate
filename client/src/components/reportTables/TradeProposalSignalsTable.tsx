@@ -14,6 +14,8 @@ import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
 import { EmptyState } from "../reportPrimitives";
 import {
   CommandMiniBadge,
+  TradeProposalAssetGroup,
+  TradeProposalEmpty,
   TradeProposalMorePill,
   type ManagerAvatars,
 } from "./shared";
@@ -111,7 +113,7 @@ export function TradeProposalSignalsTable({
                           )}
                         </>
                       ) : (
-                        <span className="trade-proposal-empty">Unknown</span>
+                        <TradeProposalEmpty>Unknown</TradeProposalEmpty>
                       )}
                     </div>
                   </TableCell>
@@ -121,60 +123,50 @@ export function TradeProposalSignalsTable({
                       title={assetSummary || "No asset labels returned"}
                     >
                       {visiblePlayers.length > 0 && (
-                        <div className="trade-proposal-asset-group">
-                          <span className="trade-proposal-asset-label">
-                            Players
-                          </span>
-                          <div className="flex flex-wrap gap-2">
-                            {visiblePlayers.map(player => (
-                              <PlayerNameWithHeadshot
-                                key={`${signal.id}-${player.playerId || player.playerName}`}
-                                playerId={player.playerId}
-                                playerName={player.playerName}
-                              />
-                            ))}
-                            {signal.playerNames.length >
-                              visiblePlayers.length && (
-                              <TradeProposalMorePill
-                                count={
-                                  signal.playerNames.length -
-                                  visiblePlayers.length
-                                }
-                              />
-                            )}
-                          </div>
-                        </div>
+                        <TradeProposalAssetGroup label="Players">
+                          {visiblePlayers.map(player => (
+                            <PlayerNameWithHeadshot
+                              key={`${signal.id}-${player.playerId || player.playerName}`}
+                              playerId={player.playerId}
+                              playerName={player.playerName}
+                            />
+                          ))}
+                          {signal.playerNames.length >
+                            visiblePlayers.length && (
+                            <TradeProposalMorePill
+                              count={
+                                signal.playerNames.length -
+                                visiblePlayers.length
+                              }
+                            />
+                          )}
+                        </TradeProposalAssetGroup>
                       )}
                       {visiblePickLabels.length > 0 && (
-                        <div className="trade-proposal-asset-group">
-                          <span className="trade-proposal-asset-label">
-                            Picks
-                          </span>
-                          <div className="flex flex-wrap gap-2">
-                            {visiblePickLabels.map(pickLabel => (
-                              <CommandMiniBadge
-                                key={`${signal.id}-${pickLabel}`}
-                                className="trade-proposal-pick-pill"
-                              >
-                                {pickLabel}
-                              </CommandMiniBadge>
-                            ))}
-                            {(signal.pickLabels || []).length >
-                              visiblePickLabels.length && (
-                              <TradeProposalMorePill
-                                count={
-                                  (signal.pickLabels || []).length -
-                                  visiblePickLabels.length
-                                }
-                              />
-                            )}
-                          </div>
-                        </div>
+                        <TradeProposalAssetGroup label="Picks">
+                          {visiblePickLabels.map(pickLabel => (
+                            <CommandMiniBadge
+                              key={`${signal.id}-${pickLabel}`}
+                              className="trade-proposal-pick-pill"
+                            >
+                              {pickLabel}
+                            </CommandMiniBadge>
+                          ))}
+                          {(signal.pickLabels || []).length >
+                            visiblePickLabels.length && (
+                            <TradeProposalMorePill
+                              count={
+                                (signal.pickLabels || []).length -
+                                visiblePickLabels.length
+                              }
+                            />
+                          )}
+                        </TradeProposalAssetGroup>
                       )}
                       {totalAssetCount === 0 && (
-                        <span className="trade-proposal-empty">
+                        <TradeProposalEmpty>
                           No asset labels returned
-                        </span>
+                        </TradeProposalEmpty>
                       )}
                     </div>
                   </TableCell>
