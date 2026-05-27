@@ -38,6 +38,7 @@ import {
   FIRST_FULL_BLEND_WEEK_LABEL,
   formatCompactValue,
   getAiNeuralSurfaceClass,
+  normalizeManagerKey,
   parsePositionRankValue,
   PositionRankPill,
   VALUE_BLEND_HISTORY_START_LABEL,
@@ -51,14 +52,6 @@ type OwnerIntelRow = NonNullable<ReportData["managerRosterIntelligence"]>[number
 type CountPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 const COUNT_POSITIONS: CountPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
 const AI_RECOMMENDATION_BANNER_LABEL = "AI PICKUP RECEIPTS";
-
-function normalizeManagerKey(value: string | null | undefined): string {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "")
-    .replace(/\d+$/g, "");
-}
 
 type WaiverPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 

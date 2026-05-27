@@ -16,6 +16,7 @@ import {
 import {
   buildPlayerModalData,
   formatCompactValue,
+  normalizeManagerKey,
   PositionRankPill,
   renderManagerName,
   type ManagerAvatars,
@@ -52,14 +53,6 @@ export function stableTradeSeed(value: string): number {
     hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
   }
   return Math.abs(hash);
-}
-
-function normalizeManagerKey(value: string | null | undefined): string {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "")
-    .replace(/\d+$/g, "");
 }
 
 export function renderTradeSummaryManager(

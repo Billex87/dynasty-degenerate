@@ -63,6 +63,7 @@ import {
   getPlayerStatusClass,
   getPlayerStatusLabel,
   IntelligenceMetric,
+  normalizeManagerKey,
   OwnerMetricPill,
   OwnerSummaryTile,
   parsePositionRankValue,
@@ -123,14 +124,6 @@ function stableTradeSeed(value: string): number {
     hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
   }
   return Math.abs(hash);
-}
-
-function normalizeManagerKey(value: string | null | undefined): string {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "")
-    .replace(/\d+$/g, "");
 }
 
 function normalizeReportManagerName(manager?: string | null): string {

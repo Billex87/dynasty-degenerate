@@ -49,6 +49,14 @@ export function clampPercentValue(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+export function normalizeManagerKey(value: string | null | undefined): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/\d+$/g, "");
+}
+
 export function PositionRankPill({ rank }: { rank?: string | null }) {
   const displayRank = rank || "-";
   return (
