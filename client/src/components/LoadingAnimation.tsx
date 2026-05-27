@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, CheckCircle2, Sparkles, Zap } from 'lucide-react';
 import type { LoaderManagerAnchor } from './LoaderKitBackdrop';
-import SuccessCard3D from './SuccessCard3D';
+import SuccessCard3D from '@/features/report/components/SuccessCard3D';
 
 const STEP_DATA_RANGES: Record<string, [number, number]> = {
   sleeper:  [0,       1_200],
