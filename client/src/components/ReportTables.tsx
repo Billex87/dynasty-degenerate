@@ -56,6 +56,7 @@ import { AITronSurface, type AITronTheme } from "./AITronSurface";
 import {
   buildPlayerModalData,
   clampPercentValue,
+  CommandMiniBadge,
   FeatureCard,
   formatCompactValue,
   getAiNeuralSurfaceClass,
@@ -94,6 +95,7 @@ import { getBalancedGridStyle } from "@/lib/balancedGrid";
 
 export {
   buildPlayerModalData,
+  CommandMiniBadge,
   FeatureCard,
   formatCompactValue,
   getAiNeuralSurfaceClass,
@@ -2868,12 +2870,9 @@ function renderTradeOverviewImpact({
           {impactPills.length > 0 && (
             <div className="trade-side-impact-pill-row">
               {impactPills.map(pill => (
-                <span
-                  key={pill.label}
-                  className={`command-mini-badge command-mini-badge-${pill.tone || "neutral"}`}
-                >
+                <CommandMiniBadge key={pill.label} tone={pill.tone}>
                   {pill.label}
-                </span>
+                </CommandMiniBadge>
               ))}
             </div>
           )}
@@ -6211,12 +6210,9 @@ function ManagerDepthTile({
       )}
       <span className="command-depth-badges">
         {orderedBadges.map(badge => (
-          <span
-            key={badge.label}
-            className={`command-mini-badge command-mini-badge-${badge.tone || "neutral"}`}
-          >
+          <CommandMiniBadge key={badge.label} tone={badge.tone}>
             {badge.label}
-          </span>
+          </CommandMiniBadge>
         ))}
       </span>
       {isViewerTile && (

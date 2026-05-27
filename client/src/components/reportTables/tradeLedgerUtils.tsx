@@ -15,6 +15,7 @@ import {
 } from "@/lib/tradeValueCalibration";
 import {
   buildPlayerModalData,
+  CommandMiniBadge,
   formatCompactValue,
   normalizeManagerKey,
   PositionRankPill,
@@ -1415,8 +1416,9 @@ function renderOutcomeAssetLine(asset: TradeOutcomeAsset) {
         {childText}
         {asset.valueCalibration &&
           asset.valueCalibration.outcome !== "stable-hold" && (
-            <em
-              className={`command-mini-badge command-mini-badge-${asset.valueCalibration.tone}`}
+            <CommandMiniBadge
+              as="em"
+              tone={asset.valueCalibration.tone}
               title={buildTradeValueCalibrationNote({
                 name: asset.name,
                 calibration: asset.valueCalibration,
@@ -1424,7 +1426,7 @@ function renderOutcomeAssetLine(asset: TradeOutcomeAsset) {
               })}
             >
               {asset.valueCalibration.chip}
-            </em>
+            </CommandMiniBadge>
           )}
       </span>
       <strong
@@ -1585,8 +1587,8 @@ function TradeFairnessCard({
         ) : null}
         {suggestion.valueCalibration &&
           suggestion.valueCalibration.outcome !== "stable-hold" && (
-            <span
-              className={`command-mini-badge command-mini-badge-${suggestion.valueCalibration.tone}`}
+            <CommandMiniBadge
+              tone={suggestion.valueCalibration.tone}
               title={buildTradeValueCalibrationNote({
                 name: suggestion.player?.name || "Suggested asset",
                 calibration: suggestion.valueCalibration,
@@ -1594,7 +1596,7 @@ function TradeFairnessCard({
               })}
             >
               {suggestion.valueCalibration.chip}
-            </span>
+            </CommandMiniBadge>
           )}
         {leagueValueMode === "redraft" || isPickSuggestion ? (
           <span className="trade-fairness-value">
@@ -2942,12 +2944,9 @@ function renderTradeOverviewImpact({
           {impactPills.length > 0 && (
             <div className="trade-side-impact-pill-row">
               {impactPills.map(pill => (
-                <span
-                  key={pill.label}
-                  className={`command-mini-badge command-mini-badge-${pill.tone || "neutral"}`}
-                >
+                <CommandMiniBadge key={pill.label} tone={pill.tone}>
                   {pill.label}
-                </span>
+                </CommandMiniBadge>
               ))}
             </div>
           )}

@@ -12,7 +12,7 @@ import {
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
 import { EmptyState } from "../reportPrimitives";
-import type { ManagerAvatars } from "./shared";
+import { CommandMiniBadge, type ManagerAvatars } from "./shared";
 import {
   formatTradeProposalDate,
   formatTradeProposalStatus,
@@ -88,11 +88,9 @@ export function SleeperWaiverClaimsTable({
                     {formatTradeProposalDate(signal.date)}
                   </TableCell>
                   <TableCell className="align-top">
-                    <span
-                      className={`command-mini-badge command-mini-badge-${statusTone}`}
-                    >
+                    <CommandMiniBadge tone={statusTone}>
                       {formatTradeProposalStatus(signal.status)}
-                    </span>
+                    </CommandMiniBadge>
                   </TableCell>
                   <TableCell className="align-top">
                     <div
@@ -184,11 +182,9 @@ export function SleeperWaiverClaimsTable({
                     </div>
                   </TableCell>
                   <TableCell className="align-top">
-                    <span
-                      className={`command-mini-badge command-mini-badge-${statusTone}`}
-                    >
+                    <CommandMiniBadge tone={statusTone}>
                       {bidLabel}
-                    </span>
+                    </CommandMiniBadge>
                     {signal.waiverBudget != null && (
                       <div className="mt-1 text-xs text-slate-400">
                         Budget {signal.waiverBudget.toLocaleString()} FAAB

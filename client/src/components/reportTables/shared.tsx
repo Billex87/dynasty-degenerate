@@ -162,6 +162,30 @@ export function OwnerMetricPill({
   return <MetricPill label={label} value={value} tone={tone} />;
 }
 
+export function CommandMiniBadge({
+  children,
+  tone = "neutral",
+  className = "",
+  title,
+  as = "span",
+}: {
+  children: ReactNode;
+  tone?: string | null;
+  className?: string;
+  title?: string;
+  as?: "span" | "em";
+}) {
+  const Component = as;
+  return (
+    <Component
+      className={`command-mini-badge command-mini-badge-${tone || "neutral"} ${className}`.trim()}
+      title={title}
+    >
+      {children}
+    </Component>
+  );
+}
+
 export function OwnerSummaryTile({
   manager,
   avatarUrl,

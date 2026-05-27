@@ -12,7 +12,7 @@ import {
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
 import { EmptyState } from "../reportPrimitives";
-import type { ManagerAvatars } from "./shared";
+import { CommandMiniBadge, type ManagerAvatars } from "./shared";
 import {
   formatTradeProposalDate,
   formatTradeProposalStatus,
@@ -82,11 +82,9 @@ export function TradeProposalSignalsTable({
                     {formatTradeProposalDate(signal.date)}
                   </TableCell>
                   <TableCell className="align-top">
-                    <span
-                      className={`command-mini-badge command-mini-badge-${statusTone}`}
-                    >
+                    <CommandMiniBadge tone={statusTone}>
                       {formatTradeProposalStatus(signal.status)}
-                    </span>
+                    </CommandMiniBadge>
                   </TableCell>
                   <TableCell className="align-top">
                     <div
@@ -150,12 +148,12 @@ export function TradeProposalSignalsTable({
                           </span>
                           <div className="flex flex-wrap gap-2">
                             {visiblePickLabels.map(pickLabel => (
-                              <span
+                              <CommandMiniBadge
                                 key={`${signal.id}-${pickLabel}`}
-                                className="trade-proposal-pick-pill command-mini-badge command-mini-badge-neutral"
+                                className="trade-proposal-pick-pill"
                               >
                                 {pickLabel}
-                              </span>
+                              </CommandMiniBadge>
                             ))}
                             {(signal.pickLabels || []).length >
                               visiblePickLabels.length && (
