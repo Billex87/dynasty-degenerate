@@ -77,6 +77,10 @@ import {
 } from "@/features/home/lib/portfolioRows";
 import { getLeagueFallbackInitials } from "@/features/home/lib/leagueIdentity";
 import {
+  getValidSleeperUserId,
+  normalizeViewerIdentifier,
+} from "@/features/home/lib/sleeperIdentity";
+import {
   type HomeLeagueSelectionLeague,
   type HomePortfolioRow,
 } from "@/features/home/components/HomeLeagueSelection";
@@ -298,7 +302,6 @@ const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
 const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
 const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 850;
 const REPORT_SUCCESS_KICK_MS = 900;
-const SLEEPER_ID_PATTERN = /^\d{8,24}$/;
 const SHOW_LEGACY_LEAGUE_ID_LOGIN = true;
 const SHOW_ASSISTANT_FEATURE_RADAR =
   String(
@@ -344,13 +347,6 @@ function rememberAdminPassphraseVerifiedForSession() {
   }
 }
 
-function getValidSleeperUserId(userId?: string | null) {
-  const trimmedUserId = userId?.trim();
-  return trimmedUserId && SLEEPER_ID_PATTERN.test(trimmedUserId)
-    ? trimmedUserId
-    : null;
-}
-
 function persistReportLoadTelemetry(event: ReportLoadTelemetryEvent) {
   if (typeof window === "undefined") return;
   try {
@@ -379,10 +375,6 @@ function getKtcAdminIdentity(
   fallbackUsername?: string
 ): string | null {
   return user?.username || user?.displayName || fallbackUsername || null;
-}
-
-function normalizeViewerIdentifier(value?: string | null): string {
-  return value?.trim().toLowerCase() || "";
 }
 
 type AdminAuthUser = {
