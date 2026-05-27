@@ -6,6 +6,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { lazy, Suspense } from "react";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { RouteSuspenseFallback } from "./components/layout/RouteSuspenseFallback";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 
@@ -24,12 +25,12 @@ function Router() {
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/components"}>
-        <Suspense fallback={<div className="min-h-screen bg-slate-950 text-slate-100" />}>
+        <Suspense fallback={<RouteSuspenseFallback />}>
           <ReportComponentShowcase />
         </Suspense>
       </Route>
       <Route path={"/loader-kit-preview"}>
-        <Suspense fallback={<div className="min-h-screen bg-slate-950 text-slate-100" />}>
+        <Suspense fallback={<RouteSuspenseFallback />}>
           <LoaderKitPreview />
         </Suspense>
       </Route>
