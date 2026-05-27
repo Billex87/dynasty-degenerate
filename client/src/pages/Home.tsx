@@ -86,6 +86,13 @@ import {
   normalizeViewerIdentifier,
 } from "@/features/home/lib/sleeperIdentity";
 import {
+  getFilteredAutocompleteOptions,
+  getLoadingSuccessTitleClassName,
+  MAX_AUTOCOMPLETE_HISTORY,
+  readAutocompleteHistory,
+  rememberAutocompleteValue,
+} from "@/features/home/lib/inputHelpers";
+import {
   type HomeLeagueSelectionLeague,
   type HomePortfolioRow,
 } from "@/features/home/components/HomeLeagueSelection";
@@ -300,7 +307,6 @@ const ADMIN_UNLOCK_MODAL_DISMISSED_KEY =
   "dynasty-degenerates:admin-unlock-dismissed:v1";
 const ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY =
   "dynasty-degenerates:admin-passphrase-verified-session:v1";
-const MAX_AUTOCOMPLETE_HISTORY = 12;
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
 const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
@@ -1875,56 +1881,6 @@ function cachedSleeperUserToSessionUser(
     hasAdminPermissions: user.hasAdminPermissions,
     isPrivilegedReportViewer: user.hasAdminPermissions,
   };
-}
-
-function readAutocompleteHistory(key: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const parsed = JSON.parse(localStorage.getItem(key) || "[]");
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((value): value is string => typeof value === "string")
-      .map(value => value.trim())
-      .filter(Boolean)
-      .slice(0, MAX_AUTOCOMPLETE_HISTORY);
-  } catch {
-    localStorage.removeItem(key);
-    return [];
-  }
-}
-
-function rememberAutocompleteValue(key: string, value: string): string[] {
-  const trimmed = value.trim();
-  if (!trimmed) return readAutocompleteHistory(key);
-  const current = readAutocompleteHistory(key);
-  const next = [
-    trimmed,
-    ...current.filter(item => item.toLowerCase() !== trimmed.toLowerCase()),
-  ].slice(0, MAX_AUTOCOMPLETE_HISTORY);
-  try {
-    localStorage.setItem(key, JSON.stringify(next));
-  } catch {
-    // Autocomplete history is a convenience only.
-  }
-  return next;
-}
-
-function getFilteredAutocompleteOptions(
-  history: string[],
-  value: string
-): string[] {
-  const needle = value.trim().toLowerCase();
-  return history
-    .filter(item => !needle || item.toLowerCase().includes(needle))
-    .slice(0, 6);
-}
-
-function getLoadingSuccessTitleClassName(leagueName: string): string {
-  const length = leagueName.trim().length;
-  if (length >= 34)
-    return "loading-success-title loading-success-title-compact";
-  if (length >= 20) return "loading-success-title loading-success-title-long";
-  return "loading-success-title";
 }
 
 export default function Home() {
