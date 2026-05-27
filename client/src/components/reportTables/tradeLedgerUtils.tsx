@@ -16,6 +16,7 @@ import {
   buildPlayerModalData,
   CommandMiniBadge,
   formatCompactValue,
+  formatOutcomeDeltaLabel,
   getTradeGapVerdict as getSharedTradeGapVerdict,
   normalizeManagerKey,
   PositionRankPill,
@@ -23,6 +24,7 @@ import {
   TradeFairnessCardDisplay,
   TradeFitReadCard,
   TradeLedgerManagerName,
+  TradeOutcomeAssetLine,
   TradeOutcomePanelDisplay,
   TradeSideManager,
   TradeSideImpactRead,
@@ -1236,53 +1238,27 @@ function buildTradeOutcomeReview({
   };
 }
 
-function formatOutcomeDeltaLabel(value: number): string {
-  if (value === 0) return "No change";
-  return `${value > 0 ? "Gained" : "Lost"} ${Math.abs(value).toLocaleString()}`;
-}
-
 function renderOutcomeAssetLine(asset: TradeOutcomeAsset) {
-  const resolvedText =
-    asset.kind === "pick" && asset.name && asset.name !== asset.label
-      ? ` -> ${asset.name}`
-      : "";
-  const childText = asset.children?.length
-    ? ` -> ${asset.children.map(child => child.name).join(" + ")}`
-    : resolvedText;
   return (
-    <li key={asset.id}>
-      <span>
-        {asset.label}
-        {childText}
-        {asset.valueCalibration &&
-          asset.valueCalibration.outcome !== "stable-hold" && (
-            <CommandMiniBadge
-              as="em"
-              tone={asset.valueCalibration.tone}
-              title={buildTradeValueCalibrationNote({
-                name: asset.name,
-                calibration: asset.valueCalibration,
-                side: "neutral",
-              })}
-            >
-              {asset.valueCalibration.chip}
-            </CommandMiniBadge>
-          )}
-      </span>
-      <strong
-        className={
-          asset.valueDelta > 0
-            ? "text-emerald-300"
-            : asset.valueDelta < 0
-              ? "text-rose-300"
-              : "text-slate-300"
-        }
-        title="Current value minus the value at the time of the trade"
-      >
-        <span className="trade-outcome-change-label">Value change</span>
-        <span>{formatOutcomeDeltaLabel(asset.valueDelta)}</span>
-      </strong>
-    </li>
+    <TradeOutcomeAssetLine
+      asset={asset}
+      extraBadge={
+        asset.valueCalibration &&
+        asset.valueCalibration.outcome !== "stable-hold" && (
+          <CommandMiniBadge
+            as="em"
+            tone={asset.valueCalibration.tone}
+            title={buildTradeValueCalibrationNote({
+              name: asset.name,
+              calibration: asset.valueCalibration,
+              side: "neutral",
+            })}
+          >
+            {asset.valueCalibration.chip}
+          </CommandMiniBadge>
+        )
+      }
+    />
   );
 }
 
