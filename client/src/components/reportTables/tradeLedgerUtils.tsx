@@ -1,7 +1,6 @@
 import { X as XIcon } from "lucide-react";
 import type { DraftPick, ManagerIntelPlayer, PlayerDetails, ReportData, TradeTimePickAsset } from "@shared/types";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
-import { ChampionAvatarFrame } from "../ManagerChampionships";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
 import { TeamLogoPill } from "../TeamLogoPill";
 import { getPlayerAvailability } from "@/lib/playerStatus";
@@ -20,7 +19,8 @@ import {
   normalizeManagerKey,
   PositionRankPill,
   renderManagerName,
-  TradeBuildPill,
+  TradeFitReadManager,
+  TradeLedgerManagerName,
   TradeSideManager,
   TradeSummaryManager,
   TradeValuePill,
@@ -96,33 +96,11 @@ export function renderTradeLedgerManagerName(
   buildLens?: ManagerBuildLens
 ) {
   return (
-    <span className="trade-ledger-manager-lockup">
-      {renderManagerName(manager, managerAvatars)}
-      {buildLens && <TradeBuildPill lens={buildLens} />}
-    </span>
-  );
-}
-
-function renderTradeFitReadManager(
-  manager: string,
-  managerAvatars?: ManagerAvatars
-) {
-  const avatarUrl = managerAvatars?.[manager];
-  const initial = manager.trim()[0]?.toUpperCase() || "?";
-
-  return (
-    <span className="trade-fit-read-manager">
-      <span>{manager}</span>
-      <ChampionAvatarFrame managerName={manager} showAccolades={false}>
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={manager} />
-        ) : (
-          <span aria-hidden="true" className="trade-fit-read-manager-fallback">
-            {initial}
-          </span>
-        )}
-      </ChampionAvatarFrame>
-    </span>
+    <TradeLedgerManagerName
+      manager={manager}
+      managerAvatars={managerAvatars}
+      buildLens={buildLens}
+    />
   );
 }
 
@@ -145,7 +123,10 @@ function renderTradeFitRead(
     >
       <div className="trade-fit-read-top">
         <span>{read.label}</span>
-        {renderTradeFitReadManager(read.manager, managerAvatars)}
+        <TradeFitReadManager
+          manager={read.manager}
+          managerAvatars={managerAvatars}
+        />
       </div>
       <p>{read.note}</p>
       {read.target && (

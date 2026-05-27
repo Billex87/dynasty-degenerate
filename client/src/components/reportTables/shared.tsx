@@ -235,6 +235,49 @@ export function TradeSideManager({
   );
 }
 
+export function TradeLedgerManagerName({
+  manager,
+  managerAvatars,
+  buildLens,
+}: {
+  manager: string;
+  managerAvatars?: ManagerAvatars;
+  buildLens?: TradeBuildLens;
+}) {
+  return (
+    <span className="trade-ledger-manager-lockup">
+      {renderManagerName(manager, managerAvatars)}
+      {buildLens && <TradeBuildPill lens={buildLens} />}
+    </span>
+  );
+}
+
+export function TradeFitReadManager({
+  manager,
+  managerAvatars,
+}: {
+  manager: string;
+  managerAvatars?: ManagerAvatars;
+}) {
+  const avatarUrl = managerAvatars?.[manager];
+  const initial = manager.trim()[0]?.toUpperCase() || "?";
+
+  return (
+    <span className="trade-fit-read-manager">
+      <span>{manager}</span>
+      <ChampionAvatarFrame managerName={manager} showAccolades={false}>
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={manager} />
+        ) : (
+          <span aria-hidden="true" className="trade-fit-read-manager-fallback">
+            {initial}
+          </span>
+        )}
+      </ChampionAvatarFrame>
+    </span>
+  );
+}
+
 export function renderManagerName(
   manager: string,
   managerAvatars?: ManagerAvatars

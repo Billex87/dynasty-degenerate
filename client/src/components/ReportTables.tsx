@@ -70,7 +70,8 @@ import {
   parsePositionRankValue,
   PositionRankPill,
   renderManagerName,
-  TradeBuildPill,
+  TradeFitReadManager,
+  TradeLedgerManagerName,
   TradeSideManager,
   TradeValuePill,
   type ManagerAvatars,
@@ -149,33 +150,11 @@ function renderTradeLedgerManagerName(
   buildLens?: ManagerBuildLens
 ) {
   return (
-    <span className="trade-ledger-manager-lockup">
-      {renderManagerName(manager, managerAvatars)}
-      {buildLens && <TradeBuildPill lens={buildLens} />}
-    </span>
-  );
-}
-
-function renderTradeFitReadManager(
-  manager: string,
-  managerAvatars?: ManagerAvatars
-) {
-  const avatarUrl = managerAvatars?.[manager];
-  const initial = manager.trim()[0]?.toUpperCase() || "?";
-
-  return (
-    <span className="trade-fit-read-manager">
-      <span>{manager}</span>
-      <ChampionAvatarFrame managerName={manager} showAccolades={false}>
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={manager} />
-        ) : (
-          <span aria-hidden="true" className="trade-fit-read-manager-fallback">
-            {initial}
-          </span>
-        )}
-      </ChampionAvatarFrame>
-    </span>
+    <TradeLedgerManagerName
+      manager={manager}
+      managerAvatars={managerAvatars}
+      buildLens={buildLens}
+    />
   );
 }
 
@@ -198,7 +177,10 @@ function renderTradeFitRead(
     >
       <div className="trade-fit-read-top">
         <span>{read.label}</span>
-        {renderTradeFitReadManager(read.manager, managerAvatars)}
+        <TradeFitReadManager
+          manager={read.manager}
+          managerAvatars={managerAvatars}
+        />
       </div>
       <p>{read.note}</p>
       {read.target && (
