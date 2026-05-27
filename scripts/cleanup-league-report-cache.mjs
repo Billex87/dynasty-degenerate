@@ -1,17 +1,14 @@
 #!/usr/bin/env node
 
 import { neon } from '@neondatabase/serverless';
+import {
+  getBoundedCleanupLimit,
+  getExpiredCleanupCutoff,
+  parseCleanupOptions,
+  validateCleanupOptions,
+} from './league-report-cache-cleanup-policy.mjs';
 
-const DATABASE_URL = process.env.DATABASE_URL;
-const limit = Number.parseInt(process.env.LEAGUE_REPORT_CACHE_CLEANUP_LIMIT || '500', 10) || 500;
-const dryRun = process.env.LEAGUE_REPORT_CACHE_CLEANUP_DRY_RUN !== 'false';
-const confirmDelete = process.env.LEAGUE_REPORT_CACHE_CLEANUP_CONFIRM_DELETE === 'true';
-const cleanupMode = process.env.LEAGUE_REPORT_CACHE_CLEANUP_MODE || 'versions';
-const servingTtlHours = Number.parseFloat(process.env.LEAGUE_REPORT_CACHE_TTL_HOURS || '12') || 12;
-const maxAgeHours = Number.parseFloat(process.env.LEAGUE_REPORT_CACHE_CLEANUP_MAX_AGE_HOURS || String(servingTtlHours)) || servingTtlHours;
-
-const CURRENT_LEAGUE_REPORT_VERSION = 48;
-const CURRENT_LEAGUE_RANKINGS_VERSION = 13;
+const options = parseCleanupOptions(process.env);
 
 function formatBytes(value) {
   const bytes = Number(value || 0);
@@ -34,9 +31,9 @@ function formatDate(value) {
 }
 
 async function listExpiredRows(sql, boundedLimit) {
-  const cutoff = new Date(Date.now() - Math.max(1, maxAgeHours) * 60 * 60 * 1000);
+  const cutoff = getExpiredCleanupCutoff(Date.now(), options.maxAgeHours);
   return {
-    label: `expired rows older than ${Math.max(1, maxAgeHours)} hours`,
+    label: `expired rows older than ${Math.max(1, options.maxAgeHours)} hours`,
     rows: await sql`
       SELECT
         "cacheKey",
@@ -83,10 +80,10 @@ async function listStaleVersionRows(sql, boundedLimit) {
       FROM versioned
       WHERE (
           cache_family = 'league-report'
-          AND cache_version < ${CURRENT_LEAGUE_REPORT_VERSION}
+          AND cache_version < ${options.currentLeagueReportVersion}
         ) OR (
           cache_family = 'league-rankings'
-          AND cache_version < ${CURRENT_LEAGUE_RANKINGS_VERSION}
+          AND cache_version < ${options.currentLeagueRankingsVersion}
         )
       ORDER BY "updatedAt" ASC
       LIMIT ${boundedLimit}
@@ -95,28 +92,16 @@ async function listStaleVersionRows(sql, boundedLimit) {
 }
 
 async function main() {
-  if (!DATABASE_URL) {
-    console.error('DATABASE_URL is required to clean up leagueReportCache.');
+  const validationErrors = validateCleanupOptions(options);
+  if (validationErrors.length) {
+    for (const error of validationErrors) console.error(error);
     process.exitCode = 1;
     return;
   }
 
-  if (!['versions', 'expired'].includes(cleanupMode)) {
-    console.error('LEAGUE_REPORT_CACHE_CLEANUP_MODE must be "versions" or "expired".');
-    process.exitCode = 1;
-    return;
-  }
-
-  if (!dryRun && !confirmDelete) {
-    console.error('Refusing to delete rows without LEAGUE_REPORT_CACHE_CLEANUP_CONFIRM_DELETE=true.');
-    console.error('Run the default dry run first, review the rows, and ask before deleting production rows.');
-    process.exitCode = 1;
-    return;
-  }
-
-  const boundedLimit = Math.max(1, Math.min(5000, Math.floor(limit)));
-  const sql = neon(DATABASE_URL);
-  const result = cleanupMode === 'expired'
+  const boundedLimit = getBoundedCleanupLimit(options.limit);
+  const sql = neon(options.databaseUrl);
+  const result = options.cleanupMode === 'expired'
     ? await listExpiredRows(sql, boundedLimit)
     : await listStaleVersionRows(sql, boundedLimit);
   const rows = result.rows;
@@ -124,12 +109,12 @@ async function main() {
   let totalBytes = 0;
 
   console.log('# leagueReportCache Cleanup');
-  console.log(`Mode: ${cleanupMode}`);
-  console.log(`Dry run: ${dryRun ? 'yes' : 'no'}`);
+  console.log(`Mode: ${options.cleanupMode}`);
+  console.log(`Dry run: ${options.dryRun ? 'yes' : 'no'}`);
   console.log(`Limit: ${boundedLimit}`);
-  console.log(`Keeping: league-report-v${CURRENT_LEAGUE_REPORT_VERSION}, league-rankings-v${CURRENT_LEAGUE_RANKINGS_VERSION}`);
-  if (cleanupMode === 'expired') {
-    console.log(`Max age: ${Math.max(1, maxAgeHours)} hours`);
+  console.log(`Keeping: league-report-v${options.currentLeagueReportVersion}, league-rankings-v${options.currentLeagueRankingsVersion}`);
+  if (options.cleanupMode === 'expired') {
+    console.log(`Max age: ${Math.max(1, options.maxAgeHours)} hours`);
   }
 
   if (rows.length === 0) {
@@ -137,7 +122,7 @@ async function main() {
     return;
   }
 
-  console.log(`\n${dryRun ? 'Rows that would be deleted' : 'Deleting'} ${result.label}:`);
+  console.log(`\n${options.dryRun ? 'Rows that would be deleted' : 'Deleting'} ${result.label}:`);
   for (const row of rows) {
     const cacheKey = String(row.cacheKey || '');
     const payloadBytes = Number(row.payload_bytes || 0);
@@ -146,7 +131,7 @@ async function main() {
       `- cacheKey=${cacheKey} leagueId=${row.leagueId || 'unknown'} viewerUserId=${row.viewerUserId || 'anon'} updatedAt=${formatDate(row.updatedAt)} payloadSize=${formatBytes(payloadBytes)}`
     );
 
-    if (!dryRun) {
+    if (!options.dryRun) {
       await sql`
         DELETE FROM "leagueReportCache"
         WHERE "cacheKey" = ${cacheKey}
@@ -156,8 +141,8 @@ async function main() {
 
   console.log('\n## Summary');
   console.log(`Matched rows: ${rows.length}`);
-  console.log(`${dryRun ? 'Would delete' : 'Deleted'}: ${formatBytes(totalBytes)}`);
-  if (dryRun) {
+  console.log(`${options.dryRun ? 'Would delete' : 'Deleted'}: ${formatBytes(totalBytes)}`);
+  if (options.dryRun) {
     console.log('No rows were deleted. Set LEAGUE_REPORT_CACHE_CLEANUP_DRY_RUN=false and LEAGUE_REPORT_CACHE_CLEANUP_CONFIRM_DELETE=true only after approval.');
   }
 }
