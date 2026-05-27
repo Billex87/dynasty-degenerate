@@ -442,6 +442,131 @@ describe('player trajectory signals', () => {
     });
   });
 
+  it('uses running back carry growth as rising-role evidence', () => {
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Emerging Runner',
+      position: 'RB',
+      age: 23,
+      valueProfile: {
+        dynastyValue: 3300,
+        marketKtc: 3200,
+        fantasyCalcDynasty: 3400,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+      valueTimeline: valueTimeline(3, 95),
+      usageTrend: {
+        season: '2025',
+        games: 16,
+        targets: 38,
+        carries: 155,
+        receptions: 28,
+        fantasyPointsPpr: 170,
+        fantasyPointsPprPerGame: 10.6,
+        avgTargetShare: 0.12,
+        avgOffenseSnapPct: 0.63,
+        recentTargets: 10,
+        recentCarries: 58,
+        rollingWindows: [{
+          games: 3,
+          weeks: [15, 16, 17],
+          targetsPerGame: 3.3,
+          carriesPerGame: 19.3,
+          receptionsPerGame: 2.3,
+          fantasyPointsPprPerGame: 16.5,
+          targetDeltaPerGame: 0.4,
+          carryDeltaPerGame: 5.5,
+          note: 'Recent rushing volume jumped.',
+        }],
+        targetTrend: 'flat',
+        carryTrend: 'up',
+        note: 'Carry share climbed late.',
+      },
+      rosterRoom: {
+        opportunityDelta: {
+          netOpportunityScore: 64,
+          incumbentPromotionScore: 35,
+          qualitySignal: 'major-opening',
+          note: 'Backfield touches opened up.',
+        },
+      } as PlayerDetails['rosterRoom'],
+      playerCohort: cohort({
+        position: 'RB',
+        outcomeBucket: 'breakout',
+      }),
+      playerSituationDelta: situation({
+        position: 'RB',
+        score: 74,
+        primaryLabel: 'role-boost',
+        labels: ['role-boost', 'vacated-opportunity'],
+        action: 'buy',
+        summary: 'Backfield role is expanding.',
+      }),
+    }), 'rb2');
+
+    expect(signal).toMatchObject({
+      label: 'rising-role',
+      action: 'buy',
+      position: 'RB',
+    });
+    expect(signal?.evidence.join(' ')).toContain('Carry share climbed late');
+    expect(signal?.scoreBreakdown.roleMomentum).toBeGreaterThanOrEqual(66);
+  });
+
+  it('does not apply early age-curve pressure to quarterbacks', () => {
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Veteran Quarterback',
+      position: 'QB',
+      age: 32,
+      valueProfile: {
+        dynastyValue: 4800,
+        marketKtc: 4700,
+        fantasyCalcDynasty: 4900,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+      valueTimeline: valueTimeline(1, 40),
+      usageTrend: {
+        season: '2025',
+        games: 17,
+        targets: 0,
+        carries: 52,
+        receptions: 0,
+        fantasyPointsPpr: 295,
+        fantasyPointsPprPerGame: 17.4,
+        avgTargetShare: 0,
+        avgOffenseSnapPct: 0.98,
+        recentTargets: 0,
+        recentCarries: 9,
+        targetTrend: 'flat',
+        carryTrend: 'flat',
+        note: 'Starting role stayed stable.',
+      },
+      rosterRoom: {
+        opportunityDelta: {
+          netOpportunityScore: 0,
+          incumbentPromotionScore: 0,
+          qualitySignal: 'neutral',
+          note: 'No quarterback room change.',
+        },
+      } as PlayerDetails['rosterRoom'],
+      playerCohort: cohort({
+        position: 'QB',
+        outcomeBucket: 'steady',
+      }),
+      playerSituationDelta: situation({
+        position: 'QB',
+        score: 60,
+        primaryLabel: 'stable-role',
+        labels: [],
+        action: 'hold',
+        summary: 'Stable quarterback starter.',
+      }),
+    }), 'qb2');
+
+    expect(signal?.scoreBreakdown.ageRisk).toBe(20);
+    expect(signal?.cautionFlags).not.toContain('age curve risk');
+    expect(signal?.label).toBe('stable-hold');
+  });
+
   it('keeps thin profiles source-limited instead of inventing a strong read', () => {
     const signals = buildPlayerTrajectorySignals({
       playerDetailsById: {

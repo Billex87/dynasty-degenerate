@@ -138,4 +138,59 @@ describe('source coverage matrix', () => {
     });
     expect(row?.couldPowerLater).toContain('weekly streamer reads');
   });
+
+  it('returns stable row shapes and internally consistent totals', () => {
+    const matrix = buildSourceCoverageMatrix({
+      currentSeason: '2026',
+      previousSeason: '2025',
+      valueProfileKey: '12_sf_ppr_base',
+      lookbackDays: 14,
+      freshnessDiagnostics: [
+        freshness({
+          sourceKey: 'ktc-blended-values-v1:12_sf_ppr_base',
+          rowCount: 900,
+        }),
+        freshness({
+          sourceKey: 'fantasypros-news-v1',
+          status: 'stale',
+          level: 'warn',
+          ageHours: 72,
+          rowCount: 24,
+        }),
+      ],
+      healthEvents: [
+        health({
+          sourceKey: 'draftsharks-sos-v1',
+          status: 'error',
+          level: 'danger',
+          rowCount: 0,
+          message: 'Provider unavailable',
+        }),
+      ],
+      generatedAt: new Date('2026-05-17T18:00:00.000Z'),
+    });
+
+    expect(matrix.generatedAt).toBe('2026-05-17T18:00:00.000Z');
+    expect(matrix.rows.length).toBe(matrix.totals.sources);
+    expect(
+      matrix.totals.loaded
+      + matrix.totals.stale
+      + matrix.totals.missing
+      + matrix.totals.error
+      + matrix.totals.blocked
+      + matrix.totals.research
+    ).toBe(matrix.totals.sources);
+    expect(matrix.rows.every((row) => (
+      row.sourceKey
+      && row.source
+      && row.category
+      && row.endpoint
+      && row.authModel
+      && row.refreshCadence
+      && Array.isArray(row.fieldMap)
+      && Array.isArray(row.usedNow)
+      && Array.isArray(row.couldPowerLater)
+      && Array.isArray(row.knownGaps)
+    ))).toBe(true);
+  });
 });
