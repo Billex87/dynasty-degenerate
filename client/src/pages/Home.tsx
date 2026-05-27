@@ -51,8 +51,8 @@ import {
   Swords,
 } from "lucide-react";
 import { toast } from "sonner";
-import { LoadingAnimation } from "@/components/LoadingAnimation";
-import type { LoaderManagerAnchor } from "@/components/LoaderKitBackdrop";
+import { LoadingAnimation } from "@/features/report/components/LoadingAnimation";
+import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
 import { HeaderCssLights } from "@/components/HeaderCssLights";
 import { AITronSurface, type AITronTheme } from "@/components/AITronSurface";
 import ErrorBoundary from "@/components/ErrorBoundary";

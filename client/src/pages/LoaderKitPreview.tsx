@@ -1,5 +1,5 @@
-import { LoadingAnimation } from "@/components/LoadingAnimation";
-import type { LoaderManagerAnchor } from "@/components/LoaderKitBackdrop";
+import { LoadingAnimation } from "@/features/report/components/LoadingAnimation";
+import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
 import "@/styles/loader-kit-preview.css";
 
 const previewLeagueLogo =
