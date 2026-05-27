@@ -16,18 +16,12 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Bot,
-  CheckCircle2,
-  Crosshair,
-  Flame,
-  Gavel,
   TrendingUp,
   TrendingDown,
   BarChart3,
   Repeat2,
   ClipboardList,
   ListOrdered,
-  Radar,
-  Swords,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
@@ -72,6 +66,7 @@ import {
   HomeFooterChrome,
   HomeHeaderChrome,
 } from "@/features/home/components/HomeChrome";
+import { HomeLandingFeatureCards } from "@/features/home/components/HomeLandingFeatureCards";
 import {
   ChangeLeagueDialog,
   LeaguePickerDialog,
@@ -5611,113 +5606,7 @@ export default function Home() {
             ) : null}
 
             {/* Features Grid */}
-            <div className="home-feature-carousel-window">
-              <div className="home-feature-grid">
-                <div className="home-feature-card home-feature-green p-4 sm:p-6 space-y-3">
-                  <div className="home-feature-heading">
-                    <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
-                      <Flame className="w-6 h-6 text-red-400" />
-                    </div>
-                    <h3 className="font-semibold text-white">Roster Roast</h3>
-                  </div>
-                  <p className="text-sm text-slate-400">
-                    See who’s stacked, who’s cooked, and who’s one ACL away
-                    from rebuilding their <span className="home-keep-together">trash ass team.</span>
-                  </p>
-                </div>
-
-                <div className="home-feature-card home-feature-blue p-4 sm:p-6 space-y-3">
-                  <div className="home-feature-heading">
-                    <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                      <Crosshair className="w-6 h-6 text-blue-400" />
-                    </div>
-                    <h3 className="font-semibold text-white">Trade Victims</h3>
-                  </div>
-                  <p className="text-sm text-slate-400">
-                    Find managers holding drops, fake depth, and players only
-                    podcasters <span className="home-keep-together">really believe in.</span>
-                  </p>
-                </div>
-
-                <div className="home-feature-card home-feature-purple p-4 sm:p-6 space-y-3">
-                  <div className="home-feature-heading">
-                    <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                      <Swords className="w-6 h-6 text-purple-400" />
-                    </div>
-                    <h3 className="font-semibold text-white">Lineup Abuse</h3>
-                  </div>
-                  <p className="text-sm text-slate-400">
-                    Spot starter gaps and turn desperation into leverage plays
-                    before your <span className="home-keep-together">buddies coffee hits.</span>
-                  </p>
-                </div>
-
-                <div className="home-feature-card home-feature-orange p-4 sm:p-6 space-y-3">
-                  <div className="home-feature-heading">
-                    <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                      <Gavel className="w-6 h-6 text-orange-300" />
-                    </div>
-                    <h3 className="font-semibold text-white">Draft Punishment</h3>
-                  </div>
-                  <p className="text-sm text-slate-400">
-                    Expose bad picks, wasted rookie value, and managers who let
-                    their girlfriends <span className="home-keep-together">draft for them.</span>
-                  </p>
-                </div>
-
-                <div className="home-feature-card home-feature-cyan p-4 sm:p-6 space-y-3">
-                  <div className="home-feature-heading">
-                    <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                      <Bot className="w-6 h-6 text-cyan-300" />
-                    </div>
-                    <h3 className="font-semibold text-white">AI League Bully</h3>
-                  </div>
-                  <p className="text-sm text-slate-400">
-                    Use AI to find weak rosters, bad offers, and managers one
-                    panic trade away <span className="home-keep-together">from a Sacko.</span>
-                  </p>
-                </div>
-
-                <div className="home-feature-card home-feature-amber p-4 sm:p-6 space-y-3">
-                  <div className="home-feature-heading">
-                    <div className="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center">
-                      <Radar className="w-6 h-6 text-amber-300" />
-                    </div>
-                    <h3 className="font-semibold text-white">Waiver Vultures</h3>
-                  </div>
-                  <p className="text-sm text-slate-400">
-                    Find overlooked players, panic drops, and free scraps
-                    before the rest of <span className="home-keep-together">the league notices.</span>
-                  </p>
-                </div>
-
-                <div className="home-feature-card home-feature-card-clone home-feature-green p-4 sm:p-6 space-y-3" aria-hidden="true">
-                  <div className="home-feature-heading">
-                    <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
-                      <Flame className="w-6 h-6 text-red-400" />
-                    </div>
-                    <h3 className="font-semibold text-white">Roster Roast</h3>
-                  </div>
-                  <p className="text-sm text-slate-400">
-                    See who’s stacked, who’s cooked, and who’s one ACL away
-                    from rebuilding their <span className="home-keep-together">trash ass team.</span>
-                  </p>
-                </div>
-
-                <div className="home-feature-card home-feature-card-clone home-feature-blue p-4 sm:p-6 space-y-3" aria-hidden="true">
-                  <div className="home-feature-heading">
-                    <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                      <Crosshair className="w-6 h-6 text-blue-400" />
-                    </div>
-                    <h3 className="font-semibold text-white">Trade Victims</h3>
-                  </div>
-                  <p className="text-sm text-slate-400">
-                    Find managers holding drops, fake depth, and players only
-                    podcasters <span className="home-keep-together">really believe in.</span>
-                  </p>
-                </div>
-              </div>
-            </div>
+            <HomeLandingFeatureCards />
           </div>
         </main>
 
