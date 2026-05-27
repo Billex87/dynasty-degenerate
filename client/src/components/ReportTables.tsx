@@ -71,6 +71,7 @@ import {
   PositionRankPill,
   renderManagerName,
   TradeFitReadCard,
+  TradeFairnessCardDisplay,
   TradeLedgerManagerName,
   TradeOutcomePanelDisplay,
   TradeSideManager,
@@ -1360,43 +1361,31 @@ function TradeFairnessCard({
     playerDetailsById?.[suggestion.player.player_id];
 
   return (
-    <div className="trade-fairness-card">
-      <div>
-        <span>Balancing Piece</span>
-        <p>{getTradeFairnessSuggestionCopy(suggestion)}</p>
-      </div>
-      <button
-        type="button"
-        className="trade-fairness-player"
-        style={getTeamTileStyle(playerDetails?.team)}
-        onClick={event => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (!onPlayerClick) return;
-          onPlayerClick(
-            buildPlayerModalData({
-              playerId: suggestion.player.player_id,
-              playerName: suggestion.player.name,
-              playerPos: suggestion.player.pos,
-              value: suggestion.player.value,
-              playerDetails,
-              playerDetailsById,
-              manager: suggestion.player.owner || suggestion.fromManager,
-              managerAvatarUrl: managerAvatars?.[suggestion.fromManager],
-              currentPositionRank:
-                suggestion.player.currentPositionRank ||
-                suggestion.player.seasonPositionRank,
-            })
-          );
-        }}
-      >
-        <PlayerNameWithHeadshot
-          playerId={suggestion.player.player_id}
-          playerName={suggestion.player.name}
-          team={playerDetails?.team}
-          position={suggestion.player.pos}
-        />
-        {leagueValueMode === "redraft" ? (
+    <TradeFairnessCardDisplay
+      description={getTradeFairnessSuggestionCopy(suggestion)}
+      tileStyle={getTeamTileStyle(playerDetails?.team)}
+      onClick={event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!onPlayerClick) return;
+        onPlayerClick(
+          buildPlayerModalData({
+            playerId: suggestion.player.player_id,
+            playerName: suggestion.player.name,
+            playerPos: suggestion.player.pos,
+            value: suggestion.player.value,
+            playerDetails,
+            playerDetailsById,
+            manager: suggestion.player.owner || suggestion.fromManager,
+            managerAvatarUrl: managerAvatars?.[suggestion.fromManager],
+            currentPositionRank:
+              suggestion.player.currentPositionRank ||
+              suggestion.player.seasonPositionRank,
+          })
+        );
+      }}
+      metric={
+        leagueValueMode === "redraft" ? (
           <span className="trade-fairness-value">
             {formatCompactValue(suggestion.displayValue)}
           </span>
@@ -1404,9 +1393,16 @@ function TradeFairnessCard({
           <PositionRankPill
             rank={suggestion.displayRank || suggestion.player.pos}
           />
-        )}
-      </button>
-    </div>
+        )
+      }
+    >
+      <PlayerNameWithHeadshot
+        playerId={suggestion.player.player_id}
+        playerName={suggestion.player.name}
+        team={playerDetails?.team}
+        position={suggestion.player.pos}
+      />
+    </TradeFairnessCardDisplay>
   );
 }
 

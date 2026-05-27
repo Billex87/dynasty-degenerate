@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, MouseEventHandler, ReactNode } from "react";
 import type {
   ManagerIntelPlayer,
   PlayerDetails,
@@ -451,6 +451,41 @@ export function TradeSideImpactRead({
         )}
         {notes.length > 0 && <p>{notes.join(" ")}</p>}
       </div>
+    </div>
+  );
+}
+
+export function TradeFairnessCardDisplay({
+  description,
+  tileStyle,
+  disabled = false,
+  onClick,
+  children,
+  metric,
+}: {
+  description: string;
+  tileStyle?: CSSProperties;
+  disabled?: boolean;
+  onClick?: MouseEventHandler<HTMLButtonElement>;
+  children: ReactNode;
+  metric: ReactNode;
+}) {
+  return (
+    <div className="trade-fairness-card">
+      <div>
+        <span>Balancing Piece</span>
+        <p>{description}</p>
+      </div>
+      <button
+        type="button"
+        className="trade-fairness-player"
+        style={tileStyle}
+        disabled={disabled}
+        onClick={onClick}
+      >
+        {children}
+        {metric}
+      </button>
     </div>
   );
 }

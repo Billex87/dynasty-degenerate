@@ -19,6 +19,7 @@ import {
   normalizeManagerKey,
   PositionRankPill,
   renderManagerName,
+  TradeFairnessCardDisplay,
   TradeFitReadCard,
   TradeLedgerManagerName,
   TradeOutcomePanelDisplay,
@@ -1381,69 +1382,32 @@ function TradeFairnessCard({
   const isPickSuggestion = suggestion.assetKind === "pick";
 
   return (
-    <div className="trade-fairness-card">
-      <div>
-        <span>Balancing Piece</span>
-        <p>{getTradeFairnessSuggestionCopy(suggestion)}</p>
-      </div>
-      <button
-        type="button"
-        className="trade-fairness-player"
-        style={getTeamTileStyle(playerDetails?.team)}
-        disabled={isPickSuggestion}
-        onClick={event => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (!onPlayerClick || !suggestion.player) return;
-          onPlayerClick(
-            buildPlayerModalData({
-              playerId: suggestion.player.player_id,
-              playerName: suggestion.player.name,
-              playerPos: suggestion.player.pos,
-              value: suggestion.player.value,
-              playerDetails,
-              playerDetailsById,
-              manager: suggestion.player.owner || suggestion.fromManager,
-              managerAvatarUrl: managerAvatars?.[suggestion.fromManager],
-              currentPositionRank:
-                suggestion.player.currentPositionRank ||
-                suggestion.player.seasonPositionRank,
-            })
-          );
-        }}
-      >
-        {isPickSuggestion ? (
-          <span className="trade-fairness-pick">
-            <strong>{suggestion.pick?.label || "Controlled pick"}</strong>
-            <small>
-              {suggestion.pick?.originalOwner &&
-              suggestion.pick.originalOwner !== suggestion.fromManager
-                ? `Original: ${suggestion.pick.originalOwner}`
-                : "Trade-time pick inventory"}
-            </small>
-          </span>
-        ) : suggestion.player ? (
-          <PlayerNameWithHeadshot
-            playerId={suggestion.player.player_id}
-            playerName={suggestion.player.name}
-            team={playerDetails?.team}
-            position={suggestion.player.pos}
-          />
-        ) : null}
-        {suggestion.valueCalibration &&
-          suggestion.valueCalibration.outcome !== "stable-hold" && (
-            <CommandMiniBadge
-              tone={suggestion.valueCalibration.tone}
-              title={buildTradeValueCalibrationNote({
-                name: suggestion.player?.name || "Suggested asset",
-                calibration: suggestion.valueCalibration,
-                side: "outgoing",
-              })}
-            >
-              {suggestion.valueCalibration.chip}
-            </CommandMiniBadge>
-          )}
-        {leagueValueMode === "redraft" || isPickSuggestion ? (
+    <TradeFairnessCardDisplay
+      description={getTradeFairnessSuggestionCopy(suggestion)}
+      tileStyle={getTeamTileStyle(playerDetails?.team)}
+      disabled={isPickSuggestion}
+      onClick={event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!onPlayerClick || !suggestion.player) return;
+        onPlayerClick(
+          buildPlayerModalData({
+            playerId: suggestion.player.player_id,
+            playerName: suggestion.player.name,
+            playerPos: suggestion.player.pos,
+            value: suggestion.player.value,
+            playerDetails,
+            playerDetailsById,
+            manager: suggestion.player.owner || suggestion.fromManager,
+            managerAvatarUrl: managerAvatars?.[suggestion.fromManager],
+            currentPositionRank:
+              suggestion.player.currentPositionRank ||
+              suggestion.player.seasonPositionRank,
+          })
+        );
+      }}
+      metric={
+        leagueValueMode === "redraft" || isPickSuggestion ? (
           <span className="trade-fairness-value">
             {formatCompactValue(suggestion.displayValue)}
           </span>
@@ -1451,9 +1415,41 @@ function TradeFairnessCard({
           <PositionRankPill
             rank={suggestion.displayRank || suggestion.player?.pos || "Player"}
           />
+        )
+      }
+    >
+      {isPickSuggestion ? (
+        <span className="trade-fairness-pick">
+          <strong>{suggestion.pick?.label || "Controlled pick"}</strong>
+          <small>
+            {suggestion.pick?.originalOwner &&
+            suggestion.pick.originalOwner !== suggestion.fromManager
+              ? `Original: ${suggestion.pick.originalOwner}`
+              : "Trade-time pick inventory"}
+          </small>
+        </span>
+      ) : suggestion.player ? (
+        <PlayerNameWithHeadshot
+          playerId={suggestion.player.player_id}
+          playerName={suggestion.player.name}
+          team={playerDetails?.team}
+          position={suggestion.player.pos}
+        />
+      ) : null}
+      {suggestion.valueCalibration &&
+        suggestion.valueCalibration.outcome !== "stable-hold" && (
+          <CommandMiniBadge
+            tone={suggestion.valueCalibration.tone}
+            title={buildTradeValueCalibrationNote({
+              name: suggestion.player?.name || "Suggested asset",
+              calibration: suggestion.valueCalibration,
+              side: "outgoing",
+            })}
+          >
+            {suggestion.valueCalibration.chip}
+          </CommandMiniBadge>
         )}
-      </button>
-    </div>
+    </TradeFairnessCardDisplay>
   );
 }
 
