@@ -11,7 +11,10 @@ import {
   getPositionRankClass,
   getPositionRankPillClass,
 } from "@/lib/positionRank";
-import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
+import {
+  normalizeLeagueValueMode,
+  type LeagueValueMode,
+} from "@/lib/leagueValueMode";
 import { ChampionAvatarFrame } from "../ManagerChampionships";
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import type { PlayerModalData } from "../PlayerDetailModal";
@@ -94,6 +97,15 @@ export type ParsedTradePlayerItem = {
   tradeDateValue: number | null;
   tradeDate: string | null;
 };
+export type SharedTradeWarMode =
+  | "dynasty"
+  | "contender"
+  | "rebuilder"
+  | "starter-upgrade"
+  | "depth-fix"
+  | "positional-need"
+  | "playoff-push"
+  | "waiver-leverage";
 
 export const VALUE_BLEND_HISTORY_START_LABEL = "May 7, 2026";
 export const FIRST_FULL_BLEND_WEEK_LABEL = "May 12, 2026 after the 6 PM scrape";
@@ -714,6 +726,104 @@ export function splitTradeItems(items: string): string[] {
     .split(",")
     .map(item => item.trim())
     .filter(Boolean);
+}
+
+export function isRedraftTradeWarMode(
+  mode: SharedTradeWarMode | ReportData["leagueValueMode"] | null | undefined
+): boolean {
+  return (
+    mode === "redraft" ||
+    mode === "starter-upgrade" ||
+    mode === "depth-fix" ||
+    mode === "positional-need" ||
+    mode === "playoff-push" ||
+    mode === "waiver-leverage"
+  );
+}
+
+export function getTradeWarLeagueValueMode(
+  mode: SharedTradeWarMode | ReportData["leagueValueMode"] | null | undefined
+): LeagueValueMode {
+  return isRedraftTradeWarMode(mode) ? "redraft" : "dynasty";
+}
+
+export function getTradeLedgerPlayerValue(
+  playerItem: ParsedTradePlayerItem | null,
+  details: PlayerDetails | undefined,
+  mode: SharedTradeWarMode
+): number | null {
+  if (!playerItem) return null;
+  const profile = details?.valueProfile;
+  if (isRedraftTradeWarMode(mode)) {
+    return (
+      getTradeLensNumber(profile?.seasonValue) ??
+      getTradeLensNumber(profile?.fantasyProsSeasonValue) ??
+      getTradeLensNumber(profile?.fantasyCalcRedraft) ??
+      getTradeLensNumber(details?.lastSeasonFantasyPoints) ??
+      playerItem.value
+    );
+  }
+  if (mode === "contender") {
+    return (
+      getTradeLensNumber(profile?.contenderValue) ??
+      getTradeLensNumber(profile?.seasonValue) ??
+      playerItem.value
+    );
+  }
+  if (mode === "rebuilder") {
+    return (
+      getTradeLensNumber(profile?.rebuilderValue) ??
+      getTradeLensNumber(profile?.dynastyValue) ??
+      playerItem.value
+    );
+  }
+  return playerItem.tradeDateValue ?? playerItem.value;
+}
+
+export function getTradeLedgerPlayerRank(
+  playerId: string,
+  details: PlayerDetails | undefined,
+  currentPositionRankById: ReportData["currentPositionRankById"] | undefined,
+  mode: SharedTradeWarMode
+) {
+  const profile = details?.valueProfile;
+  if (isRedraftTradeWarMode(mode)) {
+    return (
+      profile?.seasonPositionRank ||
+      profile?.fantasyProsPositionRank ||
+      currentPositionRankById?.[playerId] ||
+      details?.position ||
+      null
+    );
+  }
+  if (mode === "contender") {
+    return (
+      profile?.contenderPositionRank ||
+      profile?.seasonPositionRank ||
+      currentPositionRankById?.[playerId] ||
+      profile?.dynastyPositionRank ||
+      details?.position ||
+      null
+    );
+  }
+  if (mode === "rebuilder") {
+    return (
+      profile?.rebuilderPositionRank ||
+      profile?.dynastyPositionRank ||
+      currentPositionRankById?.[playerId] ||
+      profile?.balancedPositionRank ||
+      details?.position ||
+      null
+    );
+  }
+  return (
+    currentPositionRankById?.[playerId] ||
+    profile?.dynastyPositionRank ||
+    profile?.balancedPositionRank ||
+    profile?.seasonPositionRank ||
+    details?.position ||
+    null
+  );
 }
 
 export function TradeOutcomeAssetLine({

@@ -69,9 +69,13 @@ import {
   getOutcomePlayerSeasonValue,
   getPlayerStatusClass,
   getPlayerStatusLabel,
+  getTradeLedgerPlayerRank,
+  getTradeLedgerPlayerValue,
   getTradeGapVerdict as getSharedTradeGapVerdict,
   getTradeLensNumber,
+  getTradeWarLeagueValueMode,
   IntelligenceMetric,
+  isRedraftTradeWarMode,
   normalizeManagerKey,
   OwnerMetricPill,
   OwnerSummaryTile,
@@ -231,25 +235,6 @@ type ManagerBuildLens = {
   tone: "contender" | "rebuilder" | "middle";
   reason: string;
 };
-
-function isRedraftTradeWarMode(
-  mode: TradeWarMode | ReportData["leagueValueMode"] | null | undefined
-): boolean {
-  return (
-    mode === "redraft" ||
-    mode === "starter-upgrade" ||
-    mode === "depth-fix" ||
-    mode === "positional-need" ||
-    mode === "playoff-push" ||
-    mode === "waiver-leverage"
-  );
-}
-
-function getTradeWarLeagueValueMode(
-  mode: TradeWarMode | ReportData["leagueValueMode"] | null | undefined
-): LeagueValueMode {
-  return isRedraftTradeWarMode(mode) ? "redraft" : "dynasty";
-}
 
 function getRedraftTradeLens(
   reason = "Current-season roster fit and lineup usefulness"
@@ -415,85 +400,6 @@ function getTradeRowBuildLens(
       managerRosterIntelligence,
       leagueValueMode
     )
-  );
-}
-
-function getTradeLedgerPlayerValue(
-  playerItem: ReturnType<typeof parseTradePlayerItem>,
-  details: PlayerDetails | undefined,
-  mode: TradeWarMode
-): number | null {
-  if (!playerItem) return null;
-  const profile = details?.valueProfile;
-  if (isRedraftTradeWarMode(mode)) {
-    return (
-      getTradeLensNumber(profile?.seasonValue) ??
-      getTradeLensNumber(profile?.fantasyProsSeasonValue) ??
-      getTradeLensNumber(profile?.fantasyCalcRedraft) ??
-      getTradeLensNumber(details?.lastSeasonFantasyPoints) ??
-      playerItem.value
-    );
-  }
-  if (mode === "contender") {
-    return (
-      getTradeLensNumber(profile?.contenderValue) ??
-      getTradeLensNumber(profile?.seasonValue) ??
-      playerItem.value
-    );
-  }
-  if (mode === "rebuilder") {
-    return (
-      getTradeLensNumber(profile?.rebuilderValue) ??
-      getTradeLensNumber(profile?.dynastyValue) ??
-      playerItem.value
-    );
-  }
-  return playerItem.tradeDateValue ?? playerItem.value;
-}
-
-function getTradeLedgerPlayerRank(
-  playerId: string,
-  details: PlayerDetails | undefined,
-  currentPositionRankById: CurrentPositionRankById | undefined,
-  mode: TradeWarMode
-) {
-  const profile = details?.valueProfile;
-  if (isRedraftTradeWarMode(mode)) {
-    return (
-      profile?.seasonPositionRank ||
-      profile?.fantasyProsPositionRank ||
-      currentPositionRankById?.[playerId] ||
-      details?.position ||
-      null
-    );
-  }
-  if (mode === "contender") {
-    return (
-      profile?.contenderPositionRank ||
-      profile?.seasonPositionRank ||
-      currentPositionRankById?.[playerId] ||
-      profile?.dynastyPositionRank ||
-      details?.position ||
-      null
-    );
-  }
-  if (mode === "rebuilder") {
-    return (
-      profile?.rebuilderPositionRank ||
-      profile?.dynastyPositionRank ||
-      currentPositionRankById?.[playerId] ||
-      profile?.balancedPositionRank ||
-      details?.position ||
-      null
-    );
-  }
-  return (
-    currentPositionRankById?.[playerId] ||
-    profile?.dynastyPositionRank ||
-    profile?.balancedPositionRank ||
-    profile?.seasonPositionRank ||
-    details?.position ||
-    null
   );
 }
 
