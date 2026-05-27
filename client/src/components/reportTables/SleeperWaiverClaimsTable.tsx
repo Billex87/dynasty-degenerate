@@ -12,7 +12,11 @@ import {
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
 import { EmptyState } from "../reportPrimitives";
-import { CommandMiniBadge, type ManagerAvatars } from "./shared";
+import {
+  CommandMiniBadge,
+  TradeProposalMorePill,
+  type ManagerAvatars,
+} from "./shared";
 import {
   formatTradeProposalDate,
   formatTradeProposalStatus,
@@ -107,9 +111,9 @@ export function SleeperWaiverClaimsTable({
                             />
                           ))}
                           {signal.managers.length > 3 && (
-                            <span className="trade-proposal-more-pill">
-                              +{signal.managers.length - 3} more
-                            </span>
+                            <TradeProposalMorePill
+                              count={signal.managers.length - 3}
+                            />
                           )}
                         </>
                       ) : (
@@ -139,12 +143,12 @@ export function SleeperWaiverClaimsTable({
                             ))}
                             {signal.playerNames.length >
                               claimPlayers.length && (
-                              <span className="trade-proposal-more-pill">
-                                +
-                                {signal.playerNames.length -
-                                  claimPlayers.length}{" "}
-                                more
-                              </span>
+                              <TradeProposalMorePill
+                                count={
+                                  signal.playerNames.length -
+                                  claimPlayers.length
+                                }
+                              />
                             )}
                           </div>
                         </div>
@@ -164,12 +168,12 @@ export function SleeperWaiverClaimsTable({
                             ))}
                             {(signal.dropPlayerNames || []).length >
                               dropPlayers.length && (
-                              <span className="trade-proposal-more-pill">
-                                +
-                                {(signal.dropPlayerNames || []).length -
-                                  dropPlayers.length}{" "}
-                                more
-                              </span>
+                              <TradeProposalMorePill
+                                count={
+                                  (signal.dropPlayerNames || []).length -
+                                  dropPlayers.length
+                                }
+                              />
                             )}
                           </div>
                         </div>

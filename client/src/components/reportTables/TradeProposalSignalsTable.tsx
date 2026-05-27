@@ -12,7 +12,11 @@ import {
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
 import { EmptyState } from "../reportPrimitives";
-import { CommandMiniBadge, type ManagerAvatars } from "./shared";
+import {
+  CommandMiniBadge,
+  TradeProposalMorePill,
+  type ManagerAvatars,
+} from "./shared";
 import {
   formatTradeProposalDate,
   formatTradeProposalStatus,
@@ -101,9 +105,9 @@ export function TradeProposalSignalsTable({
                             />
                           ))}
                           {signal.managers.length > 3 && (
-                            <span className="trade-proposal-more-pill">
-                              +{signal.managers.length - 3} more
-                            </span>
+                            <TradeProposalMorePill
+                              count={signal.managers.length - 3}
+                            />
                           )}
                         </>
                       ) : (
@@ -131,12 +135,12 @@ export function TradeProposalSignalsTable({
                             ))}
                             {signal.playerNames.length >
                               visiblePlayers.length && (
-                              <span className="trade-proposal-more-pill">
-                                +
-                                {signal.playerNames.length -
-                                  visiblePlayers.length}{" "}
-                                more
-                              </span>
+                              <TradeProposalMorePill
+                                count={
+                                  signal.playerNames.length -
+                                  visiblePlayers.length
+                                }
+                              />
                             )}
                           </div>
                         </div>
@@ -157,12 +161,12 @@ export function TradeProposalSignalsTable({
                             ))}
                             {(signal.pickLabels || []).length >
                               visiblePickLabels.length && (
-                              <span className="trade-proposal-more-pill">
-                                +
-                                {(signal.pickLabels || []).length -
-                                  visiblePickLabels.length}{" "}
-                                more
-                              </span>
+                              <TradeProposalMorePill
+                                count={
+                                  (signal.pickLabels || []).length -
+                                  visiblePickLabels.length
+                                }
+                              />
                             )}
                           </div>
                         </div>

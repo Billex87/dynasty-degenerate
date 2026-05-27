@@ -186,6 +186,10 @@ export function CommandMiniBadge({
   );
 }
 
+export function TradeProposalMorePill({ count }: { count: number }) {
+  return <span className="trade-proposal-more-pill">+{count} more</span>;
+}
+
 export function OwnerSummaryTile({
   manager,
   avatarUrl,
