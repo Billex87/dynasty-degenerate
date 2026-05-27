@@ -70,6 +70,7 @@ import {
   parsePositionRankValue,
   PositionRankPill,
   renderManagerName,
+  TradeValuePill,
   type ManagerAvatars,
   type PlayerDetailsById,
 } from "./reportTables/shared";
@@ -2044,9 +2045,9 @@ function renderTradeItem(
             <PositionRankPill rank={currentRank || "Player"} />
           </span>
           {displayedValue !== null && (
-            <span className="value-pill trade-asset-player-value">
+            <TradeValuePill className="trade-asset-player-value">
               {displayedValue.toLocaleString()}
-            </span>
+            </TradeValuePill>
           )}
         </span>
       </>
@@ -2146,12 +2147,9 @@ function renderTradeItem(
             {displayedPickLabel}
           </span>
           {displayedPickValue !== null && (
-            <span
-              className="value-pill"
-              title="Pick value at the time of the trade"
-            >
+            <TradeValuePill title="Pick value at the time of the trade">
               {displayedPickValue.toLocaleString()}
-            </span>
+            </TradeValuePill>
           )}
         </div>
         {wasFlipped ? (

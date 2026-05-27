@@ -112,6 +112,22 @@ export function TradeHabitPill({
   );
 }
 
+export function TradeValuePill({
+  children,
+  className = "",
+  title,
+}: {
+  children: ReactNode;
+  className?: string;
+  title?: string;
+}) {
+  return (
+    <span className={`value-pill ${className}`.trim()} title={title}>
+      {children}
+    </span>
+  );
+}
+
 export function renderManagerName(
   manager: string,
   managerAvatars?: ManagerAvatars

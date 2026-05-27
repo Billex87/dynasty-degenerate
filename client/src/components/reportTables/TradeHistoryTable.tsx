@@ -21,6 +21,7 @@ import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
 import {
   TradeEmptyState,
+  TradeValuePill,
   type ManagerAvatars,
   type PlayerDetailsById,
 } from "./shared";
@@ -300,12 +301,9 @@ export default function TradeHistoryTable({
                                 >
                                   {gapVerdict.label}
                                 </span>
-                                <span
-                                  className="value-pill"
-                                  title="Context-adjusted value gap"
-                                >
+                                <TradeValuePill title="Context-adjusted value gap">
                                   {tradeEvaluation.pointGap.toLocaleString()}
-                                </span>
+                                </TradeValuePill>
                                 {fairnessSuggestion && (
                                   <span
                                     className="trade-row-balance-chip"
