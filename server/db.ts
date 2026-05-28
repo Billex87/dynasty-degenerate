@@ -1541,6 +1541,68 @@ export async function listLeagueReportCacheEntries(limit = 100): Promise<Array<{
     .filter((entry) => Boolean(entry.payload));
 }
 
+export async function listLeagueReportCacheMetadata(limit = 100): Promise<Array<{
+  cacheKey: string;
+  leagueId: string;
+  viewerUserId: string | null;
+  updatedAt: Date;
+  payloadSizeBytes: number;
+}>> {
+  const sql = await getDb();
+  if (!sql) return [];
+
+  const boundedLimit = Math.max(1, Math.min(1000, Math.floor(limit)));
+  const result = await sql`
+    SELECT
+      "cacheKey",
+      "leagueId",
+      "viewerUserId",
+      "updatedAt",
+      OCTET_LENGTH(payload) AS payload_bytes
+    FROM "leagueReportCache"
+    ORDER BY "updatedAt" DESC
+    LIMIT ${boundedLimit}
+  ` as Array<{
+    cacheKey?: string | null;
+    leagueId?: string | null;
+    viewerUserId?: string | null;
+    updatedAt?: Date | string | null;
+    payload_bytes?: number | string | null;
+  }>;
+
+  return result
+    .filter((row) => row.cacheKey && row.leagueId)
+    .map((row) => ({
+      cacheKey: String(row.cacheKey),
+      leagueId: String(row.leagueId),
+      viewerUserId: row.viewerUserId ? String(row.viewerUserId) : null,
+      updatedAt: row.updatedAt ? new Date(row.updatedAt) : new Date(),
+      payloadSizeBytes: Number(row.payload_bytes || 0),
+    }));
+}
+
+export async function findLeagueReportCachePayload(cacheKey: string): Promise<unknown | null> {
+  const sql = await getDb();
+  if (!sql) return null;
+
+  const result = await sql`
+    SELECT payload
+    FROM "leagueReportCache"
+    WHERE "cacheKey" = ${cacheKey}
+    LIMIT 1
+  ` as Array<{ payload?: string | null }>;
+
+  const payload = result[0]?.payload;
+  if (!payload) return null;
+
+  try {
+    return parseLeagueReportCachePayloadFromStorage(payload);
+  } catch (error) {
+    console.warn('[Database] Failed to parse league report cache payload by key:', error);
+    return null;
+  }
+}
+
 export async function upsertMonthlyRosterBlueprintSnapshots(input: {
   leagueId: string;
   snapshotMonth: string;

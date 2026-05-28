@@ -1,7 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { resolvePendingAIPredictionOutcomes } from './aiPredictionOutcomeJob';
-import { listLeagueReportCacheEntries } from './db';
+import {
+  findLeagueReportCachePayload,
+  listLeagueReportCacheMetadata,
+} from './db';
 import { loadDraftSharksScheduleContext } from './draftSharksSchedule';
 import { warmEspnDepthChartsForTeams } from './espnDepthCharts';
 import { refreshFantasyProsEndpointSnapshots } from './fantasyProsEndpointSnapshots';
@@ -24,6 +27,7 @@ import { getValueSourceProfileKey, getValueSourceProfileLabel, type ValueBlendOp
 import type { RankingSourceDiagnostic, ReportData } from '../shared/types';
 
 const LEAGUE_REPORT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'league-reports');
+const DYNAMIC_DATA_CACHE_PAYLOAD_LIMIT_BYTES = 40_000_000;
 const DEFAULT_REFRESH_VALUE_OPTIONS: ValueBlendOptions = {
   numQbs: 2,
   numTeams: 12,
@@ -186,11 +190,24 @@ async function loadCachedReportEntries(limit: number): Promise<CachedReportEntry
   const entriesByKey = new Map<string, CachedReportEntry>();
 
   try {
-    for (const entry of await listLeagueReportCacheEntries(limit)) {
+    for (const entry of await listLeagueReportCacheMetadata(limit)) {
+      if (entry.payloadSizeBytes > DYNAMIC_DATA_CACHE_PAYLOAD_LIMIT_BYTES) {
+        console.warn(
+          '[DynamicDataJobs] Skipping cached report for backfill due large payload:',
+          `${entry.cacheKey} (${entry.payloadSizeBytes} bytes)`
+        );
+        continue;
+      }
+
+      const payload = await findLeagueReportCachePayload(entry.cacheKey);
+      if (!payload) {
+        continue;
+      }
+
       entriesByKey.set(entry.cacheKey, {
         cacheKey: entry.cacheKey,
         leagueId: entry.leagueId,
-        payload: entry.payload,
+        payload,
         updatedAt: entry.updatedAt,
       });
     }
