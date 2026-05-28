@@ -1,10 +1,8 @@
 import type { ReactNode } from "react";
 
-import {
-  HomeFooterChrome,
-  HomeHeaderChrome,
-} from "@/features/home/components/HomeChrome";
+import { HomeHeaderChrome } from "@/features/home/components/HomeChrome";
 import { HomeLandingFeatureCards } from "@/features/home/components/HomeLandingFeatureCards";
+import { HomeSignedOutLandingFooter } from "@/features/home/components/HomeSignedOutLandingFooter";
 import { HomeAnalyzeForm } from "@/features/home/components/HomeAnalyzeForm";
 import { HomeWeaponsCallout } from "@/features/home/components/HomeWeaponsCallout";
 import { HomeLandingHeroCopy } from "@/features/home/components/HomeLandingHeroCopy";
@@ -130,11 +128,10 @@ export function HomeSignedOutLanding({
           </div>
         </main>
 
-        {showLoadingFooter ? (
-          <div className="home-footer mt-auto px-4 py-1">
-            <HomeFooterChrome showBrand={!isAnalysisBusy} />
-          </div>
-        ) : null}
+        <HomeSignedOutLandingFooter
+          showLoadingFooter={showLoadingFooter}
+          isAnalysisBusy={isAnalysisBusy}
+        />
         {homeDialogs}
       </div>
     </>
