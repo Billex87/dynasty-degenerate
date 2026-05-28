@@ -185,19 +185,7 @@ import {
   type AIVoiceMode,
 } from "@/lib/aiVoice";
 
-import {
-  AdminLeagueSharpnessSection,
-  AdminManagerPersonalityIntelSection,
-} from "@/features/admin/components/AdminReadoutSections";
-import { AdminAIReadoutDiagnosticsSection } from "@/features/admin/components/AdminAIReadoutSections";
-import { AdminPlayerReceiptDiagnosticsSection } from "@/features/admin/components/AdminPlayerReceiptSections";
-import { AdminSourceCoverageSection } from "@/features/admin/components/AdminSourceCoverageSections";
-import { AdminValueDiagnosticsSection } from "@/features/admin/components/AdminValueDiagnosticsSections";
-import {
-  AdminProviderTelemetrySection,
-  AdminTrafficTelemetrySection,
-} from "@/features/admin/components/AdminTrafficSections";
-import { AdminAICalibrationSection } from "@/features/admin/components/AdminCalibrationSections";
+import { AdminDiagnosticsShell } from "@/features/admin/components/AdminDiagnosticsShell";
 import { AdminScheduleEdgeSection } from "@/features/admin/components/AdminScheduleEdgeSections";
 
 const DraftAnalysis = lazy(() =>
@@ -2520,39 +2508,10 @@ export default function Home() {
                         </CollapsibleReportSection>
                       )}
                       {canViewAdminDiagnostics && (
-                        <section
-                          className="admin-diagnostics-shell ai-surface-r3f admin-diagnostics-shell-tron"
-                          aria-label="Admin diagnostics"
-                        >
-                          <div className="admin-diagnostics-shell-header">
-                            <span>Admin Diagnostics</span>
-                            <p>
-                              Operational checks separated from the league
-                              report so normal owner analysis stays focused.
-                            </p>
-                          </div>
-                          <AdminAICalibrationSection />
-                          <AdminProviderTelemetrySection />
-                          <AdminSourceCoverageSection />
-                          <AdminTrafficTelemetrySection
-                            onLeagueSelect={handleAnalyze}
-                          />
-                          <AdminValueDiagnosticsSection
-                            reportData={reportDataForView}
-                          />
-                          <AdminLeagueSharpnessSection
-                            reportData={reportDataForView}
-                          />
-                          <AdminManagerPersonalityIntelSection
-                            reportData={reportDataForView}
-                          />
-                          <AdminAIReadoutDiagnosticsSection
-                            reportData={reportDataForView}
-                          />
-                          <AdminPlayerReceiptDiagnosticsSection
-                            reportData={reportDataForView}
-                          />
-                        </section>
+                        <AdminDiagnosticsShell
+                          reportData={reportDataForView}
+                          onLeagueSelect={handleAnalyze}
+                        />
                       )}
                     </div>
                   </TabsContent>
