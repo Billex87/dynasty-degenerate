@@ -1,7 +1,7 @@
 import { Search } from "lucide-react";
 import { HomePortfolioLeagueStack } from "@/features/home/components/HomePortfolioLeagueStack";
 import { LeaguePickerCard } from "@/features/home/components/LeaguePickerCard";
-import { HomePortfolioRow } from "@/features/home/components/HomePortfolioRow";
+import { HomePortfolioList } from "@/features/home/components/HomePortfolioList";
 
 export type HomeLeagueSelectionLeague = {
   leagueId: string;
@@ -96,27 +96,12 @@ export function HomePortfolioPanel({
           />
         </label>
 
-        <div className="home-portfolio-list" aria-live="polite">
-          {isLoading && !rows.length ? (
-            <div className="home-portfolio-empty">
-              Loading the player hoard...
-            </div>
-          ) : filteredRows.length ? (
-            filteredRows
-              .slice(0, 60)
-              .map(row => (
-                <HomePortfolioRow
-                  key={row.id}
-                  row={row}
-                  totalLeagues={leagues.length}
-                />
-              ))
-          ) : (
-            <div className="home-portfolio-empty">
-              No roster edges match that search.
-            </div>
-          )}
-        </div>
+        <HomePortfolioList
+          isLoading={isLoading}
+          rows={rows}
+          filteredRows={filteredRows}
+          totalLeagues={leagues.length}
+        />
       </div>
 
       <aside className="home-league-chooser" aria-label="Choose your league">
