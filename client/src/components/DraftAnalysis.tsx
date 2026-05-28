@@ -10,6 +10,7 @@ import { TeamLogoPill } from './TeamLogoPill';
 import { EmptyState, MetricPill, PlayerPill, type PreviewMetric } from './reportPrimitives';
 import { AIReadPanel } from './AIReadPanel';
 import { DraftCollapsibleSection } from '@/features/report/components/DraftCollapsibleSection';
+import { DraftOpportunityNote } from '@/features/report/components/DraftOpportunityNote';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 import { getDraftKind, getDraftKindLabel, isFreshRookieMarketRead } from '@/lib/draftDisplay';
@@ -886,16 +887,6 @@ export function DraftAnalysis({
         showAIRead={showAIReads}
       />
     </div>
-  );
-}
-
-function DraftOpportunityNote({ opportunity }: { opportunity?: DraftOpportunity }) {
-  if (!opportunity) return null;
-
-  return (
-    <span className="draft-opportunity-note draft-opportunity-missed" title={`${opportunity.label}: ${opportunity.playerName} at ${opportunity.pickLabel}`}>
-      {opportunity.label}: {opportunity.playerName}
-    </span>
   );
 }
 
