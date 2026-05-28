@@ -15,7 +15,6 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
-import { HeaderCssLights } from "@/components/HeaderCssLights";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import {
   PremiumFxLayer,
@@ -57,7 +56,7 @@ import {
   ReportDashboardSpotlight,
   ReportOverviewHero,
 } from "@/features/report/components/ReportDashboardShowcase";
-import { ReportFooterActions } from "@/features/report/components/ReportFooterActions";
+import { ReportDashboardFooter } from "@/features/report/components/ReportDashboardFooter";
 import { ReportDashboardHeader } from "@/features/report/components/ReportDashboardHeader";
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
 import { HomeDialogs } from "@/features/home/components/HomeDialogs";
@@ -2736,31 +2735,25 @@ export default function Home() {
               />
             </div>
 
-            {/* Bottom Action Buttons */}
-            <div className="report-footer border-t border-orange-500/20 bg-slate-950/80 backdrop-blur">
-              <HeaderCssLights className="dd-footer-css-lights" />
-              <div className="dd-header-content mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
-                <ReportFooterActions
-                  canOpenAdminToolsEntry={canOpenAdminToolsEntry}
-                  canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
-                  isAdminPassphraseVerifiedForSession={
-                    isAdminPassphraseVerifiedForSession
-                  }
-                  hasManagerViewOptions={hasManagerViewOptions}
-                  reportManagerNames={reportManagerNames}
-                  effectiveViewerManager={effectiveViewerManager}
-                  managerAvatars={reportData.managerAvatars}
-                  aiVoiceMode={aiVoiceMode}
-                  onAIVoiceModeChange={handleAIVoiceModeChange}
-                  onAdminToolsClick={handleAdminToolsClick}
-                  onAdminViewerManagerChange={setAdminViewerManager}
-                  onAnalyzeAnotherLeague={handleAnalyzeAnotherLeague}
-                  leagueId={leagueId}
-                  leagueName={leagueName}
-                  leagueFormat={leagueFormat}
-                />
-              </div>
-            </div>
+            <ReportDashboardFooter
+              canOpenAdminToolsEntry={canOpenAdminToolsEntry}
+              canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+              isAdminPassphraseVerifiedForSession={
+                isAdminPassphraseVerifiedForSession
+              }
+              hasManagerViewOptions={hasManagerViewOptions}
+              reportManagerNames={reportManagerNames}
+              effectiveViewerManager={effectiveViewerManager}
+              managerAvatars={reportData.managerAvatars}
+              aiVoiceMode={aiVoiceMode}
+              onAIVoiceModeChange={handleAIVoiceModeChange}
+              onAdminToolsClick={handleAdminToolsClick}
+              onAdminViewerManagerChange={setAdminViewerManager}
+              onAnalyzeAnotherLeague={handleAnalyzeAnotherLeague}
+              leagueId={leagueId}
+              leagueName={leagueName}
+              leagueFormat={leagueFormat}
+            />
             </ReportSectionAccordionProvider>
             </Tabs>
 
