@@ -1140,8 +1140,11 @@ function toSleeperLeagueOption(
     powerRank?: number | null;
   }
 ) {
+  const leagueId = getValidSleeperEntityId(leagueInfo?.league_id);
+  if (!leagueId) return null;
+
   return {
-    leagueId: String(leagueInfo.league_id),
+    leagueId,
     name: leagueInfo.name || 'Unnamed League',
     avatarUrl: getSleeperAvatarUrl(leagueInfo.avatar),
     season,
@@ -1153,7 +1156,32 @@ function toSleeperLeagueOption(
   };
 }
 
-type SleeperLeagueOption = ReturnType<typeof toSleeperLeagueOption>;
+type SleeperLeagueOption = NonNullable<ReturnType<typeof toSleeperLeagueOption>>;
+
+const INVALID_LEAGUE_ID_TTL_MS = 10 * 60 * 1000;
+const invalidLeagueIdCache = new Map<string, { fetchedAt: number }>();
+
+function isInvalidLeagueIdCached(leagueId: string): boolean {
+  const validLeagueId = getValidSleeperEntityId(leagueId);
+  if (!validLeagueId) return false;
+
+  const existing = invalidLeagueIdCache.get(validLeagueId);
+  if (!existing) return false;
+
+  if (Date.now() - existing.fetchedAt > INVALID_LEAGUE_ID_TTL_MS) {
+    invalidLeagueIdCache.delete(validLeagueId);
+    return false;
+  }
+
+  return true;
+}
+
+function markInvalidLeagueId(leagueId: string): void {
+  const validLeagueId = getValidSleeperEntityId(leagueId);
+  if (!validLeagueId) return;
+
+  invalidLeagueIdCache.set(validLeagueId, { fetchedAt: Date.now() });
+}
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
 function buildManagerAnchorsFromSleeperUsers(users: unknown) {
@@ -2055,12 +2083,27 @@ function createLeagueAnalyzeTimer(leagueId: string) {
 }
 
 async function fetchLeagueTransactionWeek(leagueId: string, week: number): Promise<any[]> {
+  const normalizedLeagueId = getValidSleeperEntityId(leagueId);
+  if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+    return [];
+  }
+
   try {
-    const transactions = await fetchUserLoadJson<any[]>(
-      `https://api.sleeper.app/v1/league/${leagueId}/transactions/${week}`,
+    const response = await fetchUserLoadResponse(
+      `https://api.sleeper.app/v1/league/${normalizedLeagueId}/transactions/${week}`,
       "league transaction load"
     );
-    return Array.isArray(transactions) ? transactions : [];
+
+    if (!response.ok) {
+      if (response.status === 404 || response.status === 400) {
+        markInvalidLeagueId(normalizedLeagueId);
+      }
+      return [];
+    }
+
+    const payload = await response.json().catch(() => null);
+    const transactions = Array.isArray(payload) ? payload : [];
+    return transactions;
   } catch (error) {
     console.warn(`Failed to fetch Sleeper transactions for league ${leagueId} week ${week}:`, error);
     return [];
@@ -2068,9 +2111,14 @@ async function fetchLeagueTransactionWeek(leagueId: string, week: number): Promi
 }
 
 async function fetchLeagueTransactions(leagueId: string): Promise<any[]> {
+  const normalizedLeagueId = getValidSleeperEntityId(leagueId);
+  if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+    return [];
+  }
+
   const weeks = await Promise.all(
     Array.from({ length: 18 }, (_, index) => index + 1).map((week) =>
-      fetchLeagueTransactionWeek(leagueId, week)
+      fetchLeagueTransactionWeek(normalizedLeagueId, week)
     )
   );
   return weeks.flat();
@@ -2108,19 +2156,55 @@ async function fetchHistoricalTransactionContexts(
   } = {}
 ): Promise<HistoricalTransactionContext[]> {
   const contexts: HistoricalTransactionContext[] = [];
-  let leagueId = startLeagueId ? String(startLeagueId) : '';
+  let leagueId = getValidSleeperEntityId(startLeagueId) || '';
 
   for (let depth = 0; leagueId && depth < maxDepth && !seenLeagueIds.has(leagueId); depth += 1) {
     seenLeagueIds.add(leagueId);
     try {
-      const [leagueInfo, users, rosters] = await Promise.all([
-        fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${leagueId}`),
-        fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`),
-        fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`),
-      ]);
-      if (!leagueInfo || !Array.isArray(users) || !Array.isArray(rosters)) {
+      if (isInvalidLeagueIdCached(leagueId)) {
+        break;
+      }
+
+      const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${leagueId}`);
+      if (!leagueInfo || typeof leagueInfo !== 'object' || !leagueInfo.league_id) {
+        markInvalidLeagueId(leagueId);
         contexts.push({
           leagueId,
+          season: '',
+          transactions: [],
+          rosterUserMap: {},
+          rosterUserDisplayMap: {},
+          previousLeagueId: null,
+          status: 'invalid',
+          error: 'Invalid league response',
+        });
+        break;
+      }
+
+      const resolvedLeagueId = getValidSleeperEntityId(leagueInfo.league_id);
+      if (!resolvedLeagueId || isInvalidLeagueIdCached(resolvedLeagueId)) {
+        markInvalidLeagueId(leagueId);
+        contexts.push({
+          leagueId,
+          season: '',
+          transactions: [],
+          rosterUserMap: {},
+          rosterUserDisplayMap: {},
+          previousLeagueId: null,
+          status: 'invalid',
+          error: 'Invalid resolved league ID',
+        });
+        break;
+      }
+
+      const [users, rosters] = await Promise.all([
+        fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${resolvedLeagueId}/users`),
+        fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${resolvedLeagueId}/rosters`),
+      ]);
+      if (!Array.isArray(users) || !Array.isArray(rosters)) {
+        markInvalidLeagueId(resolvedLeagueId);
+        contexts.push({
+          leagueId: resolvedLeagueId,
           season: '',
           transactions: [],
           rosterUserMap: {},
@@ -2154,21 +2238,25 @@ async function fetchHistoricalTransactionContexts(
           ),
         ])
       );
-      const transactions = await fetchLeagueTransactions(leagueId);
+      const transactions = await fetchLeagueTransactions(resolvedLeagueId);
+      const canonicalPreviousLeagueId = getPreviousSleeperLeagueId(leagueInfo);
       contexts.push({
-        leagueId,
+        leagueId: resolvedLeagueId,
         season: String(leagueInfo.season || ''),
         transactions,
         rosterUserMap,
         rosterUserDisplayMap,
-        previousLeagueId: getPreviousSleeperLeagueId(leagueInfo) || null,
+        previousLeagueId: canonicalPreviousLeagueId || null,
         status: 'loaded',
       });
-      leagueId = getPreviousSleeperLeagueId(leagueInfo);
+      leagueId = canonicalPreviousLeagueId || '';
+      if (leagueId && seenLeagueIds.has(leagueId)) {
+        break;
+      }
     } catch (error) {
       console.warn(`Failed to fetch historical Sleeper transactions for league ${leagueId}:`, error);
       contexts.push({
-        leagueId,
+        leagueId: leagueId || '',
         season: '',
         transactions: [],
         rosterUserMap: {},
@@ -2627,12 +2715,22 @@ async function loadSleeperHiddenTradeCenterImport(input: {
   leagueId: string;
   authToken: string;
 }): Promise<SleeperHiddenTradeCenterImport> {
+  const normalizedLeagueId = getValidSleeperEntityId(input.leagueId);
+  if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
+  }
+
   const [users, rosters, players, hiddenTransactions] = await Promise.all([
-    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${input.leagueId}/users`),
-    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${input.leagueId}/rosters`),
+    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/users`),
+    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/rosters`),
     fetchSleeperPlayersIndex(),
-    fetchSleeperTradeCenterTransactions(input.leagueId, input.authToken.trim()),
+    fetchSleeperTradeCenterTransactions(normalizedLeagueId, input.authToken.trim()),
   ]);
+
+  if (!Array.isArray(users) || !Array.isArray(rosters)) {
+    markInvalidLeagueId(normalizedLeagueId);
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league users or rosters data' });
+  }
 
   const safeUsers = Array.isArray(users) ? users : [];
   const safeRosters = Array.isArray(rosters) ? rosters : [];
@@ -2955,17 +3053,33 @@ async function buildManagerChampionships(
   let nextLeagueId = getPreviousSleeperLeagueId(currentLeagueInfo);
 
   for (let depth = 0; nextLeagueId && depth < maxSeasons && !visited.has(nextLeagueId); depth += 1) {
-    visited.add(nextLeagueId);
+    const normalizedLeagueId = getValidSleeperEntityId(nextLeagueId);
+    if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+      break;
+    }
 
-    const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${nextLeagueId}`);
-    if (!leagueInfo?.league_id) break;
+    visited.add(normalizedLeagueId);
+    const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`);
+    if (!leagueInfo?.league_id) {
+      markInvalidLeagueId(normalizedLeagueId);
+      break;
+    }
+
+    const leagueId = String(leagueInfo.league_id);
+    if (!leagueId || isInvalidLeagueIdCached(leagueId)) {
+      break;
+    }
 
     const [users, rosters, winnersBracket, losersBracket] = await Promise.all([
-      fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/users`),
-      fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/rosters`),
-      fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/winners_bracket`),
-      fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/losers_bracket`),
+      fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`),
+      fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`),
+      fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/winners_bracket`),
+      fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/losers_bracket`),
     ]);
+    if (!Array.isArray(users) || !Array.isArray(rosters)) {
+      markInvalidLeagueId(leagueId);
+      break;
+    }
 
     const userMap = Object.fromEntries((users || []).map((user: any) => [user.user_id, user]));
     const season = String(leagueInfo.season || Number(currentLeagueInfo?.season || new Date().getFullYear()) - depth - 1);
@@ -2988,7 +3102,7 @@ async function buildManagerChampionships(
     const lastPlaceGame = getLastPlaceGameFromLosersBracket(losersBracket || [], leagueInfo?.settings?.playoff_type);
     const lastPlaceWeek = getBracketGameWeek(leagueInfo, lastPlaceGame);
     const lastPlaceWeekMatchups = lastPlaceWeek
-      ? await fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${nextLeagueId}/matchups/${lastPlaceWeek}`)
+      ? await fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/matchups/${lastPlaceWeek}`)
       : null;
     const lastPlaceRosterId = getLastPlaceRosterIdFromLosersBracket(
       losersBracket || [],
@@ -5108,28 +5222,39 @@ async function buildLiveSleeperActivityPatch(
   leagueId: string,
   cachedReportData?: ReportData
 ): Promise<(Pick<ReportData, 'recentTransactions' | 'trendingAdds' | 'trendingDrops' | 'waiverIntelligence'> & Partial<Pick<ReportData, 'scheduleEdgeTargets'>>) | null> {
-  try {
-    const [leagueInfo, users, rosters, players] = await Promise.all([
-      fetchUserLoadJson<any>(
-        `https://api.sleeper.app/v1/league/${leagueId}`,
-        "league activity load"
-      ),
-      fetchUserLoadJson<any[]>(
-        `https://api.sleeper.app/v1/league/${leagueId}/users`,
-        "league activity users load"
-      ),
-      fetchUserLoadJson<any[]>(
-        `https://api.sleeper.app/v1/league/${leagueId}/rosters`,
-        "league activity rosters load"
-      ),
-      fetchSleeperPlayersIndex(),
-    ]);
+  const normalizedLeagueId = getValidSleeperEntityId(leagueId);
+  if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+    return null;
+  }
 
-    if (!leagueInfo || !Array.isArray(users) || !Array.isArray(rosters)) {
+  try {
+    const leagueInfo = await fetchUserLoadJson<any>(
+      `https://api.sleeper.app/v1/league/${normalizedLeagueId}`,
+      "league activity load"
+    );
+    if (!leagueInfo?.league_id) {
+      markInvalidLeagueId(normalizedLeagueId);
       return null;
     }
 
-    const allTransactions = await fetchLeagueLiveActivityTransactions(leagueId, leagueInfo);
+    const [users, rosters] = await Promise.all([
+      fetchUserLoadJson<any[]>(
+        `https://api.sleeper.app/v1/league/${normalizedLeagueId}/users`,
+        "league activity users load"
+      ),
+      fetchUserLoadJson<any[]>(
+        `https://api.sleeper.app/v1/league/${normalizedLeagueId}/rosters`,
+        "league activity rosters load"
+      ),
+    ]);
+    const players = await fetchSleeperPlayersIndex();
+
+    if (!leagueInfo || !Array.isArray(users) || !Array.isArray(rosters)) {
+      markInvalidLeagueId(normalizedLeagueId);
+      return null;
+    }
+
+    const allTransactions = await fetchLeagueLiveActivityTransactions(normalizedLeagueId, leagueInfo);
     const userMap = Object.fromEntries(users.map((user: any) => [user.user_id, user]));
     const rosterUserMap = Object.fromEntries(
       rosters.map((roster: any) => [
@@ -5254,7 +5379,8 @@ async function buildLiveSleeperActivityPatch(
     }
     return livePatch;
   } catch (error) {
-    console.warn(`Failed to refresh live Sleeper activity for league ${leagueId}:`, error);
+    console.warn(`Failed to refresh live Sleeper activity for league ${normalizedLeagueId}:`, error);
+    markInvalidLeagueId(normalizedLeagueId);
     return null;
   }
 }
@@ -5674,12 +5800,27 @@ async function fetchDraftSlotsBySeason(
   leagueId: string,
   rosters: Array<{ roster_id: number; owner_id: string }>
 ): Promise<Record<string, Record<number, number>>> {
-  const drafts = await fetchUserLoadJson<any[]>(
-    `https://api.sleeper.app/v1/league/${leagueId}/drafts`,
-    "Sleeper draft load"
-  );
+  const normalizedLeagueId = getValidSleeperEntityId(leagueId);
+  if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+    return {};
+  }
 
-  if (!Array.isArray(drafts)) return {};
+  let drafts: any[] = [];
+  try {
+    drafts = await fetchUserLoadJson<any[]>(
+      `https://api.sleeper.app/v1/league/${normalizedLeagueId}/drafts`,
+      "Sleeper draft load"
+    );
+  } catch (error) {
+    console.warn(`Failed to fetch Sleeper drafts for league ${normalizedLeagueId}:`, error);
+    markInvalidLeagueId(normalizedLeagueId);
+    return {};
+  }
+
+  if (!Array.isArray(drafts)) {
+    markInvalidLeagueId(normalizedLeagueId);
+    return {};
+  }
 
   const rosterByOwnerId = Object.fromEntries(
     rosters.map((roster) => [roster.owner_id, roster.roster_id])
@@ -5734,15 +5875,31 @@ async function fetchAdditionalDraftLeagueContexts(
   let nextLeagueId = startLeagueId ? String(startLeagueId) : '';
 
   for (let depth = 0; depth < maxDepth && nextLeagueId; depth += 1) {
-    const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${nextLeagueId}`);
-    if (!leagueInfo?.league_id) break;
+    const normalizedLeagueId = getValidSleeperEntityId(nextLeagueId);
+    if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+      break;
+    }
+
+    const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`);
+    if (!leagueInfo?.league_id) {
+      markInvalidLeagueId(normalizedLeagueId);
+      break;
+    }
 
     const leagueId = String(leagueInfo.league_id);
+    if (isInvalidLeagueIdCached(leagueId)) {
+      break;
+    }
+
     if (!alreadyLoadedLeagueIds.has(leagueId)) {
       const [users, rosters] = await Promise.all([
         fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`).then((value) => value || []),
         fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`).then((value) => value || []),
       ]);
+      if (!Array.isArray(users) || !Array.isArray(rosters) || users.length === 0 || rosters.length === 0) {
+        markInvalidLeagueId(leagueId);
+        break;
+      }
       const userById = Object.fromEntries(users.map((user: any) => [user.user_id, user]));
       const rosterMap = Object.fromEntries(
         rosters.map((roster: any) => [
@@ -5803,26 +5960,43 @@ async function fetchAdditionalDraftLeagueContexts(
 }
 
 async function buildLeagueRankingsPayload(leagueId: string, forceRefresh = false) {
+  const normalizedLeagueId = getValidSleeperEntityId(leagueId);
+  if (!normalizedLeagueId) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
+  }
+
+  if (isInvalidLeagueIdCached(normalizedLeagueId)) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
+  }
+
   const prospectContext = await loadProspectContext();
-  const rankingsCacheKey = getLeagueRankingsCacheKey(leagueId, getProspectRankingsCacheSegment(prospectContext.diagnostics));
+  const rankingsCacheKey = getLeagueRankingsCacheKey(
+    normalizedLeagueId,
+    getProspectRankingsCacheSegment(prospectContext.diagnostics)
+  );
   const cachedRankings = forceRefresh ? null : await readCachedLeagueReport(rankingsCacheKey);
   if (!forceRefresh && cachedRankings && typeof cachedRankings === 'object') {
     return cachedRankings as { rankings: Awaited<ReturnType<typeof buildRankingsBoard>> };
   }
 
-  const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${leagueId}`);
+  const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`);
   if (!leagueInfo?.league_id) {
-    throw new Error('Invalid league ID');
+    markInvalidLeagueId(normalizedLeagueId);
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
   }
 
   const [users, rosters, players] = await Promise.all([
-    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`),
-    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`),
+    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/users`),
+    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/rosters`),
     fetchSleeperPlayersIndex(),
   ]);
+  if (!Array.isArray(users) || !Array.isArray(rosters)) {
+    markInvalidLeagueId(normalizedLeagueId);
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league users or rosters data' });
+  }
 
-  const safeUsers = Array.isArray(users) ? users : [];
-  const safeRosters = Array.isArray(rosters) ? rosters : [];
+  const safeUsers = users;
+  const safeRosters = rosters;
   const safePlayers = players && typeof players === 'object' ? players : {};
   const userMap = Object.fromEntries(safeUsers.map((user: any) => [user.user_id, user]));
   const rosterUserMap = Object.fromEntries(
@@ -6131,26 +6305,38 @@ export const appRouter = router({
           message: 'Too many league lookups. Please wait a few minutes and try again.',
         });
 
-        const [leagueInfo, users] = await Promise.all([
-          fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${input.leagueId}`),
-          fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${input.leagueId}/users`).catch(() => null),
-        ]);
-
-        if (!leagueInfo?.league_id) {
-          throw new Error('Invalid league ID');
+        if (isInvalidLeagueIdCached(input.leagueId)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
         }
 
+        const normalizedLeagueId = getValidSleeperEntityId(input.leagueId);
+        if (!normalizedLeagueId) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
+        }
+
+        const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`);
+        if (!leagueInfo?.league_id) {
+          markInvalidLeagueId(normalizedLeagueId);
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
+        }
+
+        const users = await fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/users`).catch(() => null);
+        const leagueOption = toSleeperLeagueOption(leagueInfo, String(leagueInfo.season || new Date().getFullYear()));
+        if (!leagueOption) {
+          markInvalidLeagueId(normalizedLeagueId);
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
+        }
         const managerAnchors = buildManagerAnchorsFromSleeperUsers(users);
 
         return {
-          ...toSleeperLeagueOption(leagueInfo, String(leagueInfo.season || new Date().getFullYear())),
+          ...leagueOption,
           managerAnchors,
         };
       }),
 
     reportCacheStatus: publicProcedure
       .input(z.object({ leagueId: sleeperLeagueIdSchema, viewerUserId: sleeperUserIdSchema.optional() }))
-      .query(async ({ input, ctx }) => {
+        .query(async ({ input, ctx }) => {
         assertReportAccess(ctx);
         assertRateLimit(ctx.req as any, {
           id: 'league.reportCacheStatus',
@@ -6196,14 +6382,25 @@ export const appRouter = router({
         };
 
         const ranks = await Promise.all(leagueIds.map(async (leagueId) => {
-          const [leagueInfo, rosters, users] = await Promise.all([
-            fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${leagueId}`),
-            fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/rosters`),
-            fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${leagueId}/users`),
+          const normalizedLeagueId = getValidSleeperEntityId(leagueId);
+          if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+            return { leagueId, standingsRank: null, powerRank: null };
+          }
+
+          const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`);
+          if (!leagueInfo?.league_id) {
+            markInvalidLeagueId(normalizedLeagueId);
+            return { leagueId: normalizedLeagueId, standingsRank: null, powerRank: null };
+          }
+
+          const [rosters, users] = await Promise.all([
+            fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/rosters`),
+            fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/users`),
           ]);
 
-          if (!leagueInfo) {
-            return { leagueId, standingsRank: null, powerRank: null };
+          if (!Array.isArray(rosters) || !Array.isArray(users)) {
+            markInvalidLeagueId(normalizedLeagueId);
+            return { leagueId: normalizedLeagueId, standingsRank: null, powerRank: null };
           }
 
           const safeRosters = Array.isArray(rosters) ? rosters : [];
@@ -6253,8 +6450,17 @@ export const appRouter = router({
           message: 'Too many hidden trade center imports. Please wait a few minutes and try again.',
         });
 
-        const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${input.leagueId}`);
+        const normalizedLeagueId = getValidSleeperEntityId(input.leagueId);
+        if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Invalid league ID',
+          });
+        }
+
+        const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`);
         if (!leagueInfo?.league_id) {
+          markInvalidLeagueId(normalizedLeagueId);
           throw new TRPCError({
             code: 'BAD_REQUEST',
             message: 'Invalid league ID',
@@ -6262,7 +6468,7 @@ export const appRouter = router({
         }
 
         const hiddenImport = await loadSleeperHiddenTradeCenterImport({
-          leagueId: input.leagueId,
+          leagueId: normalizedLeagueId,
           authToken: input.authToken.trim(),
         });
         const sleeperHiddenLeagueSnapshot = buildSleeperHiddenLeagueSnapshotMetadata({
@@ -6388,6 +6594,13 @@ export const appRouter = router({
         const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
         const liveRefresh = Boolean(input.liveRefresh);
         const bypassReportCache = shouldBypassLeagueReportCache({ forceRefresh, liveRefresh });
+        const normalizedLeagueId = getValidSleeperEntityId(input.leagueId);
+        if (isInvalidLeagueIdCached(input.leagueId)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
+        }
+        if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
+        }
         try {
           const cachedReport = await readCachedLeagueReport(reportCacheKey);
           markAnalyzeStep('cache lookup');
@@ -6425,43 +6638,88 @@ export const appRouter = router({
             message: 'Fresh report generation is temporarily throttled for this league.',
           });
 
-          const leagueInfo = await fetchUserLoadJson<any>(
-            `https://api.sleeper.app/v1/league/${input.leagueId}`,
-            "league analyze load"
-          );
+          let leagueInfo: any;
+          try {
+            leagueInfo = await fetchUserLoadJson<any>(
+              `https://api.sleeper.app/v1/league/${normalizedLeagueId}`,
+              "league analyze load"
+            );
+          } catch (error) {
+            markInvalidLeagueId(normalizedLeagueId);
+            await insertLoginAttempt({
+              eventType: "analyze_league",
+              status: "error",
+              leagueId: normalizedLeagueId,
+              ipAddress,
+              userAgent,
+              note: error instanceof Error ? error.message : 'Failed to load league info',
+            });
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Invalid league ID',
+            });
+          }
           markAnalyzeStep('league info');
 
           if (!leagueInfo || typeof leagueInfo !== 'object' || !leagueInfo.league_id) {
             await insertLoginAttempt({
               eventType: "analyze_league",
               status: "error",
-              leagueId: input.leagueId,
+              leagueId: normalizedLeagueId,
               ipAddress,
               userAgent,
               note: "Invalid league ID",
             });
-            throw new Error('Invalid league ID');
+            markInvalidLeagueId(normalizedLeagueId);
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Invalid league ID',
+            });
           }
 
           await insertLoginAttempt({
             eventType: "analyze_league",
             status: "success",
-            leagueId: input.leagueId,
+            leagueId: normalizedLeagueId,
             ipAddress,
             userAgent,
             note: leagueInfo.name || null,
           });
 
           const users = await fetchUserLoadJson<any[]>(
-            `https://api.sleeper.app/v1/league/${input.leagueId}/users`,
+            `https://api.sleeper.app/v1/league/${normalizedLeagueId}/users`,
             "league users load"
           );
+          if (!Array.isArray(users)) {
+            markInvalidLeagueId(normalizedLeagueId);
+            await insertLoginAttempt({
+              eventType: "analyze_league",
+              status: "error",
+              leagueId: normalizedLeagueId,
+              ipAddress,
+              userAgent,
+              note: "Invalid league users data",
+            });
+            throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league users data' });
+          }
           markAnalyzeStep('users');
 
           const rosters = await fetchUserLoadJson<any[]>(
-            `https://api.sleeper.app/v1/league/${input.leagueId}/rosters`,
+            `https://api.sleeper.app/v1/league/${normalizedLeagueId}/rosters`,
             "league rosters load"
           );
+          if (!Array.isArray(rosters)) {
+            markInvalidLeagueId(normalizedLeagueId);
+            await insertLoginAttempt({
+              eventType: "analyze_league",
+              status: "error",
+              leagueId: normalizedLeagueId,
+              ipAddress,
+              userAgent,
+              note: "Invalid league rosters data",
+            });
+            throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league rosters data' });
+          }
           markAnalyzeStep('rosters');
 
           const userMap = Object.fromEntries(
@@ -6494,7 +6752,7 @@ export const appRouter = router({
           const ownerByPlayerId = buildPlayerOwnerMap(rosters, rosterUserMap);
           const rosterStatusByPlayerId = buildPlayerRosterStatusMap(rosters);
 
-          const allTransactions = await fetchLeagueTransactions(input.leagueId);
+          const allTransactions = await fetchLeagueTransactions(normalizedLeagueId);
           const trades = allTransactions.filter(
             (t: any) => t.type === 'trade' && t.status === 'complete'
           );
@@ -6517,7 +6775,7 @@ export const appRouter = router({
           const previousSeasonFallbackLabel = String(Number(currentSeasonLabel) - 1);
           const lastCompletedSeason = previousSeasonFallbackLabel;
           const staticInputs = await loadReportStaticInputs({
-            leagueId: input.leagueId,
+            leagueId: normalizedLeagueId,
             leagueValueOptions,
             leagueValueProfileKey,
             currentSeason: currentSeasonLabel,
@@ -6546,11 +6804,11 @@ export const appRouter = router({
             userIdToManagerMap: Record<string, string>;
             userIdToManagerDisplayMap: Record<string, string>;
           }> = [];
-          let draftSlotsBySeason = await fetchDraftSlotsBySeason(input.leagueId, rosters);
+          let draftSlotsBySeason = await fetchDraftSlotsBySeason(normalizedLeagueId, rosters);
           let tradedPicks: Array<{ season: string; round: number; roster_id: number; owner_id: number }> = [];
           try {
             const fetchedTradedPicks = await fetchUserLoadJson<any[]>(
-              `https://api.sleeper.app/v1/league/${input.leagueId}/traded_picks`,
+              `https://api.sleeper.app/v1/league/${normalizedLeagueId}/traded_picks`,
               "league traded picks load"
             );
             tradedPicks = Array.isArray(fetchedTradedPicks) ? fetchedTradedPicks : [];
@@ -6559,19 +6817,31 @@ export const appRouter = router({
           }
 
           if (prevLeagueId) {
+            const normalizedPrevLeagueId = getValidSleeperEntityId(prevLeagueId);
+            if (!normalizedPrevLeagueId || isInvalidLeagueIdCached(normalizedPrevLeagueId)) {
+              console.warn('Skipping previous season data due invalid previous league ID:', prevLeagueId);
+            } else {
             try {
               const pastLeagueInfo = await fetchUserLoadJson<any>(
-                `https://api.sleeper.app/v1/league/${prevLeagueId}`,
+                `https://api.sleeper.app/v1/league/${normalizedPrevLeagueId}`,
                 "previous Sleeper league load"
               );
+              if (!pastLeagueInfo?.league_id) {
+                markInvalidLeagueId(normalizedPrevLeagueId);
+                throw new Error('Invalid previous league ID');
+              }
               const pastUsers = await fetchUserLoadJson<any[]>(
-                `https://api.sleeper.app/v1/league/${prevLeagueId}/users`,
+                `https://api.sleeper.app/v1/league/${normalizedPrevLeagueId}/users`,
                 "previous Sleeper league users load"
               );
               const pastRosters = await fetchUserLoadJson<any[]>(
-                `https://api.sleeper.app/v1/league/${prevLeagueId}/rosters`,
+                `https://api.sleeper.app/v1/league/${normalizedPrevLeagueId}/rosters`,
                 "previous Sleeper league rosters load"
               );
+              if (!Array.isArray(pastUsers) || !Array.isArray(pastRosters)) {
+                markInvalidLeagueId(normalizedPrevLeagueId);
+                throw new Error('Invalid previous league users or rosters data');
+              }
               const pastSeasonLabel = String(pastLeagueInfo.season || previousSeasonFallbackLabel);
               playoffWeekStartBySeason[pastSeasonLabel] = Number(pastLeagueInfo.settings?.playoff_week_start || 15);
               const pastUserMap = Object.fromEntries(
@@ -6600,12 +6870,12 @@ export const appRouter = router({
                 ])
               );
               pastRosterDisplayMap = pastRosterUserDisplayMap;
-              const pastTransactions = await fetchLeagueTransactions(prevLeagueId);
+              const pastTransactions = await fetchLeagueTransactions(normalizedPrevLeagueId);
               const pastTrades = pastTransactions.filter(
                 (t: any) => t.type === "trade" && t.status === "complete"
               );
 
-              const pastDraftSlotsBySeason = await fetchDraftSlotsBySeason(prevLeagueId, pastRosters);
+              const pastDraftSlotsBySeason = await fetchDraftSlotsBySeason(normalizedPrevLeagueId, pastRosters);
               draftSlotsBySeason = {
                 ...pastDraftSlotsBySeason,
                 ...draftSlotsBySeason,
@@ -6625,12 +6895,13 @@ export const appRouter = router({
             } catch (e) {
               console.warn('Failed to fetch past season data:', e);
             }
+            }
           }
           markAnalyzeStep('previous season');
 
           historicalTransactionContexts = await fetchHistoricalTransactionContexts(
             prevLeagueId,
-            new Set([String(input.leagueId)]),
+            new Set([String(normalizedLeagueId)]),
             3,
             {
               byUserId: userIdToManagerMap,
@@ -6642,10 +6913,11 @@ export const appRouter = router({
           markAnalyzeStep('historical transactions');
 
           if (leagueValueMode === 'dynasty' && prevLeagueId) {
+            const normalizedPrevLeagueId = getValidSleeperEntityId(prevLeagueId);
             try {
               const draftHistory = await fetchAdditionalDraftLeagueContexts(
-                String(prevLeagueId),
-                new Set([String(input.leagueId), String(prevLeagueId)]),
+                normalizedPrevLeagueId || '',
+                new Set([String(normalizedLeagueId), String(prevLeagueId)]),
                 4,
                 {
                   byUserId: userIdToManagerMap,
@@ -6741,7 +7013,7 @@ export const appRouter = router({
           let currentWeekMatchups: any[] = [];
           try {
             const fetchedMatchups = await fetchSleeperJson<any[]>(
-              `https://api.sleeper.app/v1/league/${input.leagueId}/matchups/${currentScheduleWeek}`
+              `https://api.sleeper.app/v1/league/${normalizedLeagueId}/matchups/${currentScheduleWeek}`
             );
             currentWeekMatchups = Array.isArray(fetchedMatchups) ? fetchedMatchups : [];
           } catch (error) {
@@ -6749,7 +7021,7 @@ export const appRouter = router({
           }
           markAnalyzeStep('schedule inputs');
           const staticSections = await loadReportStaticSections({
-            leagueId: input.leagueId,
+            leagueId: normalizedLeagueId,
             leagueValueProfileKey,
             currentSeason: currentSeasonLabel,
             lastCompletedSeason,
@@ -6793,52 +7065,67 @@ export const appRouter = router({
           });
           markAnalyzeStep('schedule planning');
 
-          // currentUserMap is the same as userIdToManagerMap, so we can reuse it
-          const currentUserMap = userIdToManagerMap;
-          let pastUserMap: Record<string, string> = {};
-          let pastUserDisplayMap: Record<string, string> = {};
-          const pastManagerDisplayNameByManager: Record<string, string> = {};
-          if (pastSeasonData) {
-            const pastUsers = await fetchUserLoadJson<any[]>(
-              `https://api.sleeper.app/v1/league/${prevLeagueId}/users`,
-              "previous Sleeper league users load"
-            );
-            pastUserMap = Object.fromEntries(
-              pastUsers.map((u: any) => [
-                u.user_id,
-                getCanonicalSleeperManagerName(u, userIdToManagerMap),
-              ])
-            );
-            pastUserDisplayMap = Object.fromEntries(
-              pastUsers.map((u: any) => [
-                u.user_id,
-                getCanonicalSleeperManagerDisplayName(
-                  u,
-                  userIdToManagerDisplayMap
-                ),
-              ])
-            );
-            Object.assign(
-              pastManagerDisplayNameByManager,
-              Object.fromEntries(
-                pastUsers.map((u: any) => [
-                  getCanonicalSleeperManagerName(u, userIdToManagerMap),
-                  getCanonicalSleeperManagerDisplayName(
-                    u,
-                    userIdToManagerDisplayMap
-                  ),
-                ])
-              )
-            );
+        // currentUserMap is the same as userIdToManagerMap, so we can reuse it
+        const currentUserMap = userIdToManagerMap;
+        let pastUserMap: Record<string, string> = {};
+        let pastUserDisplayMap: Record<string, string> = {};
+        const pastManagerDisplayNameByManager: Record<string, string> = {};
+        if (pastSeasonData) {
+          const previousLeagueId = getValidSleeperEntityId(prevLeagueId);
+          if (previousLeagueId && !isInvalidLeagueIdCached(previousLeagueId)) {
+            try {
+              const pastUsers = await fetchUserLoadJson<any[]>(
+                `https://api.sleeper.app/v1/league/${previousLeagueId}/users`,
+                "previous Sleeper league users load"
+              );
+              if (!Array.isArray(pastUsers)) {
+                markInvalidLeagueId(previousLeagueId);
+                console.warn('Skipping past user mapping due invalid previous league users:', previousLeagueId);
+              } else {
+                pastUserMap = Object.fromEntries(
+                  pastUsers.map((u: any) => [
+                    u.user_id,
+                    getCanonicalSleeperManagerName(u, userIdToManagerMap),
+                  ])
+                );
+                pastUserDisplayMap = Object.fromEntries(
+                  pastUsers.map((u: any) => [
+                    u.user_id,
+                    getCanonicalSleeperManagerDisplayName(
+                      u,
+                      userIdToManagerDisplayMap
+                    ),
+                  ])
+                );
+                Object.assign(
+                  pastManagerDisplayNameByManager,
+                  Object.fromEntries(
+                    pastUsers.map((u: any) => [
+                      getCanonicalSleeperManagerName(u, userIdToManagerMap),
+                      getCanonicalSleeperManagerDisplayName(
+                        u,
+                        userIdToManagerDisplayMap
+                      ),
+                    ])
+                  )
+                );
+              }
+            } catch (error) {
+              markInvalidLeagueId(previousLeagueId);
+              console.warn('Skipping past user mapping due invalid previous league users:', previousLeagueId, error);
+            }
+          } else {
+            console.warn('Skipping past user mapping due invalid previous league ID:', previousLeagueId || prevLeagueId);
           }
-          markAnalyzeStep('manager maps');
+        }
+        markAnalyzeStep('manager maps');
 
           // Fetch and analyze draft data
           let draftAnalysis: { draftPicks: any[]; draftStats: any[] } = { draftPicks: [], draftStats: [] };
           let trendingAdds: TrendingPlayer[] = [];
           let trendingDrops: TrendingPlayer[] = [];
           try {
-            const draftPicks = await fetchDraftData(input.leagueId, {
+            const draftPicks = await fetchDraftData(normalizedLeagueId, {
               currentRosterMap: rosterUserMap,
               currentRosterDisplayMap: rosterUserDisplayMap,
               currentRosters: rosters,
@@ -7502,8 +7789,17 @@ export const appRouter = router({
           message: 'Too many season log requests. Please wait a few minutes and try again.',
         });
 
-        const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${input.leagueId}`);
+        const normalizedLeagueId = getValidSleeperEntityId(input.leagueId);
+        if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Invalid league ID',
+          });
+        }
+
+        const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`);
         if (!leagueInfo?.league_id) {
+          markInvalidLeagueId(normalizedLeagueId);
           throw new TRPCError({
             code: 'BAD_REQUEST',
             message: 'Invalid league ID',

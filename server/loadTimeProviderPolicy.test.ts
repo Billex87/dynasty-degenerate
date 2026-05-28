@@ -53,6 +53,26 @@ describe("load-time provider policy", () => {
     expect(fetchMock).toHaveBeenCalledWith("https://api.sleeper.app/v1/league/123456789012", undefined);
   });
 
+  it("blocks invalid Sleeper league IDs before the network call is made", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await fetchUserLoadResponse("https://api.sleeper.app/v1/league/0/users", "invalid league load");
+    const snapshot = getApiProviderTelemetrySnapshot({ lookbackMs: 60_000 });
+
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(snapshot.recentEvents[0]).toMatchObject({
+      provider: "Sleeper",
+      endpoint: "api.sleeper.app/v1/league/:id/users",
+      ok: false,
+      status: 400,
+      message: "Blocked invalid Sleeper league ID",
+      scope: "user-load",
+    });
+    expect(JSON.stringify(snapshot)).not.toContain("/league/0/users");
+  });
+
   it("records sanitized user-load telemetry for Sleeper calls", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,

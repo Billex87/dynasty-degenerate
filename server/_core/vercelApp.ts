@@ -20,6 +20,8 @@ import {
   isLeagueReportSnapshotWindow,
 } from '../pacificCronWindows';
 
+const SLEEPER_LEAGUE_ID_PATTERN = /^\d{8,24}$/;
+
 const app = express();
 
 function parseLeagueIds(value: string | undefined): string[] {
@@ -28,7 +30,7 @@ function parseLeagueIds(value: string | undefined): string[] {
       String(value || '')
         .split(/[,\s]+/)
         .map((item) => item.trim())
-        .filter(Boolean)
+        .filter((leagueId) => SLEEPER_LEAGUE_ID_PATTERN.test(leagueId))
     )
   );
 }

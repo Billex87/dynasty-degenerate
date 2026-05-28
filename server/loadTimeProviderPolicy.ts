@@ -4,6 +4,7 @@ export type UserLoadSnapshotOptions = {
   sourceMode: "snapshot";
 };
 
+const SLEEPER_LEAGUE_ID_PATTERN = /^\d{8,24}$/;
 const USER_LOAD_LIVE_HOSTS = new Set([
   "api.sleeper.app",
   "api.sleeper.com",
@@ -34,9 +35,32 @@ export function assertUserLoadAllowedLiveProviderUrl(input: string | URL, contex
 function getSanitizedUserLoadEndpoint(input: string | URL): string {
   const url = input instanceof URL ? input : new URL(input);
   const path = url.pathname
+    .replace(/\/v1\/league\/[^/?#]+/g, '/v1/league/:id')
     .replace(/\/\d{8,24}(?=\/|$)/g, '/:id')
     .replace(/\/[a-f0-9-]{20,}(?=\/|$)/gi, '/:id');
   return `${url.hostname}${path}`;
+}
+
+function normalizeSleeperEntityId(value: string | null | undefined): string {
+  const trimmed = String(value || '').trim();
+  return SLEEPER_LEAGUE_ID_PATTERN.test(trimmed) ? trimmed : '';
+}
+
+function normalizeSleeperLeagueUrl(input: string): string | null {
+  const match = input.match(/^(https?:\/\/api\.sleeper\.app\/v1\/league\/)([^/?#]+)(.*)$/i);
+  if (!match) return input;
+  const leagueId = normalizeSleeperEntityId(decodeURIComponent(match[2] || ''));
+  if (!leagueId) return null;
+  return `${match[1]}${encodeURIComponent(leagueId)}${match[3]}`;
+}
+
+function buildBlockedLeagueResponse(): Response {
+  return new Response("null", {
+    status: 400,
+    headers: {
+      "content-type": "application/json",
+    },
+  });
 }
 
 export async function fetchUserLoadResponse(
@@ -45,11 +69,31 @@ export async function fetchUserLoadResponse(
   init?: RequestInit
 ): Promise<Response> {
   assertUserLoadAllowedLiveProviderUrl(url, context);
+  const normalizedUrl = normalizeSleeperLeagueUrl(url);
+  if (normalizedUrl === null) {
+    const endpoint = getSanitizedUserLoadEndpoint(url);
+    const startedAt = Date.now();
+    recordApiProviderTelemetryEvent({
+      provider: 'Sleeper',
+      endpoint,
+      method: init?.method || 'GET',
+      status: 400,
+      ok: false,
+      durationMs: Date.now() - startedAt,
+      cacheStatus: 'miss',
+      costUnits: 1,
+      job: context,
+      scope: 'user-load',
+      message: 'Blocked invalid Sleeper league ID',
+    });
+    return buildBlockedLeagueResponse();
+  }
+
   const startedAt = Date.now();
-  const endpoint = getSanitizedUserLoadEndpoint(url);
+  const endpoint = getSanitizedUserLoadEndpoint(normalizedUrl);
 
   try {
-    const response = await fetch(url, init);
+    const response = await fetch(normalizedUrl, init);
     recordApiProviderTelemetryEvent({
       provider: 'Sleeper',
       endpoint,
