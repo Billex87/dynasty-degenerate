@@ -13,7 +13,7 @@ export function AutopilotErrorFallback({
     <section className="autopilot-dashboard autopilot-error-fallback">
       <div className="autopilot-hero">
         <div className="autopilot-hero-copy">
-          <span className="autopilot-system-badge">
+          <span className="autopilot-system-badge inline-pill-shell">
             <Bot className="h-4 w-4" aria-hidden="true" />
             AI Team Autopilot
           </span>

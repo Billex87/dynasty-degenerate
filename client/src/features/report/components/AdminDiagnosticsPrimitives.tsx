@@ -15,7 +15,7 @@ export function AdminAttentionBadge({
 
   return (
     <span
-      className={`admin-attention-badge admin-attention-badge-${tone}`}
+      className={`admin-attention-badge admin-attention-badge-${tone} inline-pill-shell`}
       aria-label={`${count} ${label}`}
     >
       <strong>{count > 99 ? "99+" : count.toLocaleString()}</strong>

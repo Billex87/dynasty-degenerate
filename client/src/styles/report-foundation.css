@@ -197,6 +197,16 @@
   border-top: 1px solid rgba(251, 191, 36, 0.16);
 }
 
+.inline-pill-shell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.36rem;
+  border-radius: 999px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .admin-attention-badge {
   display: inline-flex;
   max-width: min(100%, 14rem);
