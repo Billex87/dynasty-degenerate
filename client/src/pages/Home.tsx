@@ -23,14 +23,9 @@ import {
 import { ManagerChampionshipProvider } from "@/components/ManagerChampionships";
 import {
   buildCombinedTrendingPreviewMetrics,
-  buildDraftPreviewMetrics,
   buildLeagueFormatPills,
-  buildManagerPositionRoomPreviewMetrics,
   buildMomentumPreviewMetrics,
-  buildOwnerIntelPreviewMetrics,
   buildRecentTransactionPreviewMetrics,
-  buildRosterPreviewMetrics,
-  buildTaxiPreviewMetrics,
   getReportManagerNames,
 } from "@/features/report/lib/reportOverviewPreview";
 import {
@@ -53,6 +48,7 @@ import {
   ReportDashboardSpotlight,
   ReportOverviewHero,
 } from "@/features/report/components/ReportDashboardShowcase";
+import { ReportOverviewTab } from "@/features/report/components/ReportOverviewTab";
 import { ReportDashboardFooter } from "@/features/report/components/ReportDashboardFooter";
 import { ReportDashboardHeader } from "@/features/report/components/ReportDashboardHeader";
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
@@ -1900,308 +1896,37 @@ export default function Home() {
                   />
                   <Suspense fallback={<ReportSectionLoadingFallback />}>
                     <TabsContent value="overview" className="report-tab-content">
-                      <div className="dashboard-overview-section-stack space-y-6 sm:space-y-8">
-                        {canViewAdminFeatureExpansion && (
-                          <>
-                          <OverviewAIPulse data={reportDataForView} />
-                          <CollapsibleReportSection
-                            title="Monthly Team Blueprint"
-                            kicker="Monthly direction, roster age, and plan cadence"
-                            premium
-                            previewMetrics={[
-                              {
-                                label: "Cadence",
-                                value: "Monthly",
-                                tone: "neutral",
-                              },
-                              {
-                                label: "Plan Lens",
-                                value:
-                                  leagueValueMode === "redraft"
-                                    ? "Season"
-                                    : "Dynasty",
-                                tone: "neutral",
-                              },
-                              {
-                                label: "Snapshot",
-                                value: reportData.weeklyRisers?.length
-                                  ? "Partial"
-                                  : "Current",
-                                tone: reportData.weeklyRisers?.length
-                                  ? "info"
-                                  : "warn",
-                              },
-                            ]}
-                          >
-                            <MonthlyTeamBlueprint
-                              data={reportDataForView}
-                              leagueName={leagueName}
-                              leagueFormat={leagueFormat}
-                              managerAvatars={reportData.managerAvatars}
-                            />
-                          </CollapsibleReportSection>
-                          <CollapsibleReportSection
-                            title="League Power Rankings"
-                            kicker={
-                              isRedraftReport
-                                ? "Weekly league ordering and relative strength tiers"
-                                : "League ordering, value tiers, and relative strength"
-                            }
-                            premium
-                            previewMetrics={[
-                              {
-                                label: "Ranked Teams",
-                                compactLabel: "Teams",
-                                value: reportData.powerRankings?.length || 0,
-                                tone: reportData.powerRankings?.length
-                                  ? "info"
-                                  : "warn",
-                              },
-                              {
-                                label: "Ordering",
-                                value: "Power",
-                                tone: "neutral",
-                              },
-                              {
-                                label: "Lens",
-                                value: isRedraftReport ? "Weekly" : "Dynasty",
-                                tone: "neutral",
-                              },
-                            ]}
-                          >
-                            <LeaguePowerRankings
-                              data={reportDataForView}
-                              managerAvatars={reportData.managerAvatars}
-                            />
-                          </CollapsibleReportSection>
-                          <CollapsibleReportSection
-                            title="Team Breakdown & Roster Recon"
-                            kicker="Per-roster strengths, leaks, surplus, and next move"
-                            premium
-                            previewMetrics={[
-                              {
-                                label: "Scope",
-                                value: "Team-by-team",
-                                tone: "neutral",
-                              },
-                              {
-                                label: "Recon Rows",
-                                compactLabel: "Rows",
-                                value:
-                                  reportData.managerRosterIntelligence
-                                    ?.length || 0,
-                                tone: reportData.managerRosterIntelligence
-                                  ?.length
-                                  ? "info"
-                                  : "warn",
-                              },
-                              {
-                                label: "Flag Source",
-                                compactLabel: "Flags",
-                                value: reportData.positionDepth?.length || 0,
-                                tone: reportData.positionDepth?.length
-                                  ? "warn"
-                                  : "neutral",
-                              },
-                            ]}
-                          >
-                            <TeamBreakdownRecon
-                              data={reportDataForView}
-                              managerAvatars={reportData.managerAvatars}
-                            />
-                          </CollapsibleReportSection>
-                          <CollapsibleReportSection
-                            title="Trade Finder"
-                            kicker={
-                              isRedraftReport
-                                ? "Trade partners, upgrade lanes, and weekly pressure points"
-                                : "Trade partners, package lanes, and league pressure points"
-                            }
-                            premium
-                            previewMetrics={[
-                              {
-                                label: "Owner",
-                                value: "Trade market",
-                                tone: "neutral",
-                              },
-                              {
-                                label: "Inputs",
-                                value: isRedraftReport
-                                  ? "Needs/Fits"
-                                  : "Needs/Picks",
-                                tone: "info",
-                              },
-                              {
-                                label: isRedraftReport ? "Fit Rows" : "Pick Rows",
-                                value: isRedraftReport
-                                  ? reportData.managerRosterIntelligence
-                                      ?.length || 0
-                                  : reportData.pickPortfolios?.length || 0,
-                                tone: (
-                                  isRedraftReport
-                                    ? reportData.managerRosterIntelligence
-                                        ?.length
-                                    : reportData.pickPortfolios?.length
-                                )
-                                  ? "info"
-                                  : "warn",
-                              },
-                            ]}
-                          >
-                            <div className="command-expansion-stack">
-                              <TradeFinderGenerator data={reportDataForView} />
-                              <TradePartnerFinder
-                                data={reportDataForView}
-                                managerAvatars={reportData.managerAvatars}
-                              />
-                              <LeagueExploits
-                                data={reportDataForView}
-                                managerAvatars={reportData.managerAvatars}
-                              />
-                            </div>
-                          </CollapsibleReportSection>
-                          {SHOW_ASSISTANT_FEATURE_RADAR && (
-                            <CollapsibleReportSection
-                              title="Assistant Feature Radar"
-                              kicker="Useful shells without fake data"
-                              premium
-                              previewMetrics={[
-                                {
-                                  label: "Status",
-                                  value: "Shells",
-                                  tone: "neutral",
-                                },
-                                {
-                                  label: "Data",
-                                  value: "No fake reads",
-                                  tone: "info",
-                                },
-                                {
-                                  label: "Mode",
-                                  value: "Inventory",
-                                  tone: "neutral",
-                                },
-                              ]}
-                            >
-                              <AssistantFeatureShells
-                                data={reportDataForView}
-                                leagueName={leagueName}
-                                leagueId={leagueId}
-                              />
-                            </CollapsibleReportSection>
-                          )}
-                        </>
-                      )}
-                        {(() => {
-                          const hasTaxiTriage =
-                            !isRedraftReport &&
-                            reportData.managerRosterIntelligence?.some(
-                              row => (row.taxiTriage?.items.length || 0) > 0
-                            );
-                          return (
-                            <>
-                            <CollapsibleReportSection
-                              title={modeCopy.ownerTitle}
-                              kicker={modeCopy.ownerKicker}
-                              defaultOpen
-                              previewAccessory={
-                                !isRedraftReport ? (
-                                  <OwnerIntelSortControls
-                                    value={ownerIntelSortMode}
-                                    onChange={setOwnerIntelSortMode}
-                                  />
-                                ) : undefined
-                              }
-                              previewMetrics={
-                                !isRedraftReport
-                                  ? buildOwnerIntelPreviewMetrics(
-                                      reportDataForView,
-                                      ownerIntelSortMode
-                                    )
-                                  : undefined
-                              }
-                            >
-                              <OwnerIntelMatrix
-                                data={reportDataForView}
-                                managerAvatars={reportData.managerAvatars}
-                                leagueId={leagueId}
-                                leagueLogo={leagueLogo}
-                                viewerManager={effectiveViewerManager}
-                                currentStandings={reportData.currentStandings}
-                                leagueValueMode={leagueValueMode}
-                                ownerIntelSortMode={ownerIntelSortMode}
-                              />
-                            </CollapsibleReportSection>
-                            <CollapsibleReportSection
-                              title={modeCopy.rosterTitle}
-                              kicker={modeCopy.rosterKicker}
-                              defaultOpen
-                              previewMetrics={buildRosterPreviewMetrics(
-                                reportData
-                              )}
-                            >
-                              <LeagueCommandCenter
-                                data={reportDataForView}
-                                managerAvatars={reportData.managerAvatars}
-                                leagueId={leagueId}
-                                leagueLogo={leagueLogo}
-                                section="roster"
-                                viewerManager={effectiveViewerManager}
-                                currentStandings={reportData.currentStandings}
-                                leagueValueMode={leagueValueMode}
-                              />
-                            </CollapsibleReportSection>
-                            {hasTaxiTriage && (
-                              <CollapsibleReportSection
-                                title="Taxi Squad Triage"
-                                kicker="Taxi-only activation checks"
-                                defaultOpen
-                                previewMetrics={buildTaxiPreviewMetrics(
-                                  reportData
-                                )}
-                              >
-                                <LeagueCommandCenter
-                                  data={reportDataForView}
-                                  managerAvatars={reportData.managerAvatars}
-                                  leagueId={leagueId}
-                                  leagueLogo={leagueLogo}
-                                  section="taxi"
-                                  viewerManager={effectiveViewerManager}
-                                  currentStandings={reportData.currentStandings}
-                                />
-                              </CollapsibleReportSection>
-                            )}
-                            {reportData.managerPositionCounts.length > 0 && (
-                              <CollapsibleReportSection
-                                title="Manager Position Counts"
-                                kicker={
-                                  isRedraftReport
-                                    ? "Starter depth and position gaps"
-                                    : "Full roster depth map"
-                                }
-                                defaultOpen
-                                previewMetrics={buildManagerPositionRoomPreviewMetrics(
-                                  reportData
-                                )}
-                              >
-                                <ManagerPositionCountsTable
-                                  data={reportData.managerPositionCounts}
-                                  positionDepth={reportData.positionDepth}
-                                  managerAvatars={reportData.managerAvatars}
-                                  playerDetailsById={
-                                    reportData.playerDetailsById
-                                  }
-                                  leagueId={leagueId}
-                                  leagueLogo={leagueLogo}
-                                  viewerManager={effectiveViewerManager}
-                                  leagueValueMode={leagueValueMode}
-                                />
-                              </CollapsibleReportSection>
-                            )}
-                            </>
-                          );
-                        })()}
-                      </div>
+                      <ReportOverviewTab
+                        reportData={reportData}
+                        reportDataForView={reportDataForView}
+                        canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+                        isRedraftReport={isRedraftReport}
+                        leagueValueMode={leagueValueMode}
+                        leagueName={leagueName}
+                        leagueFormat={leagueFormat}
+                        leagueId={leagueId}
+                        leagueLogo={leagueLogo}
+                        effectiveViewerManager={effectiveViewerManager}
+                        ownerIntelSortMode={ownerIntelSortMode}
+                        onOwnerIntelSortModeChange={setOwnerIntelSortMode}
+                        ownerTitle={modeCopy.ownerTitle}
+                        ownerKicker={modeCopy.ownerKicker}
+                        rosterTitle={modeCopy.rosterTitle}
+                        rosterKicker={modeCopy.rosterKicker}
+                        showAssistantFeatureRadar={SHOW_ASSISTANT_FEATURE_RADAR}
+                        OverviewAIPulse={OverviewAIPulse}
+                        MonthlyTeamBlueprint={MonthlyTeamBlueprint}
+                        LeaguePowerRankings={LeaguePowerRankings}
+                        TeamBreakdownRecon={TeamBreakdownRecon}
+                        TradeFinderGenerator={TradeFinderGenerator}
+                        TradePartnerFinder={TradePartnerFinder}
+                        LeagueExploits={LeagueExploits}
+                        AssistantFeatureShells={AssistantFeatureShells}
+                        OwnerIntelSortControls={OwnerIntelSortControls}
+                        OwnerIntelMatrix={OwnerIntelMatrix}
+                        LeagueCommandCenter={LeagueCommandCenter}
+                        ManagerPositionCountsTable={ManagerPositionCountsTable}
+                      />
                     </TabsContent>
 
                   {canViewAutopilotTab && (
