@@ -182,7 +182,7 @@ export function ReportDashboardHeader({
                     {leagueFormatPills.map(chip => (
                       <span
                         key={chip}
-                        className="report-inline-pill report-league-format-pill"
+                        className="report-pill-shell report-inline-pill report-league-format-pill"
                       >
                         {chip}
                       </span>

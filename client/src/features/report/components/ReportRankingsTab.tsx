@@ -174,7 +174,7 @@ export function ReportRankingsTab({
           title="College Rankings"
           kicker="Future rookie pipeline"
           previewAccessory={
-            <span className="report-inline-pill rankings-header-context-pill">
+            <span className="report-pill-shell report-inline-pill rankings-header-context-pill">
               2021-2027 Tracked
             </span>
           }

@@ -3461,7 +3461,7 @@ export function LeagueCommandCenter({
                         {selectedSeasonTags.map(tag => (
                           <span
                             key={tag.label}
-                            className={`manager-intel-pill report-inline-pill command-mini-badge-${tag.tone}`}
+                            className={`manager-intel-pill report-pill-shell report-inline-pill command-mini-badge-${tag.tone}`}
                           >
                             {tag.label}
                           </span>
@@ -3907,7 +3907,7 @@ export function ManagerIntelligenceCards({
                     .map(tag => (
                       <span
                         key={tag}
-                        className={`manager-intel-pill report-inline-pill ${getPillToneClass(tag)}`}
+                        className={`manager-intel-pill report-pill-shell report-inline-pill ${getPillToneClass(tag)}`}
                       >
                         {titleCasePill(tag)}
                       </span>
@@ -4619,7 +4619,7 @@ export function OwnerIntelMatrix({
                   {selectedOwnerTags.map(tag => (
                     <span
                       key={tag.label}
-                      className={`manager-intel-pill report-inline-pill command-mini-badge-${tag.tone}`}
+                      className={`manager-intel-pill report-pill-shell report-inline-pill command-mini-badge-${tag.tone}`}
                     >
                       {tag.label}
                     </span>

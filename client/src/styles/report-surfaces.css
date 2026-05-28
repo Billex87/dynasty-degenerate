@@ -5192,8 +5192,34 @@ button.trade-manager-trade {
   width: fit-content;
   max-width: 100%;
   min-width: 0;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
+  display: inline-flex;
   white-space: nowrap;
+  border-radius: 999px;
+  min-height: 1.42rem;
+  font-size: var(--report-chip-font-size);
+  letter-spacing: 0.06em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-shell .report-pill-shell {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  display: inline-flex;
+  white-space: nowrap;
+  border-radius: 999px;
+  min-height: 1.42rem;
+  font-size: var(--report-chip-font-size);
+  letter-spacing: 0.06em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .report-shell :is(.weekly-momentum-delta, .trade-market-change, .draftbuzz-table__score, .value-board__value, .value-board__movement, .recent-transaction-meta strong, .rookie-draft-value-cell, .rookie-draft-gain-cell) {
