@@ -52,4 +52,6 @@
   - Source coverage matrix: `31` total, `16 loaded`, `5 stale`, `6 missing`, `1 blocked`, `3 research`
   - Provider telemetry: `Calls=22074`, `network=22072`, `failures=958`, `429s=0`
   - Top providers: `Sleeper=22045`, `FantasyPros=29`.
-- Interpretation: this does not resolve cron-runtime behavior by itself; it confirms read-path health after the hardening change. The full `dynamic-data-refresh` execution should still be re-run in production/runtime to validate end-to-end scheduling and duration.
+- Interpretation: this does not resolve cron-runtime behavior by itself; it confirms read-path health after the hardening change.
+- Additional local runtime smoke (production-shaped): `runDynamicDataRefresh({ backfillLimit: 10 })` completed at `2026-05-28T19:46:39Z` with `ok=true`, `durationMs=14133`, and no `response is too large` failure.
+- Remaining risk: full production-window cron execution is still required to confirm scheduling and execution envelope under real runtime.

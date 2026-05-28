@@ -24,6 +24,7 @@
     - `dynamic-data-refresh` (authenticated): request timeout while long-running in this environment.
       - Observed partial run logs before abort: KTC scrape pages were fetched; run later failed with DB error `response is too large (max is 67108864 bytes)` when reading cached report entries.
       - Follow-up: local source/league-cache/operations audits were re-run at `2026-05-28T19:35:23.086Z` and completed successfully after the metadata-first payload-change in `server/dynamicDataJobs.ts` (full cron execution with production secret/provisioning still pending).
+      - Runtime check (local): `runDynamicDataRefresh({ backfillLimit: 10 })` executed successfully in production-shaped env at `2026-05-28T19:46:39Z` with `ok=true`, `durationMs=14133`, and no `response is too large` failure.
       - Next step: re-run this cron in production runtime to confirm timeout/no `response is too large` behavior is fully resolved under real runtime conditions.
 
 ## Vercel Dashboard Values to Record
