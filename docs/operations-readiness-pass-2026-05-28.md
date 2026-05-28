@@ -36,3 +36,4 @@
 ## Decision
 - This run is captured as the latest baseline before the next refactor iteration.
 - Vercel production usage review and webhook env-hardening still remain in follow-up scope (no dashboard snapshot captured in this pass).
+- A local code-path hardening change was applied after this baseline to reduce `dynamic-data-refresh` DB read pressure: it now reads cache metadata first, skips overly-large payload rows, then fetches payloads individually.
