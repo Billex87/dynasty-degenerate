@@ -5844,6 +5844,15 @@
   line-height: 1.1;
 }
 
+.analysis-preview-manager-chip {
+  min-width: min(100%, 10.5rem);
+}
+
+.analysis-preview-manager-chip .analysis-preview-manager-value {
+  flex: 1 1 auto;
+  max-width: none;
+}
+
 .analysis-preview-chip-row:has(.analysis-preview-player-with-meta) .analysis-preview-chip {
   min-width: min(100%, 12.75rem);
   max-width: 18.5rem;
@@ -10355,11 +10364,13 @@
   white-space: nowrap;
 }
 
+.analysis-preview-manager-chip,
 .analysis-preview-chip-manager-preview,
 .analysis-preview-chip-starter-room {
   min-width: min(100%, 10.5rem);
 }
 
+.analysis-preview-manager-chip .analysis-preview-manager-value,
 .analysis-preview-chip-manager-preview .analysis-preview-manager-value,
 .analysis-preview-chip-starter-room .analysis-preview-manager-value {
   flex: 1 1 auto;

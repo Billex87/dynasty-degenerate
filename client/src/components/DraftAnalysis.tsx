@@ -1,14 +1,15 @@
 import { useEffect, useState, useMemo, type ReactNode } from 'react';
 import type { DraftPick, ManagerDraftStats, ManagerRosterIntelligence, PlayerDetails, ReportData } from '@shared/types';
-import { TrendingUp, TrendingDown, ArrowUpDown, ChevronDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowUpDown } from 'lucide-react';
 import { ManagerDraftPicksModal } from './ManagerDraftPicksModal';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { ChampionAvatarFrame } from './ManagerChampionships';
 import { TeamLogoPill } from './TeamLogoPill';
-import { EmptyState, MetricPill, PlayerPill, PreviewMetricChips, ReportSectionHeader, type PreviewMetric } from './reportPrimitives';
+import { EmptyState, MetricPill, PlayerPill, type PreviewMetric } from './reportPrimitives';
 import { AIReadPanel } from './AIReadPanel';
+import { DraftCollapsibleSection } from '@/features/report/components/DraftCollapsibleSection';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { buildDraftOpportunityMap, getDraftPickKey, type DraftOpportunity } from '@/lib/draftOpportunity';
 import { getDraftKind, getDraftKindLabel, isFreshRookieMarketRead } from '@/lib/draftDisplay';
@@ -187,14 +188,14 @@ function buildDraftDecisionPreviewMetrics(
       compactLabel: 'Clean',
       value: renderPreviewManagerIdentity(bestDecisionMaker.manager, bestDecisionMaker.managerDisplayName, managerAvatars),
       tone: 'good',
-      className: 'analysis-preview-chip-manager-preview',
+      className: 'analysis-preview-chip-manager-preview analysis-preview-manager-chip',
     } : null,
     worstDecisionMaker ? {
       label: 'Biggest Audit Flag',
       compactLabel: 'Flag',
       value: renderPreviewManagerIdentity(worstDecisionMaker.manager, worstDecisionMaker.managerDisplayName, managerAvatars),
       tone: worstDecisionMaker.watchFlags ? 'danger' : 'warn',
-      className: 'analysis-preview-chip-manager-preview',
+      className: 'analysis-preview-chip-manager-preview analysis-preview-manager-chip',
     } : null,
   ].filter(Boolean) as PreviewMetric[];
 }
@@ -231,14 +232,14 @@ function buildDraftYearPreviewMetrics(
       compactLabel: 'Clean',
       value: renderPreviewManagerIdentity(bestDecisionMaker.manager, bestDecisionMaker.managerDisplayName, managerAvatars),
       tone: 'good',
-      className: 'analysis-preview-chip-manager-preview',
+      className: 'analysis-preview-chip-manager-preview analysis-preview-manager-chip',
     } : null,
     worstDecisionMaker ? {
       label: 'Audit Flag',
       compactLabel: 'Flag',
       value: renderPreviewManagerIdentity(worstDecisionMaker.manager, worstDecisionMaker.managerDisplayName, managerAvatars),
       tone: worstDecisionMaker.watchFlags ? 'danger' : 'warn',
-      className: 'analysis-preview-chip-manager-preview',
+      className: 'analysis-preview-chip-manager-preview analysis-preview-manager-chip',
     } : null,
     picks.length ? { label: 'Clean Reads', compactLabel: 'Clean', value: cleanDecisionRate, tone: cleanDecisionCount === picks.length ? 'good' : 'info' } : null,
   ].filter(Boolean) as PreviewMetric[];
@@ -1490,35 +1491,4 @@ function enrichDraftPickDetails(
       depthChartMismatch: mappedDetails.depthChartMismatch ?? pick.playerDetails?.depthChartMismatch,
     },
   };
-}
-
-function DraftCollapsibleSection({
-  title,
-  kicker,
-  previewMetrics,
-  open,
-  onToggle,
-  children,
-}: {
-  title: string;
-  kicker?: string;
-  previewMetrics?: PreviewMetric[];
-  open?: boolean;
-  onToggle?: (open: boolean) => void;
-  children: ReactNode;
-}) {
-  return (
-    <details className="report-section report-disclosure" open={open} onToggle={(event) => onToggle?.(event.currentTarget.open)}>
-      <summary className="report-disclosure-summary">
-        <ReportSectionHeader title={title} kicker={kicker} />
-        <PreviewMetricChips metrics={previewMetrics} className="report-disclosure-preview" />
-        <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
-      </summary>
-      <div className="report-disclosure-body">
-        <div className="report-disclosure-body-inner">
-          {children}
-        </div>
-      </div>
-    </details>
-  );
 }

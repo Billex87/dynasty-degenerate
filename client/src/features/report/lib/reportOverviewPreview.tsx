@@ -138,7 +138,7 @@ export function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
         data.managerAvatars
       ),
       tone: "good",
-      className: "analysis-preview-chip-starter-room",
+      className: "analysis-preview-chip-starter-room analysis-preview-manager-chip",
     },
     preview.weakestStarterManager
       ? {
@@ -149,7 +149,7 @@ export function buildRosterPreviewMetrics(data: ReportData): PreviewMetric[] {
             data.managerAvatars
           ),
           tone: "warn",
-          className: "analysis-preview-chip-starter-room",
+          className: "analysis-preview-chip-starter-room analysis-preview-manager-chip",
         }
       : null,
   ].filter(Boolean) as PreviewMetric[];
@@ -172,7 +172,7 @@ export function buildTaxiPreviewMetrics(data: ReportData): PreviewMetric[] {
             data.managerAvatars
           ),
           tone: "good",
-          className: "analysis-preview-chip-manager-preview",
+          className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
         }
       : null,
     preview.mostCuttableManager
@@ -184,7 +184,7 @@ export function buildTaxiPreviewMetrics(data: ReportData): PreviewMetric[] {
             data.managerAvatars
           ),
           tone: "warn",
-          className: "analysis-preview-chip-manager-preview",
+          className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
         }
       : null,
   ].filter(Boolean) as PreviewMetric[];
@@ -232,7 +232,7 @@ export function buildOwnerIntelPreviewMetrics(
             data.managerAvatars
           ),
           tone: "good",
-          className: "analysis-preview-chip-manager-preview",
+          className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
         }
       : null,
     ordered[ordered.length - 1]
@@ -243,7 +243,7 @@ export function buildOwnerIntelPreviewMetrics(
             data.managerAvatars
           ),
           tone: "warn",
-          className: "analysis-preview-chip-manager-preview",
+          className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
         }
       : null,
   ].filter(Boolean) as PreviewMetric[];
@@ -268,7 +268,7 @@ export function buildManagerPositionRoomPreviewMetrics(
             data.managerAvatars
           ),
           tone: "warn",
-          className: "analysis-preview-chip-manager-preview",
+          className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
         }
       : null,
     preview.openRoomManager
@@ -283,7 +283,7 @@ export function buildManagerPositionRoomPreviewMetrics(
             data.managerAvatars
           ),
           tone: "good",
-          className: "analysis-preview-chip-manager-preview",
+          className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
         }
       : null,
   ].filter(Boolean) as PreviewMetric[];
@@ -743,7 +743,7 @@ export function buildTradePreviewMetrics(
                 data.managerAvatars
               ),
               tone: "good",
-              className: "analysis-preview-chip-manager-preview",
+              className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
             }
           : null,
         worstProfit
@@ -754,7 +754,7 @@ export function buildTradePreviewMetrics(
                 data.managerAvatars
               ),
               tone: "danger",
-              className: "analysis-preview-chip-manager-preview",
+              className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
             }
           : null,
       ].filter(Boolean) as PreviewMetric[];
@@ -768,7 +768,7 @@ export function buildTradePreviewMetrics(
                 data.managerAvatars
               ),
               tone: "info",
-              className: "analysis-preview-chip-manager-preview",
+              className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
             }
           : null,
         quietestTrader
@@ -779,7 +779,7 @@ export function buildTradePreviewMetrics(
                 data.managerAvatars
               ),
               tone: "neutral",
-              className: "analysis-preview-chip-manager-preview",
+              className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
             }
           : null,
         bestWinRate
@@ -790,7 +790,7 @@ export function buildTradePreviewMetrics(
                 data.managerAvatars
               ),
               tone: "good",
-              className: "analysis-preview-chip-manager-preview",
+              className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
             }
           : null,
       ].filter(Boolean) as PreviewMetric[];
@@ -801,7 +801,7 @@ export function buildTradePreviewMetrics(
               label: "Aura Farmer",
               value: renderPreviewManagerIdentity(auraManager, data.managerAvatars),
               tone: "good",
-              className: "analysis-preview-chip-manager-preview",
+              className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
             }
           : null,
         cookedManager
@@ -816,7 +816,7 @@ export function buildTradePreviewMetrics(
                 data.managerAvatars
               ),
               tone: "danger",
-              className: "analysis-preview-chip-manager-preview",
+              className: "analysis-preview-chip-manager-preview analysis-preview-manager-chip",
             }
           : null,
       ].filter(Boolean) as PreviewMetric[];
