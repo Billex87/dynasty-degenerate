@@ -125,6 +125,12 @@ import {
   StartingRosterRankTiles,
 } from "./reportTables/OwnerRankTiles";
 import {
+  combineSuperflexQuarterbackGroups,
+  getSwapFitLabel,
+  isQuarterbackLineupGroup,
+  sortLineupGroupsForDisplay,
+} from "./reportTables/lineupUtils";
+import {
   buildManagerSignalTags,
   buildOwnerIntelTileTags,
   getPillToneClass,
@@ -1962,82 +1968,6 @@ function buildSeasonInsuranceRead(row?: OwnerIntelRow | null): string | null {
   }
 
   return `${risky?.name} is the main availability concern, but there is no clean internal cover showing in the current season ranks.`;
-}
-
-function getLineupDisplayOrder(group: {
-  key?: string;
-  label?: string;
-}): number {
-  const key = String(group.key || group.label || "").toUpperCase();
-  if (key.includes("QB_SF") || key.includes("QB/SF") || key === "QB") return 0;
-  if (key === "RB" || key.startsWith("RB ")) return 1;
-  if (key === "WR" || key.startsWith("WR ")) return 2;
-  if (key === "TE" || key.startsWith("TE ")) return 3;
-  if (key === "FLEX" || key.startsWith("FLEX")) return 4;
-  if (key === "K" || key.startsWith("K ")) return 5;
-  if (key === "DEF" || key.startsWith("DEF")) return 6;
-  return 99;
-}
-
-function sortLineupGroupsForDisplay<T extends { key?: string; label?: string }>(
-  groups: T[]
-): T[] {
-  return [...groups].sort(
-    (a, b) =>
-      getLineupDisplayOrder(a) - getLineupDisplayOrder(b) ||
-      String(a.label || "").localeCompare(String(b.label || ""))
-  );
-}
-
-function isQuarterbackLineupGroup(group: { key?: string; label?: string }) {
-  const key = String(group.key || group.label || "").toUpperCase();
-  return key === "QB" || key.startsWith("QB ") || key.includes("QB_SF") || key.includes("QB/SF");
-}
-
-function getSwapFitLabel(label?: string | null) {
-  const normalized = String(label || "").trim();
-  if (/QB\/SF|QB_SF/i.test(normalized)) return "QB/SF";
-  if (/FLEX/i.test(normalized)) return "Flex";
-  if (/DEF/i.test(normalized)) return "DEF";
-  if (/\bK\b/i.test(normalized)) return "K";
-  if (/\bTE\b/i.test(normalized)) return "TE";
-  if (/\bWR\b/i.test(normalized)) return "WR";
-  if (/\bRB\b/i.test(normalized)) return "RB";
-  if (/\bQB\b/i.test(normalized)) return "QB";
-  return normalized || "Lineup";
-}
-
-function combineSuperflexQuarterbackGroups<
-  T extends { key?: string; label?: string; count?: number; players: CommandPlayer[] },
->(groups: T[]): T[] {
-  const quarterbackGroups = groups.filter(isQuarterbackLineupGroup);
-  if (quarterbackGroups.length <= 1) return groups;
-
-  const usedPlayers = new Set<string>();
-  const combinedPlayers = quarterbackGroups.flatMap(group => group.players || [])
-    .filter(player => {
-      const key = player.player_id || `${player.name}-${player.pos}`;
-      if (usedPlayers.has(key)) return false;
-      usedPlayers.add(key);
-      return true;
-    });
-  const combinedCount =
-    quarterbackGroups.reduce(
-      (sum, group) => sum + (group.count || group.players.length || 0),
-      0
-    ) || combinedPlayers.length;
-  const combined = {
-    ...quarterbackGroups[0],
-    key: "QB_SF",
-    label: `QB/SF x${combinedCount}`,
-    count: combinedCount,
-    players: combinedPlayers,
-  } as T;
-
-  return sortLineupGroupsForDisplay([
-    combined,
-    ...groups.filter(group => !isQuarterbackLineupGroup(group)),
-  ]);
 }
 
 function CommandPlayerTile({
