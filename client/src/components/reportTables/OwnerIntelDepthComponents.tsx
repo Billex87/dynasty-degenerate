@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { X as XIcon } from "lucide-react";
+import type { ManagerIntelPlayer } from "@shared/types";
 import {
   Dialog,
   DialogContent,
@@ -12,10 +13,19 @@ import {
   ManagerChampionshipPills,
 } from "../ManagerChampionships";
 import {
+  buildPlayerModalData,
   CommandMiniBadge,
   getManagerHeadingClassName,
   IntelligenceMetric,
+  formatCompactValue,
+  type ManagerAvatars,
+  PositionRankPill,
+  type PlayerDetailsById,
 } from "./shared";
+import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
+import { TeamLogoPill } from "../TeamLogoPill";
+import { getTeamTileStyle } from "@/lib/teamTileStyle";
+import { type PlayerModalData } from "../PlayerDetailModal";
 
 type OwnerSignalTone =
   | "neutral"
@@ -241,4 +251,222 @@ export function OwnerQuickModal({
       </DialogContent>
     </Dialog>
   );
+}
+
+type OwnerIntelDepthRow = {
+  manager: string;
+  holes: {
+    bestQbRank?: string | number | null;
+    rb2Rank?: string | number | null;
+    wr3Rank?: string | number | null;
+    te1Rank?: string | number | null;
+    flexDepth?: string | number | null;
+  };
+  benchBaseline?: Array<{
+    key: string;
+    label: string;
+    player?: ManagerIntelPlayer | null;
+    players?: ManagerIntelPlayer[];
+    note?: string | null;
+    leagueRank?: string | number | null;
+  }>;
+};
+
+export function OwnerIntelDepthPlayerButton({
+  player,
+  manager,
+  managerAvatars,
+  playerDetailsById,
+  onSelect,
+}: {
+  player: ManagerIntelPlayer;
+  manager: string;
+  managerAvatars?: ManagerAvatars;
+  playerDetailsById?: PlayerDetailsById;
+  onSelect: (player: PlayerModalData) => void;
+}) {
+  const playerDetails =
+    player.playerDetails ||
+    (player.player_id ? playerDetailsById?.[player.player_id] : undefined);
+  const team = playerDetails?.team || null;
+  const rank =
+    player.seasonPositionRank ||
+    player.currentPositionRank ||
+    player.pos ||
+    "-";
+  const seasonValue = player.seasonValue || player.value;
+
+  return (
+    <button
+      type="button"
+      className="owner-intel-bench-player player-team-tile"
+      style={getTeamTileStyle(team)}
+      onClick={() =>
+        onSelect(
+          buildPlayerModalData({
+            playerId: player.player_id,
+            playerName: player.name,
+            playerPos: player.pos,
+            value: seasonValue,
+            playerDetails,
+            playerDetailsById,
+            currentPositionRank: rank,
+            valueMode: "redraft",
+            manager: player.owner || manager,
+            managerAvatarUrl:
+              (player.owner && managerAvatars?.[player.owner]) ||
+              managerAvatars?.[manager],
+          })
+        )
+      }
+    >
+      <PlayerNameWithHeadshot
+        playerId={player.player_id}
+        playerName={player.name}
+        team={team}
+        position={player.pos}
+      />
+      <span className="owner-intel-bench-player-meta">
+        <TeamLogoPill team={team} />
+        <span className="owner-intel-bench-player-value">
+          {formatCompactValue(seasonValue)}
+        </span>
+        <PositionRankPill rank={rank} />
+      </span>
+    </button>
+  );
+}
+
+export function BenchBaselineList({
+  row,
+  playerDetailsById,
+  managerAvatars,
+  onSelect,
+}: {
+  row: OwnerIntelDepthRow;
+  playerDetailsById?: PlayerDetailsById;
+  managerAvatars?: ManagerAvatars;
+  onSelect: (player: PlayerModalData) => void;
+}) {
+  const asRank = (value?: string | number | null) =>
+    value == null ? undefined : String(value);
+
+  if (!row.benchBaseline?.length) {
+    return (
+      <div className="owner-intel-attack-list">
+        <span>
+          <strong>QB/SF</strong>
+          <PositionRankPill rank={asRank(row.holes.bestQbRank)} />
+        </span>
+        <span>
+          <strong>RB2</strong>
+          <PositionRankPill rank={asRank(row.holes.rb2Rank)} />
+        </span>
+        <span>
+          <strong>WR3</strong>
+          <PositionRankPill rank={asRank(row.holes.wr3Rank)} />
+        </span>
+        <span>
+          <strong>TE1</strong>
+          <PositionRankPill rank={asRank(row.holes.te1Rank)} />
+        </span>
+        <span>
+          <strong>Flex depth</strong>
+          <em>{row.holes.flexDepth}</em>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="owner-intel-bench-list">
+      {row.benchBaseline.map(tile => {
+        const player = tile.player;
+        const players = tile.players?.length
+          ? tile.players
+          : player
+            ? [player]
+            : [];
+
+        return (
+          <div
+            key={tile.key}
+            className="owner-intel-bench-row"
+            title={tile.note || ""}
+          >
+            <div className="owner-intel-bench-rank">
+              <strong>{tile.label}</strong>
+              <em>{tile.leagueRank ? `#${tile.leagueRank}` : "-"}</em>
+            </div>
+            {players.length ? (
+              <div className="owner-intel-bench-player-stack">
+                {players.map(depthPlayer => (
+                  <OwnerIntelDepthPlayerButton
+                    key={depthPlayer.player_id}
+                    player={depthPlayer}
+                    manager={row.manager}
+                    playerDetailsById={playerDetailsById}
+                    managerAvatars={managerAvatars}
+                    onSelect={onSelect}
+                  />
+                ))}
+              </div>
+            ) : (
+              <span className="owner-intel-bench-player owner-intel-bench-player-empty">
+                No bench option
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function TradeableDepthList({
+  items,
+  row,
+  playerDetailsById,
+  managerAvatars,
+  onSelect,
+}: {
+  items: Array<{
+    position: "QB" | "RB" | "WR" | "TE";
+    player: ManagerIntelPlayer;
+    note: string;
+  }>;
+  row: { manager: string };
+  playerDetailsById?: PlayerDetailsById;
+  managerAvatars?: ManagerAvatars;
+  onSelect: (player: PlayerModalData) => void;
+}) {
+  return (
+    <div className="owner-intel-bench-list owner-intel-tradeable-depth-list">
+      {items.map(({ position, player, note }) => (
+        <div
+          key={`${position}-${player.player_id}`}
+          className="owner-intel-bench-row"
+          title={note}
+        >
+          <div className="owner-intel-bench-rank">
+            <strong>Tradeable {position}</strong>
+          </div>
+          <OwnerIntelDepthPlayerButton
+            player={player}
+            manager={row.manager}
+            playerDetailsById={playerDetailsById}
+            managerAvatars={managerAvatars}
+            onSelect={onSelect}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function getHeatPillClass(position: string, grade?: string | null) {
+  const normalizedPosition = String(position || "slot")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-");
+  return `owner-intel-heat-pill owner-intel-heat-position-${normalizedPosition} owner-intel-heat-${String(grade || "empty").toLowerCase()}`;
 }
