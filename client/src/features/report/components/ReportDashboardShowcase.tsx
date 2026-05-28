@@ -1,5 +1,3 @@
-import { useState, type ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
 import {
   getBestDraftAdpValueManager,
   getBestDraftSignalManager,
@@ -8,15 +6,16 @@ import {
 import type { LeagueValueMode } from "@/lib/leagueValueMode";
 import { isPlaceholderManagerName } from "@/lib/managerDisplay";
 import {
-  DashboardManagerAvatar,
-  DashboardSpotlightFocusGrid,
-  DashboardVisualMetric,
   type DashboardHeroMetric,
   type DashboardMetricBar,
   type DashboardMetricTone,
   type DashboardSpotlightBlock,
 } from "@/features/report/components/ReportDashboardMetrics";
 import { ReportOverviewHero as ReportOverviewHeroSection } from "@/features/report/components/ReportOverviewHero";
+import {
+  type DashboardSpotlightConfig,
+  ReportDashboardSpotlight as ReportDashboardSpotlightPanel,
+} from "@/features/report/components/ReportDashboardSpotlight";
 import type { ReportData } from "@shared/types";
 
 const REPORT_DASHBOARD_TAB_VALUES = [
@@ -214,10 +213,6 @@ function getDashboardPositionRank(
     .sort((a, b) => b.value - a.value || b.count - a.count);
   const index = scores.findIndex(row => row.manager === manager);
   return index >= 0 ? index + 1 : null;
-}
-
-function formatDashboardRank(rank: number | null): string {
-  return rank === null ? "#-" : `#${rank}`;
 }
 
 type DashboardStarterGroup = {
@@ -455,15 +450,6 @@ function getReportDashboardHeroCopy(
   }
   return TAB_HERO_COPY.overview;
 }
-
-type DashboardSpotlightConfig = {
-  eyebrow: string;
-  metrics: DashboardHeroMetric[];
-  blocks: DashboardSpotlightBlock[];
-  chips: string[];
-  readTitle: string;
-  read: string;
-};
 
 type DashboardRankingPlayer =
   NonNullable<ReportData["rankings"]>["dynastySf"][number];
@@ -2442,8 +2428,6 @@ export function ReportDashboardSpotlight({
   managerAvatars?: Record<string, string | null | undefined>;
   variant?: "sidebar" | "inline";
 }) {
-  const [inlineSpotlightOpen, setInlineSpotlightOpen] = useState(false);
-
   if (!manager) return null;
 
   const intel = reportData.managerRosterIntelligence?.find(
@@ -2517,9 +2501,6 @@ export function ReportDashboardSpotlight({
   const hasSpecialTeamRanks =
     positionRankCards.some(({ position }) => position === "K" || position === "DEF") ||
     starterRankGroups.some(group => group.position === "K" || group.position === "DEF");
-  const rankGridClassName = hasSpecialTeamRanks
-    ? "dashboard-rank-grid dashboard-rank-grid-special"
-    : "dashboard-rank-grid";
   const swapSignals = [
     intel?.tradePlan?.summary,
     intel?.holes?.summary,
@@ -2540,115 +2521,17 @@ export function ReportDashboardSpotlight({
       intel?.summary || (intel as { nextMove?: string } | undefined)?.nextMove,
   });
   const isOverviewSpotlight = activeTab === "overview";
-  const spotlightHeader = (
-    <div className="dashboard-spotlight-header">
-      <span className="dashboard-spotlight-avatar">
-        <DashboardManagerAvatar
-          manager={manager}
-          avatarUrl={getDashboardManagerAvatar(manager, managerAvatars)}
-        />
-      </span>
-      <div>
-        <span>{spotlightConfig.eyebrow}</span>
-        <strong>{manager}</strong>
-      </div>
-    </div>
-  );
-  const spotlightBody = (
-    <>
-      <div className="dashboard-spotlight-metrics">
-        {spotlightConfig.metrics.map(metric => (
-          <DashboardVisualMetric key={metric.key} metric={metric} />
-        ))}
-      </div>
-      {isOverviewSpotlight ? (
-        <>
-          <div className="dashboard-position-rank-block">
-            <span>Full Roster Position Ranks</span>
-            <div className={`dashboard-position-ranks ${rankGridClassName}`}>
-              {positionRankCards.map(({ position, rank }) => (
-                <span key={position} data-position={position}>
-                  <em>{position}</em>
-                  <strong>{formatDashboardRank(rank)}</strong>
-                </span>
-              ))}
-            </div>
-          </div>
-          {starterRankGroups.length > 0 && (
-            <div className="dashboard-starter-ranks">
-              <span>Projected Starter Slot Ranks</span>
-              <div className={rankGridClassName}>
-                {starterRankGroups.map(group => (
-                  <span key={group.key} data-position={group.position}>
-                    <em>{group.label}</em>
-                    <strong>{formatDashboardRank(group.rank)}</strong>
-                    <b>{group.tier}</b>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
-        <DashboardSpotlightFocusGrid blocks={spotlightConfig.blocks} />
-      )}
-      {spotlightConfig.chips.length > 0 && (
-        <div className="dashboard-spotlight-chip-row">
-          {spotlightConfig.chips.map(chip => (
-            <span key={chip}>{chip}</span>
-          ))}
-        </div>
-      )}
-      {isOverviewSpotlight && swapSignals.length > 0 && (
-        <div className="dashboard-swap-signals">
-          <span>Start/Sit Swap Signals</span>
-          {swapSignals.slice(0, 2).map(signal => (
-            <p key={signal}>{signal}</p>
-          ))}
-        </div>
-      )}
-      <div className="dashboard-spotlight-read">
-        <span>{spotlightConfig.readTitle}</span>
-        <p>{spotlightConfig.read}</p>
-      </div>
-    </>
-  );
-  const inlineSpotlightClassName = [
-    "report-dashboard-spotlight-inline",
-    inlineSpotlightOpen
-      ? "report-dashboard-spotlight"
-      : "dashboard-spotlight-inline-glass",
-  ].filter(Boolean).join(" ");
-
-  if (variant === "inline") {
-    return (
-      <details
-        className={inlineSpotlightClassName}
-        aria-label="Manager spotlight"
-        onToggle={(event) => setInlineSpotlightOpen(event.currentTarget.open)}
-      >
-        <summary className="dashboard-spotlight-inline-summary">
-          {spotlightHeader}
-          <span className="dashboard-spotlight-inline-copy">
-            <strong>{spotlightConfig.chips[0] || "Manager context"}</strong>
-            <span>{spotlightConfig.readTitle}</span>
-          </span>
-          <ChevronDown className="dashboard-spotlight-inline-icon" aria-hidden="true" />
-        </summary>
-        <div className="dashboard-spotlight-inline-body">
-          {spotlightBody}
-        </div>
-      </details>
-    );
-  }
-
   return (
-    <aside
-      className={`report-dashboard-spotlight report-dashboard-spotlight-${variant}`}
-      aria-label="Manager spotlight"
-    >
-      {spotlightHeader}
-      {spotlightBody}
-    </aside>
+    <ReportDashboardSpotlightPanel
+      manager={manager}
+      managerAvatarUrl={getDashboardManagerAvatar(manager, managerAvatars)}
+      spotlightConfig={spotlightConfig}
+      positionRankCards={positionRankCards}
+      starterRankGroups={starterRankGroups}
+      swapSignals={swapSignals}
+      isOverviewSpotlight={isOverviewSpotlight}
+      hasSpecialTeamRanks={hasSpecialTeamRanks}
+      variant={variant}
+    />
   );
 }
