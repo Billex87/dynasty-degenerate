@@ -38,12 +38,59 @@
 - Any throttled/skipped-cron signals:
 - `cron` behavior (executed vs skipped, especially non-window calls):
 
+## Quick Production Validation Runbook (copy/paste)
+
+Use this only after a real production login/report session and once the platform `CRON_SECRET` is configured.
+
+```bash
+export PROD_BASE="https://your-production-domain.com"   # update to production domain
+export CRON_SECRET="replace-with-prod-secret"
+
+# Non-window crons should return 202 skip (unless force=true).
+for route in \
+  "/api/cron/ktc-snapshot" \
+  "/api/cron/league-report-cache" \
+  "/api/cron/prospect-snapshot" \
+  "/api/cron/fantasypros-endpoint-snapshots"; do
+  echo "== $route =="
+  curl -sS -i --max-time 20 \
+    -H "Authorization: Bearer ${CRON_SECRET}" \
+    "${PROD_BASE}${route}"
+  echo
+done
+
+# Dynamic refresh smoke test (bounded limit)
+curl -sS -i --max-time 900 \
+  -H "Authorization: Bearer ${CRON_SECRET}" \
+  "${PROD_BASE}/api/cron/dynamic-data-refresh?backfillLimit=10"
+
+# Player-news snapshot smoke
+curl -sS -i --max-time 120 \
+  -H "Authorization: Bearer ${CRON_SECRET}" \
+  "${PROD_BASE}/api/cron/player-news-refresh"
+```
+
+Expected:
+- Out-of-window crons return status `202` + `skipped: true` reason text (where applicable).
+- `dynamic-data-refresh` returns `200` or `207` and should not return parser/DB payload-size errors.
+- Dynamic refresh duration should fit your planned maintenance window.
+
 ## Runtime Behavior to Confirm
 - Cached-report open path includes `reportCacheStatus: "hit"` when appropriate.
 - `league.analyze` still attaches live Sleeper state while using cached report payloads.
 - Cron skip responses remain cheap during non-window windows.
 - No obvious surge in `league.rankings`/`league.rankingsMeta`/`league.rankingProfile` from normal cached paths.
 - On production, confirm `dynamic-data-refresh` executes/aborts within your expected maintenance envelope since it is the highest-cost cron path.
+
+## Completion Record
+- Traffic session date/time:
+- Representative leagues touched:
+- `dynamic-data-refresh` run status:
+- `dynamic-data-refresh` duration:
+- Vercel Fluid Active CPU (current / monthly):
+- Dashboard hotspots:
+- Cron executed vs skipped:
+- Webhook validation run:
 
 ## Source/Notes
 - `docs/vercel-function-cpu-runbook.md`
