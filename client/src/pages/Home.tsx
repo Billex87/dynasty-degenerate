@@ -12,28 +12,17 @@ import "@/styles/home-backgrounds-v12.css";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import {
-  PremiumFxLayer,
-  type PremiumFxVariant,
-} from "@/components/PremiumFxLayer";
-import { ManagerChampionshipProvider } from "@/components/ManagerChampionships";
+import { type PremiumFxVariant } from "@/components/PremiumFxLayer";
 import {
   buildLeagueFormatPills,
   getReportManagerNames,
 } from "@/features/report/lib/reportOverviewPreview";
-import {
-  ReportSectionAccordionProvider,
-  ReportSectionLoadingFallback,
-} from "@/features/report/components/ReportSectionDisclosure";
+import { ReportSectionLoadingFallback } from "@/features/report/components/ReportSectionDisclosure";
 import { AutopilotErrorFallback } from "@/features/report/components/AutopilotErrorFallback";
-import {
-  ScheduleEdgePlayerCell,
-  ScheduleEdgeWeekChip,
-} from "@/features/report/components/AdminDiagnosticsPrimitives";
 import {
   LeagueRosterScannerModeControls,
   OwnerIntelSortControls,
@@ -46,13 +35,9 @@ import {
 } from "@/features/report/components/ReportDashboardShowcase";
 import { ReportOverviewTab } from "@/features/report/components/ReportOverviewTab";
 import { ReportMomentumTab } from "@/features/report/components/ReportMomentumTab";
-import { ReportDashboardFooter } from "@/features/report/components/ReportDashboardFooter";
-import { ReportDashboardHeader } from "@/features/report/components/ReportDashboardHeader";
+import { ReportDashboardShell } from "@/features/report/components/ReportDashboardShell";
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
 import { HomeDialogs } from "@/features/home/components/HomeDialogs";
-import {
-  ChangeLeagueDialog,
-} from "@/features/home/components/HomeLeagueDialogs";
 import {
   buildHomePortfolioRows,
   filterHomePortfolioRows,
@@ -1840,91 +1825,95 @@ export default function Home() {
       : [];
     return (
       <>
-        <ManagerChampionshipProvider
-          championships={reportData.managerChampionships}
+        <ReportDashboardShell
+          isLoadingRevealPhase={isLoadingRevealPhase}
+          aiVoiceMode={aiVoiceMode}
+          resolvedActiveTab={resolvedActiveTab}
+          reportFxVariant={reportFxVariant}
+          onReportTabChange={handleReportTabChange}
+          hasAdminPermissions={hasAdminPermissions}
+          canViewAutopilotTab={canViewAutopilotTab}
+          shouldShowDraftHistoryTab={shouldShowDraftHistoryTab}
+          reportTabsClassName={reportTabsClassName}
+          reportTabsStyle={reportTabsStyle}
+          leagueName={leagueName}
+          leagueFormatPills={leagueFormatPills}
+          leagueLogo={leagueLogo}
+          leagueLogoInitials={leagueLogoInitials}
+          onHeaderLeagueClick={handleHeaderLeagueClick}
+          onAnalyzeAnotherLeague={handleAnalyzeAnotherLeague}
+          mobileLogoSrc={DYNASTY_MOBILE_REPORT_LOGO_SRC}
+          headerLogoSrc={DYNASTY_REPORT_HEADER_LOGO_SRC}
+          isChangeLeagueModalOpen={isChangeLeagueModalOpen}
+          onChangeLeagueOpenChange={setIsChangeLeagueModalOpen}
+          onChangeLeagueStay={() => setIsChangeLeagueModalOpen(false)}
+          onStartOver={handleStartOver}
+          canOpenAdminToolsEntry={canOpenAdminToolsEntry}
+          canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+          isAdminPassphraseVerifiedForSession={
+            isAdminPassphraseVerifiedForSession
+          }
+          hasManagerViewOptions={hasManagerViewOptions}
+          reportManagerNames={reportManagerNames}
+          effectiveViewerManager={effectiveViewerManager}
+          managerAvatars={reportData.managerAvatars}
+          leagueId={leagueId}
+          leagueFormat={leagueFormat}
+          onAIVoiceModeChange={handleAIVoiceModeChange}
+          onAdminToolsClick={handleAdminToolsClick}
+          onAdminViewerManagerChange={setAdminViewerManager}
+          managerChampionships={reportData.managerChampionships}
         >
-          <div
-            className={`report-shell min-h-screen flex flex-col ${isLoadingRevealPhase ? "report-shell-entering" : ""}`}
-            data-ai-voice-mode={aiVoiceMode}
-          >
-            <PremiumFxLayer
-              variant={reportFxVariant}
-              intensity={resolvedActiveTab === "overview" ? "low" : "medium"}
-            />
-            <Tabs
-              value={resolvedActiveTab}
-              onValueChange={handleReportTabChange}
-              className="report-dashboard-tabs-root"
-            >
-            <ReportDashboardHeader
-              resolvedActiveTab={resolvedActiveTab}
-              hasAdminPermissions={hasAdminPermissions}
-              canViewAutopilotTab={canViewAutopilotTab}
-              shouldShowDraftHistoryTab={shouldShowDraftHistoryTab}
-              reportTabsClassName={reportTabsClassName}
-              reportTabsStyle={reportTabsStyle}
-              leagueName={leagueName}
-              leagueFormatPills={leagueFormatPills}
-              leagueLogo={leagueLogo}
-              leagueLogoInitials={leagueLogoInitials}
-              onHeaderLeagueClick={handleHeaderLeagueClick}
-              onAnalyzeAnotherLeague={handleAnalyzeAnotherLeague}
-              mobileLogoSrc={DYNASTY_MOBILE_REPORT_LOGO_SRC}
-              headerLogoSrc={DYNASTY_REPORT_HEADER_LOGO_SRC}
-            />
-
-            {/* Content */}
-            <ReportSectionAccordionProvider scopeKey={resolvedActiveTab}>
-            <div className="report-dashboard-shell">
-              <main className="report-dashboard-main">
-                <div
-                  className="overview-command-canvas report-command-canvas"
-                  data-active-tab={resolvedActiveTab}
-                >
-                  <ReportOverviewHero
-                    leagueName={leagueName}
-                    activeTab={resolvedActiveTab}
-                    leagueValueMode={leagueValueMode}
-                    reportData={reportDataForView}
-                  />
-                  <ReportSinceLastReportBrief
-                    changes={reportDeltaChanges}
-                    previousSavedAt={previousReportDeltaSnapshot?.savedAt}
-                  />
-                  <Suspense fallback={<ReportSectionLoadingFallback />}>
-                    <TabsContent value="overview" className="report-tab-content">
-                      <ReportOverviewTab
-                        reportData={reportData}
-                        reportDataForView={reportDataForView}
-                        canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
-                        isRedraftReport={isRedraftReport}
-                        leagueValueMode={leagueValueMode}
-                        leagueName={leagueName}
-                        leagueFormat={leagueFormat}
-                        leagueId={leagueId}
-                        leagueLogo={leagueLogo}
-                        effectiveViewerManager={effectiveViewerManager}
-                        ownerIntelSortMode={ownerIntelSortMode}
-                        onOwnerIntelSortModeChange={setOwnerIntelSortMode}
-                        ownerTitle={modeCopy.ownerTitle}
-                        ownerKicker={modeCopy.ownerKicker}
-                        rosterTitle={modeCopy.rosterTitle}
-                        rosterKicker={modeCopy.rosterKicker}
-                        showAssistantFeatureRadar={SHOW_ASSISTANT_FEATURE_RADAR}
-                        OverviewAIPulse={OverviewAIPulse}
-                        MonthlyTeamBlueprint={MonthlyTeamBlueprint}
-                        LeaguePowerRankings={LeaguePowerRankings}
-                        TeamBreakdownRecon={TeamBreakdownRecon}
-                        TradeFinderGenerator={TradeFinderGenerator}
-                        TradePartnerFinder={TradePartnerFinder}
-                        LeagueExploits={LeagueExploits}
-                        AssistantFeatureShells={AssistantFeatureShells}
-                        OwnerIntelSortControls={OwnerIntelSortControls}
-                        OwnerIntelMatrix={OwnerIntelMatrix}
-                        LeagueCommandCenter={LeagueCommandCenter}
-                        ManagerPositionCountsTable={ManagerPositionCountsTable}
-                      />
-                    </TabsContent>
+          <div className="report-dashboard-shell">
+            <main className="report-dashboard-main">
+              <div
+                className="overview-command-canvas report-command-canvas"
+                data-active-tab={resolvedActiveTab}
+              >
+                <ReportOverviewHero
+                  leagueName={leagueName}
+                  activeTab={resolvedActiveTab}
+                  leagueValueMode={leagueValueMode}
+                  reportData={reportDataForView}
+                />
+                <ReportSinceLastReportBrief
+                  changes={reportDeltaChanges}
+                  previousSavedAt={previousReportDeltaSnapshot?.savedAt}
+                />
+                <Suspense fallback={<ReportSectionLoadingFallback />}>
+                  <TabsContent value="overview" className="report-tab-content">
+                    <ReportOverviewTab
+                      reportData={reportData}
+                      reportDataForView={reportDataForView}
+                      canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+                      isRedraftReport={isRedraftReport}
+                      leagueValueMode={leagueValueMode}
+                      leagueName={leagueName}
+                      leagueFormat={leagueFormat}
+                      leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                      effectiveViewerManager={effectiveViewerManager}
+                      ownerIntelSortMode={ownerIntelSortMode}
+                      onOwnerIntelSortModeChange={setOwnerIntelSortMode}
+                      ownerTitle={modeCopy.ownerTitle}
+                      ownerKicker={modeCopy.ownerKicker}
+                      rosterTitle={modeCopy.rosterTitle}
+                      rosterKicker={modeCopy.rosterKicker}
+                      showAssistantFeatureRadar={SHOW_ASSISTANT_FEATURE_RADAR}
+                      OverviewAIPulse={OverviewAIPulse}
+                      MonthlyTeamBlueprint={MonthlyTeamBlueprint}
+                      LeaguePowerRankings={LeaguePowerRankings}
+                      TeamBreakdownRecon={TeamBreakdownRecon}
+                      TradeFinderGenerator={TradeFinderGenerator}
+                      TradePartnerFinder={TradePartnerFinder}
+                      LeagueExploits={LeagueExploits}
+                      AssistantFeatureShells={AssistantFeatureShells}
+                      OwnerIntelSortControls={OwnerIntelSortControls}
+                      OwnerIntelMatrix={OwnerIntelMatrix}
+                      LeagueCommandCenter={LeagueCommandCenter}
+                      ManagerPositionCountsTable={ManagerPositionCountsTable}
+                    />
+                  </TabsContent>
 
                   {canViewAutopilotTab && (
                     <TabsContent
@@ -2052,56 +2041,26 @@ export default function Home() {
                       />
                     </TabsContent>
                   )}
-                  </Suspense>
-                  <ReportDashboardSpotlight
-                    manager={dashboardViewerManager}
-                    activeTab={resolvedActiveTab}
-                    leagueValueMode={leagueValueMode}
-                    reportData={reportDataForView}
-                    managerAvatars={reportData.managerAvatars}
-                    variant="inline"
-                  />
-                </div>
-              </main>
-              <ReportDashboardSpotlight
-                manager={dashboardViewerManager}
-                activeTab={resolvedActiveTab}
-                leagueValueMode={leagueValueMode}
-                reportData={reportDataForView}
-                managerAvatars={reportData.managerAvatars}
-              />
-            </div>
-
-            <ReportDashboardFooter
-              canOpenAdminToolsEntry={canOpenAdminToolsEntry}
-              canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
-              isAdminPassphraseVerifiedForSession={
-                isAdminPassphraseVerifiedForSession
-              }
-              hasManagerViewOptions={hasManagerViewOptions}
-              reportManagerNames={reportManagerNames}
-              effectiveViewerManager={effectiveViewerManager}
+                </Suspense>
+                <ReportDashboardSpotlight
+                  manager={dashboardViewerManager}
+                  activeTab={resolvedActiveTab}
+                  leagueValueMode={leagueValueMode}
+                  reportData={reportDataForView}
+                  managerAvatars={reportData.managerAvatars}
+                  variant="inline"
+                />
+              </div>
+            </main>
+            <ReportDashboardSpotlight
+              manager={dashboardViewerManager}
+              activeTab={resolvedActiveTab}
+              leagueValueMode={leagueValueMode}
+              reportData={reportDataForView}
               managerAvatars={reportData.managerAvatars}
-              aiVoiceMode={aiVoiceMode}
-              onAIVoiceModeChange={handleAIVoiceModeChange}
-              onAdminToolsClick={handleAdminToolsClick}
-              onAdminViewerManagerChange={setAdminViewerManager}
-              onAnalyzeAnotherLeague={handleAnalyzeAnotherLeague}
-              leagueId={leagueId}
-              leagueName={leagueName}
-              leagueFormat={leagueFormat}
-            />
-            </ReportSectionAccordionProvider>
-            </Tabs>
-
-            <ChangeLeagueDialog
-              open={isChangeLeagueModalOpen}
-              onOpenChange={setIsChangeLeagueModalOpen}
-              onStay={() => setIsChangeLeagueModalOpen(false)}
-              onStartOver={handleStartOver}
             />
           </div>
-        </ManagerChampionshipProvider>
+        </ReportDashboardShell>
         {homeDialogs}
       </>
     );
