@@ -37,3 +37,19 @@
 - This run is captured as the latest baseline before the next refactor iteration.
 - Vercel production usage review and webhook env-hardening still remain in follow-up scope (no dashboard snapshot captured in this pass).
 - A local code-path hardening change was applied after this baseline to reduce `dynamic-data-refresh` DB read pressure: it now reads cache metadata first, skips overly-large payload rows, then fetches payloads individually.
+
+## Post-Hardening Re-run (local)
+- Timestamp: `2026-05-28T19:35:23.086Z`
+- Source freshness unchanged at this check:
+  - Sources: `72`
+  - Status: `21 loaded, 45 stale, 6 missing, 0 error`
+  - Major stale families remain Devy + FantasyPros weekly ECR.
+- Cache freshness unchanged:
+  - Rows: `311`, fresh: `71`, stale: `240`, stored: `191 MB`
+  - Latest cache update: `2026-05-28T00:52:27.868Z` (`18h 42m` ago)
+  - Analyze activity: `29` attempts / `20` hits / `9` fresh / `0` errors (`69%` hit rate).
+- Operations readiness snapshot:
+  - Source coverage matrix: `31` total, `16 loaded`, `5 stale`, `6 missing`, `1 blocked`, `3 research`
+  - Provider telemetry: `Calls=22074`, `network=22072`, `failures=958`, `429s=0`
+  - Top providers: `Sleeper=22045`, `FantasyPros=29`.
+- Interpretation: this does not resolve cron-runtime behavior by itself; it confirms read-path health after the hardening change. The full `dynamic-data-refresh` execution should still be re-run in production/runtime to validate end-to-end scheduling and duration.
