@@ -125,6 +125,29 @@
   -webkit-backdrop-filter: blur(12px);
 }
 
+.home-shell .home-hero-dashboard .home-feature-heading-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+}
+
+.home-shell .home-hero-dashboard .home-feature-card-title {
+  margin: 0;
+  color: #fff;
+  font-weight: 600;
+  text-wrap: pretty;
+}
+
+.home-shell .home-hero-dashboard .home-feature-card-body {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
 .home-shell .home-hero-dashboard .home-feature-green {
   --home-feature-rgb: 248, 113, 113;
 }
@@ -408,7 +431,8 @@
     text-align: center;
   }
 
-  .home-shell .home-hero-dashboard .home-feature-heading > div {
+  .home-shell .home-hero-dashboard .home-feature-heading > div,
+  .home-shell .home-hero-dashboard .home-feature-heading-icon {
     width: var(--home-feature-icon-size);
     height: var(--home-feature-icon-size);
     border: 1px solid rgba(var(--home-feature-rgb), 0.24);
@@ -425,7 +449,8 @@
     height: var(--home-feature-icon-svg-size);
   }
 
-  .home-shell .home-hero-dashboard .home-feature-card h3 {
+  .home-shell .home-hero-dashboard .home-feature-card h3,
+  .home-shell .home-hero-dashboard .home-feature-card-title {
     margin: 0;
     font-family: Oswald, sans-serif;
     font-size: var(--home-feature-title-size) !important;
@@ -436,7 +461,8 @@
     text-transform: uppercase;
   }
 
-  .home-shell .home-hero-dashboard .home-feature-card p {
+  .home-shell .home-hero-dashboard .home-feature-card p,
+  .home-shell .home-hero-dashboard .home-feature-card-body {
     display: block;
     overflow: visible;
     margin: 0;
@@ -873,7 +899,8 @@
     margin-bottom: 0;
   }
 
-  .home-shell .home-hero-dashboard .home-feature-heading > div {
+  .home-shell .home-hero-dashboard .home-feature-heading > div,
+  .home-shell .home-hero-dashboard .home-feature-heading-icon {
     width: 2.2rem;
     height: 2.2rem;
   }
@@ -883,13 +910,15 @@
     height: 1.2rem;
   }
 
-  .home-shell .home-hero-dashboard .home-feature-card h3 {
+  .home-shell .home-hero-dashboard .home-feature-card h3,
+  .home-shell .home-hero-dashboard .home-feature-card-title {
     font-size: 0.83rem !important;
     line-height: 1.05;
     text-align: center;
   }
 
-  .home-shell .home-hero-dashboard .home-feature-card p {
+  .home-shell .home-hero-dashboard .home-feature-card p,
+  .home-shell .home-hero-dashboard .home-feature-card-body {
     display: block;
     overflow: visible;
     max-width: 100%;

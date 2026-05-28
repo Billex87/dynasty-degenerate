@@ -1,14 +1,9 @@
 import { Bot, Crosshair, Flame, Gavel, Radar, Swords } from "lucide-react";
 import type { ReactNode } from "react";
-
-type FeatureCard = {
-  key: string;
-  title: string;
-  icon: ReactNode;
-  colorClass: string;
-  headingBgClass: string;
-  body: ReactNode;
-};
+import {
+  HomeLandingFeatureCard,
+  type FeatureCard,
+} from "@/features/home/components/HomeLandingFeatureCard";
 
 const HOME_FEATURE_CARDS: FeatureCard[] = [
   {
@@ -90,33 +85,6 @@ const HOME_FEATURE_CARDS: FeatureCard[] = [
     ),
   },
 ];
-
-function HomeLandingFeatureCard({
-  card,
-  isClone,
-}: {
-  card: FeatureCard;
-  isClone?: boolean;
-}) {
-  return (
-    <article
-      className={`home-feature-card ${card.colorClass} p-4 sm:p-6 space-y-3${
-        isClone ? " home-feature-card-clone" : ""
-      }`}
-      aria-hidden={isClone ? true : undefined}
-    >
-      <div className="home-feature-heading">
-        <div
-          className={`w-10 h-10 rounded-lg flex items-center justify-center ${card.headingBgClass}`}
-        >
-          {card.icon}
-        </div>
-        <h3 className="font-semibold text-white">{card.title}</h3>
-      </div>
-      <p className="text-sm text-slate-400">{card.body}</p>
-    </article>
-  );
-}
 
 export function HomeLandingFeatureCards() {
   const carouselCards = [
