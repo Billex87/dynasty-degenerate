@@ -24,8 +24,6 @@ import { ManagerChampionshipProvider } from "@/components/ManagerChampionships";
 import {
   buildCombinedTrendingPreviewMetrics,
   buildDraftPreviewMetrics,
-  buildTradeProposalPreviewMetrics,
-  buildTradePreviewMetrics,
   buildLeagueFormatPills,
   buildManagerPositionRoomPreviewMetrics,
   buildMomentumPreviewMetrics,
@@ -37,7 +35,6 @@ import {
 } from "@/features/report/lib/reportOverviewPreview";
 import {
   CollapsibleReportSection,
-  ModalReportSection,
   ReportSectionAccordionProvider,
   ReportSectionLoadingFallback,
 } from "@/features/report/components/ReportSectionDisclosure";
@@ -186,6 +183,7 @@ import {
 
 import { AdminDiagnosticsShell } from "@/features/admin/components/AdminDiagnosticsShell";
 import { AdminScheduleEdgeSection } from "@/features/admin/components/AdminScheduleEdgeSections";
+import { ReportTradesTab } from "@/features/report/components/ReportTradesTab";
 
 const DraftAnalysis = lazy(() =>
   import("@/components/DraftAnalysis").then(module => ({
@@ -2519,175 +2517,25 @@ export default function Home() {
                     value="trades"
                     className="report-tab-content report-command-tab-body"
                   >
-                    <div className="trade-sections report-command-section-stack space-y-6 sm:space-y-8">
-                      {canViewAdminFeatureExpansion && (
-                        <TradeBrowserRead data={reportDataForView} />
-                      )}
-                      {canViewAdminFeatureExpansion && (
-                        <CollapsibleReportSection
-                          title="Pending Trade Offers"
-                          kicker="Pending, declined, rejected, and cancelled Sleeper transactions"
-                          previewMetrics={buildTradeProposalPreviewMetrics(
-                            reportData
-                          )}
-                          premium
-                          defaultOpen
-                        >
-                          <TradeProposalSignalsTable
-                            data={
-                              reportData.adminTradeProposalSignals ||
-                              reportData.tradeProposalSignals ||
-                              []
-                            }
-                            managerAvatars={reportData.managerAvatars}
-                          />
-                        </CollapsibleReportSection>
-                      )}
-                      <CollapsibleReportSection
-                        title="Trade War Room"
-                        kicker={modeCopy.tradeWarKicker}
-                        previewMetrics={buildTradePreviewMetrics(
-                          reportData,
-                          leagueValueMode,
-                          "war-room"
-                        )}
-                      >
-                        <TradeWarRoom
-                          data={reportData.managerRosterIntelligence}
-                          managerAvatars={reportData.managerAvatars}
-                          playerDetailsById={reportData.playerDetailsById}
-                          leagueOverview={reportData.leagueOverview}
-                          rankings={rankingsForReport}
-                          pickPortfolios={reportData.pickPortfolios}
-                          draftPicks={reportData.draftPicks}
-                          tradeTendencies={reportData.tradeTendencies}
-                          tradeProposalSignals={[
-                            ...(reportData.tradeProposalSignals || []),
-                            ...(reportData.adminTradeProposalSignals || []),
-                            ...(reportData.adminSleeperTradeProposalSignals ||
-                              []),
-                          ]}
-                          recentTransactions={reportData.recentTransactions}
-                          leagueId={leagueId}
-                          leagueLogo={leagueLogo}
-                          viewerManager={effectiveViewerManager}
-                          currentStandings={reportData.currentStandings}
-                          leagueValueMode={leagueValueMode}
-                          showManagerPersonalityIntel={canViewAdminDiagnostics}
-                          onScoutLeaguemates={handleScoutLeaguemates}
-                        />
-                      </CollapsibleReportSection>
-                      <CollapsibleReportSection
-                        title={
-                          isRedraftReport
-                            ? "Trade Value Board"
-                            : "Trade Profit Board"
-                        }
-                        kicker={
-                          isRedraftReport
-                            ? "Current-season trade edge"
-                            : "Net trade edge"
-                        }
-                        previewMetrics={buildTradePreviewMetrics(
-                          reportData,
-                          leagueValueMode,
-                          "leaderboard"
-                        )}
-                      >
-                        <TradeProfitLeaderboardTable
-                          data={reportData.tradeProfitLeaderboard}
-                          managerAvatars={reportData.managerAvatars}
-                          tradeHistory={reportData.tradeHistory}
-                          draftPicks={reportData.draftPicks || []}
-                          playerDetailsById={reportData.playerDetailsById}
-                          currentPositionRankById={
-                            reportData.currentPositionRankById
-                          }
-                          tradeTendencies={reportData.tradeTendencies}
-                          managerRosterIntelligence={
-                            reportData.managerRosterIntelligence
-                          }
-                          dynastyTimelines={reportData.dynastyTimelines}
-                          leagueOverview={reportData.leagueOverview}
-                          leagueId={leagueId}
-                          leagueLogo={leagueLogo}
-                          viewerManager={effectiveViewerManager}
-                          leagueDiagnostics={reportData.leagueDiagnostics}
-                          currentStandings={reportData.currentStandings}
-                          standingsHistory={reportData.standingsHistory}
-                          leagueValueMode={leagueValueMode}
-                        />
-                      </CollapsibleReportSection>
-                      <CollapsibleReportSection
-                        title={
-                          isRedraftReport
-                            ? "Trade Balance Review"
-                            : "Trade Theft Detector"
-                        }
-                        kicker={
-                          isRedraftReport
-                            ? "Largest current-season gaps"
-                            : "Who got cooked"
-                        }
-                        previewMetrics={buildTradePreviewMetrics(
-                          reportData,
-                          leagueValueMode,
-                          "theft"
-                        )}
-                      >
-                        <TradeTheftDetector
-                          data={reportData.tradeHistory}
-                          managerAvatars={reportData.managerAvatars}
-                          draftPicks={reportData.draftPicks || []}
-                          playerDetailsById={reportData.playerDetailsById}
-                          currentPositionRankById={
-                            reportData.currentPositionRankById
-                          }
-                          managerRosterIntelligence={
-                            reportData.managerRosterIntelligence
-                          }
-                          dynastyTimelines={reportData.dynastyTimelines}
-                          leagueOverview={reportData.leagueOverview}
-                          leagueId={leagueId}
-                          leagueLogo={leagueLogo}
-                          leagueDiagnostics={reportData.leagueDiagnostics}
-                          currentStandings={reportData.currentStandings}
-                          standingsHistory={reportData.standingsHistory}
-                          leagueValueMode={leagueValueMode}
-                        />
-                      </CollapsibleReportSection>
-                      <ModalReportSection
-                        title="Trade Receipts"
-                        kicker="Every completed trade"
-                        previewMetrics={buildTradePreviewMetrics(
-                          reportData,
-                          leagueValueMode,
-                          "ledger"
-                        )}
-                      >
-                        <TradeHistoryTable
-                          data={reportData.tradeHistory}
-                          draftPicks={reportData.draftPicks || []}
-                          managerAvatars={reportData.managerAvatars}
-                          playerDetailsById={reportData.playerDetailsById}
-                          currentPositionRankById={
-                            reportData.currentPositionRankById
-                          }
-                          managerRosterIntelligence={
-                            reportData.managerRosterIntelligence
-                          }
-                          dynastyTimelines={reportData.dynastyTimelines}
-                          leagueOverview={reportData.leagueOverview}
-                          leagueId={leagueId}
-                          leagueLogo={leagueLogo}
-                          leagueDiagnostics={reportData.leagueDiagnostics}
-                          currentStandings={reportData.currentStandings}
-                          standingsHistory={reportData.standingsHistory}
-                          leagueValueMode={leagueValueMode}
-                          variant="modal"
-                        />
-                      </ModalReportSection>
-                    </div>
+                    <ReportTradesTab
+                      reportData={reportData}
+                      reportDataForView={reportDataForView}
+                      canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+                      showManagerPersonalityIntel={canViewAdminDiagnostics}
+                      onScoutLeaguemates={handleScoutLeaguemates}
+                      leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                      leagueValueMode={leagueValueMode}
+                      effectiveViewerManager={effectiveViewerManager}
+                      rankingsForReport={rankingsForReport}
+                      tradeWarKicker={modeCopy.tradeWarKicker}
+                      TradeBrowserRead={TradeBrowserRead}
+                      TradeProposalSignalsTable={TradeProposalSignalsTable}
+                      TradeWarRoom={TradeWarRoom}
+                      TradeProfitLeaderboardTable={TradeProfitLeaderboardTable}
+                      TradeTheftDetector={TradeTheftDetector}
+                      TradeHistoryTable={TradeHistoryTable}
+                    />
                   </TabsContent>
 
                   {shouldShowDraftHistoryTab && (
