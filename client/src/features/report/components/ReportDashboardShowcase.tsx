@@ -16,6 +16,7 @@ import {
   type DashboardMetricTone,
   type DashboardSpotlightBlock,
 } from "@/features/report/components/ReportDashboardMetrics";
+import { ReportOverviewHero as ReportOverviewHeroSection } from "@/features/report/components/ReportOverviewHero";
 import type { ReportData } from "@shared/types";
 
 const REPORT_DASHBOARD_TAB_VALUES = [
@@ -1863,29 +1864,12 @@ export function ReportOverviewHero({
   const normalizedHeroTab = normalizeDashboardTab(activeTab) || "overview";
 
   return (
-    <section
-      className="report-overview-hero"
-      data-dashboard-tab={normalizedHeroTab}
-    >
-      <div className="report-overview-hero-copy">
-        <h1>
-          {heroCopy.headline.split("\n").map(line => (
-            <span key={line}>{line}</span>
-          ))}
-        </h1>
-        <p className="report-overview-hero-subline">{heroCopy.subline}</p>
-        <p>{heroCopy.body}</p>
-      </div>
-      <div
-        className={`report-overview-metrics report-overview-metrics-${heroConfig.metrics.length}`}
-        data-dashboard-tab={normalizedHeroTab}
-        aria-label={`${leagueName} ${heroConfig.pillLabel.toLowerCase()}`}
-      >
-        {heroConfig.metrics.map(metric => (
-          <DashboardVisualMetric key={metric.key} metric={metric} />
-        ))}
-      </div>
-    </section>
+    <ReportOverviewHeroSection
+      leagueName={leagueName}
+      activeTab={normalizedHeroTab}
+      heroCopy={heroCopy}
+      heroConfig={heroConfig}
+    />
   );
 }
 
