@@ -6,6 +6,7 @@ import {
 } from "@/features/home/components/HomeChrome";
 import { HomeLandingFeatureCards } from "@/features/home/components/HomeLandingFeatureCards";
 import { HomeAnalyzeForm } from "@/features/home/components/HomeAnalyzeForm";
+import { HomeLandingHeroCopy } from "@/features/home/components/HomeLandingHeroCopy";
 import {
   HomePortfolioPanel,
   type HomeLeagueSelectionLeague,
@@ -88,28 +89,7 @@ export function HomeSignedOutLanding({
               showHomePortfolioPanel ? " home-hero-dashboard-portfolio" : ""
             }`}
           >
-            <div className="home-hero-copy space-y-3 sm:space-y-4 text-center">
-              <h2
-                className="athletic-title home-title"
-                aria-label="Fuck vibes. Use AI."
-              >
-                <span className="home-title-primary" data-text="FUCK VIBES.">
-                  FUCK VIBES...
-                </span>
-                <span className="home-title-accent" data-text="USE AI.">
-                  USE AI.
-                </span>
-              </h2>
-              <p className="home-subtitle text-base sm:text-lg md:text-xl text-slate-300 mx-auto">
-                Your league mates are guessing. <span className="home-subtitle-ai">WE'RE NOT!</span>
-              </p>
-              <p className="home-subtitle-detail">
-                We use AI to expose roster cracks,
-                <br /> trade windows, lineup leverage, and draft value before the rest
-                of your league realizes
-                <br /> they're playing for second place.
-              </p>
-            </div>
+            <HomeLandingHeroCopy />
 
             <HomeAnalyzeForm
               showLegacyLeagueIdLogin={showLegacyLeagueIdLogin}
