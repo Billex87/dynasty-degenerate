@@ -184,6 +184,7 @@ import {
 import { AdminDiagnosticsShell } from "@/features/admin/components/AdminDiagnosticsShell";
 import { AdminScheduleEdgeSection } from "@/features/admin/components/AdminScheduleEdgeSections";
 import { ReportTradesTab } from "@/features/report/components/ReportTradesTab";
+import { ReportRankingsTab } from "@/features/report/components/ReportRankingsTab";
 
 const DraftAnalysis = lazy(() =>
   import("@/components/DraftAnalysis").then(module => ({
@@ -2382,135 +2383,31 @@ export default function Home() {
                     value="rankings"
                     className="report-tab-content report-command-tab-body"
                   >
-                    <div className="report-command-section-stack space-y-6 sm:space-y-8">
-                      {reportData.managerRosterIntelligence?.length ? (
-                        <CollapsibleReportSection
-                          title="Scout Leaguemates"
-                          kicker="Manager rank inventory"
-                          openSignal={rosterScannerFocusKey}
-                          previewAccessory={
-                            !isRedraftReport ? (
-                              <LeagueRosterScannerModeControls
-                                value={leagueRosterScannerMode}
-                                onChange={setLeagueRosterScannerMode}
-                              />
-                            ) : undefined
-                          }
-                        >
-                          <LeagueRosterScanner
-                            data={reportData.managerRosterIntelligence}
-                            managerAvatars={reportData.managerAvatars}
-                            playerDetailsById={reportData.playerDetailsById}
-                            leagueOverview={reportData.leagueOverview}
-                            powerRankings={reportData.powerRankings}
-                            dynastyTimelines={reportData.dynastyTimelines}
-                            pickPortfolios={reportData.pickPortfolios}
-                            draftPicks={reportData.draftPicks}
-                            leagueId={leagueId}
-                            leagueLogo={leagueLogo}
-                            viewerManager={effectiveViewerManager}
-                            currentStandings={reportData.currentStandings}
-                            leagueValueMode={leagueValueMode}
-                            focusKey={rosterScannerFocusKey}
-                            mode={
-                              !isRedraftReport
-                                ? leagueRosterScannerMode
-                                : undefined
-                            }
-                            onModeChange={
-                              !isRedraftReport
-                                ? nextMode => {
-                                    if (
-                                      nextMode === "dynasty" ||
-                                      nextMode === "contender" ||
-                                      nextMode === "rebuilder"
-                                    ) {
-                                      setLeagueRosterScannerMode(nextMode);
-                                    }
-                                  }
-                                : undefined
-                            }
-                          />
-                        </CollapsibleReportSection>
-                      ) : null}
-                      <CollapsibleReportSection
-                        title="Full Roster Rankings"
-                        kicker={
-                          isRedraftReport
-                            ? "Current-season player values"
-                            : "League-matched player values"
-                        }
-                      >
-                        {rankingsQuery.isLoading && !rankingsForReport ? (
-                          <div className="rankings-empty-state">
-                            Loading league-matched rankings...
-                          </div>
-                        ) : (
-                          <div className="space-y-4 sm:space-y-5">
-                            {canViewAdminFeatureExpansion && (
-                              <RankingsMarketRead data={reportDataForView} />
-                            )}
-                            <RankingsBoard
-                              rankings={rankingsForReport}
-                              playerDetailsById={reportData.playerDetailsById}
-                              managerAvatars={reportData.managerAvatars}
-                              leagueId={leagueId}
-                              leagueLogo={leagueLogo}
-                              viewerManager={effectiveViewerManager}
-                              board={isRedraftReport ? "redraft" : "dynasty"}
-                              hidePicks={isRedraftReport}
-                              leagueValueMode={leagueValueMode}
-                              leagueDiagnostics={reportData.leagueDiagnostics}
-                              calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
-                              showAIReads={canViewAdminFeatureExpansion}
-                            />
-                          </div>
-                        )}
-                      </CollapsibleReportSection>
-                      {canViewAdminFeatureExpansion && (
-                        <AdminScheduleEdgeSection
-                          reportData={reportDataForView}
-                        />
-                      )}
-                      {!isRedraftReport && (
-                        <CollapsibleReportSection
-                          title="College Rankings"
-                          kicker="Future rookie pipeline"
-                          previewAccessory={
-                            <span className="report-inline-pill rankings-header-context-pill">
-                              2021-2027 Tracked
-                            </span>
-                          }
-                        >
-                          {rankingsQuery.isLoading && !rankingsForReport ? (
-                            <div className="rankings-empty-state">
-                              Loading college prospect rankings...
-                            </div>
-                          ) : (
-                            <RankingsBoard
-                              rankings={rankingsForReport}
-                              playerDetailsById={reportData.playerDetailsById}
-                              managerAvatars={reportData.managerAvatars}
-                              leagueId={leagueId}
-                              leagueLogo={leagueLogo}
-                              viewerManager={effectiveViewerManager}
-                              board="devy"
-                              hidePicks
-                              leagueValueMode={leagueValueMode}
-                              leagueDiagnostics={reportData.leagueDiagnostics}
-                              calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
-                              showAIReads={canViewAdminFeatureExpansion}
-                            />
-                          )}
-                        </CollapsibleReportSection>
-                      )}
-                      {canViewAdminDiagnostics && (
-                        <AdminDiagnosticsShell
-                          reportData={reportDataForView}
-                          onLeagueSelect={handleAnalyze}
-                        />
-                      )}
-                    </div>
+                    <ReportRankingsTab
+                      reportData={reportData}
+                      reportDataForView={reportDataForView}
+                      canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+                      canViewAdminDiagnostics={canViewAdminDiagnostics}
+                      isRedraftReport={isRedraftReport}
+                      leagueValueMode={leagueValueMode}
+                      leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                      effectiveViewerManager={effectiveViewerManager}
+                      leagueRosterScannerMode={leagueRosterScannerMode}
+                      setLeagueRosterScannerMode={setLeagueRosterScannerMode}
+                      rosterScannerFocusKey={rosterScannerFocusKey}
+                      rankingsForReport={rankingsForReport}
+                      rankingsQueryIsLoading={rankingsQuery.isLoading}
+                      onAnalyze={handleAnalyze}
+                      LeagueRosterScannerModeControls={
+                        LeagueRosterScannerModeControls
+                      }
+                      LeagueRosterScanner={LeagueRosterScanner}
+                      RankingsBoard={RankingsBoard}
+                      RankingsMarketRead={RankingsMarketRead}
+                      AdminScheduleEdgeSection={AdminScheduleEdgeSection}
+                      AdminDiagnosticsShell={AdminDiagnosticsShell}
+                    />
                   </TabsContent>
 
                   <TabsContent
