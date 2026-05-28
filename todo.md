@@ -8,9 +8,13 @@
 - [ ] Before calling the product finished, run a production data/source freshness review: `pnpm audit:source-freshness`, `pnpm audit:league-report-cache`, admin source coverage, source-health logs, and provider telemetry; resolve recurring stale/missing/error sources or document accepted source limitations.
   - 2026-05-27 run results: `pnpm audit:source-freshness` -> 72 sources loaded, 42 stale, 6 missing, 0 errors; biggest stale families: Devy+FantasyPros weekly ECR.
   - 2026-05-27 run results: `pnpm audit:league-report-cache` -> 300 rows, 71 fresh, 229 stale; latest cache update was ~1h55m ago; `warm leagues` currently none.
+  - 2026-05-28 run results: `pnpm audit:source-freshness` -> 72 sources, 21 loaded, 45 stale, 6 missing, 0 errors; top stale families still Devy + FantasyPros weekly ECR.
+  - 2026-05-28 run results: `pnpm audit:league-report-cache` -> 311 rows, 76 fresh, 235 stale; latest cache update was 15h43m ago; 57 analyze attempts, 79% hit rate.
   - Follow-up: capture admin source-coverage report, source-health logs, and provider telemetry before marking this pass closed.
   - 2026-05-27 run: `pnpm audit:operations-readiness` added and executed; it consolidates source freshness, source-coverage, source-health events, and provider telemetry into one snapshot.
+  - 2026-05-28 run: `pnpm audit:operations-readiness` -> 31 total coverage sources, 16 loaded, 5 stale, 6 missing, 1 blocked, 3 research; 14-day source-health events at warn/info levels only; provider telemetry dominated by Sleeper (22,020 network calls).
 - [ ] Before calling the product finished, run a Vercel production usage review after real traffic and at least one cron window: Fluid Active CPU, function invocations, transfer, provisioned memory, top function routes, skipped-cron behavior, and cached-report hit rate.
+  - 2026-05-28 follow-up: add a dedicated run note in [docs/vercel-usage-review-2026-05-28.md](docs/vercel-usage-review-2026-05-28.md) and fill post-review values after dashboard pass.
   - Pending: review Vercel dashboard metrics after a live production report session and next cron window; no usage validation has been added in this pass.
 - [ ] Once `Home.tsx` refactoring is no longer blocked, finish the homepage/report-entry cleanup: reduce the oversized page into stable feature components, keep route/data/cache behavior unchanged, and verify signed-out, recent-league, admin/view-as, cached-restore, and fresh-analysis paths.
 - [ ] Once CSS refactoring is no longer blocked, finish the high-risk stylesheet cleanup: audit global selectors, remove duplicated or dead rules only with evidence, preserve current visuals, and verify homepage, report shell, player modal, tables, mobile header/footer, and dark command-center surfaces.
@@ -21,6 +25,7 @@
   - `CRON_SECRET` currently required by cron handlers and guarded in `isCronAuthorized`; add it to production envs now if not already present.
   - Admin auth hardening already present: production requires `JWT_SECRET` + `ADMIN_LOGIN_PASSWORD`, timing-safe admin passphrase check, and session cookies only via `getSessionCookieOptions`.
   - Source-health alerting is implemented server-side (`SOURCE_HEALTH_ALERT_WEBHOOK_URL`, min-level filter); production URL still needs to be configured.
+  - 2026-05-28 follow-up: add a dedicated env-hardening execution note in [docs/operations-env-hardening-pass-2026-05-28.md](docs/operations-env-hardening-pass-2026-05-28.md) and close this after production secret verification.
   - Continue to verify no API keys appear in logs/output and capture a documented rollback plan from the deploy/playbook side.
 - [ ] Before charging users or marketing the product publicly, complete legal/product readiness: Terms, Privacy Policy, Refund/Cancellation Policy, data-source disclosures, paid-feature entitlement checks, usage limits, Stripe webhook verification, and support/contact path.
 - [ ] After every active `todo.md` item is checked off, run a full Lighthouse pass against the production-built local app and keep fixing performance, accessibility, best-practices, and SEO issues until the app scores 100 in every category or every remaining non-100 item has a documented product/technical exception.
@@ -52,6 +57,7 @@
 - [x] Run `pnpm cleanup:league-report-cache` against production, review the stale cache rows, and delete approved stale cache rows.
 - [x] Run one-off source-health history backfill with `ENABLE_SOURCE_HEALTH_BACKFILL=true` after production cached reports exist; production scan found no eligible cached-report diagnostics to backfill.
 - [x] Add and run an expired `leagueReportCache` cleanup mode for rows older than the serving TTL.
+- [x] Run `pnpm audit:neon-transfer` (2026-05-28): DB growth/radio-topography snapshot (`playerValueSnapshots` ~907 MB, `leagueReportCache` ~205 MB, `playerValueSnapshots` is clear highest transfer/size driver candidate).
 - [x] Align browser report cache with the server cache and avoid the extra `league.rankings` request when the loaded report already includes rankings.
 - [x] Switch interactive value/ranking generation to latest stored source snapshots so normal report/ranking/rank lookup loads do not call KTC, FantasyCalc, DynastyProcess, Flock, DynastyNerds, FantasyNerds, FantasyPros dynasty/devy, or redraft ranking providers.
 - [x] Move remaining non-Sleeper report enrichments to provider snapshots: FantasyPros news, ESPN depth charts, and DraftSharks/SOS now refresh through dynamic-data jobs and read stored snapshots during user-triggered report/player-detail loads.
