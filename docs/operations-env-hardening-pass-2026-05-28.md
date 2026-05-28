@@ -18,8 +18,8 @@
 - `SOURCE_HEALTH_ALERT_WEBHOOK_MIN_LEVEL=` present in `.env.example`.
 
 ## Production Follow-up (manual)
-- Confirm all three values are set in deployment secret store (masked read in platform).
-- Validate webhook target receives a warning/danger alert path test when forced (or at least a config validation dry run).
+- Confirm all three values are set in deployment secret store (masked read in platform). In local `.vercel/.env.production.local`, `CRON_SECRET` is intentionally blank and both `SOURCE_HEALTH_ALERT_WEBHOOK_URL` and `SOURCE_HEALTH_ALERT_WEBHOOK_MIN_LEVEL` are absent, so platform-level verification is still required.
+- Validate webhook target receives a warning/danger alert path test when forced (or at minimum a config validation dry run).
 - Confirm cron invocations in logs return expected cheap `202` responses outside configured Pacific windows.
 - Confirm no provider key or webhook URL appears in user-facing logs/outputs.
 

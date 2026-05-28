@@ -12,26 +12,26 @@
 ## Results
 
 ### Source Freshness
-- Generated: `2026-05-28T16:35:44.346Z`
+- Generated: `2026-05-28T18:34:29.071Z`
 - Sources: `72`
 - Status: `21 loaded, 45 stale, 6 missing, 0 error`
-- Notes: largest stale families remain Devy snapshots and FantasyPros weekly ECR; no new source-health error families in this window.
+- Notes: stale families remain Devy snapshots and FantasyPros weekly ECR (unchanged from previous run); no source-health error families in this snapshot.
 
 ### League Report Cache
-- Generated: `2026-05-28T16:35:44.609Z`
-- Rows: `311 total`, `76 fresh`, `235 stale`
+- Generated: `2026-05-28T18:34:31.799Z`
+- Rows: `311 total`, `71 fresh`, `240 stale`
 - Stored payload: `191 MB`
-- Latest cache update: `2026-05-28T00:52:27.868Z` (`15h 43m` ago)
-- Recent analyze activity: `57` attempts / `45` hits / `11` fresh / `1` error (`79%` hit rate).
-- Notes: one recent error was `Invalid league ID`; appears limited to bad input/invalid league request.
+- Latest cache update: `2026-05-28T00:52:27.868Z` (`17h 42m` ago)
+- Recent analyze activity: `34` attempts / `25` hits / `9` fresh / `0` errors (`74%` hit rate).
+- Notes: no fresh-analysis errors in this run; cache recency and coverage still indicate a partially stale fleet.
 
 ### Unified Operations Readiness
-- Generated: `2026-05-28T16:35:44.922Z`
+- Generated: `2026-05-28T18:34:34.879Z`
 - Source coverage matrix: `31` total, `16 loaded`, `5 stale`, `6 missing`, `1 blocked`, `3 research`
 - Needs approval: `6`
 - Provider telemetry (14-day): `Calls=22040`, `network=22039`, `failures=958`, `429s=0`
 - Top providers: `Sleeper=22020` (main surface), `FantasyPros=20`.
-- Notes: stale/missing sources and missing coverage remain expected from existing backlog in non-critical feature paths.
+- Notes: stale/missing sources and missing coverage remain expected from existing non-critical backlog; no source-health danger events in this window.
 
 ## Decision
 - This run is captured as the latest baseline before the next refactor iteration.
