@@ -21,7 +21,7 @@ import { getReportDashboardManagers } from "@/features/report/components/ReportD
 import { ReportDashboardShell } from "@/features/report/components/ReportDashboardShell";
 import { ReportDashboardContent } from "@/features/report/components/ReportDashboardContent";
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
-import { HomeDialogs } from "@/features/home/components/HomeDialogs";
+import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsContainer";
 import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
 import {
   buildHomePortfolioRows,
@@ -1623,7 +1623,7 @@ export default function Home() {
             ? "autopilot-orbit"
             : "report-shell";
   const homeDialogs = (
-    <HomeDialogs
+    <HomeDialogsContainer
       isLeaguePickerOpen={isLeaguePickerOpen}
       leagues={orderedUserLeagues}
       sleeperUsername={sleeperUsername}
