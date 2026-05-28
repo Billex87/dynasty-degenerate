@@ -1,6 +1,4 @@
 import {
-  lazy,
-  Suspense,
   useEffect,
   useMemo,
   useRef,
@@ -12,32 +10,19 @@ import "@/styles/home-backgrounds-v12.css";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
-import ErrorBoundary from "@/components/ErrorBoundary";
 import { type PremiumFxVariant } from "@/components/PremiumFxLayer";
 import {
   buildLeagueFormatPills,
   getReportManagerNames,
 } from "@/features/report/lib/reportOverviewPreview";
-import { ReportSectionLoadingFallback } from "@/features/report/components/ReportSectionDisclosure";
-import { AutopilotErrorFallback } from "@/features/report/components/AutopilotErrorFallback";
-import {
-  LeagueRosterScannerModeControls,
-  OwnerIntelSortControls,
-  type OwnerIntelSortMode,
-} from "@/features/report/components/OwnerIntelControls";
-import {
-  getReportDashboardManagers,
-  ReportDashboardSpotlight,
-  ReportOverviewHero,
-} from "@/features/report/components/ReportDashboardShowcase";
-import { ReportOverviewTab } from "@/features/report/components/ReportOverviewTab";
-import { ReportMomentumTab } from "@/features/report/components/ReportMomentumTab";
+import { getReportDashboardManagers } from "@/features/report/components/ReportDashboardShowcase";
 import { ReportDashboardShell } from "@/features/report/components/ReportDashboardShell";
+import { ReportDashboardContent } from "@/features/report/components/ReportDashboardContent";
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
 import { HomeDialogs } from "@/features/home/components/HomeDialogs";
+import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
 import {
   buildHomePortfolioRows,
   filterHomePortfolioRows,
@@ -128,8 +113,6 @@ import {
   type HomePortfolioRow,
 } from "@/features/home/components/HomeLeagueSelection";
 import {
-  ReportSinceLastReportBrief,
-  type ReportDeltaChange,
   type ReportDeltaTone,
 } from "@/features/report/components/ReportDeltaBrief";
 import {
@@ -158,115 +141,6 @@ import {
   setAIVoiceMode as persistAIVoiceMode,
   type AIVoiceMode,
 } from "@/lib/aiVoice";
-
-import { AdminDiagnosticsShell } from "@/features/admin/components/AdminDiagnosticsShell";
-import { AdminScheduleEdgeSection } from "@/features/admin/components/AdminScheduleEdgeSections";
-import { ReportTradesTab } from "@/features/report/components/ReportTradesTab";
-import { ReportRankingsTab } from "@/features/report/components/ReportRankingsTab";
-
-const DraftAnalysis = lazy(() =>
-  import("@/components/DraftAnalysis").then(module => ({
-    default: module.DraftAnalysis,
-  }))
-);
-const RankingsBoard = lazy(() =>
-  import("@/components/RankingsBoard").then(module => ({
-    default: module.RankingsBoard,
-  }))
-);
-const WeeklyMomentumTable = lazy(
-  () => import("@/components/reportTables/WeeklyMomentumTable")
-);
-const TradeWarRoom = lazy(
-  () => import("@/components/reportTables/TradeWarRoom")
-);
-const LeagueRosterScanner = lazy(
-  () => import("@/components/reportTables/LeagueRosterScanner")
-);
-const TradeProfitLeaderboardTable = lazy(
-  () => import("@/components/reportTables/TradeProfitLeaderboardTable")
-);
-const TradeHistoryTable = lazy(
-  () => import("@/components/reportTables/TradeHistoryTable")
-);
-const TradeProposalSignalsTable = lazy(
-  () => import("@/components/reportTables/TradeProposalSignalsTable")
-);
-const ManagerPositionCountsTable = lazy(
-  () => import("@/components/reportTables/ManagerPositionCountsTable")
-);
-const OwnerIntelMatrix = lazy(
-  () => import("@/components/reportTables/OwnerIntelMatrix")
-);
-const LeagueCommandCenter = lazy(
-  () => import("@/components/reportTables/LeagueCommandCenter")
-);
-const TradeMarketRadar = lazy(
-  () => import("@/components/reportTables/TradeMarketRadar")
-);
-const TradeTheftDetector = lazy(
-  () => import("@/components/reportTables/TradeTheftDetector")
-);
-const TrendingPlayersTable = lazy(
-  () => import("@/components/reportTables/TrendingPlayersTable")
-);
-const WaiverIntelligencePanel = lazy(
-  () => import("@/components/reportTables/WaiverIntelligencePanel")
-);
-const RecentTransactionsPanel = lazy(
-  () => import("@/components/reportTables/RecentTransactionsPanel")
-);
-const OverviewAIPulse = lazy(() =>
-  import("@/components/CommandCenterExpansion").then(module => ({
-    default: module.OverviewAIPulse,
-  }))
-);
-const MonthlyTeamBlueprint = lazy(() =>
-  import("@/components/CommandCenterExpansion").then(module => ({
-    default: module.MonthlyTeamBlueprint,
-  }))
-);
-const LeaguePowerRankings = lazy(() =>
-  import("@/components/CommandCenterExpansion").then(module => ({
-    default: module.LeaguePowerRankings,
-  }))
-);
-const TeamBreakdownRecon = lazy(() =>
-  import("@/components/CommandCenterExpansion").then(module => ({
-    default: module.TeamBreakdownRecon,
-  }))
-);
-const TradeFinderGenerator = lazy(() =>
-  import("@/components/CommandCenterExpansion").then(module => ({
-    default: module.TradeFinderGenerator,
-  }))
-);
-const TradePartnerFinder = lazy(() =>
-  import("@/components/CommandCenterExpansion").then(module => ({
-    default: module.TradePartnerFinder,
-  }))
-);
-const LeagueExploits = lazy(() =>
-  import("@/components/CommandCenterExpansion").then(module => ({
-    default: module.LeagueExploits,
-  }))
-);
-const RankingsMarketRead = lazy(() =>
-  import("@/components/CommandCenterExpansion").then(module => ({
-    default: module.RankingsMarketRead,
-  }))
-);
-const TradeBrowserRead = lazy(() =>
-  import("@/components/CommandCenterExpansion").then(module => ({
-    default: module.TradeBrowserRead,
-  }))
-);
-const AssistantFeatureShells = lazy(() =>
-  import("@/components/CommandCenterExpansion").then(module => ({
-    default: module.AssistantFeatureShells,
-  }))
-);
-const AITeamAutopilot = lazy(() => import("@/components/AITeamAutopilot"));
 
 const DYNASTY_MOBILE_REPORT_LOGO_SRC =
   "/brand/logos/png/mobile-dd-stacked-transparent.png?v=20260519-mobile-transparent";
@@ -1864,202 +1738,41 @@ export default function Home() {
           onAdminViewerManagerChange={setAdminViewerManager}
           managerChampionships={reportData.managerChampionships}
         >
-          <div className="report-dashboard-shell">
-            <main className="report-dashboard-main">
-              <div
-                className="overview-command-canvas report-command-canvas"
-                data-active-tab={resolvedActiveTab}
-              >
-                <ReportOverviewHero
-                  leagueName={leagueName}
-                  activeTab={resolvedActiveTab}
-                  leagueValueMode={leagueValueMode}
-                  reportData={reportDataForView}
-                />
-                <ReportSinceLastReportBrief
-                  changes={reportDeltaChanges}
-                  previousSavedAt={previousReportDeltaSnapshot?.savedAt}
-                />
-                <Suspense fallback={<ReportSectionLoadingFallback />}>
-                  <TabsContent value="overview" className="report-tab-content">
-                    <ReportOverviewTab
-                      reportData={reportData}
-                      reportDataForView={reportDataForView}
-                      canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
-                      isRedraftReport={isRedraftReport}
-                      leagueValueMode={leagueValueMode}
-                      leagueName={leagueName}
-                      leagueFormat={leagueFormat}
-                      leagueId={leagueId}
-                      leagueLogo={leagueLogo}
-                      effectiveViewerManager={effectiveViewerManager}
-                      ownerIntelSortMode={ownerIntelSortMode}
-                      onOwnerIntelSortModeChange={setOwnerIntelSortMode}
-                      ownerTitle={modeCopy.ownerTitle}
-                      ownerKicker={modeCopy.ownerKicker}
-                      rosterTitle={modeCopy.rosterTitle}
-                      rosterKicker={modeCopy.rosterKicker}
-                      showAssistantFeatureRadar={SHOW_ASSISTANT_FEATURE_RADAR}
-                      OverviewAIPulse={OverviewAIPulse}
-                      MonthlyTeamBlueprint={MonthlyTeamBlueprint}
-                      LeaguePowerRankings={LeaguePowerRankings}
-                      TeamBreakdownRecon={TeamBreakdownRecon}
-                      TradeFinderGenerator={TradeFinderGenerator}
-                      TradePartnerFinder={TradePartnerFinder}
-                      LeagueExploits={LeagueExploits}
-                      AssistantFeatureShells={AssistantFeatureShells}
-                      OwnerIntelSortControls={OwnerIntelSortControls}
-                      OwnerIntelMatrix={OwnerIntelMatrix}
-                      LeagueCommandCenter={LeagueCommandCenter}
-                      ManagerPositionCountsTable={ManagerPositionCountsTable}
-                    />
-                  </TabsContent>
-
-                  {canViewAutopilotTab && (
-                    <TabsContent
-                      value="autopilot"
-                      className="report-tab-content report-command-tab-body"
-                    >
-                      <ErrorBoundary
-                        fallback={(error, reset) => (
-                          <AutopilotErrorFallback
-                            error={error}
-                            onRetry={reset}
-                          />
-                        )}
-                      >
-                        <AITeamAutopilot
-                          reportData={reportDataForView}
-                          leagueId={leagueId}
-                          leagueName={leagueName}
-                          leagueFormat={leagueFormat}
-                          leagueValueMode={leagueValueMode}
-                        />
-                      </ErrorBoundary>
-                    </TabsContent>
-                  )}
-
-                  <TabsContent
-                    value="momentum"
-                    className="report-tab-content report-command-tab-body"
-                  >
-                    <ReportMomentumTab
-                      reportData={reportData}
-                      leagueValueMode={leagueValueMode}
-                      isRedraftReport={isRedraftReport}
-                      leagueId={leagueId}
-                      leagueLogo={leagueLogo}
-                      canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
-                      effectiveViewerManager={effectiveViewerManager}
-                      showTradeMarketRadar={showTradeMarketRadar}
-                      TradeMarketRadar={TradeMarketRadar}
-                      WaiverIntelligencePanel={WaiverIntelligencePanel}
-                      RecentTransactionsPanel={RecentTransactionsPanel}
-                      WeeklyMomentumTable={WeeklyMomentumTable}
-                      TrendingPlayersTable={TrendingPlayersTable}
-                    />
-                  </TabsContent>
-
-                  <TabsContent
-                    value="rankings"
-                    className="report-tab-content report-command-tab-body"
-                  >
-                    <ReportRankingsTab
-                      reportData={reportData}
-                      reportDataForView={reportDataForView}
-                      canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
-                      canViewAdminDiagnostics={canViewAdminDiagnostics}
-                      isRedraftReport={isRedraftReport}
-                      leagueValueMode={leagueValueMode}
-                      leagueId={leagueId}
-                      leagueLogo={leagueLogo}
-                      effectiveViewerManager={effectiveViewerManager}
-                      leagueRosterScannerMode={leagueRosterScannerMode}
-                      setLeagueRosterScannerMode={setLeagueRosterScannerMode}
-                      rosterScannerFocusKey={rosterScannerFocusKey}
-                      rankingsForReport={rankingsForReport}
-                      rankingsQueryIsLoading={rankingsQuery.isLoading}
-                      onAnalyze={handleAnalyze}
-                      LeagueRosterScannerModeControls={
-                        LeagueRosterScannerModeControls
-                      }
-                      LeagueRosterScanner={LeagueRosterScanner}
-                      RankingsBoard={RankingsBoard}
-                      RankingsMarketRead={RankingsMarketRead}
-                      AdminScheduleEdgeSection={AdminScheduleEdgeSection}
-                      AdminDiagnosticsShell={AdminDiagnosticsShell}
-                    />
-                  </TabsContent>
-
-                  <TabsContent
-                    value="trades"
-                    className="report-tab-content report-command-tab-body"
-                  >
-                    <ReportTradesTab
-                      reportData={reportData}
-                      reportDataForView={reportDataForView}
-                      canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
-                      showManagerPersonalityIntel={canViewAdminDiagnostics}
-                      onScoutLeaguemates={handleScoutLeaguemates}
-                      leagueId={leagueId}
-                      leagueLogo={leagueLogo}
-                      leagueValueMode={leagueValueMode}
-                      effectiveViewerManager={effectiveViewerManager}
-                      rankingsForReport={rankingsForReport}
-                      tradeWarKicker={modeCopy.tradeWarKicker}
-                      TradeBrowserRead={TradeBrowserRead}
-                      TradeProposalSignalsTable={TradeProposalSignalsTable}
-                      TradeWarRoom={TradeWarRoom}
-                      TradeProfitLeaderboardTable={TradeProfitLeaderboardTable}
-                      TradeTheftDetector={TradeTheftDetector}
-                      TradeHistoryTable={TradeHistoryTable}
-                    />
-                  </TabsContent>
-
-                  {shouldShowDraftHistoryTab && (
-                    <TabsContent
-                      value="draft"
-                      className="report-tab-content report-command-tab-body"
-                    >
-                      <DraftAnalysis
-                        draftPicks={reportData.draftPicks || []}
-                        draftStats={reportData.draftStats || []}
-                        managerRosterIntelligence={
-                          reportData.managerRosterIntelligence
-                        }
-                        managerAvatars={reportData.managerAvatars}
-                        playerDetailsById={reportData.playerDetailsById}
-                        leagueId={leagueId}
-                        leagueLogo={leagueLogo}
-                        viewerManager={effectiveViewerManager}
-                        currentStandings={reportData.currentStandings}
-                        leagueOverview={reportData.leagueOverview}
-                        leagueValueMode={leagueValueMode}
-                        leagueDiagnostics={reportData.leagueDiagnostics}
-                        calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
-                        showAIReads={canViewAdminFeatureExpansion}
-                      />
-                    </TabsContent>
-                  )}
-                </Suspense>
-                <ReportDashboardSpotlight
-                  manager={dashboardViewerManager}
-                  activeTab={resolvedActiveTab}
-                  leagueValueMode={leagueValueMode}
-                  reportData={reportDataForView}
-                  managerAvatars={reportData.managerAvatars}
-                  variant="inline"
-                />
-              </div>
-            </main>
-            <ReportDashboardSpotlight
-              manager={dashboardViewerManager}
-              activeTab={resolvedActiveTab}
-              leagueValueMode={leagueValueMode}
-              reportData={reportDataForView}
-              managerAvatars={reportData.managerAvatars}
-            />
-          </div>
+          <ReportDashboardContent
+            canViewAdminDiagnostics={canViewAdminDiagnostics}
+            canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+            canViewAutopilotTab={canViewAutopilotTab}
+            dashboardViewerManager={dashboardViewerManager}
+            isRedraftReport={isRedraftReport}
+            leagueFormat={leagueFormat}
+            leagueId={leagueId}
+            leagueLogo={leagueLogo}
+            leagueName={leagueName}
+            leagueRosterScannerMode={leagueRosterScannerMode}
+            leagueValueMode={leagueValueMode}
+            onAnalyze={handleAnalyze}
+            onOwnerIntelSortModeChange={setOwnerIntelSortMode}
+            onScoutLeaguemates={handleScoutLeaguemates}
+            ownerIntelSortMode={ownerIntelSortMode}
+            ownerTitle={modeCopy.ownerTitle}
+            ownerKicker={modeCopy.ownerKicker}
+            previousSavedAt={currentReportDeltaSnapshot?.savedAt}
+            rankingsForReport={rankingsForReport}
+            rankingsQueryIsLoading={rankingsQuery.isLoading}
+            reportData={reportData}
+            reportDataForView={reportDataForView}
+            reportDeltaChanges={reportDeltaChanges}
+            resolvedActiveTab={resolvedActiveTab}
+            rosterScannerFocusKey={rosterScannerFocusKey}
+            rosterTitle={modeCopy.rosterTitle}
+            rosterKicker={modeCopy.rosterKicker}
+            setLeagueRosterScannerMode={setLeagueRosterScannerMode}
+            showAssistantFeatureRadar={SHOW_ASSISTANT_FEATURE_RADAR}
+            showTradeMarketRadar={showTradeMarketRadar}
+            shouldShowDraftHistoryTab={shouldShowDraftHistoryTab}
+            tradeWarKicker={modeCopy.tradeWarKicker}
+            effectiveViewerManager={effectiveViewerManager}
+          />
         </ReportDashboardShell>
         {homeDialogs}
       </>
