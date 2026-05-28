@@ -124,6 +124,7 @@ import {
   ManagerDepthTile,
   orderOwnerBadgesForCompactRows,
 } from "./reportTables/OwnerIntelDepthComponents";
+import { OwnerScoreStrip, formatOwnerScore } from "./reportTables/OwnerScoreStrip";
 import { PlayerInsightTile } from "./reportTables/OwnerIntelPlayerTile";
 import {
   FullRosterRankTiles,
@@ -2883,11 +2884,6 @@ function toOwnerScore(value?: number | null): number | null {
     : null;
 }
 
-function formatOwnerScore(value?: number | null): string {
-  const score = toOwnerScore(value);
-  return score === null ? "-" : String(score);
-}
-
 function normalizeOwnerValueScore(
   value?: number | null,
   maxValue = 0
@@ -3042,57 +3038,6 @@ function buildOwnerScoreLens({
     buildLabel,
     buildTone: getOwnerTeamTypeToneForMode(buildLabel, sortMode),
   };
-}
-
-function OwnerScoreStrip({
-  scores,
-  compact = false,
-  leagueValueMode = "dynasty",
-}: {
-  scores: OwnerScoreLens;
-  compact?: boolean;
-  leagueValueMode?: LeagueValueMode;
-}) {
-  const isRedraft = leagueValueMode === "redraft";
-  const renderLabel = (fullLabel: string, shortLabel: string) => (
-    <strong>
-      <span className="owner-intel-score-label-full">{fullLabel}</span>
-      <span className="owner-intel-score-label-short">{shortLabel}</span>
-    </strong>
-  );
-
-  return (
-    <span
-      className={`owner-intel-score-strip${compact ? " owner-intel-score-strip-compact" : ""}`}
-      aria-label="Manager score lenses"
-    >
-      <span>
-        {renderLabel("Roster", "Full")}
-        <em>{formatOwnerScore(scores.fullRosterScore)}</em>
-      </span>
-      <span>
-        {renderLabel(
-          isRedraft ? "Current" : "Dynasty",
-          isRedraft ? "Cur" : "Dyn"
-        )}
-        <em>{formatOwnerScore(scores.dynastyScore)}</em>
-      </span>
-      <span>
-        {renderLabel(
-          isRedraft ? "Starters" : "Contend",
-          isRedraft ? "St" : "Cnt"
-        )}
-        <em>{formatOwnerScore(scores.contenderScore)}</em>
-      </span>
-      <span>
-        {renderLabel(
-          isRedraft ? "Bench" : "Rebuild",
-          isRedraft ? "Bn" : "Reb"
-        )}
-        <em>{formatOwnerScore(scores.rebuilderScore)}</em>
-      </span>
-    </span>
-  );
 }
 
 function buildRedraftOwnerProfileLabel(
