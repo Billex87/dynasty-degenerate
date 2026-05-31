@@ -566,7 +566,7 @@ describe('Draft Analysis', () => {
 
     const fetchMock = vi.fn(async (url: string) => ({
       json: async () => {
-        if (url.endsWith('/league/league1/drafts')) {
+        if (url.endsWith('/league/123456789012/drafts')) {
           return [{
             draft_id: 'main-draft',
             season: '2026',
@@ -592,10 +592,10 @@ describe('Draft Analysis', () => {
       pastUserMap: {},
     };
 
-    await expect(fetchDraftData('league1', rosterMappingData)).resolves.toHaveLength(120);
-    await expect(fetchDraftData('league1', rosterMappingData, { leagueValueMode: 'keeper' })).resolves.toHaveLength(0);
+    await expect(fetchDraftData('123456789012', rosterMappingData)).resolves.toHaveLength(120);
+    await expect(fetchDraftData('123456789012', rosterMappingData, { leagueValueMode: 'keeper' })).resolves.toHaveLength(0);
 
-    const redraftPicks = await fetchDraftData('league1', rosterMappingData, { leagueValueMode: 'redraft' });
+    const redraftPicks = await fetchDraftData('123456789012', rosterMappingData, { leagueValueMode: 'redraft' });
     expect(redraftPicks).toHaveLength(120);
     expect(redraftPicks[0]).toMatchObject({
       draft_id: 'main-draft',

@@ -83,7 +83,7 @@ import {
 } from "./sleeperProjectionSnapshots";
 import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, insertLoginAttempt, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser } from "./db";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
-import type { LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
+import type { LeagueDraftStatus, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
 import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
 import type { AICounterfactualRead, AIDecisionSnapshot, AIPredictionDecayProfile, AIRealizedEdge } from "../shared/aiDecisionSnapshots";
 import type { RecommendationObservedOutcome } from "../shared/recommendationOutcome";
@@ -143,6 +143,39 @@ function buildCurrentSeasonMainDraftDiagnostics(
     currentSeasonMainDraftPickCount: currentSeasonMainPicks.length,
     currentSeasonMainDraftPickedPlayerCount: pickedCount,
     currentSeasonMainDraftStatus: status,
+  };
+}
+
+function normalizeSleeperDraftStatus(leagueInfo: any): Pick<
+  NonNullable<ReportData['leagueDiagnostics']>,
+  'draftStatus' | 'draftStatusLabel' | 'sleeperStatus' | 'sleeperSeasonType'
+> {
+  const sleeperStatus = typeof leagueInfo?.status === 'string' ? leagueInfo.status : null;
+  const sleeperSeasonType = typeof leagueInfo?.season_type === 'string' ? leagueInfo.season_type : null;
+  const normalized = String(sleeperStatus || '').trim().toLowerCase();
+  let draftStatus: LeagueDraftStatus = 'unknown';
+
+  if (normalized === 'pre_draft') draftStatus = 'pre_draft';
+  else if (normalized === 'drafting') draftStatus = 'drafting';
+  else if (normalized === 'in_season') draftStatus = 'in_season';
+  else if (normalized === 'complete' || normalized === 'post_season') draftStatus = 'complete';
+
+  const draftStatusLabel =
+    draftStatus === 'pre_draft'
+      ? 'Pre-draft'
+      : draftStatus === 'drafting'
+        ? 'Drafting'
+        : draftStatus === 'in_season'
+          ? 'In season'
+          : draftStatus === 'complete'
+            ? 'Complete'
+            : 'Draft status unknown';
+
+  return {
+    draftStatus,
+    draftStatusLabel,
+    sleeperStatus,
+    sleeperSeasonType,
   };
 }
 
@@ -1120,7 +1153,7 @@ function formatLeagueFormat(leagueInfo: any): string {
   const rec = Number(leagueInfo.scoring_settings?.rec ?? 0);
   const teBonus = getLeagueTightEndPremium(leagueInfo);
   const ppr = rec === 1 ? 'PPR' : rec === 0.5 ? 'Half-PPR' : rec === 0 ? 'Standard' : `${rec} PPR`;
-  const tep = teBonus > 0 ? 'TEP' : null;
+  const tep = teBonus > 0 ? 'TE Premium' : null;
 
   return [totalTeams, type, superflex, ppr, tep].filter(Boolean).join(' ');
 }
@@ -7559,12 +7592,14 @@ export const appRouter = router({
             draftAnalysis.draftPicks,
             currentSeasonLabel
           );
+          const sleeperDraftStatusDiagnostics = normalizeSleeperDraftStatus(leagueInfo);
           const reportPayloadData = {
             ...reportData,
             leagueDiagnostics: reportData.leagueDiagnostics
               ? {
                   ...reportData.leagueDiagnostics,
                   currentSeason: currentSeasonLabel,
+                  ...sleeperDraftStatusDiagnostics,
                   ...currentSeasonDraftDiagnostics,
                 }
               : undefined,

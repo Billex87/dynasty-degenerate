@@ -577,6 +577,17 @@ export function PlayerDetailModal({
     calibrationProfile,
     calibrationLeagueId: leagueId,
   }) : null;
+  const leagueContextBadges = [
+    valueMode === 'redraft' ? 'Redraft' : 'Dynasty',
+    leagueDiagnostics?.qbFormat === 'superflex' || leagueDiagnostics?.qbFormat === 'two_qb' ? 'SF' : null,
+    Number(leagueDiagnostics?.tightEndPremium || 0) > 0 ? 'TE Premium' : null,
+    leagueDiagnostics?.draftStatus &&
+    leagueDiagnostics.draftStatus !== 'complete' &&
+    leagueDiagnostics.draftStatus !== 'in_season' &&
+    leagueDiagnostics.draftStatus !== 'unknown'
+      ? leagueDiagnostics.draftStatusLabel || 'Draft pending'
+      : null,
+  ].filter((badge): badge is string => Boolean(badge));
   const draftAuditRows = [
     pick.draftDecisionVerdict ? ['Draft Read', pick.draftDecisionVerdict] : null,
     pick.draftDecisionBoardRankLabel ? ['Board Read', pick.draftDecisionBoardRankLabel] : null,
@@ -748,6 +759,18 @@ export function PlayerDetailModal({
                       </span>
                     ) : null}
                   </div>
+                  {leagueContextBadges.length > 0 ? (
+                    <div
+                      className="player-modal-context-badges"
+                      aria-label={`League context: ${leagueContextBadges.join(", ")}`}
+                    >
+                      {leagueContextBadges.map(badge => (
+                        <span key={badge} className="player-modal-context-badge">
+                          {badge}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>

@@ -1553,6 +1553,12 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
         </div>
       ) : null}
 
+      {config.board !== 'devy' ? (
+        <div className="rankings-value-basis" aria-label={`Value basis: ${config.valueLabel}`}>
+          Value basis: <strong>{config.valueLabel}</strong>
+        </div>
+      ) : null}
+
       <div className="rankings-result-count">
         Showing {pageRows.length.toLocaleString()} of {filteredRows.length.toLocaleString()} ranked assets
       </div>

@@ -38,7 +38,7 @@ export function ReportDashboardHeader({
   headerLogoSrc,
 }: ReportDashboardHeaderProps) {
   return (
-    <div className="report-header sticky top-0 z-50">
+    <header className="report-header sticky top-0 z-50">
       <HeaderCssLights />
       <div className="report-header-inner dd-header-content max-w-7xl mx-auto px-4 sm:pl-6 sm:pr-2 md:pl-6 md:pr-1 lg:pr-0 py-3 md:py-2">
         <div className="report-header-grid">
@@ -206,6 +206,6 @@ export function ReportDashboardHeader({
           </div>
         </div>
       </div>
-    </div>
+    </header>
   );
 }

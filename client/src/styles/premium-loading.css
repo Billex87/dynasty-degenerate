@@ -150,6 +150,59 @@
   backdrop-filter: none !important;
 }
 
+.analysis-loading-status-copy {
+  position: relative;
+  z-index: 2;
+  margin: 0 auto 0.75rem;
+  max-width: 30rem;
+  text-align: center;
+}
+
+.analysis-loading-status-title {
+  margin: 0;
+  color: rgb(224 242 254);
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.analysis-loading-status-description {
+  margin: 0.3rem auto 0;
+  max-width: 26rem;
+  color: rgba(203, 213, 225, 0.82);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.analysis-loading-actions {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 1rem auto 0;
+  max-width: 30rem;
+}
+
+.analysis-loading-action-primary,
+.analysis-loading-action-secondary {
+  min-height: 2.75rem;
+  border-radius: 0.75rem;
+  font-weight: 850;
+}
+
+.analysis-loading-action-primary {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #fff;
+}
+
+.analysis-loading-action-secondary {
+  border-color: rgba(103, 232, 249, 0.32);
+  color: rgb(207, 250, 254);
+}
+
 .analysis-loading-dialog-loading,
 .analysis-loading-dialog-success {
   overflow: hidden;

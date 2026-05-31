@@ -5743,6 +5743,20 @@ button.trade-manager-trade {
   text-align: center;
 }
 
+.rankings-value-basis {
+  color: rgba(226, 232, 240, 0.8);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.rankings-value-basis strong {
+  color: #f8fafc;
+}
+
 .rankings-player-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

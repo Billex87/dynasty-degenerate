@@ -160,6 +160,7 @@ const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
 const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
 const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 850;
 const REPORT_SUCCESS_KICK_MS = 900;
+const REPORT_LOADING_TIMEOUT_MS = 10_000;
 const SHOW_LEGACY_LEAGUE_ID_LOGIN = true;
 const SHOW_ASSISTANT_FEATURE_RADAR =
   String(
@@ -192,6 +193,9 @@ export default function Home() {
     "username" | "league" | null
   >(null);
   const [portfolioSearch, setPortfolioSearch] = useState("");
+  const [analysisErrorMessage, setAnalysisErrorMessage] = useState<
+    string | null
+  >(null);
   const [userLeagues, setUserLeagues] = useState<SleeperLeagueOption[]>([]);
   const [isLeagueIntelLoading, setIsLeagueIntelLoading] = useState(false);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
@@ -317,6 +321,7 @@ export default function Home() {
   ] = useState(readAdminPassphraseVerifiedForSession);
   const [loadingTransitionPhase, setLoadingTransitionPhase] =
     useState<LoadingTransitionPhase>("loading");
+  const [hasLoadingTimedOut, setHasLoadingTimedOut] = useState(false);
   const successTransitionTimerRefs = useRef<number[]>([]);
   const activeAnalysisLeagueIdRef = useRef<string | null>(null);
   const reportLoadStartedAtRef = useRef<number | null>(null);
@@ -412,6 +417,7 @@ export default function Home() {
     );
     setAnalysisCompleteMessage(null);
     setLoadingTransitionPhase("loading");
+    setHasLoadingTimedOut(false);
     setIsLoading(true);
     setLoadingManagerAnchors(initialManagerAnchors);
 
@@ -488,7 +494,15 @@ export default function Home() {
       };
     },
     onSuccess: data => {
+      if (
+        analysisModeRef.current !== "background" &&
+        activeAnalysisLeagueIdRef.current !== data.leagueId
+      ) {
+        return;
+      }
       clearSuccessTransitionTimers();
+      setHasLoadingTimedOut(false);
+      setAnalysisErrorMessage(null);
       const analysisMode = analysisModeRef.current;
       const responseCompletedAt = performance.now();
       const analyzeRequest = analyzeRequestStartedAtRef.current;
@@ -604,8 +618,15 @@ export default function Home() {
           REPORT_SUCCESS_KICK_MS
       );
     },
-    onError: error => {
+    onError: (error, variables) => {
+      if (
+        analysisModeRef.current !== "background" &&
+        activeAnalysisLeagueIdRef.current !== variables.leagueId
+      ) {
+        return;
+      }
       clearSuccessTransitionTimers();
+      setHasLoadingTimedOut(false);
       if (analysisModeRef.current === "background") {
         setIsReportRefreshing(false);
         backgroundRefreshLeagueIdRef.current = null;
@@ -625,6 +646,11 @@ export default function Home() {
       setLoadingTransitionPhase("loading");
       setIsLoading(false);
       setLoadingManagerAnchors([]);
+      if (!reportData) {
+        setAnalysisErrorMessage(
+          "We could not load that league. Check the Sleeper league ID, retry, or sign in with your Sleeper username to pick from your leagues."
+        );
+      }
       showMutationErrorToast(error);
     },
   });
@@ -635,6 +661,19 @@ export default function Home() {
     },
     []
   );
+
+  useEffect(() => {
+    if (!isLoading || loadingTransitionPhase !== "loading") {
+      setHasLoadingTimedOut(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setHasLoadingTimedOut(true);
+    }, REPORT_LOADING_TIMEOUT_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [isLoading, loadingTransitionPhase]);
 
   const applyCachedReport = (
     cachedReport: CachedReport,
@@ -656,6 +695,7 @@ export default function Home() {
     setReportDataCacheVersion(sanitizedReport.cacheVersion || REPORT_CACHE_DATA_VERSION);
     setReportData(sanitizedReport.reportData);
     setAnalysisCompleteMessage(null);
+    setAnalysisErrorMessage(null);
     setPendingAnalysisLeague(null);
     setLoadingTransitionPhase("done");
     setIsLoading(false);
@@ -990,6 +1030,7 @@ export default function Home() {
           }
           if (parsed) clearBrowserReportCache(parsed.leagueId);
           setLeagueId(urlLeagueId);
+          setAnalysisErrorMessage(null);
           setActiveTab(urlTab || "overview");
           setLeagueIdHistory(
             rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, urlLeagueId)
@@ -1014,6 +1055,9 @@ export default function Home() {
           );
           if (!lastLeagueIsFresh) {
             localStorage.removeItem(LAST_LEAGUE_KEY);
+            if (restoredLeagues.length > 0) {
+              setIsLeaguePickerOpen(true);
+            }
             return;
           }
           const cachedLastLeagueReport = await readBrowserReportCache(parsed.leagueId);
@@ -1025,27 +1069,13 @@ export default function Home() {
             restoreReportFromCache(cachedLastLeagueReport);
             return;
           }
-          setLeagueId(parsed.leagueId);
-          setLeagueName(parsed.leagueName);
-          setLeagueLogo(parsed.leagueLogo);
-          setLeagueFormat(parsed.leagueFormat);
-          setActiveTab(urlTab || parsed.activeTab || "overview");
+          localStorage.removeItem(LAST_LEAGUE_KEY);
           setLeagueIdHistory(
             rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId)
           );
-          setPendingAnalysisLeague({
-            leagueName: parsed.leagueName,
-            leagueFormat: parsed.leagueFormat,
-            leagueLogo: parsed.leagueLogo,
-          });
-          setLoadingTransitionPhase("loading");
-          setIsLoading(true);
-          analyzeMutation.mutate({
-            leagueId: parsed.leagueId,
-            viewerUserId:
-              getValidSleeperUserId(restoredViewerUserId) || undefined,
-          });
-          return;
+          if (restoredLeagues.length > 0) {
+            setIsLeaguePickerOpen(true);
+          }
         }
 
         const parsed = await readBrowserReportCache();
@@ -1130,6 +1160,7 @@ export default function Home() {
       toast.error("Please enter a league ID");
       return;
     }
+    setAnalysisErrorMessage(null);
     const isSameLeague = nextLeagueId === leagueId.trim();
     const knownLeague = findKnownSleeperLeague(
       nextLeagueId,
@@ -1174,6 +1205,7 @@ export default function Home() {
       return;
     }
     setPortfolioSearch("");
+    setAnalysisErrorMessage(null);
     setIsLeagueIntelLoading(false);
     userLeaguesMutation.mutate({ username: normalizedUsername });
   };
@@ -1182,6 +1214,7 @@ export default function Home() {
     setIsClownModalOpen(false);
     setSleeperUsername("");
     setPortfolioSearch("");
+    setAnalysisErrorMessage(null);
     setUserLeagues([]);
     setIsLeagueIntelLoading(false);
     setFocusedAutocomplete(null);
@@ -1235,9 +1268,12 @@ export default function Home() {
     setIsChangeLeagueModalOpen(false);
     setIsAdminAccessModalOpen(false);
     setAnalysisCompleteMessage(null);
+    setAnalysisErrorMessage(null);
     setPendingAnalysisLeague(null);
     setLoadingTransitionPhase("loading");
+    setHasLoadingTimedOut(false);
     setLoadingManagerAnchors([]);
+    setIsLoading(false);
     setReportData(null);
     setLeagueId("");
     setSleeperUsername("");
@@ -1255,12 +1291,51 @@ export default function Home() {
     setActiveTab("overview");
   };
 
+  const handleCancelLoading = () => {
+    clearSuccessTransitionTimers();
+    activeAnalysisLeagueIdRef.current = null;
+    reportLoadStartedAtRef.current = null;
+    analyzeRequestStartedAtRef.current = null;
+    analysisModeRef.current = "blocking";
+    setAnalysisCompleteMessage(null);
+    setPendingAnalysisLeague(null);
+    setLoadingTransitionPhase("loading");
+    setHasLoadingTimedOut(false);
+    setLoadingManagerAnchors([]);
+    setIsLoading(false);
+
+    if (userLeagues.length > 0) {
+      setIsLeaguePickerOpen(true);
+      return;
+    }
+
+    if (!reportData) {
+      updateReportTabUrl("overview", "");
+      setLeagueId("");
+      setAnalysisErrorMessage(null);
+      setLeagueName("");
+      setLeagueLogo(null);
+      setLeagueFormat("");
+      setActiveTab("overview");
+    }
+  };
+
+  const handleRetryLoading = () => {
+    const retryLeagueId =
+      activeAnalysisLeagueIdRef.current || normalizeReportLeagueId(leagueId);
+    if (!retryLeagueId) {
+      handleCancelLoading();
+      return;
+    }
+    void handleAnalyze(retryLeagueId);
+  };
+
   const handleAnalyzeAnotherLeague = () => {
     if (userLeagues.length > 0) {
       setIsLeaguePickerOpen(true);
       return;
     }
-    handleStartOver();
+    setIsChangeLeagueModalOpen(true);
   };
 
   const handleHeaderLeagueClick = () => {
@@ -1660,6 +1735,9 @@ export default function Home() {
       loadingTransitionPhase={loadingTransitionPhase}
       loadingLeague={loadingLeague}
       loadingManagerAnchors={loadingManagerAnchors}
+      hasLoadingTimedOut={hasLoadingTimedOut}
+      onLoadingCancel={handleCancelLoading}
+      onLoadingRetry={handleRetryLoading}
     />
   );
   if (reportData && !analysisCompleteMessage) {
@@ -1792,10 +1870,16 @@ export default function Home() {
         onAnalyzeLeagueOption={handleAnalyzeLeagueOption}
         leagueId={leagueId}
         sleeperUsername={sleeperUsername}
-        onSleeperUsernameChange={setSleeperUsername}
+        onSleeperUsernameChange={value => {
+          setSleeperUsername(value);
+          setAnalysisErrorMessage(null);
+        }}
         usernameAutocompleteHistory={sleeperUsernameHistory}
         leagueIdHistory={leagueIdHistory}
-        onLeagueIdChange={setLeagueId}
+        onLeagueIdChange={value => {
+          setLeagueId(value);
+          setAnalysisErrorMessage(null);
+        }}
         focusedAutocomplete={focusedAutocomplete}
         onFocusedAutocompleteChange={setFocusedAutocomplete}
         usernameAutocompleteOptions={usernameAutocompleteOptions}
@@ -1810,6 +1894,7 @@ export default function Home() {
         }}
         handleFindLeagues={handleFindLeagues}
         isFindLeaguesPending={userLeaguesMutation.isPending}
+        analysisErrorMessage={analysisErrorMessage}
         showLegacyLeagueIdLogin={SHOW_LEGACY_LEAGUE_ID_LOGIN}
         handleAnalyze={() => handleAnalyze()}
         isAnalysisBusy={isLoading}

@@ -43,7 +43,7 @@ function formatReceptionChip(value?: number | null): string | null {
 function formatTepChip(value?: number | null): string | null {
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) return null;
-  return numeric >= 1 ? "TEP+" : "TEP";
+  return "TE Premium";
 }
 
 export function buildLeagueFormatPills(
@@ -96,11 +96,20 @@ export function buildLeagueFormatPills(
     : /\b(tep\+|1(?:\.0)?\s*tep|1\.5\s*tep|2(?:\.0)?\s*tep|te\s*premium\+)\b/i.test(
           normalizedFormat
         )
-      ? "TEP+"
+      ? "TE Premium"
       : /\b(tep|te\s*premium)\b/i.test(normalizedFormat)
-        ? "TEP"
+        ? "TE Premium"
         : null;
   addChip(tepChip);
+
+  if (
+    diagnostics?.draftStatus &&
+    diagnostics.draftStatus !== "complete" &&
+    diagnostics.draftStatus !== "in_season" &&
+    diagnostics.draftStatus !== "unknown"
+  ) {
+    addChip(diagnostics.draftStatusLabel || "Draft status pending");
+  }
 
   return chips;
 }

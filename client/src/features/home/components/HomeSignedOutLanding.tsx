@@ -35,6 +35,7 @@ interface HomeSignedOutLandingProps {
   onLeagueIdAutocompleteSelect: (value: string) => void;
   handleFindLeagues: () => void;
   isFindLeaguesPending: boolean;
+  analysisErrorMessage?: string | null;
   showLegacyLeagueIdLogin: boolean;
   handleAnalyze: () => void;
   isAnalysisBusy: boolean;
@@ -67,6 +68,7 @@ export function HomeSignedOutLanding({
   onLeagueIdAutocompleteSelect,
   handleFindLeagues,
   isFindLeaguesPending,
+  analysisErrorMessage,
   showLegacyLeagueIdLogin,
   handleAnalyze,
   isAnalysisBusy,
@@ -101,6 +103,7 @@ export function HomeSignedOutLanding({
               leagueIdAutocompleteOptions={leagueIdAutocompleteOptions}
               isFindLeaguesPending={isFindLeaguesPending}
               isAnalysisBusy={isAnalysisBusy}
+              analysisErrorMessage={analysisErrorMessage}
               onFocusedAutocompleteChange={onFocusedAutocompleteChange}
               onSleeperUsernameChange={onSleeperUsernameChange}
               onLeagueIdChange={onLeagueIdChange}

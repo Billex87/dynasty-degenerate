@@ -79,11 +79,11 @@ interface LoadingStep {
 }
 
 const initialLoadingSteps: LoadingStep[] = [
-  { id: 'sleeper', label: 'Hacking into Sleeper servers...', status: 'loading' },
-  { id: 'league', label: 'Stealing league data & trade secrets', status: 'pending' },
-  { id: 'ktc', label: 'Cooking the market value books', status: 'pending' },
-  { id: 'dynasty', label: 'Interrogating the dynasty market', status: 'pending' },
-  { id: 'csv', label: 'Generating your illegal advantage', status: 'pending' },
+  { id: 'sleeper', label: 'Connecting to Sleeper...', status: 'loading' },
+  { id: 'league', label: 'Loading league settings and rosters', status: 'pending' },
+  { id: 'ktc', label: 'Matching player values to this format', status: 'pending' },
+  { id: 'dynasty', label: 'Building league context and market reads', status: 'pending' },
+  { id: 'csv', label: 'Preparing report tables and manager insights', status: 'pending' },
   { id: 'final', label: 'Finalizing', status: 'pending' },
 ];
 

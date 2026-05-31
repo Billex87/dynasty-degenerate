@@ -1803,6 +1803,7 @@ export interface ServerReportDeltaRead {
 }
 
 export type LeagueWaiverMode = 'faab' | 'priority' | 'unknown';
+export type LeagueDraftStatus = 'pre_draft' | 'drafting' | 'in_season' | 'complete' | 'unknown';
 
 export interface LeagueDiagnostics {
   teamCount: number;
@@ -1810,6 +1811,10 @@ export interface LeagueDiagnostics {
   qbFormat?: 'one_qb' | 'superflex' | 'two_qb' | 'unknown';
   currentSeason?: string;
   currentWeek?: number | null;
+  draftStatus?: LeagueDraftStatus;
+  draftStatusLabel?: string;
+  sleeperStatus?: string | null;
+  sleeperSeasonType?: string | null;
   waiverMode?: LeagueWaiverMode;
   waiverModeLabel?: string;
   waiverType?: number | null;

@@ -14,8 +14,8 @@ export function HomeSignedOutLandingFooter({
   }
 
   return (
-    <div className="home-footer mt-auto px-4 py-1">
+    <footer className="home-footer mt-auto px-4 py-1">
       <HomeFooterChrome showBrand={!isAnalysisBusy} />
-    </div>
+    </footer>
   );
 }

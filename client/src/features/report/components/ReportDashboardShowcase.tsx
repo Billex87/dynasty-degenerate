@@ -438,17 +438,51 @@ const TAB_HERO_COPY = {
   ReportDashboardHeroCopy
 >;
 
+const REDRAFT_TAB_HERO_COPY = {
+  overview: {
+    headline: "SEASON AUDIT.\nNO MERCY.",
+    subline: "Your weekly edge starts with the roster in front of you.",
+    body: "We surface current-season starters, depth gaps, injury leverage, and waiver pressure without pretending this is a multi-year build.",
+  },
+  momentum: {
+    headline: "CATCH THE TILT.\nCASH THE CHAOS.",
+    subline: "Bad Sundays create great theft.",
+    body: "We track who is rising, who is crashing, and who is one injury report away from becoming useful this season.",
+  },
+  rankings: {
+    headline: "SEASON RANKINGS.\nWITH TEETH.",
+    subline: "Current value first. Noise second.",
+    body: "We rank players by current-season value, weekly usefulness, and roster fit so redraft decisions stay focused on this season.",
+  },
+  trades: {
+    headline: "FIND THE NEED.\nSEND THE OFFER.",
+    subline: "Redraft trades are about weeks, not trophies in 2028.",
+    body: "We spot short-term roster pressure, positional gaps, and usable trade windows before the next lineup lock closes.",
+  },
+  draft: {
+    headline: "DRAFT ROOM.\nNO GUESSWORK.",
+    subline: "Plan the board before the clock starts.",
+    body: "We keep draft planning centered on current-season value, lineup scarcity, and roster construction instead of future pick leverage.",
+  },
+} satisfies Record<
+  "overview" | "momentum" | "rankings" | "trades" | "draft",
+  ReportDashboardHeroCopy
+>;
+
 function getReportDashboardHeroCopy(
-  activeTab?: string | null
+  activeTab?: string | null,
+  leagueValueMode: LeagueValueMode = "dynasty"
 ): ReportDashboardHeroCopy {
   const normalizedTab = normalizeDashboardTab(activeTab);
+  const copySource =
+    leagueValueMode === "redraft" ? REDRAFT_TAB_HERO_COPY : TAB_HERO_COPY;
   if (
     normalizedTab &&
-    Object.prototype.hasOwnProperty.call(TAB_HERO_COPY, normalizedTab)
+    Object.prototype.hasOwnProperty.call(copySource, normalizedTab)
   ) {
-    return TAB_HERO_COPY[normalizedTab as keyof typeof TAB_HERO_COPY];
+    return copySource[normalizedTab as keyof typeof copySource];
   }
-  return TAB_HERO_COPY.overview;
+  return copySource.overview;
 }
 
 type DashboardRankingPlayer =
@@ -1841,7 +1875,7 @@ export function ReportOverviewHero({
   leagueValueMode: LeagueValueMode;
   reportData: ReportData;
 }) {
-  const heroCopy = getReportDashboardHeroCopy(activeTab);
+  const heroCopy = getReportDashboardHeroCopy(activeTab, leagueValueMode);
   const heroConfig = getReportDashboardHeroConfig({
     activeTab,
     leagueValueMode,

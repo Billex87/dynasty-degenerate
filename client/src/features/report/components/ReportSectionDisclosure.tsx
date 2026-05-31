@@ -65,12 +65,14 @@ export function CollapsibleReportSection({
 }) {
   const accordion = useContext(ReportSectionAccordionContext);
   const sectionId = useId();
+  const [defaultOpenDismissed, setDefaultOpenDismissed] = useState(false);
   const isOpen = accordion
-    ? accordion.activeSectionId === sectionId
+    ? accordion.activeSectionId === sectionId ||
+      (accordion.activeSectionId === null && defaultOpen && !defaultOpenDismissed)
     : defaultOpen;
   const [localIsOpen, setLocalIsOpen] = useState(defaultOpen);
   const [hasRenderedContent, setHasRenderedContent] = useState(
-    accordion ? false : defaultOpen
+    accordion ? defaultOpen : defaultOpen
   );
   const handledOpenSignalRef = useRef(0);
   const visiblePreviewMetrics = (previewMetrics || []).filter(metric => metric.value !== null && metric.value !== undefined && metric.value !== "");
@@ -100,9 +102,12 @@ export function CollapsibleReportSection({
     const nextOpen = event.currentTarget.open;
     if (accordion) {
       if (nextOpen) {
+        setDefaultOpenDismissed(false);
         accordion.setActiveSectionId(sectionId);
       } else if (accordion.activeSectionId === sectionId) {
         accordion.setActiveSectionId(null);
+      } else {
+        setDefaultOpenDismissed(true);
       }
     } else {
       setLocalIsOpen(nextOpen);

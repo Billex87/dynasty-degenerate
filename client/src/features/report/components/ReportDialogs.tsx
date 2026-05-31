@@ -72,6 +72,9 @@ export function AnalysisLoadingDialog({
   loadingTransitionPhase,
   loadingLeague,
   loadingManagerAnchors,
+  hasTimedOut,
+  onCancel,
+  onRetry,
 }: {
   open: boolean;
   previewMode: string | null;
@@ -80,6 +83,9 @@ export function AnalysisLoadingDialog({
   loadingTransitionPhase: LoadingTransitionPhase;
   loadingLeague: AnalysisLoadingLeague | null;
   loadingManagerAnchors: LoaderManagerAnchor[];
+  hasTimedOut: boolean;
+  onCancel: () => void;
+  onRetry: () => void;
 }) {
   return (
     <Dialog
@@ -111,6 +117,22 @@ export function AnalysisLoadingDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="analysis-loading-modal-body">
+          <div className="analysis-loading-status-copy" role="status" aria-live="polite">
+            <p className="analysis-loading-status-title">
+              {analysisCompleteMessage
+                ? "League report ready"
+                : hasTimedOut
+                  ? "League data is taking longer than expected"
+                  : "Fetching league data"}
+            </p>
+            <p className="analysis-loading-status-description">
+              {analysisCompleteMessage
+                ? "Opening the report now."
+                : hasTimedOut
+                  ? "Sleeper or the report cache may be slow. You can retry this league or return to league selection."
+                  : "Loading Sleeper rosters, settings, rankings, and report context."}
+            </p>
+          </div>
           <LoadingAnimation
             key={previewMode === "loading-loop" ? `loading-loop-${previewLoadingLoopTick}` : "loading"}
             isComplete={Boolean(analysisCompleteMessage)}
@@ -120,6 +142,25 @@ export function AnalysisLoadingDialog({
             leagueLogo={loadingLeague?.leagueLogo}
             managerAnchors={loadingManagerAnchors}
           />
+          {hasTimedOut && !analysisCompleteMessage ? (
+            <div className="analysis-loading-actions">
+              <Button
+                type="button"
+                onClick={onRetry}
+                className="analysis-loading-action-primary"
+              >
+                Retry League
+              </Button>
+              <Button
+                type="button"
+                onClick={onCancel}
+                variant="outline"
+                className="analysis-loading-action-secondary"
+              >
+                Back to League Selection
+              </Button>
+            </div>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

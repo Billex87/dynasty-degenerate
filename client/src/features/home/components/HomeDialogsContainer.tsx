@@ -35,6 +35,9 @@ interface HomeDialogsContainerProps {
   loadingTransitionPhase: LoadingTransitionPhase;
   loadingLeague: AnalysisLoadingLeague | null;
   loadingManagerAnchors: LoaderManagerAnchor[];
+  hasLoadingTimedOut: boolean;
+  onLoadingCancel: () => void;
+  onLoadingRetry: () => void;
 }
 
 export function HomeDialogsContainer({
@@ -65,6 +68,9 @@ export function HomeDialogsContainer({
   loadingTransitionPhase,
   loadingLeague,
   loadingManagerAnchors,
+  hasLoadingTimedOut,
+  onLoadingCancel,
+  onLoadingRetry,
 }: HomeDialogsContainerProps) {
   return (
     <HomeDialogs
@@ -95,6 +101,9 @@ export function HomeDialogsContainer({
       loadingTransitionPhase={loadingTransitionPhase}
       loadingLeague={loadingLeague}
       loadingManagerAnchors={loadingManagerAnchors}
+      hasLoadingTimedOut={hasLoadingTimedOut}
+      onLoadingCancel={onLoadingCancel}
+      onLoadingRetry={onLoadingRetry}
     />
   );
 }

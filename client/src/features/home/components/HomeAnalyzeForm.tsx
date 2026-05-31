@@ -13,6 +13,7 @@ interface HomeAnalyzeFormProps {
   leagueIdAutocompleteOptions: string[];
   isFindLeaguesPending: boolean;
   isAnalysisBusy: boolean;
+  analysisErrorMessage?: string | null;
   onFocusedAutocompleteChange: (value: "username" | "league" | null) => void;
   onSleeperUsernameChange: (value: string) => void;
   onLeagueIdChange: (value: string) => void;
@@ -33,6 +34,7 @@ export function HomeAnalyzeForm({
   leagueIdAutocompleteOptions,
   isFindLeaguesPending,
   isAnalysisBusy,
+  analysisErrorMessage,
   onFocusedAutocompleteChange,
   onSleeperUsernameChange,
   onLeagueIdChange,
@@ -44,7 +46,10 @@ export function HomeAnalyzeForm({
   return (
     <div className="home-analyze-card space-y-3 sm:space-y-4 p-4 sm:p-8">
       <div className="text-center">
-        <label className="home-field-label block text-sm font-semibold text-slate-200 mb-2">
+        <label
+          htmlFor="sleeper-username"
+          className="home-field-label block text-sm font-semibold text-slate-200 mb-2"
+        >
           Enter Sleeper. Start Winning.
         </label>
         <div className="home-username-row flex flex-col gap-1.5 sm:flex-row sm:gap-2.5 w-full">
@@ -92,6 +97,15 @@ export function HomeAnalyzeForm({
         </div>
       </div>
 
+      {analysisErrorMessage ? (
+        <div
+          className="rounded-lg border border-red-400/40 bg-red-950/55 px-3 py-2 text-sm font-medium text-red-100"
+          role="alert"
+        >
+          {analysisErrorMessage}
+        </div>
+      ) : null}
+
       {showLegacyLeagueIdLogin ? (
         <>
           <div className="home-id-divider">
@@ -99,7 +113,10 @@ export function HomeAnalyzeForm({
           </div>
 
           <div className="text-center">
-            <label className="home-field-label block text-sm font-semibold text-slate-200 mb-2">
+            <label
+              htmlFor="sleeper-league-id"
+              className="home-field-label block text-sm font-semibold text-slate-200 mb-2"
+            >
               Enter Your Sleeper League ID
             </label>
             <div className="home-autocomplete-anchor w-full">
