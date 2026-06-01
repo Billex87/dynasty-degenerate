@@ -3922,9 +3922,17 @@
 }
 
 @media (max-width: 699px) and (orientation: portrait) {
+  .home-shell {
+    background:
+      linear-gradient(180deg, rgba(3, 8, 12, 0.02) 0%, rgba(3, 8, 12, 0.08) 58%, rgba(3, 8, 12, 0.78) 100%),
+      url("/brand/backgrounds/viewport/jpg/tablet-portrait-768x1024-right-locked.jpg") center 5.6rem / 160% auto no-repeat,
+      #05080e !important;
+  }
+
   .home-shell::before {
-    background-image: url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") !important;
-    background-position: center top !important;
+    background-image: url("/brand/backgrounds/viewport/jpg/tablet-portrait-768x1024-right-locked.jpg") !important;
+    background-position: center 5.6rem !important;
+    background-size: 160% auto !important;
   }
 
   .home-shell::after {
@@ -3965,8 +3973,17 @@
 }
 
 @media (max-width: 399px) and (orientation: portrait) {
+  .home-shell {
+    background:
+      linear-gradient(180deg, rgba(3, 8, 12, 0.02) 0%, rgba(3, 8, 12, 0.08) 58%, rgba(3, 8, 12, 0.78) 100%),
+      url("/brand/backgrounds/viewport/jpg/tablet-portrait-768x1024-right-locked.jpg") center 5rem / 166% auto no-repeat,
+      #05080e !important;
+  }
+
   .home-shell::before {
-    background-image: url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") !important;
+    background-image: url("/brand/backgrounds/viewport/jpg/tablet-portrait-768x1024-right-locked.jpg") !important;
+    background-position: center 5rem !important;
+    background-size: 166% auto !important;
   }
 
   .overview-command-canvas {

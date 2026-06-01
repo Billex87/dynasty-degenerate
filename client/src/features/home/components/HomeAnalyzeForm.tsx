@@ -57,8 +57,11 @@ export function HomeAnalyzeForm({
               name="sleeper-username-search"
               type="text"
               aria-label="Enter Your Sleeper Username"
-              autoComplete="off"
+              autoComplete="new-password"
               autoCorrect="off"
+              data-1p-ignore="true"
+              data-form-type="other"
+              data-lpignore="true"
               spellCheck={false}
               placeholder="Sleeper username"
               value={sleeperUsername}

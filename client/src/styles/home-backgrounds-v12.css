@@ -69,6 +69,7 @@
 .home-shell .home-hero-dashboard .home-analyze-card {
   position: relative;
   z-index: 1;
+  overflow: visible;
   border: 1px solid rgba(0, 200, 232, 0.28) !important;
   background: rgba(6, 12, 20, 0.58) !important;
   box-shadow:
@@ -76,6 +77,36 @@
     0 0 42px rgba(232, 90, 16, 0.16) !important;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+}
+
+.home-shell .home-hero-dashboard .home-autocomplete-anchor {
+  overflow: visible;
+}
+
+.home-shell .home-hero-dashboard .home-autocomplete-panel {
+  top: calc(100% + 0.45rem);
+  padding: 1rem 0.5rem 0.55rem !important;
+}
+
+.home-shell .home-hero-dashboard .home-autocomplete-panel > span {
+  padding: 0.16rem 0.42rem 0.28rem !important;
+  letter-spacing: 0.14em;
+  line-height: 1;
+}
+
+.home-shell .home-footer-slot .support-button,
+.home-shell .home-footer-slot .feedback-button.feedback-button-compact {
+  border-radius: 999px !important;
+}
+
+.home-shell .home-footer-slot .feedback-button.feedback-button-compact {
+  min-width: min(9.5rem, 30vw);
+  justify-content: center;
+}
+
+.home-shell .home-footer-slot .feedback-button .feedback-button-copy {
+  text-align: center;
+  white-space: pre-line;
 }
 
 .home-shell .home-hero-dashboard .home-weapons-callout-title {
@@ -963,7 +994,8 @@
 
 @media (max-width: 399px) and (orientation: portrait) {
   .home-shell {
-    background-position: center top !important;
+    background-position: center 5rem !important;
+    background-size: 166% auto !important;
   }
 }
 

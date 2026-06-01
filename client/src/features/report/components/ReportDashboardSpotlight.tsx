@@ -11,6 +11,7 @@ import {
 export type DashboardSpotlightRankCard = {
   position: string;
   rank: number | null;
+  tier: string;
 };
 
 export type DashboardSpotlightStarterGroup = {
@@ -110,10 +111,11 @@ export function ReportDashboardSpotlight({
           <div className="dashboard-position-rank-block">
             <span>Full Roster Position Ranks</span>
             <div className={rankGridClassName}>
-              {positionRankCards.map(({ position, rank }) => (
+              {positionRankCards.map(({ position, rank, tier }) => (
                 <span key={position} data-position={position}>
                   <em>{position}</em>
                   <strong>{formatDashboardRank(rank)}</strong>
+                  <b>{tier}</b>
                 </span>
               ))}
             </div>

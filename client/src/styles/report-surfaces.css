@@ -7971,12 +7971,13 @@ body {
   max-width: calc((100% - 0.9rem) / 3);
   min-width: min(5.2rem, 100%);
   place-items: center;
+  gap: 0.12rem;
   border: 1px solid rgba(0, 200, 232, 0.14);
   border-radius: 0.42rem;
   background:
     radial-gradient(circle at 24% 0%, rgba(0, 200, 232, 0.09), transparent 58%),
     linear-gradient(145deg, rgba(15, 23, 42, 0.7), rgba(2, 6, 23, 0.78));
-  padding: 0.5rem;
+  padding: 0.46rem 0.42rem;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.045),
     inset 0 -18px 32px rgba(0, 0, 0, 0.22);
@@ -8051,6 +8052,14 @@ body {
   color: #f8fafc;
   font-size: 0.88rem;
   font-weight: 950;
+  line-height: 1;
+}
+
+.dashboard-position-ranks b {
+  color: rgba(226, 232, 240, 0.7);
+  font-size: 0.52rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .dashboard-spotlight-chip-row {
@@ -11403,9 +11412,17 @@ body {
 }
 
 @media (max-width: 767px) {
+  .home-shell {
+    background:
+      linear-gradient(180deg, rgba(3, 8, 12, 0.02) 0%, rgba(3, 8, 12, 0.08) 58%, rgba(3, 8, 12, 0.78) 100%),
+      url("/brand/backgrounds/viewport/jpg/tablet-portrait-768x1024-right-locked.jpg") center 5.6rem / 160% auto no-repeat,
+      #05080e !important;
+  }
+
   .home-shell::before {
-    background-image: url("/brand/backgrounds/long/png/league-audit-long-941x1672.png") !important;
-    background-position: center top !important;
+    background-image: url("/brand/backgrounds/viewport/jpg/tablet-portrait-768x1024-right-locked.jpg") !important;
+    background-position: center 5.6rem !important;
+    background-size: 160% auto !important;
   }
 
   .home-shell::after {

@@ -201,7 +201,7 @@ function getDashboardPositionRank(
   reportData: ReportData,
   manager: string,
   position: DashboardLineupPosition
-): number | null {
+): { rank: number | null; total: number } {
   const rows = reportData.managerPositionCounts || [];
   const scores = rows
     .map(row => ({
@@ -212,7 +212,7 @@ function getDashboardPositionRank(
     .filter(row => row.count > 0 || row.value > 0)
     .sort((a, b) => b.value - a.value || b.count - a.count);
   const index = scores.findIndex(row => row.manager === manager);
-  return index >= 0 ? index + 1 : null;
+  return { rank: index >= 0 ? index + 1 : null, total: scores.length };
 }
 
 type DashboardStarterGroup = {
@@ -2517,14 +2517,19 @@ export function ReportDashboardSpotlight({
       row => getDashboardStarterCount(row, position) > 0
     );
   }).map(position => {
-    const computedRank = getDashboardPositionRank(reportData, manager, position);
+    const computed = getDashboardPositionRank(reportData, manager, position);
     const overviewRank =
       position === "K" || position === "DEF"
         ? null
         : getDashboardNumber(leagueOverview, [`rank_${position.toLowerCase()}`]);
+    const rank = computed.rank ?? overviewRank;
     return {
       position,
-      rank: computedRank ?? overviewRank,
+      rank,
+      tier: getDashboardRankTier(
+        rank,
+        computed.total || getDashboardTeamCount(reportData)
+      ),
     };
   });
   const starterRankGroups = getDashboardOverviewStarterRankGroups(
