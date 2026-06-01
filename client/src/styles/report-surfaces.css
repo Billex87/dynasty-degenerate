@@ -10125,7 +10125,7 @@ body {
 .home-find-leagues-button,
 .home-analyze-button {
   border-color: rgba(255, 183, 77, 0.58) !important;
-  border-radius: 0.625rem !important;
+  border-radius: 999px !important;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 38%),
     linear-gradient(135deg, #ffb33b 0%, #f97316 45%, #d94b0a 100%) !important;
@@ -10439,6 +10439,15 @@ body {
   width: 100%;
   gap: clamp(1rem, 2vw, 1.4rem);
   align-items: start;
+}
+
+.home-portfolio-shell-report {
+  grid-template-columns: 1fr !important;
+  margin: 0;
+}
+
+.home-portfolio-shell-report .home-portfolio-panel {
+  width: 100%;
 }
 
 .home-portfolio-panel,

@@ -25,6 +25,11 @@ import {
 import AITeamAutopilot from "@/components/AITeamAutopilot";
 import type { ReportData } from "@shared/types";
 import { type LeagueValueMode } from "@/lib/leagueValueMode";
+import type {
+  HomeLeagueSelectionLeague,
+  HomePortfolioRow,
+} from "@/features/home/components/HomeLeagueSelection";
+import type { HomePortfolioExposureFilter } from "@/features/home/lib/portfolioRows";
 
 import { AdminDiagnosticsShell } from "@/features/admin/components/AdminDiagnosticsShell";
 import { AdminScheduleEdgeSection } from "@/features/admin/components/AdminScheduleEdgeSections";
@@ -166,6 +171,16 @@ type ReportDashboardContentProps = {
   previousSavedAt?: number | null;
   dashboardViewerManager: string | null;
   reportDeltaChanges: ReportDeltaChange[];
+  homePortfolioRows: HomePortfolioRow[];
+  filteredHomePortfolioRows: HomePortfolioRow[];
+  orderedUserLeagues: HomeLeagueSelectionLeague[];
+  isHomePortfolioLoading: boolean;
+  portfolioSearch: string;
+  portfolioExposureFilter: HomePortfolioExposureFilter;
+  portfolioLeagueFilter: string;
+  onPortfolioSearchChange: (value: string) => void;
+  onPortfolioExposureFilterChange: (value: HomePortfolioExposureFilter) => void;
+  onPortfolioLeagueFilterChange: (value: string) => void;
 };
 
 export function ReportDashboardContent({
@@ -201,6 +216,16 @@ export function ReportDashboardContent({
   shouldShowDraftHistoryTab,
   tradeWarKicker,
   effectiveViewerManager,
+  filteredHomePortfolioRows,
+  homePortfolioRows,
+  isHomePortfolioLoading,
+  onPortfolioExposureFilterChange,
+  onPortfolioLeagueFilterChange,
+  onPortfolioSearchChange,
+  orderedUserLeagues,
+  portfolioExposureFilter,
+  portfolioLeagueFilter,
+  portfolioSearch,
   rosterKicker,
 }: ReportDashboardContentProps) {
   const isPreDraftReport =
@@ -258,6 +283,18 @@ export function ReportDashboardContent({
                   leagueFormat={leagueFormat}
                   leagueId={leagueId}
                   leagueLogo={leagueLogo}
+                  homePortfolioRows={homePortfolioRows}
+                  filteredHomePortfolioRows={filteredHomePortfolioRows}
+                  orderedUserLeagues={orderedUserLeagues}
+                  isHomePortfolioLoading={isHomePortfolioLoading}
+                  portfolioSearch={portfolioSearch}
+                  portfolioExposureFilter={portfolioExposureFilter}
+                  portfolioLeagueFilter={portfolioLeagueFilter}
+                  onPortfolioSearchChange={onPortfolioSearchChange}
+                  onPortfolioExposureFilterChange={
+                    onPortfolioExposureFilterChange
+                  }
+                  onPortfolioLeagueFilterChange={onPortfolioLeagueFilterChange}
                   effectiveViewerManager={effectiveViewerManager}
                   ownerIntelSortMode={ownerIntelSortMode}
                   onOwnerIntelSortModeChange={onOwnerIntelSortModeChange}

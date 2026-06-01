@@ -934,7 +934,7 @@ export default function Home() {
       toast.success(
         `Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? "" : "s"}`
       );
-      setIsLeaguePickerOpen(false);
+      setIsLeaguePickerOpen(true);
     },
     onError: error => {
       showMutationErrorToast(error);
@@ -1388,7 +1388,7 @@ export default function Home() {
     Boolean(viewerUserId) &&
     userLeagueRanksMutation.isPending &&
     !homePortfolioRows.length;
-  const showHomePortfolioPanel = orderedUserLeagues.length > 0;
+  const showHomePortfolioPanel = false;
 
   useEffect(() => {
     if (
@@ -1864,6 +1864,16 @@ export default function Home() {
             shouldShowDraftHistoryTab={shouldShowDraftHistoryTab}
             tradeWarKicker={modeCopy.tradeWarKicker}
             effectiveViewerManager={effectiveViewerManager}
+            homePortfolioRows={homePortfolioRows}
+            filteredHomePortfolioRows={filteredHomePortfolioRows}
+            orderedUserLeagues={orderedUserLeagues}
+            isHomePortfolioLoading={isHomePortfolioLoading}
+            portfolioSearch={portfolioSearch}
+            portfolioExposureFilter={portfolioExposureFilter}
+            portfolioLeagueFilter={portfolioLeagueFilter}
+            onPortfolioSearchChange={setPortfolioSearch}
+            onPortfolioExposureFilterChange={setPortfolioExposureFilter}
+            onPortfolioLeagueFilterChange={setPortfolioLeagueFilter}
           />
         </ReportDashboardShell>
         {homeDialogs}
@@ -1892,7 +1902,6 @@ export default function Home() {
           setSleeperUsername(value);
           setAnalysisErrorMessage(null);
         }}
-        usernameAutocompleteHistory={sleeperUsernameHistory}
         leagueIdHistory={leagueIdHistory}
         onLeagueIdChange={value => {
           setLeagueId(value);

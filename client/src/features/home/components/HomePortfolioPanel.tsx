@@ -28,6 +28,8 @@ export function HomePortfolioPanel({
   onExposureFilterChange,
   onLeagueFilterChange,
   onLeagueSelect,
+  showLeagueChooser = true,
+  className = "",
 }: {
   rows: HomePortfolioRow[];
   filteredRows: HomePortfolioRow[];
@@ -39,7 +41,9 @@ export function HomePortfolioPanel({
   onQueryChange: (value: string) => void;
   onExposureFilterChange: (value: HomePortfolioExposureFilter) => void;
   onLeagueFilterChange: (value: string) => void;
-  onLeagueSelect: (leagueId: string) => void;
+  onLeagueSelect?: (leagueId: string) => void;
+  showLeagueChooser?: boolean;
+  className?: string;
 }) {
   const duplicatedAssets = rows.filter(row => row.leagueCount > 1).length;
   const maxExposure = rows[0]?.leagueCount || 0;
@@ -52,7 +56,7 @@ export function HomePortfolioPanel({
 
   return (
     <section
-      className="home-portfolio-shell"
+      className={["home-portfolio-shell", className].filter(Boolean).join(" ")}
       aria-label="Sleeper roster portfolio"
     >
       <div className="home-portfolio-panel">
@@ -143,21 +147,23 @@ export function HomePortfolioPanel({
         />
       </div>
 
-      <aside className="home-league-chooser" aria-label="Choose your league">
-        <div className="home-league-chooser-header">
-          <h3>Pick The Target</h3>
-          <p>Choose where the AI starts doing damage.</p>
-        </div>
-        <div className="home-league-picker home-league-picker-portfolio">
-          {leagues.map(league => (
-            <LeaguePickerCard
-              key={league.leagueId}
-              league={league}
-              onSelect={onLeagueSelect}
-            />
-          ))}
-        </div>
-      </aside>
+      {showLeagueChooser && onLeagueSelect ? (
+        <aside className="home-league-chooser" aria-label="Choose your league">
+          <div className="home-league-chooser-header">
+            <h3>Pick The Target</h3>
+            <p>Choose where the AI starts doing damage.</p>
+          </div>
+          <div className="home-league-picker home-league-picker-portfolio">
+            {leagues.map(league => (
+              <LeaguePickerCard
+                key={league.leagueId}
+                league={league}
+                onSelect={onLeagueSelect}
+              />
+            ))}
+          </div>
+        </aside>
+      ) : null}
     </section>
   );
 }

@@ -8,6 +8,12 @@ import {
 } from "@/features/report/lib/reportOverviewPreview";
 import type { OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
 import type { ReportData } from "@shared/types";
+import {
+  HomePortfolioPanel,
+  type HomeLeagueSelectionLeague,
+  type HomePortfolioRow,
+} from "@/features/home/components/HomeLeagueSelection";
+import type { HomePortfolioExposureFilter } from "@/features/home/lib/portfolioRows";
 
 type ReportOverviewTabProps = {
   reportData: ReportData;
@@ -19,6 +25,16 @@ type ReportOverviewTabProps = {
   leagueFormat: string;
   leagueId: string;
   leagueLogo: string | null;
+  homePortfolioRows: HomePortfolioRow[];
+  filteredHomePortfolioRows: HomePortfolioRow[];
+  orderedUserLeagues: HomeLeagueSelectionLeague[];
+  isHomePortfolioLoading: boolean;
+  portfolioSearch: string;
+  portfolioExposureFilter: HomePortfolioExposureFilter;
+  portfolioLeagueFilter: string;
+  onPortfolioSearchChange: (value: string) => void;
+  onPortfolioExposureFilterChange: (value: HomePortfolioExposureFilter) => void;
+  onPortfolioLeagueFilterChange: (value: string) => void;
   effectiveViewerManager: string | null;
   ownerIntelSortMode: OwnerIntelSortMode;
   onOwnerIntelSortModeChange: (nextMode: OwnerIntelSortMode) => void;
@@ -102,6 +118,16 @@ export function ReportOverviewTab({
   leagueFormat,
   leagueId,
   leagueLogo,
+  homePortfolioRows,
+  filteredHomePortfolioRows,
+  orderedUserLeagues,
+  isHomePortfolioLoading,
+  portfolioSearch,
+  portfolioExposureFilter,
+  portfolioLeagueFilter,
+  onPortfolioSearchChange,
+  onPortfolioExposureFilterChange,
+  onPortfolioLeagueFilterChange,
   effectiveViewerManager,
   ownerIntelSortMode,
   onOwnerIntelSortModeChange,
@@ -302,6 +328,22 @@ export function ReportOverviewTab({
           )}
         </>
       )}
+      {orderedUserLeagues.length > 0 ? (
+        <HomePortfolioPanel
+          rows={homePortfolioRows}
+          filteredRows={filteredHomePortfolioRows}
+          leagues={orderedUserLeagues}
+          isLoading={isHomePortfolioLoading}
+          query={portfolioSearch}
+          exposureFilter={portfolioExposureFilter}
+          selectedLeagueId={portfolioLeagueFilter}
+          onQueryChange={onPortfolioSearchChange}
+          onExposureFilterChange={onPortfolioExposureFilterChange}
+          onLeagueFilterChange={onPortfolioLeagueFilterChange}
+          showLeagueChooser={false}
+          className="home-portfolio-shell-report"
+        />
+      ) : null}
       <CollapsibleReportSection
         title={ownerTitle}
         kicker={ownerKicker}

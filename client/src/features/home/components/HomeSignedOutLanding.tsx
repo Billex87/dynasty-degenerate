@@ -29,7 +29,6 @@ interface HomeSignedOutLandingProps {
   leagueId: string;
   sleeperUsername: string;
   onSleeperUsernameChange: (value: string) => void;
-  usernameAutocompleteHistory: string[];
   leagueIdHistory: string[];
   onLeagueIdChange: (value: string) => void;
   focusedAutocomplete: "username" | "league" | null;
@@ -66,7 +65,6 @@ export function HomeSignedOutLanding({
   leagueId,
   sleeperUsername,
   onSleeperUsernameChange,
-  usernameAutocompleteHistory,
   leagueIdHistory,
   onLeagueIdChange,
   focusedAutocomplete,
@@ -105,7 +103,6 @@ export function HomeSignedOutLanding({
               showLegacyLeagueIdLogin={showLegacyLeagueIdLogin}
               leagueId={leagueId}
               sleeperUsername={sleeperUsername}
-              usernameAutocompleteHistory={usernameAutocompleteHistory}
               leagueIdHistory={leagueIdHistory}
               focusedAutocomplete={focusedAutocomplete}
               usernameAutocompleteOptions={usernameAutocompleteOptions}

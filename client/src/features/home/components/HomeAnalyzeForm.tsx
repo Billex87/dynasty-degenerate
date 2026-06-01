@@ -6,7 +6,6 @@ interface HomeAnalyzeFormProps {
   showLegacyLeagueIdLogin: boolean;
   leagueId: string;
   sleeperUsername: string;
-  usernameAutocompleteHistory: string[];
   leagueIdHistory: string[];
   focusedAutocomplete: "username" | "league" | null;
   usernameAutocompleteOptions: string[];
@@ -27,7 +26,6 @@ export function HomeAnalyzeForm({
   showLegacyLeagueIdLogin,
   leagueId,
   sleeperUsername,
-  usernameAutocompleteHistory,
   leagueIdHistory,
   focusedAutocomplete,
   usernameAutocompleteOptions,
@@ -56,11 +54,12 @@ export function HomeAnalyzeForm({
           <div className="home-autocomplete-anchor flex-1 w-full sm:w-auto">
             <Input
               id="sleeper-username"
-              name="sleeper-username"
+              name="sleeper-username-search"
               type="text"
               aria-label="Enter Your Sleeper Username"
-              autoComplete="username"
-              list="sleeper-username-history"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder="Sleeper username"
               value={sleeperUsername}
               onChange={e => onSleeperUsernameChange(e.target.value)}
@@ -71,11 +70,6 @@ export function HomeAnalyzeForm({
               className="home-entry-field home-entry-field--cyan text-center sm:text-left focus:border-cyan-300"
               onKeyDown={e => e.key === "Enter" && handleFindLeagues()}
             />
-            <datalist id="sleeper-username-history">
-              {usernameAutocompleteHistory.map(value => (
-                <option key={value} value={value} />
-              ))}
-            </datalist>
             {focusedAutocomplete === "username" ? (
               <RecentEntrySuggestions
                 label="Recent Sleeper usernames"
