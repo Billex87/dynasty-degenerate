@@ -26,6 +26,7 @@ import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntel
 import {
   buildHomePortfolioRows,
   filterHomePortfolioRows,
+  type HomePortfolioExposureFilter,
 } from "@/features/home/lib/portfolioRows";
 import { getLeagueFallbackInitials } from "@/features/home/lib/leagueIdentity";
 import {
@@ -193,6 +194,9 @@ export default function Home() {
     "username" | "league" | null
   >(null);
   const [portfolioSearch, setPortfolioSearch] = useState("");
+  const [portfolioExposureFilter, setPortfolioExposureFilter] =
+    useState<HomePortfolioExposureFilter>("all");
+  const [portfolioLeagueFilter, setPortfolioLeagueFilter] = useState("all");
   const [analysisErrorMessage, setAnalysisErrorMessage] = useState<
     string | null
   >(null);
@@ -930,7 +934,7 @@ export default function Home() {
       toast.success(
         `Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? "" : "s"}`
       );
-      setIsLeaguePickerOpen(true);
+      setIsLeaguePickerOpen(false);
     },
     onError: error => {
       showMutationErrorToast(error);
@@ -1055,9 +1059,6 @@ export default function Home() {
           );
           if (!lastLeagueIsFresh) {
             localStorage.removeItem(LAST_LEAGUE_KEY);
-            if (restoredLeagues.length > 0) {
-              setIsLeaguePickerOpen(true);
-            }
             return;
           }
           const cachedLastLeagueReport = await readBrowserReportCache(parsed.leagueId);
@@ -1073,9 +1074,6 @@ export default function Home() {
           setLeagueIdHistory(
             rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId)
           );
-          if (restoredLeagues.length > 0) {
-            setIsLeaguePickerOpen(true);
-          }
         }
 
         const parsed = await readBrowserReportCache();
@@ -1376,8 +1374,14 @@ export default function Home() {
     [orderedUserLeagues]
   );
   const filteredHomePortfolioRows = useMemo(
-    () => filterHomePortfolioRows(homePortfolioRows, portfolioSearch),
-    [homePortfolioRows, portfolioSearch]
+    () =>
+      filterHomePortfolioRows(homePortfolioRows, {
+        query: portfolioSearch,
+        exposure: portfolioExposureFilter,
+        leagueId:
+          portfolioLeagueFilter === "all" ? undefined : portfolioLeagueFilter,
+      }),
+    [homePortfolioRows, portfolioExposureFilter, portfolioLeagueFilter, portfolioSearch]
   );
   const isHomePortfolioLoading =
     Boolean(orderedUserLeagues.length) &&
@@ -1385,6 +1389,16 @@ export default function Home() {
     userLeagueRanksMutation.isPending &&
     !homePortfolioRows.length;
   const showHomePortfolioPanel = orderedUserLeagues.length > 0;
+
+  useEffect(() => {
+    if (
+      portfolioLeagueFilter === "all" ||
+      orderedUserLeagues.some(league => league.leagueId === portfolioLeagueFilter)
+    ) {
+      return;
+    }
+    setPortfolioLeagueFilter("all");
+  }, [orderedUserLeagues, portfolioLeagueFilter]);
   const hasAuthenticatedAdminPermissions = canViewAdminTelemetryForUser(
     authQuery.data
   );
@@ -1866,7 +1880,11 @@ export default function Home() {
         orderedUserLeagues={orderedUserLeagues}
         isHomePortfolioLoading={isHomePortfolioLoading}
         portfolioSearch={portfolioSearch}
+        portfolioExposureFilter={portfolioExposureFilter}
+        portfolioLeagueFilter={portfolioLeagueFilter}
         onPortfolioSearchChange={setPortfolioSearch}
+        onPortfolioExposureFilterChange={setPortfolioExposureFilter}
+        onPortfolioLeagueFilterChange={setPortfolioLeagueFilter}
         onAnalyzeLeagueOption={handleAnalyzeLeagueOption}
         leagueId={leagueId}
         sleeperUsername={sleeperUsername}

@@ -11,6 +11,7 @@ import {
   type HomeLeagueSelectionLeague,
   type HomePortfolioRow,
 } from "@/features/home/components/HomeLeagueSelection";
+import type { HomePortfolioExposureFilter } from "@/features/home/lib/portfolioRows";
 
 interface HomeSignedOutLandingProps {
   showHomePortfolioPanel: boolean;
@@ -19,7 +20,11 @@ interface HomeSignedOutLandingProps {
   orderedUserLeagues: HomeLeagueSelectionLeague[];
   isHomePortfolioLoading: boolean;
   portfolioSearch: string;
+  portfolioExposureFilter: HomePortfolioExposureFilter;
+  portfolioLeagueFilter: string;
   onPortfolioSearchChange: (value: string) => void;
+  onPortfolioExposureFilterChange: (value: HomePortfolioExposureFilter) => void;
+  onPortfolioLeagueFilterChange: (value: string) => void;
   onAnalyzeLeagueOption: (nextLeagueId: string) => void;
   leagueId: string;
   sleeperUsername: string;
@@ -52,7 +57,11 @@ export function HomeSignedOutLanding({
   orderedUserLeagues,
   isHomePortfolioLoading,
   portfolioSearch,
+  portfolioExposureFilter,
+  portfolioLeagueFilter,
   onPortfolioSearchChange,
+  onPortfolioExposureFilterChange,
+  onPortfolioLeagueFilterChange,
   onAnalyzeLeagueOption,
   leagueId,
   sleeperUsername,
@@ -122,7 +131,11 @@ export function HomeSignedOutLanding({
                 leagues={orderedUserLeagues}
                 isLoading={isHomePortfolioLoading}
                 query={portfolioSearch}
+                exposureFilter={portfolioExposureFilter}
+                selectedLeagueId={portfolioLeagueFilter}
                 onQueryChange={onPortfolioSearchChange}
+                onExposureFilterChange={onPortfolioExposureFilterChange}
+                onLeagueFilterChange={onPortfolioLeagueFilterChange}
                 onLeagueSelect={onAnalyzeLeagueOption}
               />
             ) : null}

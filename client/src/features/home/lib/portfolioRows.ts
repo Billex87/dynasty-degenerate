@@ -1,5 +1,13 @@
 import type { HomePortfolioLeague, HomePortfolioRow } from "@/features/home/components/HomeLeagueSelection";
 
+export type HomePortfolioExposureFilter = "all" | "overlap" | "single";
+
+export type HomePortfolioFilters = {
+  query?: string;
+  exposure?: HomePortfolioExposureFilter;
+  leagueId?: string;
+};
+
 export type PortfolioLeaguePlayer = {
   playerId: string;
   name: string;
@@ -98,11 +106,25 @@ export function buildHomePortfolioRows(
 
 export function filterHomePortfolioRows(
   rows: HomePortfolioRow[],
-  query: string
+  filters: HomePortfolioFilters | string
 ): HomePortfolioRow[] {
-  const normalizedQuery = normalizePortfolioSearchValue(query);
-  if (!normalizedQuery) return rows;
+  const normalizedFilters =
+    typeof filters === "string" ? { query: filters } : filters;
+  const normalizedQuery = normalizePortfolioSearchValue(normalizedFilters.query);
+  const exposure = normalizedFilters.exposure || "all";
+  const leagueId = normalizePortfolioSearchValue(normalizedFilters.leagueId);
+
   return rows.filter(row => {
+    if (exposure === "overlap" && row.leagueCount < 2) return false;
+    if (exposure === "single" && row.leagueCount !== 1) return false;
+    if (
+      leagueId &&
+      !row.leagues.some(league => normalizePortfolioSearchValue(league.leagueId) === leagueId)
+    ) {
+      return false;
+    }
+    if (!normalizedQuery) return true;
+
     const haystack = [
       row.name,
       row.team,

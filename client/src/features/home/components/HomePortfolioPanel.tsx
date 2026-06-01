@@ -1,11 +1,20 @@
 import { Search } from "lucide-react";
-import { HomePortfolioLeagueStack } from "@/features/home/components/HomePortfolioLeagueStack";
 import { LeaguePickerCard } from "@/features/home/components/LeaguePickerCard";
 import { HomePortfolioList } from "@/features/home/components/HomePortfolioList";
 import type {
   HomeLeagueSelectionLeague,
   HomePortfolioRow,
 } from "@/features/home/components/HomeLeagueSelection";
+import type { HomePortfolioExposureFilter } from "@/features/home/lib/portfolioRows";
+
+const EXPOSURE_FILTERS: Array<{
+  value: HomePortfolioExposureFilter;
+  label: string;
+}> = [
+  { value: "all", label: "All Players" },
+  { value: "overlap", label: "Overlap" },
+  { value: "single", label: "Single League" },
+];
 
 export function HomePortfolioPanel({
   rows,
@@ -13,7 +22,11 @@ export function HomePortfolioPanel({
   leagues,
   isLoading,
   query,
+  exposureFilter,
+  selectedLeagueId,
   onQueryChange,
+  onExposureFilterChange,
+  onLeagueFilterChange,
   onLeagueSelect,
 }: {
   rows: HomePortfolioRow[];
@@ -21,11 +34,19 @@ export function HomePortfolioPanel({
   leagues: HomeLeagueSelectionLeague[];
   isLoading: boolean;
   query: string;
+  exposureFilter: HomePortfolioExposureFilter;
+  selectedLeagueId: string;
   onQueryChange: (value: string) => void;
+  onExposureFilterChange: (value: HomePortfolioExposureFilter) => void;
+  onLeagueFilterChange: (value: string) => void;
   onLeagueSelect: (leagueId: string) => void;
 }) {
   const duplicatedAssets = rows.filter(row => row.leagueCount > 1).length;
   const maxExposure = rows[0]?.leagueCount || 0;
+  const selectedLeague = leagues.find(league => league.leagueId === selectedLeagueId);
+  const resultLabel = selectedLeague
+    ? `${filteredRows.length} shown in ${selectedLeague.name}`
+    : `${filteredRows.length} of ${rows.length || 0} shown`;
 
   if (!leagues.length) return null;
 
@@ -69,6 +90,50 @@ export function HomePortfolioPanel({
             placeholder="Search player, team, position, or league"
           />
         </label>
+
+        <div className="home-portfolio-controls" aria-label="Portfolio filters">
+          <div
+            className="home-portfolio-filter-group"
+            role="group"
+            aria-label="Exposure filter"
+          >
+            {EXPOSURE_FILTERS.map(filter => (
+              <button
+                key={filter.value}
+                type="button"
+                className={
+                  exposureFilter === filter.value
+                    ? "home-portfolio-filter is-active"
+                    : "home-portfolio-filter"
+                }
+                aria-pressed={exposureFilter === filter.value}
+                onClick={() => onExposureFilterChange(filter.value)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+
+          <label className="home-portfolio-select">
+            <span>League</span>
+            <select
+              value={selectedLeagueId}
+              onChange={event => onLeagueFilterChange(event.target.value)}
+              aria-label="Filter portfolio by league"
+            >
+              <option value="all">All leagues</option>
+              {leagues.map(league => (
+                <option key={league.leagueId} value={league.leagueId}>
+                  {league.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="home-portfolio-result-count" aria-live="polite">
+          {resultLabel}
+        </div>
 
         <HomePortfolioList
           isLoading={isLoading}
