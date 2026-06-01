@@ -10901,10 +10901,9 @@ body {
 .home-shell {
   min-height: 100dvh;
   background:
-    linear-gradient(rgba(0, 200, 232, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 200, 232, 0.025) 1px, transparent 1px),
-    radial-gradient(circle at 12% 12%, rgba(0, 200, 232, 0.12), transparent 30rem),
-    radial-gradient(circle at 86% 18%, rgba(232, 90, 16, 0.13), transparent 34rem),
+    linear-gradient(90deg, rgba(3, 8, 12, 0.9) 0%, rgba(3, 8, 12, 0.58) 34%, rgba(3, 8, 12, 0.08) 74%),
+    linear-gradient(180deg, rgba(3, 8, 12, 0.05) 0%, rgba(3, 8, 12, 0.14) 58%, rgba(3, 8, 12, 0.82) 100%),
+    url("/brand/backgrounds/viewport/jpg/home-hero-wide-1672x941.jpg") 50% top / cover no-repeat,
     #05080e !important;
 }
 
@@ -11059,6 +11058,20 @@ body {
 
 .home-footer-slot-right {
   justify-content: flex-end;
+}
+
+.home-footer-slot .support-button,
+.home-footer-slot .feedback-button.feedback-button-compact {
+  border-radius: 999px !important;
+}
+
+.home-footer-slot .feedback-button.feedback-button-compact {
+  gap: 0.52rem;
+  padding-inline: 0.95rem;
+}
+
+.home-footer-slot .feedback-button .feedback-button-copy {
+  line-height: 1.05;
 }
 
 .home-footer-brand {
