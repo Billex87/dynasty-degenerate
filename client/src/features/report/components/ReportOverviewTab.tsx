@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
+import { LeagueSettingsSummary } from "@/features/report/components/LeagueSettingsSummary";
 import {
   buildManagerPositionRoomPreviewMetrics,
   buildOwnerIntelPreviewMetrics,
@@ -344,6 +345,43 @@ export function ReportOverviewTab({
           className="home-portfolio-shell-report"
         />
       ) : null}
+      <CollapsibleReportSection
+        title="League Settings"
+        kicker="Format, scoring, roster slots, waivers, and draft status"
+        previewMetrics={[
+          {
+            label: "Format",
+            value: isRedraftReport ? "Redraft" : "Dynasty",
+            tone: "info",
+          },
+          {
+            label: "QB",
+            value:
+              reportData.leagueDiagnostics?.qbFormat === "superflex" ||
+              reportData.leagueDiagnostics?.qbFormat === "two_qb"
+                ? "SF"
+                : "1QB",
+            tone: "info",
+          },
+          {
+            label: "TE",
+            value:
+              Number(reportData.leagueDiagnostics?.tightEndPremium || 0) > 0
+                ? "TE Premium"
+                : "Standard",
+            tone:
+              Number(reportData.leagueDiagnostics?.tightEndPremium || 0) > 0
+                ? "good"
+                : "neutral",
+          },
+        ]}
+      >
+        <LeagueSettingsSummary
+          diagnostics={reportData.leagueDiagnostics}
+          leagueName={leagueName}
+          leagueValueMode={leagueValueMode}
+        />
+      </CollapsibleReportSection>
       <CollapsibleReportSection
         title={ownerTitle}
         kicker={ownerKicker}

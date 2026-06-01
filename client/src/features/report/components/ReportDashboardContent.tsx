@@ -12,6 +12,7 @@ import {
 import { ReportOverviewTab } from "@/features/report/components/ReportOverviewTab";
 import { ReportMomentumTab } from "@/features/report/components/ReportMomentumTab";
 import { ReportRankingsTab } from "@/features/report/components/ReportRankingsTab";
+import { LeagueSettingsSummary } from "@/features/report/components/LeagueSettingsSummary";
 import { ReportTradesTab } from "@/features/report/components/ReportTradesTab";
 import {
   ReportSinceLastReportBrief,
@@ -267,11 +268,18 @@ export function ReportDashboardContent({
           <Suspense fallback={<ReportSectionLoadingFallback />}>
             <TabsContent value="overview" className="report-tab-content">
               {isPreDraftReport ? (
-                <EmptyState
-                  className="report-pre-draft-empty-state"
-                  title="Roster overview unlocks after the draft"
-                  description={preDraftDescription}
-                />
+                <div className="space-y-6">
+                  <LeagueSettingsSummary
+                    diagnostics={reportData.leagueDiagnostics}
+                    leagueName={leagueName}
+                    leagueValueMode={leagueValueMode}
+                  />
+                  <EmptyState
+                    className="report-pre-draft-empty-state"
+                    title="Roster overview unlocks after the draft"
+                    description={preDraftDescription}
+                  />
+                </div>
               ) : (
                 <ReportOverviewTab
                   reportData={reportData}
