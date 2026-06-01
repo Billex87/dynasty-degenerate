@@ -86,6 +86,7 @@ import {
   getReportDataLeagueId,
   readBrowserReportCache,
   shouldBackgroundRefreshCachedReport,
+  formatMutationErrorMessage,
   showMutationErrorToast,
   withReportDataLeagueId,
   writeBrowserReportCache,
@@ -937,6 +938,7 @@ export default function Home() {
       setIsLeaguePickerOpen(true);
     },
     onError: error => {
+      setAnalysisErrorMessage(formatMutationErrorMessage(error));
       showMutationErrorToast(error);
     },
   });
@@ -1195,6 +1197,7 @@ export default function Home() {
   const handleFindLeagues = async () => {
     const normalizedUsername = sleeperUsername.trim();
     if (!normalizedUsername) {
+      setAnalysisErrorMessage("Please enter a Sleeper username.");
       toast.error("Please enter a Sleeper username");
       return;
     }

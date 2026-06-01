@@ -7,7 +7,8 @@
 
 - [x] Close the launch-audit blocker pass from `docs/launch-audit/`: `R-001` league switching/loading, `R-002` league context, `R-003` redraft separation, `R-004` pre-draft gating, `R-005` mobile usability, and `R-006` accessibility basics were implemented and verified on Vercel deployment `4c1af13`.
   - 2026-06-01 production QA: Vercel deployment `4c1af13` was `READY`; `mynameisbillex` loaded Skids Get Beat, The Fantasy Degenerates, test league, and Gov Tech Grid Iron; header tags, TE premium, redraft/pre-draft behavior, rankings, Player Hoard, player modal, and mobile Safari smoke passed.
-- [ ] Follow up on `R-008` API/error resilience: production QA captured one non-fatal `[API Query Error] TRPCClientError: Failed to fetch` while the flow recovered and all reports loaded. Capture the failing endpoint/request context and either suppress expected transient noise or surface a user-friendly retry/error state if the call affects visible data.
+- [x] Follow up on `R-008` API/error resilience: production QA captured one non-fatal `[API Query Error] TRPCClientError: Failed to fetch` while the flow recovered and all reports loaded. Capture the failing endpoint/request context and either suppress expected transient noise or surface a user-friendly retry/error state if the call affects visible data.
+  - 2026-06-01 fix: clean production repro did not reproduce a real failing endpoint; the captured error matched an interrupted client fetch during QA. Client-side tRPC network interruptions now log as `[API Query Warning]` / `[API Mutation Warning]` with query context instead of fatal console errors, and failed username league lookup also renders a persistent inline form error. Local production smoke confirmed normal report load has no console errors, simulated `/api/trpc` abort emits warnings only, and the inline error is visible.
 
 ## Final Ship Readiness Gate
 

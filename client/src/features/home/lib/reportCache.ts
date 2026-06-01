@@ -56,9 +56,13 @@ export type SleeperSession = {
   savedAt: number;
 };
 
+export function formatMutationErrorMessage(error: { message: string }) {
+  return `Error: ${error.message}`;
+}
+
 export function showMutationErrorToast(error: { message: string }) {
   if (error.message === UNAUTHED_ERR_MSG) return;
-  toast.error(`Error: ${error.message}`);
+  toast.error(formatMutationErrorMessage(error));
 }
 
 export function hasDraftReportData(reportData?: ReportData | null): boolean {
