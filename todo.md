@@ -3,6 +3,12 @@
 - Canonical item-by-item execution prompt: [docs/todo-list-execution-prompt.md](docs/todo-list-execution-prompt.md)
 - Latest one-pass execution notes: [docs/todo-execution-notes-2026-05-16.md](docs/todo-execution-notes-2026-05-16.md)
 
+## Launch Audit Closeout
+
+- [x] Close the launch-audit blocker pass from `docs/launch-audit/`: `R-001` league switching/loading, `R-002` league context, `R-003` redraft separation, `R-004` pre-draft gating, `R-005` mobile usability, and `R-006` accessibility basics were implemented and verified on Vercel deployment `4c1af13`.
+  - 2026-06-01 production QA: Vercel deployment `4c1af13` was `READY`; `mynameisbillex` loaded Skids Get Beat, The Fantasy Degenerates, test league, and Gov Tech Grid Iron; header tags, TE premium, redraft/pre-draft behavior, rankings, Player Hoard, player modal, and mobile Safari smoke passed.
+- [ ] Follow up on `R-008` API/error resilience: production QA captured one non-fatal `[API Query Error] TRPCClientError: Failed to fetch` while the flow recovered and all reports loaded. Capture the failing endpoint/request context and either suppress expected transient noise or surface a user-friendly retry/error state if the call affects visible data.
+
 ## Final Ship Readiness Gate
 
 - [ ] Before calling the product finished, run a production data/source freshness review: `pnpm audit:source-freshness`, `pnpm audit:league-report-cache`, admin source coverage, source-health logs, and provider telemetry; resolve recurring stale/missing/error sources or document accepted source limitations.
