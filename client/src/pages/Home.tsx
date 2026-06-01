@@ -1384,7 +1384,7 @@ export default function Home() {
     Boolean(viewerUserId) &&
     userLeagueRanksMutation.isPending &&
     !homePortfolioRows.length;
-  const showHomePortfolioPanel = false;
+  const showHomePortfolioPanel = orderedUserLeagues.length > 0;
   const hasAuthenticatedAdminPermissions = canViewAdminTelemetryForUser(
     authQuery.data
   );
