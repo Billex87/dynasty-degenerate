@@ -36,9 +36,9 @@ export function ReportSectionHeader({
           {kicker}
         </p>
       )}
-      <h3 className="report-section-title athletic-headline mt-1 text-xl font-black text-orange-400 sm:text-2xl">
+      <h2 className="report-section-title athletic-headline mt-1 text-xl font-black text-orange-400 sm:text-2xl">
         {title}
-      </h3>
+      </h2>
       {description && <p className="report-section-description">{description}</p>}
     </div>
   );
