@@ -80,8 +80,8 @@ export function ReportDashboardSpotlight({
 }: ReportDashboardSpotlightProps) {
   const [inlineSpotlightOpen, setInlineSpotlightOpen] = useState(false);
   const rankGridClassName = hasSpecialTeamRanks
-    ? "dashboard-rank-grid dashboard-rank-grid-special"
-    : "dashboard-rank-grid";
+    ? "dashboard-position-ranks dashboard-rank-grid dashboard-rank-grid-special"
+    : "dashboard-position-ranks dashboard-rank-grid";
 
   const spotlightHeader = (
     <div className="dashboard-spotlight-header">
