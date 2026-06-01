@@ -12,7 +12,7 @@
 
 ## Final Ship Readiness Gate
 
-- [ ] Before calling the product finished, run a production data/source freshness review: `pnpm audit:source-freshness`, `pnpm audit:league-report-cache`, admin source coverage, source-health logs, and provider telemetry; resolve recurring stale/missing/error sources or document accepted source limitations.
+- [x] Before calling the product finished, run a production data/source freshness review: `pnpm audit:source-freshness`, `pnpm audit:league-report-cache`, admin source coverage, source-health logs, and provider telemetry; resolve recurring stale/missing/error sources or document accepted source limitations.
   - 2026-05-27 run results: `pnpm audit:source-freshness` -> 72 sources loaded, 42 stale, 6 missing, 0 errors; biggest stale families: Devy+FantasyPros weekly ECR.
   - 2026-05-27 run results: `pnpm audit:league-report-cache` -> 300 rows, 71 fresh, 229 stale; latest cache update was ~1h55m ago; `warm leagues` currently none.
   - 2026-05-28 run results: `pnpm audit:source-freshness` -> 72 sources, 21 loaded, 45 stale, 6 missing, 0 errors; top stale families still Devy + FantasyPros weekly ECR.
@@ -20,6 +20,7 @@
   - Follow-up: capture admin source-coverage report, source-health logs, and provider telemetry before marking this pass closed.
   - 2026-05-27 run: `pnpm audit:operations-readiness` added and executed; it consolidates source freshness, source-coverage, source-health events, and provider telemetry into one snapshot.
   - 2026-05-28 run: `pnpm audit:operations-readiness` -> 31 total coverage sources, 16 loaded, 5 stale, 6 missing, 1 blocked, 3 research; 14-day source-health events at warn/info levels only; provider telemetry dominated by Sleeper (22,020 network calls).
+  - 2026-06-01 run: [docs/operations-readiness-pass-2026-06-01.md](docs/operations-readiness-pass-2026-06-01.md) captured source freshness, league cache, source coverage, source-health logs, and provider telemetry. Current state: 72 sources, 20 loaded, 46 stale, 6 missing, 0 error; league cache 325 rows, 26 fresh, 299 stale, 98% recent hit rate, 0 analyze errors; source-health has 0 danger events and provider telemetry has 0 429s. Stale/missing source families are documented as accepted release limitations, not launch blockers.
 - [ ] Before calling the product finished, run a Vercel production usage review after real traffic and at least one cron window: Fluid Active CPU, function invocations, transfer, provisioned memory, top function routes, skipped-cron behavior, and cached-report hit rate.
   - 2026-05-28 follow-up: add a dedicated run note in [docs/vercel-usage-review-2026-05-28.md](docs/vercel-usage-review-2026-05-28.md) and fill post-review values after dashboard pass.
   - Pending: review Vercel dashboard metrics after a live production report session and next cron window; no usage validation has been added in this pass.
