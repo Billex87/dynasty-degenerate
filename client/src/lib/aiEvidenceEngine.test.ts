@@ -76,6 +76,129 @@ describe("ai evidence engine", () => {
     expect(read.hardBlockers.join(" ")).toContain("already show Waiver Receiver added by Tester");
   });
 
+  it("blocks start advice when the player is already starting", () => {
+    const read = evaluateAIEvidence({
+      surface: "player-detail",
+      action: "start",
+      leagueValueMode: "redraft",
+      baseScore: 82,
+      evidence: ["WR24 current-season rank is attached."],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Already Starter",
+        position: "WR",
+        team: "DET",
+        value: 4200,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+        isStarter: true,
+      },
+      requiresCurrentSeasonEvidence: true,
+    });
+
+    expect(read.label).toBe("blocked");
+    expect(read.hardBlockers.join(" ")).toContain("Already Starter is already in the starting lineup");
+  });
+
+  it("blocks start and stream advice during bye weeks", () => {
+    const read = evaluateAIEvidence({
+      surface: "schedule",
+      action: "stream",
+      leagueValueMode: "redraft",
+      baseScore: 76,
+      evidence: ["DEF8 schedule rank is attached."],
+      signalModes: ["redraft", "current", "schedule"],
+      player: {
+        name: "Bye Week Defense",
+        position: "DEF",
+        team: "DAL",
+        value: 1900,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+        weeklyProjectionStatus: "bye",
+      },
+      schedule: {
+        hasScheduleData: true,
+      },
+    });
+
+    expect(read.label).toBe("blocked");
+    expect(read.hardBlockers.join(" ")).toContain("Bye Week Defense is on bye");
+  });
+
+  it("blocks immediate add/start actions for unavailable players", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 84,
+      evidence: ["RB35 current-season rank is attached."],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Unavailable Runner",
+        position: "RB",
+        team: "SEA",
+        value: 3500,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+        injuryStatus: "Out",
+      },
+    });
+
+    expect(read.label).toBe("blocked");
+    expect(read.hardBlockers.join(" ")).toContain("Unavailable Runner is unavailable (Out)");
+  });
+
+  it("caps start advice for unresolved availability tags", () => {
+    const read = evaluateAIEvidence({
+      surface: "player-detail",
+      action: "start",
+      leagueValueMode: "redraft",
+      baseScore: 94,
+      evidence: ["WR18 current-season rank is attached.", "Latest projection is attached."],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Questionable Receiver",
+        position: "WR",
+        team: "MIN",
+        value: 5300,
+        sourceCount: 3,
+        hasCurrentSeasonValue: true,
+        injuryStatus: "Questionable",
+      },
+      requiresCurrentSeasonEvidence: true,
+    });
+
+    expect(read.label).not.toBe("blocked");
+    expect(read.finalScore).toBeLessThanOrEqual(58);
+    expect(read.softPenalties.map(penalty => penalty.label).join(" ")).toContain("unresolved availability tag");
+    expect(read.confidenceCapReason).toBe("Unresolved player availability");
+  });
+
+  it("blocks lineup changes when the game is already locked", () => {
+    const read = evaluateAIEvidence({
+      surface: "player-detail",
+      action: "sit",
+      leagueValueMode: "redraft",
+      baseScore: 72,
+      evidence: ["Bench alternative is attached."],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Locked Starter",
+        position: "RB",
+        team: "PHI",
+        value: 5100,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+        isGameLocked: true,
+      },
+      requiresCurrentSeasonEvidence: true,
+    });
+
+    expect(read.label).toBe("blocked");
+    expect(read.hardBlockers.join(" ")).toContain("Locked Starter cannot be changed because the game is already locked");
+  });
+
   it("blocks redraft pickup reads that only have dynasty evidence", () => {
     const read = evaluateAIEvidence({
       surface: "autopilot",

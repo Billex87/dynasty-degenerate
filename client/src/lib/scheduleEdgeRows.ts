@@ -979,6 +979,13 @@ function buildScheduleEvidenceRead(input: {
       position: input.position,
       team: input.team,
       owner: isStreamRead && hasRosterOwner ? input.availability.availabilityLabel : null,
+      rosterStatus: input.player.playerDetails?.rosterStatus || input.player.playerDetails?.displayStatus || null,
+      injuryStatus: input.player.playerDetails?.injuryStatus || null,
+      nflStatus: input.player.playerDetails?.status || null,
+      weeklyProjectionStatus: input.player.playerDetails?.weeklyProjection?.status || null,
+      hasByeWeek:
+        input.player.playerDetails?.weeklyProjection?.homeAway === "bye" ||
+        input.player.playerDetails?.weeklyProjection?.status === "bye",
       value: input.player.ktcValue,
       sourceCount: loadedSourceCount || sourceTrace.length,
       hasCurrentSeasonValue: true,

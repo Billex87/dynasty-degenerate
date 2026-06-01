@@ -1811,6 +1811,7 @@ function buildWaiverEvidenceRead({
   const rank = isRedraft ? seasonRank || dynastyRank : dynastyRank || seasonRank;
   const sourceCount = getWaiverEvidenceSourceCount(details, weeklyEcrSignal);
   const weeklyRead = formatWaiverWeeklyEcrReason(weeklyEcrSignal);
+  const weeklyProjection = player.weeklyProjection || details?.weeklyProjection || null;
   const matchupOutlook =
     isWaiverScheduleWindowSignal(weeklyEcrSignal)
       ? getShortTermMatchupOutlook(weeklyEcrSignal.matchupWindows)
@@ -1882,6 +1883,10 @@ function buildWaiverEvidenceRead({
       team: details?.team || player.team,
       owner: player.owner,
       rosterStatus: details?.rosterStatus || details?.displayStatus || null,
+      injuryStatus: details?.injuryStatus || null,
+      nflStatus: details?.status || null,
+      weeklyProjectionStatus: weeklyProjection?.status || null,
+      hasByeWeek: weeklyProjection?.homeAway === "bye" || weeklyProjection?.status === "bye",
       recentlyAddedBy,
       value,
       sourceCount,

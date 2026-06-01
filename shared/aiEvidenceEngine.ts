@@ -113,12 +113,18 @@ export type AIEvidencePlayerContext = {
   team?: string | null;
   owner?: string | null;
   rosterStatus?: string | null;
+  injuryStatus?: string | null;
+  nflStatus?: string | null;
+  weeklyProjectionStatus?: string | null;
   recentlyAddedBy?: string | null;
   value?: number | null;
   sourceCount?: number | null;
   hasCurrentSeasonValue?: boolean;
   hasDynastyValue?: boolean;
   hasProspectOnlyValue?: boolean;
+  isStarter?: boolean | null;
+  hasByeWeek?: boolean | null;
+  isGameLocked?: boolean | null;
 };
 
 export type AIEvidenceScheduleContext = {
@@ -224,6 +230,61 @@ function normalizeTeam(value?: string | null): string {
 function isNoActiveTeam(team?: string | null): boolean {
   const normalized = normalizeTeam(team);
   return !normalized || normalized === "FA" || normalized === "N/A" || normalized === "NONE";
+}
+
+function normalizeStatus(value?: string | null): string {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isStartLikeAction(action: AIEvidenceAction): boolean {
+  return action === "start" || action === "stream";
+}
+
+function isImmediateAvailabilityAction(action: AIEvidenceAction): boolean {
+  return action === "pickup" || isStartLikeAction(action);
+}
+
+function isHardUnavailableStatus(value?: string | null): boolean {
+  const normalized = normalizeStatus(value);
+  if (!normalized) return false;
+  if (normalized === "OUT" || normalized === "O" || normalized === "IR") return true;
+  return [
+    "INJURED RESERVE",
+    "PHYSICALLY UNABLE",
+    "PUP",
+    "NON FOOTBALL INJURY",
+    " NFI",
+    "SUSPENDED",
+    "SUSP",
+    "INACTIVE",
+    "RESERVE",
+  ].some(pattern => normalized.includes(pattern.trim()));
+}
+
+function isQuestionableAvailabilityStatus(value?: string | null): boolean {
+  const normalized = normalizeStatus(value);
+  if (!normalized) return false;
+  return (
+    normalized === "Q" ||
+    normalized === "QUESTIONABLE" ||
+    normalized === "DOUBTFUL" ||
+    normalized.includes("QUESTIONABLE") ||
+    normalized.includes("DOUBTFUL") ||
+    normalized.includes("LIMITED") ||
+    normalized.includes("DNP")
+  );
+}
+
+function getPlayerAvailabilityStatus(player: AIEvidencePlayerContext): string | null {
+  return cleanText(player.injuryStatus) ||
+    cleanText(player.nflStatus) ||
+    cleanText(player.rosterStatus) ||
+    cleanText(player.weeklyProjectionStatus);
 }
 
 function normalizeSourceTrace(sourceTrace?: Array<string | AISourceTrace>): AISourceTrace[] {
@@ -765,6 +826,42 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
 
   if (needsLiveAvailability && player.recentlyAddedBy) {
     hardBlockers.push(`Recent transactions already show ${player.name || "this player"} added by ${player.recentlyAddedBy}.`);
+  }
+
+  if (input.action === "start" && player.isStarter) {
+    hardBlockers.push(`${player.name || "This player"} is already in the starting lineup.`);
+  }
+
+  if ((input.action === "start" || input.action === "sit") && player.isGameLocked) {
+    hardBlockers.push(`${player.name || "This player"} cannot be changed because the game is already locked.`);
+  }
+
+  if (isStartLikeAction(input.action) && (player.hasByeWeek || normalizeStatus(player.weeklyProjectionStatus) === "BYE")) {
+    hardBlockers.push(`${player.name || "This player"} is on bye for this matchup window.`);
+  }
+
+  const availabilityStatus = getPlayerAvailabilityStatus(player);
+  const unavailableStatuses = [
+    player.injuryStatus,
+    player.nflStatus,
+    player.rosterStatus,
+    player.weeklyProjectionStatus,
+  ];
+  if (isImmediateAvailabilityAction(input.action) && unavailableStatuses.some(isHardUnavailableStatus)) {
+    hardBlockers.push(`${player.name || "This player"} is unavailable${availabilityStatus ? ` (${availabilityStatus})` : ""}.`);
+  } else if (isStartLikeAction(input.action) && unavailableStatuses.some(isQuestionableAvailabilityStatus)) {
+    softPenalties.push({
+      label: `${player.name || "This player"} has an unresolved availability tag${availabilityStatus ? ` (${availabilityStatus})` : ""}`,
+      points: 12,
+    });
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      58,
+      "Unresolved player availability"
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
   }
 
   if (needsActiveTeam && position !== "DEF" && isNoActiveTeam(player.team)) {

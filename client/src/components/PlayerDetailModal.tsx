@@ -3658,6 +3658,13 @@ function buildPlayerAiEvidenceRead(input: {
       name: input.playerName,
       position: input.position,
       team: input.team,
+      rosterStatus: input.details?.rosterStatus || input.details?.displayStatus || null,
+      injuryStatus: input.details?.injuryStatus || null,
+      nflStatus: input.details?.status || null,
+      weeklyProjectionStatus: input.details?.weeklyProjection?.status || null,
+      hasByeWeek:
+        input.details?.weeklyProjection?.homeAway === 'bye' ||
+        input.details?.weeklyProjection?.status === 'bye',
       value: input.valueFraming.marketPrice || input.currentValue,
       sourceCount,
       hasCurrentSeasonValue: hasCurrentSeasonEvidence,

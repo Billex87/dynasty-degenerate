@@ -654,6 +654,10 @@ export function buildProjectionReadoutPolicy(input: ProjectionReadoutPolicyInput
       name: input.row?.playerName,
       position: input.row?.position,
       team: input.row?.team,
+      injuryStatus: input.row?.valueBridge.injuryStatus || projectionRow?.injuryStatus || null,
+      weeklyProjectionStatus: input.row?.schedule.homeAway === 'bye' ? 'bye' : null,
+      hasByeWeek: input.row?.schedule.homeAway === 'bye',
+      isGameLocked: /in_progress|live|final|closed|complete/i.test(input.row?.schedule.gameStatus || ''),
       value: input.leagueValueMode === 'redraft'
         ? input.row?.valueBridge.redraftValue
         : input.row?.valueBridge.dynastyValue,

@@ -2362,6 +2362,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       const value = getAutopilotPlayerValue(player, mode) || 0;
       const weeklyEcrRead = formatWaiverWeeklyEcrRead(player);
       const weeklyEcrTraceRead = formatWaiverWeeklyEcrTraceRead(player);
+      const weeklyProjection = getWeeklyProjection(player);
       const weeklyProjectionRead = formatWeeklyProjectionRead(player);
       const matchupOutlook = isScheduleWindowSignal(player.weeklyEcr)
         ? getShortTermMatchupOutlook(player.weeklyEcr.matchupWindows)
@@ -2423,6 +2424,10 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
           team: player.playerDetails?.team || player.team,
           owner: player.owner,
           rosterStatus: player.playerDetails?.rosterStatus || player.playerDetails?.displayStatus || null,
+          injuryStatus: player.playerDetails?.injuryStatus || null,
+          nflStatus: player.playerDetails?.status || null,
+          weeklyProjectionStatus: weeklyProjection?.status || null,
+          hasByeWeek: weeklyProjection?.homeAway === 'bye' || weeklyProjection?.status === 'bye',
           recentlyAddedBy: getLatestAutopilotAddManager(data, player),
           value,
           sourceCount,
