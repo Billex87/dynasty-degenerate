@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, CheckCircle2, Sparkles, Zap } from 'lucide-react';
 import type { LoaderManagerAnchor } from './LoaderKitBackdrop';
-import SuccessCard3D from '@/features/report/components/SuccessCard3D';
 
 const STEP_DATA_RANGES: Record<string, [number, number]> = {
   sleeper:  [0,       1_200],
@@ -36,6 +35,7 @@ function useDataCounter(activeStepId: string, isActive: boolean) {
 }
 
 const LoaderKitBackdrop = lazy(() => import('./LoaderKitBackdrop'));
+const SuccessCard3D = lazy(() => import('@/features/report/components/SuccessCard3D'));
 
 function LoadingLetterbox({ isComplete }: { isComplete: boolean }) {
   if (typeof document === 'undefined') return null;
@@ -160,10 +160,12 @@ export function LoadingAnimation({
       <LoadingSceneBackdrop isActive={!isLoadingResolved} managerAnchors={managerAnchors} />
       <div className="loading-tron-backdrop analysis-loading-tron analysis-loading-loader-kit" aria-hidden="true" />
       {isLoadingResolved ? (
-        <SuccessCard3D
-          exit={phase === 'kick' || phase === 'done'}
-          className="loading-success-card-3d"
-        />
+        <Suspense fallback={null}>
+          <SuccessCard3D
+            exit={phase === 'kick' || phase === 'done'}
+            className="loading-success-card-3d"
+          />
+        </Suspense>
       ) : null}
 
 

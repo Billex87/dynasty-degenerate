@@ -2,7 +2,7 @@ import { AUTOPILOT_MOCK_DATA } from "@/lib/autopilot/mockData";
 import { buildAutopilotData } from "@/lib/autopilot/buildAutopilotData";
 import {
   formatDashboardSignedPercentLabel,
-} from "@/features/report/components/ReportDashboardShowcase";
+} from "@/features/report/lib/reportDashboardUtils";
 import type { AIActionQueueItem } from "@/lib/autopilot/types";
 import {
   normalizeLeagueValueMode,
