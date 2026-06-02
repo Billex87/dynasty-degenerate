@@ -4,6 +4,7 @@ import { parseProviderSnapshotPayload } from './providerDataSnapshots';
 export const MIN_SLEEPER_SEASON = 2017;
 
 const SLEEPER_SEASON_STATS_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const SLEEPER_SEASON_STATS_CACHE_MAX_ENTRIES = 64;
 const SLEEPER_SEASON_STATS_SOURCE_PREFIX = 'sleeper-season-stats-v1';
 const sleeperSeasonStatsCache = new Map<string, { loadedAt: number; values: Record<string, any> }>();
 
@@ -29,6 +30,29 @@ function getSourceKey(season: string, week?: number | null): string {
   return week
     ? `${SLEEPER_SEASON_STATS_SOURCE_PREFIX}:${season}:week-${week}`
     : `${SLEEPER_SEASON_STATS_SOURCE_PREFIX}:${season}`;
+}
+
+function pruneSleeperSeasonStatsCache(now = Date.now()) {
+  for (const [cacheKey, cached] of Array.from(sleeperSeasonStatsCache.entries())) {
+    if (now - cached.loadedAt > SLEEPER_SEASON_STATS_CACHE_TTL_MS) {
+      sleeperSeasonStatsCache.delete(cacheKey);
+    }
+  }
+
+  while (sleeperSeasonStatsCache.size >= SLEEPER_SEASON_STATS_CACHE_MAX_ENTRIES) {
+    const oldestCacheKey = Array.from(sleeperSeasonStatsCache.entries())
+      .sort((a, b) => a[1].loadedAt - b[1].loadedAt)[0]?.[0];
+    if (!oldestCacheKey) break;
+    sleeperSeasonStatsCache.delete(oldestCacheKey);
+  }
+}
+
+function setCachedSleeperSeasonStats(cacheKey: string, values: Record<string, any>) {
+  pruneSleeperSeasonStatsCache();
+  sleeperSeasonStatsCache.set(cacheKey, {
+    loadedAt: Date.now(),
+    values,
+  });
 }
 
 function parseSleeperSeasonStatsSnapshot(payload?: string | null): SleeperSeasonStatsSnapshotPayload | null {
@@ -58,10 +82,7 @@ async function loadStoredSleeperSeasonStats(season: string, week?: number | null
     return {};
   }
 
-  sleeperSeasonStatsCache.set(getCacheKey(season, week), {
-    loadedAt: Date.now(),
-    values: snapshot.values,
-  });
+  setCachedSleeperSeasonStats(getCacheKey(season, week), snapshot.values);
   return snapshot.values;
 }
 
@@ -112,7 +133,7 @@ export async function fetchSleeperSeasonStats(
   }
 
   const values = await fetchSleeperSeasonStatsFromApi(season, week);
-  sleeperSeasonStatsCache.set(cacheKey, { loadedAt: Date.now(), values });
+  setCachedSleeperSeasonStats(cacheKey, values);
   if (options.persistSnapshot) await persistSleeperSeasonStatsSnapshot(season, week ?? null, values);
   return values;
 }

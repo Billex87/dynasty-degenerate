@@ -65,4 +65,28 @@ describe('Sleeper season stat snapshots', () => {
       rowCount: 1,
     }]);
   });
+
+  it('evicts older cached season stats instead of growing without bound', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const season = url.split('/').pop() || 'unknown';
+      return new Response(JSON.stringify({
+        [`player-${season}`]: {
+          pts_ppr: Number(season) || 0,
+          gp: 1,
+        },
+      }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    for (let index = 0; index < 65; index += 1) {
+      await fetchSleeperSeasonStats(String(2000 + index), null);
+    }
+
+    await fetchSleeperSeasonStats('2000', null);
+    await fetchSleeperSeasonStats('2064', null);
+
+    const loadedUrls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(loadedUrls.filter((url) => url.endsWith('/2000'))).toHaveLength(2);
+    expect(loadedUrls.filter((url) => url.endsWith('/2064'))).toHaveLength(1);
+  });
 });
