@@ -18,6 +18,7 @@ import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeo
 import { useHomePortfolio } from "@/features/home/hooks/useHomePortfolio";
 import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
 import { useQueuedTimeouts } from "@/features/home/hooks/useQueuedTimeouts";
+import { useReportLoadTelemetry } from "@/features/home/hooks/useReportLoadTelemetry";
 import { useReportDeltaSnapshots } from "@/features/home/hooks/useReportDeltaSnapshots";
 import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
 import {
@@ -41,13 +42,11 @@ import {
 import {
   AdminAuthUser,
   canViewAdminTelemetryForUser,
-  persistReportLoadTelemetry,
   readAdminPassphraseVerifiedForSession,
   rememberAdminPassphraseVerifiedForSession,
   ReportAnalysisMode,
   ReportLoadCacheStatus,
   ReportLoadSource,
-  type ReportLoadTelemetryEvent,
 } from "@/features/home/lib/adminSessionState";
 import {
   buildHomeReportTabState,
@@ -246,10 +245,11 @@ export default function Home() {
   const analysisModeRef = useRef<ReportAnalysisMode>("blocking");
   const backgroundRefreshLeagueIdRef = useRef<string | null>(null);
   const lastBackgroundRefreshAtRef = useRef<Record<string, number>>({});
-  const appBootStartedAtRef = useRef(
-    typeof performance !== "undefined" ? performance.now() : Date.now()
-  );
   const autopilotAccessToastShownRef = useRef(false);
+  const queueReportVisibleTelemetry = useReportLoadTelemetry({
+    reportLoadStartedAtRef,
+    analyzeRequestStartedAtRef,
+  });
   const adminLoginMutation = trpc.auth.adminLogin.useMutation({
     onSuccess: async () => {
       rememberAdminPassphraseVerifiedForSession();
@@ -265,29 +265,6 @@ export default function Home() {
       toast.error(loginError.message);
     },
   });
-
-  const queueReportVisibleTelemetry = (
-    event: Omit<ReportLoadTelemetryEvent, "createdAt" | "visibleMs">
-  ) => {
-    if (typeof window === "undefined") return;
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        const startedAt =
-          event.source === "browser-cache"
-            ? appBootStartedAtRef.current
-            : reportLoadStartedAtRef.current || performance.now();
-        persistReportLoadTelemetry({
-          ...event,
-          visibleMs: Math.round(performance.now() - startedAt),
-          createdAt: new Date().toISOString(),
-        });
-        if (event.source === "server") {
-          reportLoadStartedAtRef.current = null;
-          analyzeRequestStartedAtRef.current = null;
-        }
-      });
-    });
-  };
 
   const leaguePreviewMutation = trpc.league.getLeaguePreview.useMutation();
 
