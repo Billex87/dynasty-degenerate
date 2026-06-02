@@ -14,17 +14,20 @@
 - Local diagnostic file writers now skip Vercel/serverless runtimes instead of trying to write under the deployed bundle path.
 - League-report local file-cache reads/writes/pruning now skip Vercel/serverless runtimes; memory and durable database cache still remain active.
 - Admin login fails closed when production is missing `JWT_SECRET` or when `ADMIN_LOGIN_PASSWORD` is not configured.
+- Missing cookies on public requests are treated as anonymous without warning; malformed/invalid session cookies still warn.
 
 ## Local/Repo Status
 - `CRON_SECRET=` present in `.env.example`.
 - `SOURCE_HEALTH_ALERT_WEBHOOK_URL=` present in `.env.example`.
 - `SOURCE_HEALTH_ALERT_WEBHOOK_MIN_LEVEL=` present in `.env.example`.
 - `server/auth.logout.test.ts` covers secure logout cookie clearing, valid admin login cookie options, invalid passphrase rejection, production `JWT_SECRET` precondition, and required admin-password configuration.
+- `server/auth.logout.test.ts` also covers anonymous public request context creation without logging a missing-cookie warning.
 - `server/leagueReportCachePolicy.test.ts` covers the Vercel/serverless file-cache skip policy.
 
 ## Verification
 - `pnpm exec vitest run server/auth.logout.test.ts` passed.
 - `pnpm exec vitest run server/leagueReportCachePolicy.test.ts server/localDiagnostics.test.ts` passed.
+- `pnpm exec vitest run server/auth.logout.test.ts server/leagueReportCachePolicy.test.ts server/localDiagnostics.test.ts` passed after the public missing-cookie log cleanup.
 - `pnpm run check` passed.
 - `pnpm test` passed: `123` files, `612` passed, `1` skipped.
 

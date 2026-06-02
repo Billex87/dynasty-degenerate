@@ -95,7 +95,6 @@ class SDKServer {
     cookieValue: string | undefined | null
   ): Promise<SessionPayload | null> {
     if (!cookieValue) {
-      devWarn("[Auth] Missing session cookie");
       return null;
     }
 

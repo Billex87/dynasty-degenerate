@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { appRouter } from "./routers";
+import { createContext } from "./_core/context";
 import { COOKIE_NAME } from "../shared/const";
 import type { TrpcContext } from "./_core/context";
 
@@ -62,6 +63,27 @@ describe("auth.logout", () => {
       httpOnly: true,
       path: "/",
     });
+  });
+});
+
+describe("auth context", () => {
+  it("treats missing public-request cookies as anonymous without warning", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const ctx = await createContext({
+        req: {
+          headers: {},
+          protocol: "https",
+        },
+        res: {},
+      } as Parameters<typeof createContext>[0]);
+
+      expect(ctx.user).toBeNull();
+      expect(warnSpy).not.toHaveBeenCalledWith("[Auth] Missing session cookie");
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
 

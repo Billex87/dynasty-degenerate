@@ -50,9 +50,9 @@ test.describe('production smoke', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.evaluate(() => localStorage.clear());
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Win now. Win later. Build your dynasty.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fuck vibes. Use AI.' })).toBeVisible();
     await page.getByPlaceholder('Sleeper username').fill(sleeperUsername);
-    await page.getByRole('button', { name: 'Run Degenerate Analysis' }).click();
+    await page.getByRole('button', { name: 'Find Leagues' }).click();
     await chooseRegularModeIfPrompted(page);
     await expect(page.getByText(leagueName, { exact: false })).toBeVisible({ timeout: 30_000 });
     await chooseRegularModeIfPrompted(page);
