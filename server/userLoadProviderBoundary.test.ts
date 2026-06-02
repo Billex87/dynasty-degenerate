@@ -132,7 +132,8 @@ describe("user-load provider boundary", () => {
   it("bounds route-limit buckets while preserving the current request key", () => {
     const sweepSource = extractSource("function sweepRateLimitBuckets", "\n\nfunction assertRateLimit");
     const assertSource = extractSource("function assertRateLimit", "\n\nfunction assertReportAccess");
-    const keyIndex = assertSource.indexOf("const key = [options.id, clientId, options.scope || 'global'].join(':')");
+    const bucketClientIndex = assertSource.indexOf("const bucketClientId = options.clientKey || clientId");
+    const keyIndex = assertSource.indexOf("const key = [options.id, bucketClientId, options.scope || 'global'].join(':')");
     const sweepIndex = assertSource.indexOf("sweepRateLimitBuckets(now, key)");
     const readBucketIndex = assertSource.indexOf("const existing = rateLimitBuckets.get(key)");
 
@@ -140,7 +141,8 @@ describe("user-load provider boundary", () => {
     expect(routersSource).toContain("const RATE_LIMIT_BUCKET_SWEEP_INTERVAL_MS = 1000 * 60 * 5");
     expect(sweepSource).toContain("while (rateLimitBuckets.size >= RATE_LIMIT_BUCKET_MAX_ENTRIES)");
     expect(sweepSource).toContain(".filter(([key]) => key !== reserveKey)");
-    expect(keyIndex).toBeGreaterThan(0);
+    expect(bucketClientIndex).toBeGreaterThan(0);
+    expect(keyIndex).toBeGreaterThan(bucketClientIndex);
     expect(sweepIndex).toBeGreaterThan(keyIndex);
     expect(readBucketIndex).toBeGreaterThan(sweepIndex);
   });

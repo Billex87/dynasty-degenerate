@@ -838,6 +838,7 @@ type RateLimitOptions = {
   max: number;
   windowMs: number;
   scope?: string;
+  clientKey?: string;
   message: string;
 };
 
@@ -945,7 +946,8 @@ function assertRateLimit(req: RequestLike, options: RateLimitOptions) {
     headers: req.headers || {},
     socket: req.socket,
   }) || 'anonymous';
-  const key = [options.id, clientId, options.scope || 'global'].join(':');
+  const bucketClientId = options.clientKey || clientId;
+  const key = [options.id, bucketClientId, options.scope || 'global'].join(':');
   sweepRateLimitBuckets(now, key);
   const existing = rateLimitBuckets.get(key);
   const bucket = existing && existing.resetAt > now
@@ -6835,6 +6837,14 @@ export const appRouter = router({
           max: 5,
           windowMs: 1000 * 60 * 10,
           message: "Too many magic-link requests. Please wait a few minutes and try again.",
+        });
+        assertRateLimit(ctx.req as any, {
+          id: "auth.requestMagicLink.email",
+          max: 3,
+          windowMs: 1000 * 60 * 10,
+          scope: getMagicLinkUserOpenId(input.email),
+          clientKey: "recipient",
+          message: "Too many magic-link requests for this email. Please wait a few minutes and try again.",
         });
         const shouldSendEmail = isTransactionalEmailConfigured();
         const emailAppBaseUrl = shouldSendEmail ? getRequestTransactionalEmailAppBaseUrl(ctx) : null;

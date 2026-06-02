@@ -247,14 +247,21 @@ describe("auth magic-link procedures", () => {
     expect(end).toBeGreaterThan(start);
     const routeSource = routersSource.slice(start, end);
     const rateLimitIndex = routeSource.indexOf("assertRateLimit(ctx.req as any");
+    const emailRateLimitIndex = routeSource.indexOf('id: "auth.requestMagicLink.email"');
     const createTokenIndex = routeSource.indexOf("createMagicLinkToken({");
     const insertTokenIndex = routeSource.indexOf("insertMagicLinkToken(created.record)");
     const sendEmailIndex = routeSource.indexOf("sendMagicLinkEmail({");
 
     expect(rateLimitIndex).toBeGreaterThan(0);
+    expect(emailRateLimitIndex).toBeGreaterThan(rateLimitIndex);
+    expect(routeSource).toContain("scope: getMagicLinkUserOpenId(input.email)");
+    expect(routeSource).toContain('clientKey: "recipient"');
     expect(createTokenIndex).toBeGreaterThan(rateLimitIndex);
+    expect(createTokenIndex).toBeGreaterThan(emailRateLimitIndex);
     expect(insertTokenIndex).toBeGreaterThan(rateLimitIndex);
+    expect(insertTokenIndex).toBeGreaterThan(emailRateLimitIndex);
     expect(sendEmailIndex).toBeGreaterThan(rateLimitIndex);
+    expect(sendEmailIndex).toBeGreaterThan(emailRateLimitIndex);
     expect(routeSource).toContain('id: "auth.requestMagicLink"');
     expect(routeSource).toContain('max: 5');
   });
