@@ -309,6 +309,15 @@ function normalizeCalibrationText(value?: string | null): string | null {
   return clean ? clean.toLowerCase() : null;
 }
 
+function getSourceTraceHealth(trace: AISourceTrace): "loaded" | "missing" | "unhealthy" | "unknown" {
+  const status = String(trace.status || "").trim().toLowerCase();
+  const detail = String(trace.detail || "").trim();
+  if (status === "missing" || /\b0\s+rows\b|no source/i.test(detail)) return "missing";
+  if (status === "stale" || status === "error" || status === "limited") return "unhealthy";
+  if (!status || status === "loaded") return "loaded";
+  return "unknown";
+}
+
 function getCalibrationSourceAgreement(input: {
   hardBlockers: string[];
   missingEvidence: string[];
@@ -317,8 +326,10 @@ function getCalibrationSourceAgreement(input: {
   if (input.hardBlockers.length) return "conflicted";
   if (input.missingEvidence.length >= 2) return "thin";
   if (!input.sourceTrace.length) return "missing";
-  if (input.sourceTrace.some(trace => trace.status === "error" || trace.status === "stale")) return "split";
-  if (input.sourceTrace.every(trace => !trace.status || trace.status === "loaded")) return "aligned";
+  const traceHealth = input.sourceTrace.map(getSourceTraceHealth);
+  if (traceHealth.every(status => status === "missing")) return "missing";
+  if (traceHealth.some(status => status === "missing" || status === "unhealthy")) return "split";
+  if (traceHealth.every(status => status === "loaded")) return "aligned";
   return "unknown";
 }
 
@@ -1054,20 +1065,22 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
   }
 
   const staleTrace = sourceTrace.find(trace => {
-    if (trace.status === "stale" || trace.status === "error") return true;
+    const health = getSourceTraceHealth(trace);
+    if (health === "missing" || health === "unhealthy") return true;
     return Number(trace.ageHours || 0) >= 168;
   });
   if (staleTrace) {
-    const defaultStaleSourceCap = input.staleSourceCap ?? (staleTrace.status === "error" ? 48 : 64);
+    const traceHealth = getSourceTraceHealth(staleTrace);
+    const defaultStaleSourceCap = input.staleSourceCap ?? (traceHealth === "missing" || staleTrace.status === "error" ? 48 : 64);
     const staleSourceCap = isDirectPlayerAction
-      ? Math.min(defaultStaleSourceCap, staleTrace.status === "error" ? 48 : 55)
+      ? Math.min(defaultStaleSourceCap, traceHealth === "missing" || staleTrace.status === "error" ? 48 : 55)
       : defaultStaleSourceCap;
-    if (isDirectPlayerAction && staleSourceCap < defaultStaleSourceCap) {
+    if (isDirectPlayerAction && (staleSourceCap < defaultStaleSourceCap || traceHealth === "missing" || traceHealth === "unhealthy")) {
       missingEvidence.push("Fresh source proof is stale or unhealthy for this action read.");
     }
     softPenalties.push({
       label: `${staleTrace.label} is stale or unhealthy`,
-      points: staleTrace.status === "error" ? 24 : 16,
+      points: traceHealth === "missing" || staleTrace.status === "error" ? 24 : 16,
     });
     const capped = applyCap(
       confidenceCap,

@@ -336,6 +336,35 @@ describe("ai evidence engine", () => {
     expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 55% because FantasyPros waiver snapshot source freshness");
   });
 
+  it("caps missing source traces below actionable confidence", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 96,
+      evidence: ["WR28 current-season rank is attached.", "Roster need is attached."],
+      signalModes: ["redraft", "current"],
+      sourceTrace: [{
+        label: "FantasyPros waiver snapshot",
+        status: "missing",
+      }],
+      player: {
+        name: "Missing Source Receiver",
+        position: "WR",
+        team: "LV",
+        value: 5200,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+      },
+    });
+
+    expect(read.canAct).toBe(false);
+    expect(read.finalScore).toBeLessThanOrEqual(48);
+    expect(read.confidenceCapReason).toBe("FantasyPros waiver snapshot source freshness");
+    expect(read.missingEvidence).toContain("Fresh source proof is stale or unhealthy for this action read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("FantasyPros waiver snapshot is stale or unhealthy");
+  });
+
   it("caps player action reads without source count or source trace", () => {
     const read = evaluateAIEvidence({
       surface: "waiver",
@@ -698,6 +727,52 @@ describe("ai evidence engine", () => {
     expect(read.calibrationAdjustment).toMatchObject({
       scope: "surfaceAction",
       scoredCount: 2,
+    });
+  });
+
+  it("matches split source-agreement calibration for mixed loaded and missing trace proof", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 92,
+      evidence: ["WR33 current-season rank is attached.", "Roster need is attached."],
+      sourceTrace: [{
+        label: "FantasyPros waiver snapshot",
+        status: "missing",
+      }],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Missing Calibration Receiver",
+        position: "WR",
+        team: "LV",
+        value: 4300,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+      },
+      calibrationProfile: {
+        globalAdjustment: null,
+        adjustments: [{
+          key: "sourceAgreement:split",
+          scope: "sourceAgreement",
+          group: { sourceAgreement: "split" },
+          eventCount: 10,
+          scoredCount: 8,
+          pendingCount: 2,
+          hitRate: 25,
+          scoreAdjustment: -8,
+          confidenceCap: 42,
+          recommendation: "lower-confidence",
+          priority: "warn",
+          reason: "Split source proof has missed too often.",
+        }],
+      },
+    });
+
+    expect(read.finalScore).toBeLessThanOrEqual(42);
+    expect(read.calibrationAdjustment).toMatchObject({
+      scope: "sourceAgreement",
+      reason: "Split source proof has missed too often.",
     });
   });
 

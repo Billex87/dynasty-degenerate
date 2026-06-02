@@ -1124,8 +1124,10 @@ function inferRecommendationSourceAgreement(card: AutopilotRecommendation): Repo
   if (evidence.missingEvidence.length >= 2) return 'thin';
   const traces = evidence.sourceTrace || [];
   if (!traces.length) return 'missing';
-  if (traces.some((trace) => trace.status === 'error' || trace.status === 'stale')) return 'split';
-  if (traces.every((trace) => !trace.status || trace.status === 'loaded')) return 'aligned';
+  const traceHealth = traces.map(getSourceTraceHealth);
+  if (traceHealth.every((status) => status === 'missing')) return 'missing';
+  if (traceHealth.some((status) => status === 'missing' || status === 'unhealthy')) return 'split';
+  if (traceHealth.every((status) => status === 'loaded')) return 'aligned';
   return 'unknown';
 }
 
@@ -1864,17 +1866,8 @@ function getActionSourceHealthGap(recommendation: AutopilotRecommendation, sourc
   }
 
   const unhealthyTrace = traces.find((trace) => {
-    const status = String(trace.status || '').trim().toLowerCase();
-    const detail = String(trace.detail || '').trim();
-    return (
-      status === 'missing' ||
-      status === 'stale' ||
-      status === 'error' ||
-      status === 'limited' ||
-      status === 'unavailable' ||
-      status === 'unverified' ||
-      /\b0\s+rows\b|no source/i.test(detail)
-    );
+    const status = getSourceTraceHealth(trace);
+    return status === 'missing' || status === 'unhealthy';
   });
 
   if (unhealthyTrace) {
@@ -1882,6 +1875,23 @@ function getActionSourceHealthGap(recommendation: AutopilotRecommendation, sourc
   }
 
   return null;
+}
+
+function getSourceTraceHealth(trace: AISourceTrace): 'loaded' | 'missing' | 'unhealthy' | 'unknown' {
+  const status = String(trace.status || '').trim().toLowerCase();
+  const detail = String(trace.detail || '').trim();
+  if (status === 'missing' || /\b0\s+rows\b|no source/i.test(detail)) return 'missing';
+  if (
+    status === 'stale' ||
+    status === 'error' ||
+    status === 'limited' ||
+    status === 'unavailable' ||
+    status === 'unverified'
+  ) {
+    return 'unhealthy';
+  }
+  if (!status || status === 'loaded') return 'loaded';
+  return 'unknown';
 }
 
 function getQueueDecision(recommendation: AutopilotRecommendation, source: AIActionQueueSource): AIActionQueueItem['decision'] {

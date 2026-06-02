@@ -2297,14 +2297,16 @@ describe('buildAutopilotData', () => {
       fallback: AUTOPILOT_MOCK_DATA.redraft,
     });
 
-    const waiverQueueItem = data.actionQueue.find((item) => item.target === 'Waiver Receiver');
-    expect(waiverQueueItem).toMatchObject({
-      decision: 'watch',
-      label: "Don't force it",
+    expect(data.waivers[0]).toMatchObject({
+      player: 'Waiver Receiver',
+      action: 'Monitor only',
+      expectedAction: {
+        type: 'hold',
+      },
     });
-    expect(waiverQueueItem?.missingEvidence.join(' ')).toContain('unhealthy source proof');
-    expect(waiverQueueItem?.sourceHealth.join(' ')).toContain('FantasyPros WR weekly ECR: missing');
-    expect(waiverQueueItem?.sourceHealth.join(' ')).toContain('0 rows');
+    expect(data.waivers[0]?.confidence).toBeLessThanOrEqual(48);
+    expect(data.waivers[0]?.evidenceRead?.missingEvidence.join(' ')).toContain('Fresh source proof is stale or unhealthy');
+    expect(data.waivers[0]?.evidenceRead?.sourceTrace.map((trace) => `${trace.label}: ${trace.status} ${trace.detail || ''}`).join(' ')).toContain('FantasyPros WR weekly ECR: missing 0 rows');
     expect(data.actionQueue.filter((item) => item.target === 'Waiver Receiver' && item.decision === 'do')).toHaveLength(0);
   });
 
@@ -2610,6 +2612,141 @@ describe('buildAutopilotData', () => {
     expect(data.waivers[0]?.reasons.join(' ')).toContain('overconfident');
     expect(data.reportCard?.rows.find((row) => row.label === 'Calibration memory')?.status).toContain('24 scored');
     expect(data.reportCard?.rows.find((row) => row.label === 'Calibration memory')?.detail).toContain('overconfident');
+  });
+
+  it('routes zero-row source traces into split source-agreement calibration', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    const receiver = reportData.waiverIntelligence!.availableTrendingAdds[0]!;
+    const now = '2026-06-01T12:00:00.000Z';
+    const weeks: WaiverWeeklyEcrWeek[] = [{
+      week: 1,
+      season: '2026',
+      scoring: 'PPR',
+      sourceKey: 'fantasypros-endpoint-v1:2026:PPR:wr-week-1',
+      endpointKey: 'wr-week-1',
+      sourceStatus: 'loaded',
+      sourceRowCount: 12,
+      sourceFetchedAt: now,
+      sourceLastUpdated: now,
+      rankEcr: 31,
+      positionRank: 'WR31',
+      averageRank: 31,
+      rankStdDev: null,
+      lastUpdated: now,
+      opponent: 'CHI',
+      homeAway: 'home',
+      opponentRank: 14,
+      matchupStars: 3,
+      matchupTier: 'neutral',
+      isBye: false,
+    }];
+    const missingSourceSignal: WaiverWeeklyEcrSignal = {
+      signalType: 'weekly-rank',
+      playerId: receiver.player_id || 'missing-calibration-receiver',
+      fantasyProsId: 'fp-waiver1',
+      name: receiver.name || 'Missing Calibration Receiver',
+      position: receiver.pos || 'WR',
+      team: receiver.team || 'LV',
+      source: 'FantasyPros',
+      updatedAt: now,
+      weeks,
+      bestWeek: 1,
+      bestRankEcr: 31,
+      bestPositionRank: 'WR31',
+      averageRankEcr: 31,
+      rankDelta: null,
+      matchupWindows: buildMatchupWindowSet(weeks, { currentWeek: 1 }),
+      confidence: 88,
+      note: 'Zero-row source-agreement fixture.',
+      sourceTrace: [{
+        source: 'FantasyPros',
+        sourceKey: 'fantasypros-wr-weekly-ecr',
+        endpointKey: 'wr-week-1',
+        endpointLabel: 'FantasyPros WR weekly ECR',
+        status: 'loaded',
+        season: '2026',
+        scoring: 'PPR',
+        week: 1,
+        position: 'WR',
+        evidence: '0 rows returned by source probe',
+        rowCount: 12,
+      }],
+      traceSummary: 'Fixture intentionally carries no source rows.',
+    };
+    const calibrationProfile: ReportAICalibrationAdjustmentProfile = {
+      schemaVersion: 1,
+      generatedFrom: 'ai-prediction-events',
+      generatedAt: '2026-06-02T12:00:00.000Z',
+      eventCount: 18,
+      scoredCount: 12,
+      pendingCount: 6,
+      globalAdjustment: {
+        key: 'global',
+        scope: 'global',
+        group: {},
+        eventCount: 18,
+        scoredCount: 12,
+        pendingCount: 6,
+        hitRate: 0.55,
+        avgConfidence: 66,
+        calibrationGap: -4,
+        brierScore: 0.25,
+        scoreAdjustment: 0,
+        confidenceCap: null,
+        recommendation: 'calibrated',
+        priority: 'info',
+        reason: 'Global reads are calibrated enough to keep current scoring.',
+      },
+      adjustments: [{
+        key: 'sourceAgreement:split',
+        scope: 'sourceAgreement',
+        group: { sourceAgreement: 'split' },
+        eventCount: 9,
+        scoredCount: 7,
+        pendingCount: 2,
+        hitRate: 14,
+        avgConfidence: 74,
+        calibrationGap: -38,
+        brierScore: 0.48,
+        scoreAdjustment: -30,
+        confidenceCap: 52,
+        recommendation: 'lower-confidence',
+        priority: 'warn',
+        reason: 'Split source proof should stay below action confidence.',
+      }],
+    };
+
+    const missingSourceReceiver = { ...receiver, weeklyEcr: missingSourceSignal };
+    const data = buildAutopilotData({
+      reportData: {
+        ...reportData,
+        aiCalibrationAdjustmentProfile: calibrationProfile,
+        waiverIntelligence: {
+          ...reportData.waiverIntelligence!,
+          availableTrendingAdds: [missingSourceReceiver],
+          highestKtcAvailable: missingSourceReceiver,
+          bestAvailableByPosition: {
+            QB: null,
+            RB: null,
+            WR: missingSourceReceiver,
+            TE: null,
+            K: null,
+            DEF: null,
+          },
+          weeklyEcrTargets: [{ player: missingSourceReceiver, signal: missingSourceSignal, score: 88 }],
+        },
+      },
+      mode: 'redraft',
+      fallback: AUTOPILOT_MOCK_DATA.redraft,
+    });
+
+    const waiverRead = data.waivers.find((recommendation) => recommendation.player === 'Waiver Receiver');
+    expect(waiverRead?.confidence).toBeLessThanOrEqual(52);
+    expect(waiverRead?.signals).toEqual(expect.arrayContaining(['Outcome-calibrated']));
+    expect(waiverRead?.reasons.join(' ')).toContain('Split source proof should stay below action confidence');
+    expect(waiverRead?.evidenceRead?.sourceTrace.map((trace) => `${trace.label}: ${trace.status} ${trace.detail || ''}`).join(' ')).toContain('0 rows');
+    expect(data.actionQueue.filter((item) => item.target === 'Waiver Receiver' && item.decision === 'do')).toHaveLength(0);
   });
 
   it('surfaces server-side daily deltas in the AI report card', () => {
