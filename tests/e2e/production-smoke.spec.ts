@@ -67,7 +67,6 @@ test.describe('production smoke', () => {
       await expect(page.getByText('League-matched player values', { exact: false })).toBeVisible();
 
       await page.getByRole('tab', { name: 'Draft History' }).click();
-      await expect(page.getByText('Loading report section...')).toBeHidden({ timeout: 30_000 });
       await expect(
         page.getByText('Rookie Draft', { exact: false })
           .or(page.getByText('Startup Draft', { exact: false }))
@@ -90,7 +89,6 @@ test.describe('production smoke', () => {
 
       if (shouldExpectDraftHistory(leagueName)) {
         await page.getByRole('tab', { name: 'Draft History' }).click();
-        await expect(page.getByText('Loading report section...')).toBeHidden({ timeout: 30_000 });
         await expect(
           page.getByText('Draft Recap', { exact: false })
             .or(page.getByText('Main Draft', { exact: false }))

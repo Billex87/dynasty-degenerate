@@ -81,6 +81,8 @@ Traffic-session result:
 - Second local fix added after that finding: Vercel/serverless runs now skip league-report local file-cache metadata/read/write/prune paths while preserving memory cache and durable database cache. Focused verification passed with `pnpm exec vitest run server/leagueReportCachePolicy.test.ts server/localDiagnostics.test.ts` and `pnpm run check`.
 - Post-deploy refresh for commit `1adb905` passed production smoke across `Skids Get Beat`, `The Fantasy Degenerates`, `test league`, and `Gov Tech Grid Iron` after updating the smoke test to the current home-page username flow. Narrow post-smoke log queries showed live `league.analyze` traffic on deployment `dpl_CH8c3wuC6kwgs3Cmz8FjzpThXg2H` and no new `/var/task`, `Failed to write file league report cache`, `ApiProviderTelemetry`, or `500` entries in the post-deploy window.
 - Post-smoke logs did show expected `[Auth] Missing session cookie` warnings for public report requests. Follow-up local fix now treats absent cookies as anonymous public requests without warning while preserving warnings for malformed/invalid session cookies. Focused verification passed with `pnpm exec vitest run server/auth.logout.test.ts server/leagueReportCachePolicy.test.ts server/localDiagnostics.test.ts` and `pnpm run check`.
+- Final deployed refresh for commit `d3b1416` passed production smoke across all four representative leagues after removing stale smoke selectors for the current home-page heading, username `Find Leagues` flow, and global lazy-section loading text.
+- Final post-smoke log checks for the current production deployment found no `/var/task`, `Failed to write file league report cache`, `Missing session cookie`, or `500` entries in the checked post-traffic window.
 
 ## Usage And Metrics Availability
 - `vercel metrics schema vercel.function --format json` confirmed the required metric IDs exist, including:
@@ -99,7 +101,7 @@ Traffic-session result:
 ## Decision
 - This pass proves production deployment health, production report traffic health, cron configuration visibility, and absence of recent visible runtime errors through the available CLI/log surfaces.
 - This pass does not fully close the Vercel usage gate because Fluid Active CPU, function invocation totals, transfer, provisioned memory, and route-level CPU attribution are not accessible through the current CLI/API plan.
-- The follow-up local-write fixes reduce production log noise from cron diagnostic and league-report file-cache side effects, but the second file-cache guard must be deployed before a post-deploy log check can confirm the `/var/task/.cache` errors are gone.
+- The follow-up local-write fixes are deployed and clean for report traffic in the checked post-deploy window. The next remaining production-log confirmation is the next scheduled cron window.
 - Do not mark the Vercel usage checklist item complete until one of these happens:
   - a Vercel dashboard/manual pass records Fluid Active CPU, memory, invocations, transfer, and route hotspots; or
   - Observability Plus/API metric access is enabled and the CLI metric commands above return usable data.
@@ -107,7 +109,7 @@ Traffic-session result:
 ## Follow-up
 - Manually check Vercel dashboard Usage and Functions after the latest traffic/deploy window.
 - Confirm whether the cron schedule warning is a CLI diff artifact or a real deployment mismatch.
-- Deploy the Vercel local-diagnostics and league-report file-cache write guards, then re-run production error/cron log checks after report traffic and the next cron window.
+- Re-run production cron log checks after the next scheduled cron window.
 - If metrics become available, capture top routes for:
   - `/api/trpc/league.analyze`
   - `/api/trpc/league.rankings`

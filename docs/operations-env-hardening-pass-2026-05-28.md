@@ -30,13 +30,15 @@
 - `pnpm exec vitest run server/auth.logout.test.ts server/leagueReportCachePolicy.test.ts server/localDiagnostics.test.ts` passed after the public missing-cookie log cleanup.
 - `pnpm run check` passed.
 - `pnpm test` passed: `123` files, `612` passed, `1` skipped.
+- `PRODUCTION_SMOKE=true PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm exec playwright test tests/e2e/production-smoke.spec.ts --project=desktop-chrome` passed after updating the smoke selectors to the current home page.
+- Final post-smoke Vercel log checks found no `/var/task`, league-report file-cache, missing-cookie, or `500` entries in the checked post-traffic window.
 
 ## Production Follow-up (manual)
 - Confirm all three values are set in deployment secret store (masked read in platform). In local `.vercel/.env.production.local`, `CRON_SECRET` is intentionally blank and both `SOURCE_HEALTH_ALERT_WEBHOOK_URL` and `SOURCE_HEALTH_ALERT_WEBHOOK_MIN_LEVEL` are absent, so platform-level verification is still required.
 - Validate webhook target receives a warning/danger alert path test when forced (or at minimum a config validation dry run).
 - Confirm cron invocations in logs return expected cheap `202` responses outside configured Pacific windows.
 - Confirm no provider key or webhook URL appears in user-facing logs/outputs.
-- After deploying the local diagnostic and league-report file-cache write guards, confirm production cron/error/report logs no longer contain `/var/task/server/ktc-snapshots`, `/var/task/.cache/api-provider-telemetry`, or `/var/task/.cache` write failures.
+- After the next scheduled cron window, confirm production cron logs still do not contain `/var/task/server/ktc-snapshots`, `/var/task/.cache/api-provider-telemetry`, or `/var/task/.cache` write failures.
 
 ## Decision
 - This pass is captured for execution once you have deploy-secret access.
