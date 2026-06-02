@@ -149,8 +149,8 @@ describe("ai evidence engine", () => {
     expect(read.finalScore).toBeLessThanOrEqual(56);
     expect(read.confidenceCapReason).toBe("Missing start/sit projection or matchup proof");
     expect(read.missingEvidence).toContain("No projection or matchup proof returned for this start/sit read.");
-    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing projection or matchup proof caps start/sit confidence");
-    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 56% from Missing start/sit projection or matchup proof");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing projection or matchup proof limits start/sit confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 56% because Missing start/sit projection or matchup proof");
   });
 
   it("blocks immediate add/start actions for unavailable players", () => {
@@ -278,8 +278,8 @@ describe("ai evidence engine", () => {
     expect(read.finalScore).toBeLessThanOrEqual(56);
     expect(read.confidenceCapReason).toBe("Missing dynasty/market evidence");
     expect(read.missingEvidence).toContain("No dynasty or market evidence returned for this dynasty action read.");
-    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing dynasty/market evidence caps dynasty action confidence");
-    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 56% from Missing dynasty/market evidence");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing dynasty/market evidence limits dynasty action confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 56% because Missing dynasty/market evidence");
   });
 
   it("caps confidence when sources are stale", () => {
@@ -333,7 +333,7 @@ describe("ai evidence engine", () => {
     expect(read.confidenceCapReason).toBe("FantasyPros waiver snapshot source freshness");
     expect(read.missingEvidence).toContain("Fresh source proof is stale or unhealthy for this action read.");
     expect(read.softPenalties.map(penalty => penalty.label)).toContain("FantasyPros waiver snapshot is stale or unhealthy");
-    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 55% from FantasyPros waiver snapshot source freshness");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 55% because FantasyPros waiver snapshot source freshness");
   });
 
   it("caps player action reads without source count or source trace", () => {
@@ -358,8 +358,8 @@ describe("ai evidence engine", () => {
     expect(read.finalScore).toBeLessThanOrEqual(54);
     expect(read.confidenceCapReason).toBe("Missing player source trace");
     expect(read.missingEvidence).toContain("No player source trace returned for this read.");
-    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing player source trace caps action confidence");
-    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 54% from Missing player source trace");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing player source trace limits action confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 54% because Missing player source trace");
   });
 
   it("caps non-schedule player action reads with only one source", () => {
@@ -388,8 +388,8 @@ describe("ai evidence engine", () => {
     expect(read.finalScore).toBeLessThanOrEqual(57);
     expect(read.confidenceCapReason).toBe("Thin player source count");
     expect(read.missingEvidence).toContain("Only one player source returned for this action read.");
-    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Thin player source count caps action confidence");
-    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 57% from Thin player source count");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Thin player source count limits action confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 57% because Thin player source count");
   });
 
   it("marks empty readouts insufficient instead of confident", () => {
@@ -403,7 +403,7 @@ describe("ai evidence engine", () => {
 
     expect(read.label).toBe("blocked");
     expect(read.shouldRender).toBe(false);
-    expect(read.whyThisFired).toMatch(/No positive evidence|Blocked/i);
+    expect(read.whyThisFired).toMatch(/No positive evidence|Do not act yet/i);
   });
 
   it("uses superflex context before blocking low-source QB pickup advice", () => {
@@ -568,8 +568,8 @@ describe("ai evidence engine", () => {
     expect(read.finalScore).toBeLessThanOrEqual(57);
     expect(read.confidenceCapReason).toBe("Missing trade/manager history");
     expect(read.missingEvidence).toContain("No league trade or manager-history sample returned.");
-    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing trade/manager history caps trade-action confidence");
-    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 57% from Missing trade/manager history");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing trade/manager history limits trade-action confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 57% because Missing trade/manager history");
   });
 
   it("caps trade confidence in quiet trade markets", () => {
@@ -693,8 +693,8 @@ describe("ai evidence engine", () => {
     expect(read.finalScore).toBeLessThanOrEqual(56);
     expect(read.confidenceCapReason).toBe("Insufficient resolved outcomes");
     expect(read.missingEvidence).toContain("Too few resolved outcomes returned for this action read's calibration bucket.");
-    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Insufficient resolved outcomes cap action confidence");
-    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 56% from Insufficient resolved outcomes");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Insufficient resolved outcomes limit action confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 56% because Insufficient resolved outcomes");
     expect(read.calibrationAdjustment).toMatchObject({
       scope: "surfaceAction",
       scoredCount: 2,

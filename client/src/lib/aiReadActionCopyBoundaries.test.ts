@@ -76,13 +76,24 @@ describe("AI read action copy boundaries", () => {
     const source = readSpecificSources([
       "components/CommandCenterExpansion.tsx",
       "components/PlayerDetailModal.tsx",
+      "features/home/lib/reportDelta.ts",
       "lib/aiReadDecision.ts",
+      "../../shared/aiEvidenceEngine.ts",
     ]);
 
     expect(source).toContain("Confidence limited by");
     expect(source).toContain("Limited ·");
+    expect(source).toContain("Confidence limited to");
+    expect(source).toContain("limited more strongly");
+    expect(source).toContain("Do not act yet:");
+    expect(source).toContain("Verify first:");
     expect(source).not.toContain("Confidence capped by");
+    expect(source).not.toContain("Confidence cap:");
+    expect(source).not.toContain("Blocked:");
+    expect(source).not.toContain("Missing:");
+    expect(source).not.toContain("Guardrail:");
     expect(source).not.toContain("Capped ·");
+    expect(source).not.toContain("capped harder");
   });
 
   it("keeps exact Do this copy limited to reviewed action-owned component panels", () => {

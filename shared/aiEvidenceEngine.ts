@@ -658,7 +658,7 @@ function applyLeagueContextModifiers(input: AIEvidenceInput, context: AIEvidence
 
   if ((position === "K" || position === "DEF") && isPickupLike && hasKnownStarterSlots(context) && !leagueStartsPosition(context, position)) {
     penalties.push({
-      label: `This league does not start ${position}, so pickup advice is capped`,
+      label: `This league does not start ${position}, so pickup advice is limited`,
       points: 30,
     });
   }
@@ -768,19 +768,19 @@ function getWhyThisFired(result: {
   softPenalties: AIEvidencePenalty[];
 }): string {
   if (result.hardBlockers.length) {
-    return `Blocked: ${result.hardBlockers.slice(0, 2).join(" ")}`;
+    return `Do not act yet: ${result.hardBlockers.slice(0, 2).join(" ")}`;
   }
 
   if (!result.evidence.length) {
     const missing = result.missingEvidence.slice(0, 2).join(" ");
     return missing
-      ? `Insufficient evidence: ${missing}`
-      : "Insufficient evidence: no usable signal was supplied.";
+      ? `Verify first: ${missing}`
+      : "Verify first: no usable signal was supplied.";
   }
 
   const evidence = result.evidence.slice(0, 3).join(" ");
   const penalty = result.softPenalties[0]?.label;
-  return penalty ? `${evidence} Guardrail: ${penalty}.` : evidence;
+  return penalty ? `${evidence} Check: ${penalty}.` : evidence;
 }
 
 export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
@@ -833,7 +833,7 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
   ) {
     missingEvidence.push("No league trade or manager-history sample returned.");
     softPenalties.push({
-      label: "Missing trade/manager history caps trade-action confidence",
+      label: "Missing trade/manager history limits trade-action confidence",
       points: 8,
     });
     const capped = applyCap(
@@ -931,7 +931,7 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
   if ((input.action === "start" || input.action === "sit") && !hasStartSitProjectionProof) {
     missingEvidence.push("No projection or matchup proof returned for this start/sit read.");
     softPenalties.push({
-      label: "Missing projection or matchup proof caps start/sit confidence",
+      label: "Missing projection or matchup proof limits start/sit confidence",
       points: 10,
     });
     const capped = applyCap(
@@ -963,7 +963,7 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
   if (input.player && needsDynastyMarketEvidence && !hasDynastySignal) {
     missingEvidence.push("No dynasty or market evidence returned for this dynasty action read.");
     softPenalties.push({
-      label: "Missing dynasty/market evidence caps dynasty action confidence",
+      label: "Missing dynasty/market evidence limits dynasty action confidence",
       points: 10,
     });
     const capped = applyCap(
@@ -984,7 +984,7 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
   ) {
     missingEvidence.push("Only one player source returned for this action read.");
     softPenalties.push({
-      label: "Thin player source count caps action confidence",
+      label: "Thin player source count limits action confidence",
       points: 8,
     });
     const capped = applyCap(
@@ -1003,7 +1003,7 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
   if (input.player && sourceCount <= 0 && !explicitSourceTrace.length && input.action !== "hold") {
     missingEvidence.push("No player source trace returned for this read.");
     softPenalties.push({
-      label: "Missing player source trace caps action confidence",
+      label: "Missing player source trace limits action confidence",
       points: 10,
     });
     const capped = applyCap(
@@ -1021,9 +1021,9 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
   }
 
   if ((position === "K" || position === "DEF" || input.action === "stream") && !schedule.hasScheduleData) {
-    missingEvidence.push(schedule.missingReason || "Missing schedule data caps streamer, kicker, and D/ST confidence.");
+    missingEvidence.push(schedule.missingReason || "Missing schedule data limits streamer, kicker, and D/ST confidence.");
     softPenalties.push({
-      label: "Missing schedule data caps streamer/K/DST confidence",
+      label: "Missing schedule data limits streamer/K/DST confidence",
       points: 18,
     });
     const capped = applyCap(
@@ -1129,7 +1129,7 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
     ) {
       missingEvidence.push("Too few resolved outcomes returned for this action read's calibration bucket.");
       softPenalties.push({
-        label: "Insufficient resolved outcomes cap action confidence",
+        label: "Insufficient resolved outcomes limit action confidence",
         points: 6,
       });
       const capped = applyCap(
@@ -1188,11 +1188,11 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
 export function getAIEvidenceReceiptItems(result: AIEvidenceResult): string[] {
   return uniqueTexts([
     ...result.evidence,
-    ...result.hardBlockers.map(item => `Blocked: ${item}`),
-    ...result.softPenalties.map(item => `Guardrail: ${item.label}`),
-    ...result.missingEvidence.map(item => `Missing: ${item}`),
+    ...result.hardBlockers.map(item => `Do not act yet: ${item}`),
+    ...result.softPenalties.map(item => `Check: ${item.label}`),
+    ...result.missingEvidence.map(item => `Verify first: ${item}`),
     result.confidenceCapReason
-      ? `Confidence cap: ${result.confidenceCap}% from ${result.confidenceCapReason}`
+      ? `Confidence limited to ${result.confidenceCap}% because ${result.confidenceCapReason}`
       : null,
     result.calibrationAdjustment
       ? `Calibration memory: ${result.calibrationAdjustment.reason}`

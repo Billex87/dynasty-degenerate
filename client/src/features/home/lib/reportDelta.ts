@@ -427,7 +427,7 @@ export function buildReportDeltaChanges(
       detail:
         delta > 0
           ? "More source evidence is supporting the current read."
-          : "The current read is capped harder than the previous baseline.",
+          : "The current read is limited more strongly than the previous baseline.",
       tone: delta > 0 ? "good" : "warn",
       receipts: [
         `Previous: ${previous.aiConfidence}`,
