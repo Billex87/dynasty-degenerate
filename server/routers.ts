@@ -1451,6 +1451,7 @@ function toSleeperLeagueOption(
 type SleeperLeagueOption = NonNullable<ReturnType<typeof toSleeperLeagueOption>>;
 
 const INVALID_LEAGUE_ID_TTL_MS = 10 * 60 * 1000;
+const INVALID_LEAGUE_ID_CACHE_MAX_ENTRIES = 1000;
 const invalidLeagueIdCache = new Map<string, { fetchedAt: number }>();
 
 function isInvalidLeagueIdCached(leagueId: string): boolean {
@@ -1468,10 +1469,26 @@ function isInvalidLeagueIdCached(leagueId: string): boolean {
   return true;
 }
 
+function pruneInvalidLeagueIdCache(now = Date.now()) {
+  for (const [leagueId, cached] of Array.from(invalidLeagueIdCache.entries())) {
+    if (now - cached.fetchedAt > INVALID_LEAGUE_ID_TTL_MS) {
+      invalidLeagueIdCache.delete(leagueId);
+    }
+  }
+
+  while (invalidLeagueIdCache.size >= INVALID_LEAGUE_ID_CACHE_MAX_ENTRIES) {
+    const oldestLeagueId = Array.from(invalidLeagueIdCache.entries())
+      .sort((a, b) => a[1].fetchedAt - b[1].fetchedAt)[0]?.[0];
+    if (!oldestLeagueId) break;
+    invalidLeagueIdCache.delete(oldestLeagueId);
+  }
+}
+
 function markInvalidLeagueId(leagueId: string): void {
   const validLeagueId = getValidSleeperEntityId(leagueId);
   if (!validLeagueId) return;
 
+  pruneInvalidLeagueIdCache();
   invalidLeagueIdCache.set(validLeagueId, { fetchedAt: Date.now() });
 }
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };

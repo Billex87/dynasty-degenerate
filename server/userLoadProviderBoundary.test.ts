@@ -96,6 +96,16 @@ describe("user-load provider boundary", () => {
     expect(writeCacheSource).not.toContain("leagueReportMemoryCache.set(");
   });
 
+  it("bounds invalid league-id cache writes before recording misses", () => {
+    const markInvalidSource = extractSource("function markInvalidLeagueId", "\ntype KtcValueProfileCandidate");
+    const pruneIndex = markInvalidSource.indexOf("pruneInvalidLeagueIdCache()");
+    const insertIndex = markInvalidSource.indexOf("invalidLeagueIdCache.set(validLeagueId");
+
+    expect(routersSource).toContain("const INVALID_LEAGUE_ID_CACHE_MAX_ENTRIES = 1000");
+    expect(pruneIndex).toBeGreaterThan(0);
+    expect(insertIndex).toBeGreaterThan(pruneIndex);
+  });
+
   it("keeps Sleeper username lookup provider calls behind the route limiter", () => {
     const getUserLeaguesSource = extractSource("getUserLeagues: publicProcedure", "\n    getUserLeagueRanks: publicProcedure");
     const rateLimitIndex = getUserLeaguesSource.indexOf("assertRateLimit(ctx.req as any");
