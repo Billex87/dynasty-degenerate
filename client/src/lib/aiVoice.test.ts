@@ -69,4 +69,40 @@ describe("aiVoice", () => {
       countLabel: "2 bench reads",
     });
   });
+
+  it("does not upgrade softened go-tone support reads into direct action copy", () => {
+    const decision = getVoicedAIReadDecision(
+      {
+        label: "Review this",
+        detail: "Schedule source cleared, but this is still a support receipt.",
+        tone: "go",
+        status: "priority · 82%",
+      },
+      "degen"
+    );
+
+    expect(decision).toMatchObject({
+      label: "Review this",
+      status: "priority · 82%",
+      detail: "Schedule source cleared, but this is still a support receipt.",
+    });
+    expect(JSON.stringify(decision)).not.toContain("Do this");
+    expect(JSON.stringify(decision)).not.toContain("Green light");
+  });
+
+  it("still voices explicit direct-action reads", () => {
+    const decision = getVoicedAIReadDecision(
+      {
+        label: "Do this",
+        detail: "A concrete action is attached and the evidence cleared.",
+        tone: "go",
+        status: "Actionable · 86%",
+      },
+      "roast"
+    );
+
+    expect(decision.label).toBe("Do this. Don't overthink it.");
+    expect(decision.status).toBe("Green light · 86%");
+    expect(decision.detail).toContain("Try not to galaxy-brain");
+  });
 });

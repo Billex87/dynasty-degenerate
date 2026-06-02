@@ -97,12 +97,24 @@ function statusWithPrefix(status: string | undefined, prefix: string) {
   return `${prefix} · ${clean.split("·").slice(1).join("·").trim()}`;
 }
 
+function isDirectGoActionLabel(label: string | undefined): boolean {
+  const clean = cleanText(label).toLowerCase();
+  return (
+    clean === "do this" ||
+    clean.startsWith("do this.") ||
+    clean.startsWith("do this ") ||
+    clean === "action cleared" ||
+    clean === "green light"
+  );
+}
+
 function getDecisionLabel(
   tone: AIReadDecisionTone,
   mode: AIVoiceMode,
   fallback: string
 ) {
   if (mode === "straight") return fallback;
+  if (tone === "go" && !isDirectGoActionLabel(fallback)) return fallback;
 
   if (mode === "roast") {
     if (tone === "go") return "Do this. Don't overthink it.";
@@ -120,9 +132,13 @@ function getDecisionLabel(
 function getDecisionStatus(
   tone: AIReadDecisionTone,
   mode: AIVoiceMode,
-  status?: string
+  status?: string,
+  fallbackLabel?: string
 ) {
   if (mode === "straight") return cleanText(status) || "Decision";
+  if (tone === "go" && !isDirectGoActionLabel(fallbackLabel)) {
+    return cleanText(status) || "Decision";
+  }
 
   if (tone === "go") return statusWithPrefix(status, "Green light");
   if (tone === "stop") return statusWithPrefix(status, "Blocked");
@@ -130,8 +146,9 @@ function getDecisionStatus(
   return statusWithPrefix(status, "Wait for it");
 }
 
-function getDecisionQuip(tone: AIReadDecisionTone, mode: AIVoiceMode) {
+function getDecisionQuip(tone: AIReadDecisionTone, mode: AIVoiceMode, fallbackLabel?: string) {
   if (mode === "straight") return "";
+  if (tone === "go" && !isDirectGoActionLabel(fallbackLabel)) return "";
   if (mode === "roast") {
     if (tone === "go") return "Try not to galaxy-brain the obvious answer.";
     if (tone === "stop") {
@@ -152,11 +169,11 @@ export function getVoicedAIReadDecision(
   mode: AIVoiceMode = getAIVoiceMode()
 ): AIReadDecision {
   const tone = decision.tone || "watch";
-  const quip = getDecisionQuip(tone, mode);
+  const quip = getDecisionQuip(tone, mode, decision.label);
   return {
     ...decision,
     label: getDecisionLabel(tone, mode, decision.label),
-    status: getDecisionStatus(tone, mode, decision.status),
+    status: getDecisionStatus(tone, mode, decision.status, decision.label),
     detail: quip ? appendQuip(decision.detail, quip, mode) : decision.detail,
   };
 }
