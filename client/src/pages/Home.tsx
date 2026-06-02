@@ -13,9 +13,11 @@ import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLa
 import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsContainer";
 import { HomeReportExperience } from "@/features/home/components/HomeReportExperience";
 import { useHomeAdminAccess } from "@/features/home/hooks/useHomeAdminAccess";
+import { useHomeAdminLogin } from "@/features/home/hooks/useHomeAdminLogin";
 import { useHomeAnalysisLoading } from "@/features/home/hooks/useHomeAnalysisLoading";
 import { useHomeAIVoiceMode } from "@/features/home/hooks/useHomeAIVoiceMode";
 import { useHomeAIPredictionTelemetry } from "@/features/home/hooks/useHomeAIPredictionTelemetry";
+import { useHomeCachedReportActions } from "@/features/home/hooks/useHomeCachedReportActions";
 import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeout";
 import { useHomeLeagueHistoryActions } from "@/features/home/hooks/useHomeLeagueHistoryActions";
 import { useHomeLeagueIntelRanks } from "@/features/home/hooks/useHomeLeagueIntelRanks";
@@ -51,10 +53,7 @@ import {
 } from "@/features/home/lib/inputHelpers";
 import {
   readAdminPassphraseVerifiedForSession,
-  rememberAdminPassphraseVerifiedForSession,
   ReportAnalysisMode,
-  ReportLoadCacheStatus,
-  ReportLoadSource,
 } from "@/features/home/lib/adminSessionState";
 import {
   buildHomeReportTabState,
@@ -74,7 +73,6 @@ import {
   hasDraftReportData,
   isFreshTimestamp,
   isUsableCachedReport,
-  normalizeCachedReportLeagueIdentity,
   normalizeReportLeagueId,
   getReportDataLeagueId,
   readBrowserReportCache,
@@ -104,7 +102,6 @@ import {
   getBestDraftSignalManager,
   getWorstDraftAdpValueManager,
 } from "@/lib/draftDashboardMetrics";
-import { sanitizeCachedReport } from "@/lib/reportCacheSanitizer";
 import type { ReportData } from "@shared/types";
 
 // Cached reports render immediately, then refresh volatile Sleeper activity in the background.
@@ -130,7 +127,6 @@ export default function Home() {
     refetchOnWindowFocus: false,
     staleTime: 1000 * 60 * 5,
   });
-  const utils = trpc.useUtils();
   const [leagueId, setLeagueId] = useState("");
   const [sleeperUsername, setSleeperUsername] = useState("");
   const [leagueIdHistory, setLeagueIdHistory] = useState<string[]>(() =>
@@ -237,20 +233,18 @@ export default function Home() {
     reportLoadStartedAtRef,
     analyzeRequestStartedAtRef,
   });
-  const adminLoginMutation = trpc.auth.adminLogin.useMutation({
-    onSuccess: async () => {
-      rememberAdminPassphraseVerifiedForSession();
-      setIsAdminPassphraseVerifiedForSession(true);
-      setAdminPassphrase("");
-      setIsAdminAccessModalOpen(false);
-      setAdminViewMode("admin");
-      setAdminViewerManager(null);
-      await utils.auth.me.invalidate();
-      toast.success("Admin session unlocked.");
-    },
-    onError: loginError => {
-      toast.error(loginError.message);
-    },
+  const {
+    handleAdminAccessOpenChange,
+    handleAdminStayRegularView,
+    handleAdminSubmit,
+    isAdminLoginPending,
+  } = useHomeAdminLogin({
+    adminPassphrase,
+    setAdminPassphrase,
+    setAdminViewMode,
+    setAdminViewerManager,
+    setIsAdminAccessModalOpen,
+    setIsAdminPassphraseVerifiedForSession,
   });
 
   const { beginAnalysisLoading } = useHomeAnalysisLoading({
@@ -457,79 +451,34 @@ export default function Home() {
     []
   );
 
-  const applyCachedReport = (
-    cachedReport: CachedReport,
-    nextActiveTab?: string | null
-  ) => {
-    const sanitizedReport = normalizeCachedReportLeagueIdentity(
-      sanitizeCachedReport(cachedReport)
-    );
-    if (!isUsableCachedReport(sanitizedReport, sanitizedReport.leagueId)) {
-      clearBrowserReportCache(sanitizedReport.leagueId);
-      return;
-    }
-    const tab = nextActiveTab || sanitizedReport.activeTab || "overview";
-    setLeagueId(sanitizedReport.leagueId);
-    setLeagueName(sanitizedReport.leagueName);
-    setLeagueLogo(sanitizedReport.leagueLogo);
-    setLeagueFormat(sanitizedReport.leagueFormat);
-    setActiveTab(tab);
-    setReportDataCacheVersion(sanitizedReport.cacheVersion || REPORT_CACHE_DATA_VERSION);
-    setReportData(sanitizedReport.reportData);
-    setAnalysisCompleteMessage(null);
-    setAnalysisErrorMessage(null);
-    setPendingAnalysisLeague(null);
-    setLoadingTransitionPhase("done");
-    setIsLoading(false);
-    updateReportTabUrl(tab, sanitizedReport.leagueId);
-    setLeagueIdHistory(
-      rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, sanitizedReport.leagueId)
-    );
-  };
-
-  const refreshReportInBackground = (
-    nextLeagueId: string,
-    nextViewerUserId?: string | null
-  ) => {
-    const normalizedLeagueId = nextLeagueId.trim();
-    if (!normalizedLeagueId) return;
-    const lastRefreshAt = lastBackgroundRefreshAtRef.current[normalizedLeagueId] || 0;
-    if (Date.now() - lastRefreshAt < REPORT_CACHE_PREFETCH_DEBOUNCE_MS) return;
-    lastBackgroundRefreshAtRef.current[normalizedLeagueId] = Date.now();
-    analysisModeRef.current = "background";
-    backgroundRefreshLeagueIdRef.current = normalizedLeagueId;
-    activeAnalysisLeagueIdRef.current = normalizedLeagueId;
-    setIsReportRefreshing(true);
-    analyzeMutation.mutate({
-      leagueId: normalizedLeagueId,
-      viewerUserId: getValidSleeperUserId(nextViewerUserId) || undefined,
-    });
-  };
-
-  const restoreFreshCachedReportForLeague = async (
-    nextLeagueId: string,
-    nextActiveTab?: string | null,
-    nextViewerUserId?: string | null
-  ) => {
-    const cachedReport = await readBrowserReportCache(nextLeagueId);
-    if (!cachedReport || !isUsableCachedReport(cachedReport, nextLeagueId)) {
-      return false;
-    }
-    applyCachedReport(cachedReport, nextActiveTab);
-    queueReportVisibleTelemetry({
-      leagueId: cachedReport.leagueId,
-      leagueName: cachedReport.leagueName,
-      activeTab: nextActiveTab || cachedReport.activeTab || "overview",
-      source: "browser-cache",
-      cacheStatus: "browser",
-      requestMs: null,
-      payloadVersion: cachedReport.cacheVersion || REPORT_CACHE_DATA_VERSION,
-    });
-    if (shouldBackgroundRefreshCachedReport(cachedReport)) {
-      refreshReportInBackground(cachedReport.leagueId, nextViewerUserId);
-    }
-    return true;
-  };
+  const {
+    applyCachedReport,
+    refreshReportInBackground,
+    restoreFreshCachedReportForLeague,
+  } = useHomeCachedReportActions({
+    activeAnalysisLeagueIdRef,
+    analysisModeRef,
+    backgroundRefreshLeagueIdRef,
+    lastBackgroundRefreshAtRef,
+    leagueIdHistoryKey: LEAGUE_ID_HISTORY_KEY,
+    prefetchDebounceMs: REPORT_CACHE_PREFETCH_DEBOUNCE_MS,
+    queueReportVisibleTelemetry,
+    onAnalyzeReport: variables => analyzeMutation.mutate(variables),
+    setActiveTab,
+    setAnalysisCompleteMessage,
+    setAnalysisErrorMessage,
+    setIsLoading,
+    setIsReportRefreshing,
+    setLeagueFormat,
+    setLeagueId,
+    setLeagueIdHistory,
+    setLeagueLogo,
+    setLeagueName,
+    setLoadingTransitionPhase,
+    setPendingAnalysisLeague,
+    setReportData,
+    setReportDataCacheVersion,
+  });
 
   useEffect(() => {
     if (!reportData) return;
@@ -1049,20 +998,11 @@ export default function Home() {
       onClownDismiss={handleClownDismiss}
       isAdminAccessModalOpen={isAdminAccessModalOpen}
       adminPassphrase={adminPassphrase}
-      isAdminLoginPending={adminLoginMutation.isPending}
-      onAdminAccessOpenChange={open => {
-        if (open) return;
-        setIsAdminAccessModalOpen(false);
-        setAdminPassphrase("");
-      }}
+      isAdminLoginPending={isAdminLoginPending}
+      onAdminAccessOpenChange={handleAdminAccessOpenChange}
       onAdminPassphraseChange={setAdminPassphrase}
-      onAdminSubmit={() =>
-        adminLoginMutation.mutate({ passphrase: adminPassphrase })
-      }
-      onAdminStayRegularView={() => {
-        setIsAdminAccessModalOpen(false);
-        setAdminPassphrase("");
-      }}
+      onAdminSubmit={handleAdminSubmit}
+      onAdminStayRegularView={handleAdminStayRegularView}
       hasAuthenticatedAdminPermissions={hasAuthenticatedAdminPermissions}
       isAdminUnlockModalOpen={isAdminUnlockModalOpen}
       onAdminUnlockDismiss={handleAdminUnlockModalDismiss}
