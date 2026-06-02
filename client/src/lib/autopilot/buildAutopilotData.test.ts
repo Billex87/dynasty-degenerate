@@ -154,6 +154,7 @@ describe('buildAutopilotData', () => {
       expect(item.expectedAction?.type).toBeTruthy();
       expect(item.expectedAction?.type).not.toBe('hold');
       expect(item.expectedAction?.type).not.toBe('unknown');
+      expect(item.missingEvidence, item.id).toHaveLength(0);
       expect(item.missingEvidence.join(' ')).not.toMatch(/precondition|concrete expected action/i);
       expect(item.sourceHealth.length, item.id).toBeGreaterThan(0);
       expect(item.sourceHealth.join(' '), item.id).toMatch(/loaded|current|fresh|source|roster|lineup|transaction|league|evidence/i);
@@ -299,6 +300,89 @@ describe('buildAutopilotData', () => {
     });
     expect(JSON.stringify(data.actionQueue)).not.toContain('repeat-add-support');
     expect(JSON.stringify(data.actionQueue)).not.toContain('Second Drop Player');
+  });
+
+  it('does not promote reads that still carry missing evidence', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const playerIn = {
+      id: 'missing-proof-add',
+      name: 'Missing Proof Add',
+      position: 'WR',
+      team: 'CHI',
+    };
+    const playerOut = {
+      id: 'missing-proof-drop',
+      name: 'Missing Proof Drop',
+      position: 'RB',
+      team: 'CAR',
+    };
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [],
+      waivers: [{
+        id: 'missing-proof-waiver',
+        type: 'Waiver',
+        player: 'Missing Proof Add',
+        action: 'Queue-backed pickup',
+        confidence: 92,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture incorrectly marks canAct true while missing proof remains.',
+        reasons: ['Malformed evidence should not become a direct action.'],
+        signals: ['Waiver proof'],
+        evidenceRead: {
+          evidence: ['Roster shape is loaded.'],
+          missingEvidence: ['Live availability has not been verified.'],
+          hardBlockers: [],
+          softPenalties: [],
+          confidenceCap: 100,
+          confidenceCapReason: null,
+          sourceTrace: [{ label: 'Waiver context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+          rawScore: 92,
+          finalScore: 92,
+          label: 'high conviction',
+          shouldRender: true,
+          canAct: true,
+          whyThisFired: 'Waiver context is loaded but evidence is incomplete.',
+        } as any,
+        expectedAction: {
+          type: 'add_player',
+          playerIn,
+          playerOut,
+          playersInvolved: [playerIn, playerOut],
+          expectedRosterChange: 'Add Missing Proof Add and drop Missing Proof Drop.',
+          source: 'autopilot',
+          reason: 'Malformed missing-evidence fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      trades: [],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const waiverQueueItem = data.actionQueue.find((item) => item.id.includes('missing-proof-waiver'));
+    expect(waiverQueueItem).toMatchObject({
+      source: 'waiver',
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'add_player',
+      },
+    });
+    expect(waiverQueueItem?.missingEvidence.join(' ')).toContain('still has missing evidence');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
   it('does not treat reason-only trade expected actions as concrete queue moves', () => {

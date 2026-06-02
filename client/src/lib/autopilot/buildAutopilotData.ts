@@ -1795,6 +1795,11 @@ function getActionPreconditionGap(
     return `${sourceLabel} read has not cleared current roster, lineup, transaction, source-health, and league-format preconditions.`;
   }
 
+  const missingEvidence = recommendation.evidenceRead?.missingEvidence?.find((reason) => String(reason || '').trim());
+  if (missingEvidence) {
+    return `${sourceLabel} read still has missing evidence: ${missingEvidence}`;
+  }
+
   return null;
 }
 
