@@ -1597,7 +1597,7 @@ function getActionPreconditionGap(
   const sourceLabel = getQueueSourceLabel(source);
   const action = recommendation.expectedAction;
   if (!action || action.type === 'unknown') {
-    return `${sourceLabel} read has no concrete expected action attached, so it cannot render as Do this now.`;
+    return `${sourceLabel} read has no concrete expected action attached, so it cannot enter the primary action queue.`;
   }
 
   const identityGap = getExpectedActionIdentityGap(action);
