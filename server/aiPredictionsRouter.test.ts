@@ -159,7 +159,7 @@ describe("aiPredictions router", () => {
     });
   });
 
-  it("keeps prediction write mutations behind route-level rate limits", () => {
+  it("keeps prediction history routes behind route-level rate limits", () => {
     const source = fs.readFileSync(path.join(process.cwd(), "server/routers.ts"), "utf8");
     const routeStart = source.indexOf("aiPredictions: router({");
     const routeEnd = source.indexOf("\n\n  league: router({", routeStart);
@@ -167,6 +167,7 @@ describe("aiPredictions router", () => {
 
     expect(routeSource).toContain("assertRateLimit(ctx.req as any");
     expect(routeSource).toContain('id: "aiPredictions.upsertMany"');
+    expect(routeSource).toContain('id: "aiPredictions.list"');
     expect(routeSource).toContain('id: "aiPredictions.updateOutcome"');
     expect(routeSource).toContain("scope: userKey");
   });

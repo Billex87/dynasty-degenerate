@@ -6787,8 +6787,16 @@ export const appRouter = router({
         limit: z.number().int().min(1).max(200).optional(),
       }).optional())
       .query(async ({ input, ctx }) => {
+        const userKey = getActionPlanUserKey(ctx.user);
+        assertRateLimit(ctx.req as any, {
+          id: "aiPredictions.list",
+          max: 60,
+          windowMs: 1000 * 60 * 10,
+          scope: userKey,
+          message: "Too many AI prediction history requests. Please wait a few minutes and try again.",
+        });
         const events = await listAiPredictionEvents({
-          userKey: getActionPlanUserKey(ctx.user),
+          userKey,
           leagueId: input?.leagueId || null,
           limit: input?.limit || 100,
         });
