@@ -7168,6 +7168,7 @@ export const appRouter = router({
         leagueIds: z.array(sleeperLeagueIdSchema).max(10),
       }))
       .mutation(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
         assertRateLimit(ctx.req as any, {
           id: 'league.getUserLeagueRanks',
           max: 15,

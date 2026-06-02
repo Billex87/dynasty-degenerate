@@ -231,8 +231,9 @@ describe("user-load provider boundary", () => {
     expect(seasonLogSource).toContain("id: 'players.seasonGameLog'");
   });
 
-  it("keeps user league-rank fanout bounded and rate-limited", () => {
+  it("keeps user league-rank fanout behind report access, bounded, and rate-limited", () => {
     const leagueRanksSource = extractSource("getUserLeagueRanks: publicProcedure", "\n    importSleeperTradeCenter: publicProcedure");
+    const accessIndex = leagueRanksSource.indexOf("assertReportAccess(ctx)");
     const rateLimitIndex = leagueRanksSource.indexOf("assertRateLimit(ctx.req as any");
     const playerIndexFetch = leagueRanksSource.indexOf("fetchSleeperPlayersIndex()");
     const leagueFetchIndex = leagueRanksSource.indexOf("fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`)");
@@ -242,7 +243,8 @@ describe("user-load provider boundary", () => {
     expect(routersSource).toContain("const LEAGUE_RANK_FANOUT_CONCURRENCY = 3");
     expect(leagueRanksSource).toContain("mapWithConcurrencyLimit(leagueIds, LEAGUE_RANK_FANOUT_CONCURRENCY");
     expect(leagueRanksSource).not.toContain("Promise.all(leagueIds.map");
-    expect(rateLimitIndex).toBeGreaterThan(0);
+    expect(accessIndex).toBeGreaterThan(0);
+    expect(rateLimitIndex).toBeGreaterThan(accessIndex);
     expect(playerIndexFetch).toBeGreaterThan(rateLimitIndex);
     expect(leagueFetchIndex).toBeGreaterThan(rateLimitIndex);
     expect(rostersFetchIndex).toBeGreaterThan(rateLimitIndex);
