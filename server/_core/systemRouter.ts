@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { adminProcedure, publicProcedure, router } from "./trpc";
+import type { TrpcContext } from "./context";
 import {
   getAdminBillingOverview,
   getLoginAttemptsSince,
@@ -26,6 +28,78 @@ import {
 import { resolvePendingAIPredictionOutcomes } from "../aiPredictionOutcomeJob";
 
 const SNAPSHOT_TIME_ZONE = 'America/Vancouver';
+const SYSTEM_ADMIN_RATE_LIMIT_BUCKET_MAX_ENTRIES = 1000;
+const SYSTEM_ADMIN_RATE_LIMIT_WINDOW_MS = 1000 * 60 * 10;
+const systemAdminRateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
+
+type SystemAdminRateLimitContext = {
+  req: TrpcContext["req"];
+  user: NonNullable<TrpcContext["user"]>;
+};
+
+function getHeaderValue(headers: Record<string, any> | undefined, key: string): string | null {
+  const value = headers?.[key];
+  if (Array.isArray(value)) return value.find((item) => typeof item === 'string' && item.trim())?.trim() || null;
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function getSystemClientIp(req: { headers?: Record<string, any>; socket?: { remoteAddress?: string | null } }): string {
+  const forwardedFor = req.headers?.["x-forwarded-for"];
+  const raw = Array.isArray(forwardedFor)
+    ? forwardedFor[0]
+    : typeof forwardedFor === "string" && forwardedFor.length > 0
+      ? forwardedFor.split(",")[0]
+      : getHeaderValue(req.headers, "x-vercel-forwarded-for")
+        || getHeaderValue(req.headers, "cf-connecting-ip")
+        || getHeaderValue(req.headers, "x-real-ip")
+        || req.socket?.remoteAddress
+        || "unknown";
+
+  return String(raw).trim().replace(/^::ffff:/, "") || "unknown";
+}
+
+function pruneSystemAdminRateLimitBuckets(now: number, reserveKey: string) {
+  for (const [key, bucket] of Array.from(systemAdminRateLimitBuckets.entries())) {
+    if (bucket.resetAt <= now) systemAdminRateLimitBuckets.delete(key);
+  }
+
+  while (systemAdminRateLimitBuckets.size >= SYSTEM_ADMIN_RATE_LIMIT_BUCKET_MAX_ENTRIES) {
+    const oldestKey = Array.from(systemAdminRateLimitBuckets.entries())
+      .filter(([key]) => key !== reserveKey)
+      .sort((a, b) => a[1].resetAt - b[1].resetAt)[0]?.[0];
+    if (!oldestKey) break;
+    systemAdminRateLimitBuckets.delete(oldestKey);
+  }
+}
+
+function assertSystemAdminDiagnosticsRateLimit(ctx: SystemAdminRateLimitContext, id: string) {
+  if (process.env.NODE_ENV === "test") return;
+
+  const now = Date.now();
+  const clientId = getSystemClientIp({
+    headers: ctx.req.headers,
+    socket: ctx.req.socket,
+  });
+  const scope = ctx.user.openId || String(ctx.user.id);
+  const key = [id, clientId, scope].join(":");
+  pruneSystemAdminRateLimitBuckets(now, key);
+  const existing = systemAdminRateLimitBuckets.get(key);
+  const bucket = existing && existing.resetAt > now
+    ? existing
+    : { count: 0, resetAt: now + SYSTEM_ADMIN_RATE_LIMIT_WINDOW_MS };
+
+  bucket.count += 1;
+  systemAdminRateLimitBuckets.set(key, bucket);
+
+  if (bucket.count > 30) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+    console.warn(`[SystemRateLimit] ${id} blocked for ${clientId}; retry after ${retryAfterSeconds}s`);
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: "Too many admin diagnostic requests. Please wait a few minutes and try again.",
+    });
+  }
+}
 
 function shiftDateByDays(date: Date, days: number): Date {
   const next = new Date(date);
@@ -197,7 +271,8 @@ export const systemRouter = router({
         lookbackDays: z.number().int().min(1).max(90).default(14),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      assertSystemAdminDiagnosticsRateLimit(ctx, "system.snapshotCoverage");
       const { start, end } = getSnapshotStatusRange(input.lookbackDays);
       const expectedDateKeys = buildExpectedDateKeys(start, end);
       const storedDateKeys = Array.from(new Set([
@@ -237,7 +312,8 @@ export const systemRouter = router({
         lookbackDays: z.number().int().min(1).max(30).default(7),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      assertSystemAdminDiagnosticsRateLimit(ctx, "system.abuseTelemetry");
       const since = new Date(Date.now() - input.lookbackDays * 24 * 60 * 60 * 1000);
       const attempts = await getLoginAttemptsSince(since);
       const successfulAnalyzeEvents = attempts.filter((attempt) => attempt.eventType === 'analyze_league' && attempt.status === 'success');
@@ -294,7 +370,8 @@ export const systemRouter = router({
         lookbackDays: z.number().int().min(1).max(30).default(7),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      assertSystemAdminDiagnosticsRateLimit(ctx, "system.sourceHealth");
       const since = new Date(Date.now() - input.lookbackDays * 24 * 60 * 60 * 1000);
       const events = await listSourceHealthEventsSince(since, 100);
       const dangerEvents = events.filter((event) => event.level === 'danger');
@@ -333,7 +410,8 @@ export const systemRouter = router({
         lookbackDays: z.number().int().min(1).max(365).default(30),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      assertSystemAdminDiagnosticsRateLimit(ctx, "system.billingOverview");
       const usageSince = new Date(Date.now() - input.lookbackDays * 24 * 60 * 60 * 1000);
       const overview = await getAdminBillingOverview({
         usageSince,
@@ -357,7 +435,8 @@ export const systemRouter = router({
         devyProfileKey: z.string().min(1).max(80).optional().nullable(),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      assertSystemAdminDiagnosticsRateLimit(ctx, "system.sourceCoverageMatrix");
       const previousSeason = String(Number(input.currentSeason) - 1);
       const since = new Date(Date.now() - input.lookbackDays * 24 * 60 * 60 * 1000);
       const [freshnessDiagnostics, healthEvents] = await Promise.all([
@@ -388,10 +467,13 @@ export const systemRouter = router({
         limit: z.number().int().min(1).max(25).default(10),
       })
     )
-    .query(({ input }) => getApiProviderTelemetrySnapshot({
-      lookbackMs: input.lookbackDays * 24 * 60 * 60 * 1000,
-      limit: input.limit,
-    })),
+    .query(({ input, ctx }) => {
+      assertSystemAdminDiagnosticsRateLimit(ctx, "system.apiProviderTelemetry");
+      return getApiProviderTelemetrySnapshot({
+        lookbackMs: input.lookbackDays * 24 * 60 * 60 * 1000,
+        limit: input.limit,
+      });
+    }),
 
   aiCalibration: adminProcedure
     .input(
@@ -400,7 +482,8 @@ export const systemRouter = router({
         limit: z.number().int().min(25).max(1000).default(500),
       }).optional()
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      assertSystemAdminDiagnosticsRateLimit(ctx, "system.aiCalibration");
       const events = await listAiPredictionEvents({
         leagueId: input?.leagueId || null,
         limit: input?.limit || 500,
@@ -460,7 +543,8 @@ export const systemRouter = router({
         note: z.string().max(1000).optional().nullable(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      assertSystemAdminDiagnosticsRateLimit(ctx, "system.markAiPredictionOutcome");
       const statusNote = input.note || (
         input.status === "hit"
           ? "Manual feedback marked this AI read as worked."
@@ -502,8 +586,11 @@ export const systemRouter = router({
         limit: z.number().int().min(1).max(1000).default(200),
       }).optional()
     )
-    .mutation(({ input }) => resolvePendingAIPredictionOutcomes({
-      leagueId: input?.leagueId || null,
-      limit: input?.limit || 200,
-    })),
+    .mutation(({ input, ctx }) => {
+      assertSystemAdminDiagnosticsRateLimit(ctx, "system.resolveAiPredictionOutcomes");
+      return resolvePendingAIPredictionOutcomes({
+        leagueId: input?.leagueId || null,
+        limit: input?.limit || 200,
+      });
+    }),
 });
