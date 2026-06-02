@@ -557,7 +557,7 @@ describe("user-load provider boundary", () => {
     }
   });
 
-  it("keeps player headshot provider work bounded behind cache and rate limits", () => {
+  it("keeps player headshot reads and provider work behind rate limits", () => {
     const headshotSource = extractSource("playerHeadshot: publicProcedure", "\n  }),\n});");
     const imageCacheWriteSource = extractSourceFrom(imageProxySource, "function setCachedImage", "\n\n/**\n * Fetch a player headshot");
     const missCacheWriteSource = extractSourceFrom(imageProxySource, "function setImageMiss", "\n\nfunction setCachedImage");
@@ -570,9 +570,9 @@ describe("user-load provider boundary", () => {
     expect(headshotSource).toContain("playerId: z.string().trim().min(1).max(64)");
     expect(headshotSource).toContain("playerName: z.string().trim().max(120)");
     expect(headshotSource).toContain("position: z.string().trim().max(16)");
-    expect(cacheIndex).toBeGreaterThan(0);
-    expect(ipRateLimitIndex).toBeGreaterThan(cacheIndex);
+    expect(ipRateLimitIndex).toBeGreaterThan(0);
     expect(rateLimitIndex).toBeGreaterThan(ipRateLimitIndex);
+    expect(cacheIndex).toBeGreaterThan(rateLimitIndex);
     expect(fetchIndex).toBeGreaterThan(rateLimitIndex);
     expect(prospectIndex).toBeGreaterThan(rateLimitIndex);
     expect(headshotSource).toContain("id: 'images.playerHeadshot.ip'");

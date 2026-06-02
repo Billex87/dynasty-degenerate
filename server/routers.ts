@@ -9147,19 +9147,6 @@ export const appRouter = router({
         position: z.string().trim().max(16).optional().nullable(),
       }))
       .query(async ({ input, ctx }) => {
-        // Try to get from cache first
-        const cached = getCachedImage(input.playerId);
-        if (cached) {
-          return {
-            success: true,
-            cached: true,
-            data: cached.data.toString('base64'),
-            contentType: cached.contentType,
-            imageUrl: null,
-            source: 'sleeper' as const,
-          };
-        }
-
         assertRateLimit(ctx.req as any, {
           id: 'images.playerHeadshot.ip',
           max: 300,
@@ -9173,6 +9160,18 @@ export const appRouter = router({
           scope: input.playerId,
           message: 'Too many player image requests. Please wait a few minutes and try again.',
         });
+
+        const cached = getCachedImage(input.playerId);
+        if (cached) {
+          return {
+            success: true,
+            cached: true,
+            data: cached.data.toString('base64'),
+            contentType: cached.contentType,
+            imageUrl: null,
+            source: 'sleeper' as const,
+          };
+        }
 
         // Fetch and cache
         const imageBuffer = await fetchPlayerHeadshot(input.playerId);
