@@ -53,7 +53,7 @@ import {
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import { buildPlayerSituationDeltas } from "./playerSituationDelta";
 import { filterCompletedFuturePickPortfolios } from "../shared/pickPortfolioFilters";
-import { assertCanUseFeature, getUserBillingPlan, loadPersistedFeatureAccess } from "./featureEntitlements";
+import { assertCanUseFeature, canUseFeature, getUserBillingPlan, loadPersistedFeatureAccess } from "./featureEntitlements";
 import { buildLeaguePlayoffWeeks, buildMatchupWindowSet, getShortTermMatchupOutlook } from "../shared/matchupWindows";
 import {
   buildNflverseDraftCapitalBySleeperId,
@@ -86,6 +86,7 @@ import { deleteUserFavoriteLeague, deleteUserSleeperAccount, findBillingCustomer
 import { consumeMagicLinkToken, createMagicLinkToken, getMagicLinkUserOpenId, hashMagicLinkToken, normalizeMagicLinkRedirectPath } from "./magicLinkTokens";
 import { buildUsageEvent } from "./usageEvents";
 import { getPlanUsageLimit, type UsageLimitedFeatureKey } from "./usageLimits";
+import { sanitizeLeagueReportPayloadForPaidAccess } from "./reportAccessSanitizer";
 import { createStripeCheckoutSession, createStripeCustomerPortalSession, resolveStripeBillingAppBaseUrl, STRIPE_BILLING_PRODUCT_KEYS } from "./stripeBilling";
 import {
   assertTransactionalEmailConfiguredForProduction,
@@ -184,6 +185,52 @@ async function assertAccountSavedResourceLimit(input: {
     code: "TOO_MANY_REQUESTS",
     message: `Your ${plan} plan allows ${limit} ${input.label}.`,
   });
+}
+
+async function sanitizeAnalyzePayloadForPaidAccess(input: {
+  ctx: TrpcContext;
+  leagueId: string;
+  payload: any;
+}) {
+  if (!input.payload?.reportData) return input.payload;
+
+  if (input.ctx.user?.role === "admin") {
+    return sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+      canViewSourceTraceDetails: true,
+      canViewAiConfidenceHistory: true,
+    }).payload;
+  }
+
+  if (process.env.ENABLE_PAID_FEATURES !== "true") {
+    return sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+      canViewSourceTraceDetails: false,
+      canViewAiConfidenceHistory: false,
+    }).payload;
+  }
+
+  const persistedAccess = await loadPersistedFeatureAccess({
+    user: input.ctx.user,
+    leagueId: input.leagueId,
+  });
+  const sourceTraceAccess = canUseFeature({
+    user: input.ctx.user,
+    feature: "source-trace-details",
+    leagueId: input.leagueId,
+    paidFeaturesEnabled: true,
+    ...persistedAccess,
+  });
+  const aiConfidenceHistoryAccess = canUseFeature({
+    user: input.ctx.user,
+    feature: "ai-confidence-history",
+    leagueId: input.leagueId,
+    paidFeaturesEnabled: true,
+    ...persistedAccess,
+  });
+
+  return sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+    canViewSourceTraceDetails: sourceTraceAccess.allowed,
+    canViewAiConfidenceHistory: aiConfidenceHistoryAccess.allowed,
+  }).payload;
 }
 
 function assertSessionJwtSecretConfigured() {
@@ -7097,8 +7144,13 @@ export const appRouter = router({
                 ? "Served cached league report with requested live Sleeper activity"
                 : "Served cached league report with live Sleeper activity",
             });
+            const cachedResponsePayload = await sanitizeAnalyzePayloadForPaidAccess({
+              ctx,
+              leagueId: input.leagueId,
+              payload: cloneReportWithViewerManager(cachedReportWithLiveActivity, input.viewerUserId),
+            });
             return {
-              ...(cloneReportWithViewerManager(cachedReportWithLiveActivity, input.viewerUserId) as any),
+              ...(cachedResponsePayload as any),
               reportCacheStatus: 'hit' as const,
             };
           }
@@ -8143,8 +8195,13 @@ export const appRouter = router({
             console.warn('Failed to cache league report:', cacheError);
           }
 
+          const analyzeResponsePayload = await sanitizeAnalyzePayloadForPaidAccess({
+            ctx,
+            leagueId: input.leagueId,
+            payload: analyzePayload,
+          });
           return {
-            ...analyzePayload,
+            ...analyzeResponsePayload,
             reportCacheStatus: 'miss' as const,
           };
         } catch (error) {
