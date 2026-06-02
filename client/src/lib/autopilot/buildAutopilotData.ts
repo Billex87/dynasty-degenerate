@@ -1228,7 +1228,7 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
           : `${getPlayerName(mustStart)} is the strongest currently identified starter profile for ${manager}.`,
       reasons: dedupeStrings([
         alreadyStarter ? 'Sleeper/projected starter data already has this player in a starter slot.' : null,
-        matchup?.mustStarts?.length ? 'Matchup preview marks this as a must-start profile.' : 'Projected starter value is leading this roster read.',
+        matchup?.mustStarts?.length ? 'Matchup preview marks this as a starter-review profile.' : 'Projected starter value is leading this roster read.',
         getAutopilotPlayerRank(mustStart, mode) ? `${getAutopilotPlayerRank(mustStart, mode)} rank supports the lineup call.` : null,
         mode === 'redraft' ? 'Redraft mode prioritizes bankable weekly points over future value.' : 'Dynasty mode still respects current lineup pressure when the roster can compete.',
       ], 3),
@@ -1245,7 +1245,7 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
         playersInvolved: [toRecommendationPlayerRef(mustStart)].filter(Boolean) as RecommendationPlayerRef[],
         expectedLineupChange: `${getPlayerName(mustStart)} should be in a starting lineup slot.`,
         source: 'autopilot',
-        reason: matchup?.mustStarts?.length ? 'Matchup preview marks this as a must-start profile.' : 'Projected starter value is leading this roster read.',
+        reason: matchup?.mustStarts?.length ? 'Matchup preview marks this as a starter-review profile.' : 'Projected starter value is leading this roster read.',
       },
       tone: 'good',
     });
@@ -1411,7 +1411,7 @@ function buildWeeklyActionPlan(
     });
   };
 
-  (matchup?.mustStarts || []).slice(0, 3).forEach((player) => pushOption(player, 74, 'Matchup model marks this as a must-start.', 'good'));
+  (matchup?.mustStarts || []).slice(0, 3).forEach((player) => pushOption(player, 74, 'Matchup model marks this as a starter-review profile.', 'good'));
   if (projectionSwap) {
     pushOption(
       projectionSwap.candidate,

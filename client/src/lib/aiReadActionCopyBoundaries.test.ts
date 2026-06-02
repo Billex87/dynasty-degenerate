@@ -38,8 +38,8 @@ function findExplicitComponentDoThisLabels(): DoThisMatch[] {
   });
 }
 
-function readComponentSource(): string {
-  return listSourceFiles(path.join(SOURCE_ROOT, "components"))
+function readSourceSubtrees(subtrees: string[]): string {
+  return subtrees.flatMap((subtree) => listSourceFiles(path.join(SOURCE_ROOT, subtree)))
     .map((filePath) => fs.readFileSync(filePath, "utf8"))
     .join("\n");
 }
@@ -64,7 +64,7 @@ describe("AI read action copy boundaries", () => {
   });
 
   it("keeps matchup support labels out of must-start command copy", () => {
-    const source = readComponentSource();
+    const source = readSourceSubtrees(["components", "lib/autopilot"]);
 
     expect(source).not.toMatch(/\bMust start\b/i);
     expect(source).not.toMatch(/\bmust-start\b/i);
