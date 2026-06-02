@@ -320,7 +320,7 @@ function AdminAICalibrationPanel({
         <div className="admin-outcome-memory-head">
           <div>
             <span>Outcome Memory 2.0</span>
-            <strong>Every AI call gets graded or stays capped.</strong>
+            <strong>Every AI call gets graded or stays confidence-limited.</strong>
             <p>
               Ledger, confidence buckets, module scorecards, sharpness buckets,
               and auto-adjustment recommendations from stored prediction events.
