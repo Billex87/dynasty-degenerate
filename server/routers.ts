@@ -1498,6 +1498,7 @@ const MONTHLY_BLUEPRINT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'mon
 const leagueReportMemoryCache = new Map<string, { loadedAt: number; payload: unknown }>();
 const ktcValueProfileLookupCache = new WeakMap<KTCValues, Map<string, KtcValueProfileCandidate>>();
 const LIVE_SLEEPER_ACTIVITY_CACHE_TTL_MS = 90 * 1000;
+const LIVE_SLEEPER_ACTIVITY_CACHE_MAX_LEAGUES = 80;
 type LiveSleeperActivityPatch = Pick<ReportData, 'recentTransactions' | 'trendingAdds' | 'trendingDrops' | 'waiverIntelligence'> & Partial<Pick<ReportData, 'scheduleEdgeTargets'>>;
 const liveSleeperActivityPatchCache = new Map<string, { loadedAt: number; patch: LiveSleeperActivityPatch }>();
 
@@ -5726,9 +5727,25 @@ function getCachedLiveSleeperActivityPatch(leagueId: string): LiveSleeperActivit
   return cached.patch;
 }
 
+function pruneLiveSleeperActivityPatchCache(now = Date.now()) {
+  for (const [leagueId, cached] of Array.from(liveSleeperActivityPatchCache.entries())) {
+    if (now - cached.loadedAt > LIVE_SLEEPER_ACTIVITY_CACHE_TTL_MS) {
+      liveSleeperActivityPatchCache.delete(leagueId);
+    }
+  }
+
+  while (liveSleeperActivityPatchCache.size >= LIVE_SLEEPER_ACTIVITY_CACHE_MAX_LEAGUES) {
+    const oldestLeagueId = Array.from(liveSleeperActivityPatchCache.entries())
+      .sort((a, b) => a[1].loadedAt - b[1].loadedAt)[0]?.[0];
+    if (!oldestLeagueId) break;
+    liveSleeperActivityPatchCache.delete(oldestLeagueId);
+  }
+}
+
 function setCachedLiveSleeperActivityPatch(leagueId: string, patch: LiveSleeperActivityPatch) {
   const normalizedLeagueId = getValidSleeperEntityId(leagueId);
   if (!normalizedLeagueId) return;
+  pruneLiveSleeperActivityPatchCache();
   liveSleeperActivityPatchCache.set(normalizedLeagueId, { loadedAt: Date.now(), patch });
 }
 

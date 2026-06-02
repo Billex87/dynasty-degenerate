@@ -62,15 +62,21 @@ describe("user-load provider boundary", () => {
 
   it("caches live Sleeper activity patches for cached report opens", () => {
     const attachSource = extractSource("async function attachLiveSleeperActivity", "\nfunction ordinalRound");
+    const setCacheSource = extractSource("function setCachedLiveSleeperActivityPatch", "\n\nasync function attachLiveSleeperActivity");
     const cacheReadIndex = attachSource.indexOf("const cachedLiveActivity = getCachedLiveSleeperActivityPatch(leagueId)");
     const buildIndex = attachSource.indexOf("buildLiveSleeperActivityPatch(leagueId, payload.reportData)");
     const cacheWriteIndex = attachSource.indexOf("setCachedLiveSleeperActivityPatch(leagueId, liveActivity)");
+    const pruneIndex = setCacheSource.indexOf("pruneLiveSleeperActivityPatchCache()");
+    const insertIndex = setCacheSource.indexOf("liveSleeperActivityPatchCache.set(normalizedLeagueId");
 
     expect(routersSource).toContain("const LIVE_SLEEPER_ACTIVITY_CACHE_TTL_MS = 90 * 1000");
+    expect(routersSource).toContain("const LIVE_SLEEPER_ACTIVITY_CACHE_MAX_LEAGUES = 80");
     expect(routersSource).toContain("const liveSleeperActivityPatchCache = new Map");
     expect(cacheReadIndex).toBeGreaterThan(0);
     expect(buildIndex).toBeGreaterThan(cacheReadIndex);
     expect(cacheWriteIndex).toBeGreaterThan(buildIndex);
+    expect(pruneIndex).toBeGreaterThan(0);
+    expect(insertIndex).toBeGreaterThan(pruneIndex);
   });
 
   it("keeps Sleeper username lookup provider calls behind the route limiter", () => {
