@@ -216,6 +216,131 @@ describe("feature entitlements", () => {
     expect(result.requiredPlan).toBe("elite");
   });
 
+  it("allows paid features from active persisted user entitlements after billing launch", () => {
+    const result = canUseFeature({
+      user: baseUser,
+      feature: "draft-kit-tools",
+      entitlements: [{
+        subjectType: "user",
+        userOpenId: baseUser.openId,
+        featureKey: "draft-kit-tools",
+        status: "active",
+      }],
+      paidFeaturesEnabled: true,
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.plan).toBe("free");
+    expect(result.reason).toMatch(/persisted feature entitlement/i);
+  });
+
+  it("does not let persisted entitlements bypass the paid-feature launch flag", () => {
+    const result = canUseFeature({
+      user: baseUser,
+      feature: "draft-kit-tools",
+      entitlements: [{
+        subjectType: "user",
+        userOpenId: baseUser.openId,
+        featureKey: "draft-kit-tools",
+        status: "active",
+      }],
+      paidFeaturesEnabled: false,
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toMatch(/not launched/i);
+  });
+
+  it("scopes persisted league entitlements to the requested league", () => {
+    expect(canUseFeature({
+      user: baseUser,
+      feature: "source-trace-details",
+      leagueId: "123456789012345678",
+      entitlements: [{
+        subjectType: "league",
+        leagueId: "123456789012345678",
+        featureKey: "source-trace-details",
+        status: "active",
+      }],
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(true);
+
+    expect(canUseFeature({
+      user: baseUser,
+      feature: "source-trace-details",
+      leagueId: "999999999999999999",
+      entitlements: [{
+        subjectType: "league",
+        leagueId: "123456789012345678",
+        featureKey: "source-trace-details",
+        status: "active",
+      }],
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(false);
+  });
+
+  it("ignores inactive, future, and expired persisted entitlements", () => {
+    const now = new Date("2026-06-02T12:00:00.000Z");
+
+    const inactive = canUseFeature({
+      user: baseUser,
+      feature: "draft-kit-tools",
+      entitlements: [{
+        featureKey: "draft-kit-tools",
+        status: "canceled",
+      }],
+      paidFeaturesEnabled: true,
+    });
+    const future = canUseFeature({
+      user: baseUser,
+      feature: "draft-kit-tools",
+      entitlements: [{
+        featureKey: "draft-kit-tools",
+        status: "active",
+        startsAt: new Date(now.getTime() + 60_000),
+      }],
+      paidFeaturesEnabled: true,
+    });
+    const expired = canUseFeature({
+      user: baseUser,
+      feature: "draft-kit-tools",
+      entitlements: [{
+        featureKey: "draft-kit-tools",
+        status: "active",
+        expiresAt: "2026-06-01T12:00:00.000Z",
+      }],
+      paidFeaturesEnabled: true,
+    });
+
+    expect(inactive.allowed).toBe(false);
+    expect(future.allowed).toBe(false);
+    expect(expired.allowed).toBe(false);
+  });
+
+  it("allows league-pass features from active persisted league passes", () => {
+    expect(canUseFeature({
+      user: baseUser,
+      feature: "source-trace-details",
+      leagueId: "123456789012345678",
+      leaguePasses: [{
+        leagueId: "123456789012345678",
+        status: "active",
+      }],
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(true);
+
+    expect(canUseFeature({
+      user: baseUser,
+      feature: "draft-kit-tools",
+      leagueId: "123456789012345678",
+      leaguePasses: [{
+        leagueId: "123456789012345678",
+        status: "active",
+      }],
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(false);
+  });
+
   it("treats role admins as admin-plan users for diagnostic-only features", () => {
     const adminUser = { ...baseUser, role: "admin" as const };
 

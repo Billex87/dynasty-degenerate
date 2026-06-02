@@ -195,6 +195,15 @@ export type LeaguePassUpsertInput = {
   metadata?: unknown;
 };
 
+export type LeaguePassAccessRecord = {
+  leagueId: string;
+  purchaserOpenId: string;
+  status: string;
+  startsAt: Date | null;
+  expiresAt: Date | null;
+  maxManagers: number | null;
+};
+
 export type FeatureEntitlementUpsertInput = {
   subjectType: "user" | "league";
   userOpenId?: string | null;
@@ -218,15 +227,6 @@ export type FeatureEntitlementAccessRecord = {
   status: string;
   startsAt: Date | null;
   expiresAt: Date | null;
-};
-
-export type LeaguePassAccessRecord = {
-  leagueId: string;
-  purchaserOpenId: string;
-  status: string;
-  startsAt: Date | null;
-  expiresAt: Date | null;
-  maxManagers: number | null;
 };
 
 export type CountUsageEventsInput = {
@@ -1459,6 +1459,40 @@ export async function upsertLeaguePass(input: LeaguePassUpsertInput): Promise<bo
   return true;
 }
 
+export async function listActiveLeaguePassesForLeague(leagueId: string): Promise<LeaguePassAccessRecord[]> {
+  const normalizedLeagueId = requiredTrimmed(leagueId, "leagueId");
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot list league passes: database not available");
+    return [];
+  }
+
+  const result = await sql`
+    SELECT
+      "leagueId",
+      "purchaserOpenId",
+      status,
+      "startsAt",
+      "expiresAt",
+      "maxManagers"
+    FROM "leaguePasses"
+    WHERE "leagueId" = ${normalizedLeagueId}
+      AND status = 'active'
+      AND ("startsAt" IS NULL OR "startsAt" <= NOW())
+      AND ("expiresAt" IS NULL OR "expiresAt" > NOW())
+    ORDER BY "updatedAt" DESC
+  ` as Record<string, any>[];
+
+  return result.map((row) => ({
+    leagueId: String(row.leagueId || ""),
+    purchaserOpenId: String(row.purchaserOpenId || ""),
+    status: String(row.status || ""),
+    startsAt: normalizeDateForDb(row.startsAt),
+    expiresAt: normalizeDateForDb(row.expiresAt),
+    maxManagers: row.maxManagers === null || row.maxManagers === undefined ? null : Number(row.maxManagers),
+  }));
+}
+
 export async function upsertFeatureEntitlement(input: FeatureEntitlementUpsertInput): Promise<boolean> {
   const subjectType = requiredTrimmed(input.subjectType, "subjectType").toLowerCase();
   if (subjectType !== "user" && subjectType !== "league") {
@@ -1606,42 +1640,6 @@ export async function listActiveFeatureEntitlementsForLeague(leagueId: string): 
   ` as Record<string, any>[];
 
   return result.map(normalizeFeatureEntitlementAccessRow);
-}
-
-export async function listActiveLeaguePassesForLeague(leagueId: string): Promise<LeaguePassAccessRecord[]> {
-  const normalizedLeagueId = requiredTrimmed(leagueId, "leagueId");
-  const sql = await getDb();
-  if (!sql) {
-    warnWhenDatabaseUnavailable("[Database] Cannot list active league passes: database not available");
-    return [];
-  }
-
-  const result = await sql`
-    SELECT
-      "leagueId",
-      "purchaserOpenId",
-      status,
-      "startsAt",
-      "expiresAt",
-      "maxManagers"
-    FROM "leaguePasses"
-    WHERE "leagueId" = ${normalizedLeagueId}
-      AND status = 'active'
-      AND ("startsAt" IS NULL OR "startsAt" <= NOW())
-      AND ("expiresAt" IS NULL OR "expiresAt" > NOW())
-    ORDER BY "updatedAt" DESC
-  ` as Record<string, any>[];
-
-  return result.map((row) => ({
-    leagueId: String(row.leagueId || ""),
-    purchaserOpenId: String(row.purchaserOpenId || ""),
-    status: String(row.status || ""),
-    startsAt: normalizeDateForDb(row.startsAt),
-    expiresAt: normalizeDateForDb(row.expiresAt),
-    maxManagers: row.maxManagers === null || row.maxManagers === undefined
-      ? null
-      : Number(row.maxManagers),
-  }));
 }
 
 export async function recordUsageEvent(input: UsageEventInput): Promise<boolean> {

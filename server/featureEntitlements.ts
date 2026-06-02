@@ -1,5 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import type { User } from "../drizzle/schema";
+import {
+  listActiveFeatureEntitlementsForLeague,
+  listActiveFeatureEntitlementsForUser,
+  listActiveLeaguePassesForLeague,
+  listBillingSubscriptionsForUser,
+} from "./db";
 
 export type BillingPlan = "free" | "pro" | "elite" | "admin";
 
@@ -121,7 +127,7 @@ export type FeatureEntitlementResult = {
   reason: string;
 };
 
-type CanUseFeatureInput = {
+export type CanUseFeatureInput = {
   user?: EntitlementUser;
   feature: PaidFeatureKey;
   leagueId?: string | null;
@@ -261,6 +267,54 @@ export function canUseFeature(input: CanUseFeatureInput): FeatureEntitlementResu
 
 export function assertCanUseFeature(input: CanUseFeatureInput): FeatureEntitlementResult {
   const entitlement = canUseFeature(input);
+  if (entitlement.allowed) return entitlement;
+
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: entitlement.reason,
+  });
+}
+
+export async function loadPersistedFeatureAccess(input: {
+  user?: EntitlementUser;
+  leagueId?: string | null;
+}) {
+  const userOpenId = input.user?.openId;
+  const leagueId = input.leagueId?.trim() || null;
+
+  const [
+    subscriptions,
+    userEntitlements,
+    leagueEntitlements,
+    leaguePasses,
+  ] = await Promise.all([
+    userOpenId ? listBillingSubscriptionsForUser(userOpenId) : Promise.resolve([]),
+    userOpenId ? listActiveFeatureEntitlementsForUser(userOpenId) : Promise.resolve([]),
+    leagueId ? listActiveFeatureEntitlementsForLeague(leagueId) : Promise.resolve([]),
+    leagueId ? listActiveLeaguePassesForLeague(leagueId) : Promise.resolve([]),
+  ]);
+
+  return {
+    subscriptions,
+    entitlements: [...userEntitlements, ...leagueEntitlements],
+    leaguePasses,
+  };
+}
+
+export async function canUsePersistedFeature(input: Omit<CanUseFeatureInput, "subscriptions" | "entitlements" | "leaguePasses">): Promise<FeatureEntitlementResult> {
+  const persistedAccess = await loadPersistedFeatureAccess({
+    user: input.user,
+    leagueId: input.leagueId,
+  });
+
+  return canUseFeature({
+    ...input,
+    ...persistedAccess,
+  });
+}
+
+export async function assertCanUsePersistedFeature(input: Omit<CanUseFeatureInput, "subscriptions" | "entitlements" | "leaguePasses">): Promise<FeatureEntitlementResult> {
+  const entitlement = await canUsePersistedFeature(input);
   if (entitlement.allowed) return entitlement;
 
   throw new TRPCError({

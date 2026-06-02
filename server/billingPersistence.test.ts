@@ -4,6 +4,7 @@ import {
   findBillingCustomerForUser,
   listActiveFeatureEntitlementsForLeague,
   listActiveFeatureEntitlementsForUser,
+  listActiveLeaguePassesForLeague,
   listBillingSubscriptionsForUser,
   recordUsageEvent,
   upsertFeatureEntitlement,
@@ -85,6 +86,10 @@ describe("billing persistence helpers", () => {
   it("fails safely when active feature-entitlement reads have no database", async () => {
     await expect(listActiveFeatureEntitlementsForUser("email:user")).resolves.toEqual([]);
     await expect(listActiveFeatureEntitlementsForLeague("123456789012345678")).resolves.toEqual([]);
+  });
+
+  it("fails safely when active league-pass reads have no database", async () => {
+    await expect(listActiveLeaguePassesForLeague("123456789012345678")).resolves.toEqual([]);
   });
 
   it("fails safely when usage event persistence has no database", async () => {
