@@ -6,9 +6,9 @@ import type { AIActionQueueItem } from "@/lib/autopilot/types";
 import { detectAIActionConflicts } from "@/lib/aiActionMemory";
 import type { ReportData } from "@shared/types";
 
-type AIReadoutDiagnosticTone = "good" | "info" | "warn" | "danger";
+export type AIReadoutDiagnosticTone = "good" | "info" | "warn" | "danger";
 
-type AIReadoutDiagnosticRow = {
+export type AIReadoutDiagnosticRow = {
   id: string;
   tab: string;
   surface: string;
@@ -22,7 +22,7 @@ type AIReadoutDiagnosticRow = {
   tone: AIReadoutDiagnosticTone;
 };
 
-type AIDecisionLogRow = {
+export type AIDecisionLogRow = {
   id: string;
   lane: string;
   surface: string;
@@ -37,9 +37,9 @@ type AIDecisionLogRow = {
   changeTriggers: string[];
 };
 
-type AISurfaceRegistryRole = "action-owner" | "context" | "hidden" | "merge";
+export type AISurfaceRegistryRole = "action-owner" | "context" | "hidden" | "merge";
 
-type AISurfaceRegistryRow = {
+export type AISurfaceRegistryRow = {
   id: string;
   tab: string;
   surface: string;
@@ -54,7 +54,7 @@ type AISurfaceRegistryRow = {
   nextStep: string;
 };
 
-type AIReadoutDiagnostics = ReturnType<typeof buildAIReadoutDiagnostics>;
+export type AIReadoutDiagnostics = ReturnType<typeof buildAIReadoutDiagnostics>;
 
 function getAIReadoutDiagnosticTone(row: {
   hasConfidence: boolean;
@@ -196,7 +196,7 @@ function getAISurfaceRegistryRole(row: AIReadoutDiagnosticRow): {
   };
 }
 
-function buildAISurfaceRegistry(diagnostics: AIReadoutDiagnostics) {
+export function buildAISurfaceRegistry(diagnostics: AIReadoutDiagnostics) {
   const rows: AISurfaceRegistryRow[] = diagnostics.rows.map(row => {
     const role = getAISurfaceRegistryRole(row);
     const missing = compactDecisionLogItems([
@@ -396,7 +396,7 @@ function buildAIReadoutPolicyDecisionLogRows(
   });
 }
 
-function buildAIDecisionLogRows(
+export function buildAIDecisionLogRows(
   reportData: ReportData,
   diagnostics: AIReadoutDiagnostics
 ): AIDecisionLogRow[] {
@@ -405,7 +405,7 @@ function buildAIDecisionLogRows(
   return [...actionRows, ...policyRows];
 }
 
-function buildAIDecisionLogSummary(rows: AIDecisionLogRow[]) {
+export function buildAIDecisionLogSummary(rows: AIDecisionLogRow[]) {
   return {
     actionRows: rows.filter(row => row.decision === "Owns Action").length,
     contextRows: rows.filter(row =>
@@ -418,7 +418,7 @@ function buildAIDecisionLogSummary(rows: AIDecisionLogRow[]) {
   };
 }
 
-function buildAIReadoutDiagnostics(reportData: ReportData) {
+export function buildAIReadoutDiagnostics(reportData: ReportData) {
   const managerCount =
     reportData.managerRosterIntelligence?.length ||
     reportData.leagueOverview?.length ||

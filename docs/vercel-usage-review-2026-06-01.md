@@ -4,6 +4,7 @@
 - Production usage review after the launch audit implementation, R-008 API-warning follow-up, and June operations readiness pass.
 - Target app: `https://dynastydegens.com/`
 - Deployment reviewed: production deployment for commit `bf011cd` (`Record June operations readiness pass`), status `Ready`.
+- Follow-up refresh reviewed latest production commit `5fb087f` (`Fix report section heading hierarchy`), status `Ready`.
 
 ## Commands And Checks Run
 - `npx --yes vercel@latest whoami`
@@ -19,6 +20,10 @@
 - `npx --yes vercel@latest logs --environment production --since 1h --level error --json --limit 100`
 - `npx --yes vercel@latest logs --environment production --since 1h --status-code 500 --json --limit 100`
 - `npx --yes vercel@latest logs --environment production --since 1h --query cron --json --limit 50`
+- `npx --yes vercel@latest logs --environment production --since 2h --level error --json --limit 100`
+- `npx --yes vercel@latest logs --environment production --since 2h --status-code 500 --json --limit 100`
+- `npx --yes vercel@latest logs --environment production --since 24h --query cron --json --limit 100`
+- `npx --yes vercel@latest metrics vercel.function_invocation.peak_memory_mb -a max --group-by route --since 24h --format json`
 - Production Playwright traffic session across the four representative leagues.
 
 ## Production Traffic Session
@@ -45,6 +50,7 @@ Traffic-session result:
 - Production deployment status: `Ready`
 - Build completed from commit `bf011cd`.
 - Build warnings remain the known Vite/Three.js dynamic import chunk warning and large bundle warnings.
+- Follow-up refresh: latest production URL from `vercel ls` was `https://dynasty-degenerate-c29tx2e53-billex87s-projects.vercel.app`; Vercel connector confirmed deployment `dpl_5PqHENRxord7mYP4sje6NH8ZJw7w` is `READY` for commit `5fb087f`.
 
 ## Cron State
 - `vercel crons list` returned `12` cron jobs for production:
@@ -67,6 +73,10 @@ Traffic-session result:
 - Last-hour production error-level log query returned no entries.
 - Last-hour production `500` status query returned no entries.
 - Last-hour production cron query returned no entries.
+- Follow-up refresh found no production `500` entries in the last two hours.
+- Follow-up refresh found a production cron error log from `/api/cron/ktc-snapshot` on the previous production deployment. The cron returned `200` and stored the durable snapshot rows, but local diagnostic side writes tried to create files under `/var/task/server/ktc-snapshots` and `/var/task/.cache/api-provider-telemetry`, which is not a safe serverless write location.
+- Local fix added after this finding: Vercel/serverless runs now skip local KTC snapshot files, API-provider telemetry JSONL files, and source-health JSONL files while preserving in-memory telemetry, database persistence, and source-health webhook behavior.
+- Local verification for the fix: `pnpm exec vitest run server/localDiagnostics.test.ts` passed; current full `pnpm test` passed (`122` files, `608` passed, `1` skipped); `pnpm run check` passed; `pnpm build` passed.
 
 ## Usage And Metrics Availability
 - `vercel metrics schema vercel.function --format json` confirmed the required metric IDs exist, including:
@@ -78,12 +88,14 @@ Traffic-session result:
 - Actual metric queries returned:
   - `payment_required`
   - `A subscription to Observability Plus is required`
+- Follow-up CPU/count/peak-memory metric queries still returned `payment_required`, so route-level Fluid Active CPU, invocation totals, and peak memory remain unavailable from this CLI/API plan.
 - `vercel usage --format json` returned:
   - `Costs not found (404)`
 
 ## Decision
 - This pass proves production deployment health, production report traffic health, cron configuration visibility, and absence of recent visible runtime errors through the available CLI/log surfaces.
 - This pass does not fully close the Vercel usage gate because Fluid Active CPU, function invocation totals, transfer, provisioned memory, and route-level CPU attribution are not accessible through the current CLI/API plan.
+- The follow-up local-write fix reduces production log noise from cron diagnostic side effects, but it must be deployed before a post-deploy log check can confirm the `/var/task` errors are gone.
 - Do not mark the Vercel usage checklist item complete until one of these happens:
   - a Vercel dashboard/manual pass records Fluid Active CPU, memory, invocations, transfer, and route hotspots; or
   - Observability Plus/API metric access is enabled and the CLI metric commands above return usable data.
@@ -91,6 +103,7 @@ Traffic-session result:
 ## Follow-up
 - Manually check Vercel dashboard Usage and Functions after the latest traffic/deploy window.
 - Confirm whether the cron schedule warning is a CLI diff artifact or a real deployment mismatch.
+- Deploy the Vercel local-diagnostics write guard, then re-run production error/cron log checks after the next cron window.
 - If metrics become available, capture top routes for:
   - `/api/trpc/league.analyze`
   - `/api/trpc/league.rankings`

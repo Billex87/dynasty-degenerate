@@ -39,7 +39,9 @@ const TELEMETRY_LOG_DIR = path.join(process.cwd(), '.cache', 'api-provider-telem
 const events: StoredApiProviderTelemetryEvent[] = [];
 
 function shouldSkipDiskWrites(): boolean {
-  return process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+  return process.env.NODE_ENV === 'test'
+    || process.env.VITEST === 'true'
+    || process.env.VERCEL === '1';
 }
 
 function getDateKey(date = new Date()): string {

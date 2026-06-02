@@ -53,7 +53,12 @@ export function buildSourceHealthEvents(input: {
 }
 
 function writeLocalSourceHealthEvents(events: SourceHealthEventInput[]) {
-  if (!events.length || process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') return;
+  if (
+    !events.length
+    || process.env.NODE_ENV === 'test'
+    || process.env.VITEST === 'true'
+    || process.env.VERCEL === '1'
+  ) return;
   try {
     fs.mkdirSync(SOURCE_HEALTH_LOG_DIR, { recursive: true });
     const filePath = path.join(SOURCE_HEALTH_LOG_DIR, `source-health-${getSourceHealthDateKey()}.jsonl`);

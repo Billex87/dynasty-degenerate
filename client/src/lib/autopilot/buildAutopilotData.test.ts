@@ -453,6 +453,105 @@ describe('buildAutopilotData', () => {
     expect(JSON.stringify(data.actionQueue)).not.toContain('Denver Broncos');
   });
 
+  it('keeps stale weekly-source waiver reads below do-this copy and queue actions', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    const receiver = reportData.waiverIntelligence!.availableTrendingAdds[0]!;
+    const weeks: WaiverWeeklyEcrWeek[] = [1, 2, 3].map((week) => ({
+      week,
+      season: '2026',
+      scoring: 'PPR',
+      sourceKey: `fantasypros-endpoint-v1:2026:PPR:wr-week-${week}`,
+      endpointKey: `wr-week-${week}`,
+      sourceStatus: 'stale',
+      sourceRowCount: 120,
+      sourceFetchedAt: '2026-05-01T12:00:00.000Z',
+      sourceLastUpdated: '2026-05-01T12:00:00.000Z',
+      rankEcr: 31,
+      positionRank: 'WR31',
+      averageRank: 31,
+      rankStdDev: null,
+      lastUpdated: '2026-05-01T12:00:00.000Z',
+      opponent: `T${week}`,
+      homeAway: 'home',
+      opponentRank: 14,
+      matchupStars: 3,
+      matchupTier: 'neutral',
+      isBye: false,
+    }));
+    const signal: WaiverWeeklyEcrSignal = {
+      signalType: 'weekly-rank',
+      playerId: receiver.player_id,
+      fantasyProsId: 'fp-waiver1',
+      name: receiver.name,
+      position: 'WR',
+      team: receiver.team,
+      source: 'FantasyPros',
+      updatedAt: '2026-05-01T12:00:00.000Z',
+      weeks,
+      bestWeek: 1,
+      bestRankEcr: 31,
+      bestPositionRank: 'WR31',
+      averageRankEcr: 31,
+      rankDelta: null,
+      matchupWindows: buildMatchupWindowSet(weeks, { currentWeek: 1 }),
+      confidence: 82,
+      note: 'Stale weekly rank fixture.',
+      sourceTrace: [{
+        source: 'FantasyPros',
+        sourceKey: 'fantasypros-endpoint-v1:2026:PPR:wr-week-1',
+        endpointKey: 'wr-week-1',
+        endpointLabel: 'FantasyPros WR weekly ECR',
+        status: 'stale',
+        season: '2026',
+        scoring: 'PPR',
+        week: 1,
+        position: 'WR',
+        rowCount: 120,
+        fetchedAt: '2026-05-01T12:00:00.000Z',
+        lastUpdated: '2026-05-01T12:00:00.000Z',
+        evidence: 'Week 1 WR31; 120 rows; stale snapshot.',
+      }],
+      traceSummary: 'FantasyPros weekly ECR source trace: W1 from stored endpoint snapshots (stale).',
+    };
+    const staleReceiver = { ...receiver, weeklyEcr: signal };
+    reportData.waiverIntelligence = {
+      ...reportData.waiverIntelligence!,
+      availableTrendingAdds: [staleReceiver],
+      highestKtcAvailable: staleReceiver,
+      bestAvailableByPosition: {
+        QB: null,
+        RB: null,
+        WR: staleReceiver,
+        TE: null,
+        K: null,
+        DEF: null,
+      },
+      weeklyEcrTargets: [{ player: staleReceiver, signal, score: 88 }],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'redraft',
+      fallback: AUTOPILOT_MOCK_DATA.redraft,
+    });
+
+    expect(data.waivers[0]).toMatchObject({
+      player: 'Waiver Receiver',
+      action: 'Monitor only',
+      expectedAction: {
+        type: 'hold',
+      },
+    });
+    expect(data.waivers[0]?.summary).toContain("Don't add yet");
+    expect(data.waivers[0]?.confidence).toBeLessThan(68);
+    const waiverQueueItem = data.actionQueue.find((item) => item.target === 'Waiver Receiver');
+    expect(waiverQueueItem).toBeDefined();
+    expect(waiverQueueItem?.decision).not.toBe('do');
+    expect(waiverQueueItem?.sourceHealth.join(' ')).toContain('stale');
+    expect(waiverQueueItem?.changeTriggers.join(' ')).toContain('FantasyPros WR weekly ECR');
+  });
+
   it('switches the recommendation lens for redraft mode', () => {
     const reportData = createCachedCommandCenterReport().reportData;
     reportData.recentTransactions = [];

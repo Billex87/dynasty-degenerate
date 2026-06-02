@@ -66,6 +66,57 @@ describe("auth.logout", () => {
 });
 
 describe("auth.adminLogin", () => {
+  it("requires JWT_SECRET in production", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalJwtSecret = process.env.JWT_SECRET;
+    const originalAdminPassword = process.env.ADMIN_LOGIN_PASSWORD;
+    process.env.NODE_ENV = "production";
+    delete process.env.JWT_SECRET;
+    process.env.ADMIN_LOGIN_PASSWORD = "correct horse battery staple";
+
+    try {
+      const { ctx } = createAuthContext();
+      const caller = appRouter.createCaller(ctx);
+
+      await expect(
+        caller.auth.adminLogin({ passphrase: "correct horse battery staple" })
+      ).rejects.toMatchObject({
+        code: "PRECONDITION_FAILED",
+        message: "Admin login requires JWT_SECRET to be configured in production.",
+      });
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+      if (originalJwtSecret === undefined) delete process.env.JWT_SECRET;
+      else process.env.JWT_SECRET = originalJwtSecret;
+      if (originalAdminPassword === undefined) delete process.env.ADMIN_LOGIN_PASSWORD;
+      else process.env.ADMIN_LOGIN_PASSWORD = originalAdminPassword;
+    }
+  });
+
+  it("requires ADMIN_LOGIN_PASSWORD before accepting admin login", async () => {
+    const originalJwtSecret = process.env.JWT_SECRET;
+    const originalAdminPassword = process.env.ADMIN_LOGIN_PASSWORD;
+    process.env.JWT_SECRET = "test-secret";
+    delete process.env.ADMIN_LOGIN_PASSWORD;
+
+    try {
+      const { ctx } = createAuthContext();
+      const caller = appRouter.createCaller(ctx);
+
+      await expect(
+        caller.auth.adminLogin({ passphrase: "correct horse battery staple" })
+      ).rejects.toMatchObject({
+        code: "PRECONDITION_FAILED",
+        message: "Admin login requires ADMIN_LOGIN_PASSWORD to be configured.",
+      });
+    } finally {
+      if (originalJwtSecret === undefined) delete process.env.JWT_SECRET;
+      else process.env.JWT_SECRET = originalJwtSecret;
+      if (originalAdminPassword === undefined) delete process.env.ADMIN_LOGIN_PASSWORD;
+      else process.env.ADMIN_LOGIN_PASSWORD = originalAdminPassword;
+    }
+  });
+
   it("accepts the local Alstott40! password without JWT_SECRET", async () => {
     const originalJwtSecret = process.env.JWT_SECRET;
     const originalAdminPassword = process.env.ADMIN_LOGIN_PASSWORD;

@@ -1,7 +1,7 @@
 import { getPlayerRankForMode, getPlayerValueForMode } from '@/lib/leagueValueMode';
 import { getShortTermMatchupOutlook } from '@shared/matchupWindows';
 import { evaluateAIEvidence, getAIEvidenceLeagueContextFromDiagnostics, getAIEvidenceReceiptItems } from '@shared/aiEvidenceEngine';
-import type { AIEvidenceAction, AIEvidenceMode, AIEvidenceSurface, AIConfidenceLabel } from '@shared/aiEvidenceEngine';
+import type { AIEvidenceAction, AIEvidenceMode, AIEvidenceSurface, AIConfidenceLabel, AISourceTrace } from '@shared/aiEvidenceEngine';
 import { buildAIEvidenceLeagueActivityContext } from '@shared/leagueActivityContext';
 import { buildLeagueSharpnessProfile } from '@shared/leagueSharpness';
 import type { LeagueSharpnessProfile } from '@shared/leagueSharpness';
@@ -15,6 +15,8 @@ import type {
   ReportAICalibrationAdjustment,
   ReportData,
   TrendingPlayer,
+  WaiverSourceTraceEntry,
+  WaiverWeeklyEcrSignal,
   WeeklyMomentum,
 } from '@shared/types';
 import type {
@@ -2315,6 +2317,31 @@ function formatWaiverWeeklyEcrTraceRead(player: TrendingPlayer): string | null {
   return `${loadedWeeks || 'Rolling weeks'} backed by stored ${sourceLabel} snapshots.`;
 }
 
+function normalizeAutopilotSourceTraceStatus(status?: string | null): AISourceTrace['status'] {
+  const normalized = String(status || '').toLowerCase();
+  if (/error|fail|invalid/.test(normalized)) return 'error';
+  if (/stale|expired/.test(normalized)) return 'stale';
+  if (/missing|empty|unavailable|disabled/.test(normalized)) return 'missing';
+  if (/partial|limited|blocked/.test(normalized)) return 'limited';
+  return 'loaded';
+}
+
+function getAutopilotTraceAgeHours(trace: WaiverSourceTraceEntry): number | null {
+  const timestamp = Date.parse(trace.fetchedAt || trace.lastUpdated || '');
+  if (!Number.isFinite(timestamp)) return null;
+  return Math.max(0, Math.round((Date.now() - timestamp) / (60 * 60 * 1000)));
+}
+
+function getWaiverWeeklyEcrSourceTrace(signal?: WaiverWeeklyEcrSignal | null): AISourceTrace[] {
+  if (!signal?.sourceTrace?.length) return [];
+  return signal.sourceTrace.slice(0, 3).map((trace) => ({
+    label: trace.endpointLabel || trace.source || 'Weekly rank source',
+    status: normalizeAutopilotSourceTraceStatus(trace.status),
+    detail: trace.evidence || trace.sourceKey || signal.traceSummary || null,
+    ageHours: getAutopilotTraceAgeHours(trace),
+  }));
+}
+
 function getAutopilotValueSourceCount(player: TrendingPlayer): number {
   const sources = new Set((player.playerDetails?.valueProfile?.sources || []).filter(Boolean));
   if (player.weeklyEcr) sources.add(player.weeklyEcr.source === 'DraftSharks' ? 'DraftSharks SOS snapshot' : 'FantasyPros rank snapshot');
@@ -2412,11 +2439,14 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
           sourceCount ? null : 'No value source count is attached.',
           ['K', 'DEF'].includes(getPlayerLineupPosition(player)) && !player.weeklyEcr ? 'No short-window schedule source is attached.' : null,
         ], 8),
-        sourceTrace: dedupeStrings([
-          sourceCount ? `${sourceCount} value/schedule source${sourceCount === 1 ? '' : 's'} attached.` : null,
-          weeklyProjectionRead ? 'Stored weekly projection attached.' : null,
-          weeklyEcrTraceRead,
-        ], 8),
+        sourceTrace: [
+          ...dedupeStrings([
+            sourceCount ? `${sourceCount} value/schedule source${sourceCount === 1 ? '' : 's'} attached.` : null,
+            weeklyProjectionRead ? 'Stored weekly projection attached.' : null,
+            weeklyEcrTraceRead,
+          ], 8),
+          ...getWaiverWeeklyEcrSourceTrace(player.weeklyEcr),
+        ],
         signalModes,
         player: {
           name: player.name,
@@ -2457,6 +2487,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       evidenceRead.finalScore,
       clampPercent(56 + score * 0.35 + (dropCandidate ? 5 : 0))
     );
+    const clearsWaiverActionThreshold = evidenceRead.canAct && confidence >= 68;
     const age = getPlayerAge(player);
     const matchupGuard = getWaiverMatchupGuard(player);
     const receiptItems = getAIEvidenceReceiptItems(evidenceRead);
@@ -2467,13 +2498,13 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       player: player.name,
       secondaryPlayerId: dropCandidate?.player_id || null,
       secondary: [getFaabSuggestion(confidence, mode), dropCandidate ? `drop ${dropCandidate.name}` : null].filter(Boolean).join(' | '),
-      action: evidenceRead.canAct ? (index === 0 ? 'Priority add' : 'Add if available') : 'Monitor only',
+      action: clearsWaiverActionThreshold ? (index === 0 ? 'Priority add' : 'Add if available') : 'Monitor only',
       confidence,
       risk: confidence >= 78 ? 'Low' : 'Medium',
       upside: mode === 'dynasty' && age && age <= 24 ? 'High' : confidence >= 80 ? 'High' : 'Medium',
       summary: mode === 'redraft'
-        ? `${evidenceRead.canAct ? 'Do this' : "Don't add yet"}: ${player.name} has the strongest current-season waiver case the evidence layer allows${weeklyProjectionRead ? ', with stored weekly projection support' : ''}.`
-        : `${evidenceRead.canAct ? 'Do this' : "Don't add yet"}: ${player.name} has the strongest dynasty waiver case the evidence layer allows${weeklyProjectionRead ? ', with short-term projection support' : weeklyEcrRead ? ', with short-window matchup support' : ''}.`,
+        ? `${clearsWaiverActionThreshold ? 'Do this' : "Don't add yet"}: ${player.name} has the strongest current-season waiver case the evidence layer allows${weeklyProjectionRead ? ', with stored weekly projection support' : ''}.`
+        : `${clearsWaiverActionThreshold ? 'Do this' : "Don't add yet"}: ${player.name} has the strongest dynasty waiver case the evidence layer allows${weeklyProjectionRead ? ', with short-term projection support' : weeklyEcrRead ? ', with short-window matchup support' : ''}.`,
       reasons: dedupeStrings([
         evidenceRead.whyThisFired,
         player.count ? `${formatCompactValue(player.count)} add/drop trend signal in the feed.` : null,
@@ -2487,17 +2518,25 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       ], 4),
       signals: dedupeStrings([evidenceRead.label, 'Available', rank, weeklyProjectionRead ? 'Stored projection' : null, matchupGuard.signal, weeklyEcrTraceRead ? 'Stored schedule trace' : weeklyEcrRead ? 'Schedule edge' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null, ...receiptItems.slice(0, 1)], 4),
       evidenceRead,
-      expectedAction: {
-        type: dropCandidate ? 'drop_for_add' : ['K', 'DEF'].includes(getPlayerLineupPosition(player)) ? 'stream_player' : 'waiver_add',
-        playerIn: toRecommendationPlayerRef(player),
-        playerOut: toRecommendationPlayerRef(dropCandidate),
-        playersInvolved: [toRecommendationPlayerRef(player), toRecommendationPlayerRef(dropCandidate)].filter(Boolean) as RecommendationPlayerRef[],
-        expectedRosterChange: dropCandidate
-          ? `${player.name} should be added and ${dropCandidate.name} should leave the roster.`
-          : `${player.name} should be added to the roster.`,
-        source: 'autopilot',
-        reason: evidenceRead.whyThisFired,
-      },
+      expectedAction: clearsWaiverActionThreshold
+        ? {
+            type: dropCandidate ? 'drop_for_add' : ['K', 'DEF'].includes(getPlayerLineupPosition(player)) ? 'stream_player' : 'waiver_add',
+            playerIn: toRecommendationPlayerRef(player),
+            playerOut: toRecommendationPlayerRef(dropCandidate),
+            playersInvolved: [toRecommendationPlayerRef(player), toRecommendationPlayerRef(dropCandidate)].filter(Boolean) as RecommendationPlayerRef[],
+            expectedRosterChange: dropCandidate
+              ? `${player.name} should be added and ${dropCandidate.name} should leave the roster.`
+              : `${player.name} should be added to the roster.`,
+            source: 'autopilot',
+            reason: evidenceRead.whyThisFired,
+          }
+        : {
+            type: 'hold',
+            playersInvolved: [toRecommendationPlayerRef(player)].filter(Boolean) as RecommendationPlayerRef[],
+            expectedRosterChange: `Do not add ${player.name} unless the capped waiver read clears the action threshold after fresh data.`,
+            source: 'autopilot',
+            reason: evidenceRead.whyThisFired,
+          },
       tone: index === 0 ? 'good' : 'info',
     };
   });

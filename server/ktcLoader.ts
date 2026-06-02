@@ -72,6 +72,10 @@ export const KTC_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'ktc-snapshot
 const KTC_STATIC_DIR = path.join(process.cwd(), 'server', 'ktc-static');
 const VALUE_HISTORY_SHARDS_DIR = path.join(process.cwd(), 'server', 'value-history-archive', 'player-value-history-shards');
 
+function shouldSkipLocalSnapshotWrites(): boolean {
+  return process.env.VERCEL === '1';
+}
+
 function getSnapshotDateKey(date: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: KTC_SNAPSHOT_TIME_ZONE,
@@ -582,6 +586,8 @@ function loadHistoricalWeeklyMomentumSnapshot(targetDateKey: string, valueProfil
 }
 
 export function saveLocalKtcSnapshot(date: Date, ktcData: unknown): string | null {
+  if (shouldSkipLocalSnapshotWrites()) return null;
+
   try {
     if (!fs.existsSync(KTC_SNAPSHOT_DIR)) {
       fs.mkdirSync(KTC_SNAPSHOT_DIR, { recursive: true });
