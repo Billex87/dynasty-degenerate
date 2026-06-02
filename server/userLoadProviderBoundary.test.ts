@@ -267,6 +267,49 @@ describe("user-load provider boundary", () => {
     expect(importSource).toContain("id: 'league.importSleeperTradeCenter'");
   });
 
+  it("keeps ranking detail endpoints behind report access and rate limits", () => {
+    const routeChecks = [
+      {
+        name: "rankings",
+        source: extractSource("rankings: publicProcedure", "\n    rankingsMeta: publicProcedure"),
+        rateLimitId: "league.rankings",
+        detailMarker: null,
+      },
+      {
+        name: "rankingsMeta",
+        source: extractSource("rankingsMeta: publicProcedure", "\n    rankingProfile: publicProcedure"),
+        rateLimitId: "league.rankingsMeta",
+        detailMarker: "buildRankingsMetadata(payload.rankings)",
+      },
+      {
+        name: "rankingProfile",
+        source: extractSource("rankingProfile: publicProcedure", "\n    rankingDraftBuzz: publicProcedure"),
+        rateLimitId: "league.rankingProfile",
+        detailMarker: "buildRankingProfileDetail(payload.rankings, input.profileKey.trim())",
+      },
+      {
+        name: "rankingDraftBuzz",
+        source: extractSource("rankingDraftBuzz: publicProcedure", "\n    analyze: publicProcedure"),
+        rateLimitId: "league.rankingDraftBuzz",
+        detailMarker: "buildRankingDraftBuzzDetail(payload.rankings)",
+      },
+    ];
+
+    for (const route of routeChecks) {
+      const accessIndex = route.source.indexOf("assertReportAccess(ctx)");
+      const rateLimitIndex = route.source.indexOf("assertRateLimit(ctx.req as any");
+      const payloadIndex = route.source.indexOf("buildLeagueRankingsPayload(input.leagueId, forceRefresh)");
+
+      expect(accessIndex, route.name).toBeGreaterThan(0);
+      expect(rateLimitIndex, route.name).toBeGreaterThan(accessIndex);
+      expect(payloadIndex, route.name).toBeGreaterThan(rateLimitIndex);
+      expect(route.source, route.name).toContain(`id: '${route.rateLimitId}'`);
+      if (route.detailMarker) {
+        expect(route.source.indexOf(route.detailMarker), route.name).toBeGreaterThan(payloadIndex);
+      }
+    }
+  });
+
   it("keeps player headshot provider work bounded behind cache and rate limits", () => {
     const headshotSource = extractSource("playerHeadshot: publicProcedure", "\n  }),\n});");
     const imageCacheWriteSource = extractSourceFrom(imageProxySource, "function setCachedImage", "\n\n/**\n * Fetch a player headshot");
