@@ -349,7 +349,7 @@ export const AUTOPILOT_MOCK_DATA: Record<AutopilotMode, AutopilotData> = {
           tone: 'info',
         },
       ],
-      summary: 'Redraft mode wants the safer weekly usage profile. Start the high-route WR over the touchdown-dependent flex unless injury news changes volume.',
+      summary: 'Redraft mode wants the safer weekly usage profile. Pressure-test the touchdown-dependent flex against the high-route WR unless injury news changes volume.',
     },
     rejections: [
       {

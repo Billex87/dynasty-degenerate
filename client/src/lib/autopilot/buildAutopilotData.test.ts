@@ -22,6 +22,16 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue[0]?.missingEvidence.join(' ')).toContain('precondition proof');
   });
 
+  it('keeps fallback weekly-plan copy in support-read language', () => {
+    const data = buildAutopilotData({
+      mode: 'redraft',
+      fallback: AUTOPILOT_MOCK_DATA.redraft,
+    });
+
+    expect(data.weeklyPlan?.summary).toContain('Pressure-test');
+    expect(data.weeklyPlan?.summary).not.toMatch(/\bStart\b.*\bover\b/i);
+  });
+
   it('builds a dynasty cockpit from live report data', () => {
     const reportData = createCachedCommandCenterReport().reportData;
     reportData.recentTransactions = [];
