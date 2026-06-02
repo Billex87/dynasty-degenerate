@@ -4224,7 +4224,7 @@ function buildSituationDeltaReadCopy(
       return {
         readType: 'Scheme Risk',
         severity: 'warn',
-        copy: `${summary} The offense context is a drag, so confidence should stay capped until volume offsets it.`,
+        copy: `${summary} The offense context is a drag, so confidence should stay limited until volume offsets it.`,
       };
     case 'new-team-uncertainty':
       return {
@@ -4281,7 +4281,7 @@ function buildHistoricalCompReadCopy(
     ? 'The comp set is strong enough to influence the read.'
     : comps.confidence >= 48
     ? 'The comp set is useful, but not strong enough by itself.'
-    : 'The comp set is thin, so this should only soften or cap the read.';
+    : 'The comp set is thin, so this should only soften or limit the read.';
   const signalCopy = topSignal
     ? `Top historical signal is ${topSignal.label.toLowerCase()} at ${topSignal.score}.`
     : 'No single historical signal separated.';
@@ -4332,7 +4332,7 @@ function buildSeasonOutcomeReceiptReadCopy(
       readType: forceSeverity ? 'Receipt Warning' : 'Receipt Check',
       severity: forceSeverity ? 'warn' : 'info',
       forceSeverity,
-      copy: `Historical receipt for ${playerName}: ${receipt.label.toLowerCase()} has ${receipt.sampleSize} samples with ${failureCopy}, ${positiveCopy}, and ${medianCopy}.${failureMode} Treat this as a confidence cap, not an automatic sell command.`,
+      copy: `Historical receipt for ${playerName}: ${receipt.label.toLowerCase()} has ${receipt.sampleSize} samples with ${failureCopy}, ${positiveCopy}, and ${medianCopy}.${failureMode} Treat this as a confidence limit, not an automatic sell command.`,
     };
   }
 

@@ -127,6 +127,10 @@ describe("AI read action copy boundaries", () => {
     expect(source).not.toMatch(/capped reads/i);
     expect(source).not.toMatch(/\bNo caps\b/i);
     expect(source).not.toMatch(/capped waiver read/i);
+    expect(source).not.toMatch(/confidence should stay capped/i);
+    expect(source).not.toMatch(/soften or cap the read/i);
+    expect(source).not.toMatch(/confidence cap, not/i);
+    expect(source).not.toMatch(/read capped until/i);
     expect(source).not.toMatch(/Refresh source:/i);
     expect(source).not.toMatch(/queue refused/i);
     expect(source).not.toMatch(/do-nothing counterfactual/i);

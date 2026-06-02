@@ -1547,7 +1547,7 @@ function buildDynastySituationRadar(row: OwnerIntelRow): DynastyAiSuggestion | n
       title: "AI Situation Radar",
       tone: "warn",
       theme: "risk",
-      copy: `${summary.note} Keep the read capped until usage, news, injury, or depth-chart context refreshes.`,
+      copy: `${summary.note} Keep the read limited until usage, news, injury, or depth-chart context refreshes.`,
     };
   }
 
