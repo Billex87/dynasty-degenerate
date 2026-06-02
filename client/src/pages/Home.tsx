@@ -13,6 +13,7 @@ import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLa
 import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsContainer";
 import { HomeReportExperience } from "@/features/home/components/HomeReportExperience";
 import { useHomeAdminAccess } from "@/features/home/hooks/useHomeAdminAccess";
+import { useHomeAnalysisLoading } from "@/features/home/hooks/useHomeAnalysisLoading";
 import { useHomeAIVoiceMode } from "@/features/home/hooks/useHomeAIVoiceMode";
 import { useHomeAIPredictionTelemetry } from "@/features/home/hooks/useHomeAIPredictionTelemetry";
 import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeout";
@@ -89,8 +90,6 @@ import {
   buildLoadingManagerAnchors,
   findCachedSleeperUser,
   findKnownSleeperLeague,
-  getAnalysisLeaguePreview,
-  getLeagueIdAnalysisPreview,
   getOrderedLeagueOptions,
   readCachedSleeperUsers,
   rememberCachedSleeperLeagueShortcut,
@@ -255,49 +254,19 @@ export default function Home() {
     },
   });
 
-  const leaguePreviewMutation = trpc.league.getLeaguePreview.useMutation();
-
-  const beginAnalysisLoading = async (
-    nextLeagueId: string,
-    extraKnownLeagues: SleeperLeagueOption[] = [],
-    initialManagerAnchors: LoaderManagerAnchor[] = []
-  ) => {
-    analysisModeRef.current = "blocking";
-    activeAnalysisLeagueIdRef.current = nextLeagueId;
-    reportLoadStartedAtRef.current = performance.now();
-    const knownLeague = findKnownSleeperLeague(
-      nextLeagueId,
-      userLeagues,
-      cachedSleeperUsers,
-      extraKnownLeagues
-    );
-
-    setPendingAnalysisLeague(
-      knownLeague
-        ? getAnalysisLeaguePreview(knownLeague)
-        : getLeagueIdAnalysisPreview(nextLeagueId)
-    );
-    setAnalysisCompleteMessage(null);
-    setLoadingTransitionPhase("loading");
-    setHasLoadingTimedOut(false);
-    setIsLoading(true);
-    setLoadingManagerAnchors(initialManagerAnchors);
-
-    try {
-      const league = await leaguePreviewMutation.mutateAsync({
-        leagueId: nextLeagueId,
-      });
-      if (activeAnalysisLeagueIdRef.current !== league.leagueId) return;
-      if (!knownLeague) {
-        setPendingAnalysisLeague(getAnalysisLeaguePreview(league));
-      }
-      if (league.managerAnchors?.length) {
-        setLoadingManagerAnchors(league.managerAnchors);
-      }
-    } catch {
-      // The full analysis request owns the user-facing error state.
-    }
-  };
+  const { beginAnalysisLoading } = useHomeAnalysisLoading({
+    activeAnalysisLeagueIdRef,
+    analysisModeRef,
+    cachedSleeperUsers,
+    reportLoadStartedAtRef,
+    userLeagues,
+    setAnalysisCompleteMessage,
+    setHasLoadingTimedOut,
+    setIsLoading,
+    setLoadingManagerAnchors,
+    setLoadingTransitionPhase,
+    setPendingAnalysisLeague,
+  });
 
   const rememberLeagueId = (value: string) => {
     setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, value));
