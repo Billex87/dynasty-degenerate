@@ -195,6 +195,16 @@ function assertAccountWriteRateLimit(
   });
 }
 
+function assertAccountReadRateLimit(ctx: TrpcContext & { user: NonNullable<TrpcContext["user"]> }) {
+  assertRateLimit(ctx.req as any, {
+    id: "account.links",
+    max: 60,
+    windowMs: 1000 * 60 * 10,
+    scope: getActionPlanUserKey(ctx.user),
+    message: "Too many account requests. Please wait a few minutes and try again.",
+  });
+}
+
 async function assertAccountSavedResourceLimit(input: {
   user: NonNullable<TrpcContext["user"]>;
   featureKey: Extract<UsageLimitedFeatureKey, "saved-league" | "saved-report">;
@@ -6722,12 +6732,15 @@ export const appRouter = router({
 
   account: router({
     links: protectedProcedure
-      .query(async ({ ctx }) => ({
-        sleeperAccounts: await listUserSleeperAccounts(ctx.user.openId),
-        favoriteLeagues: await listUserFavoriteLeagues(ctx.user.openId),
-        recentReports: await listUserRecentReports(ctx.user.openId),
-        notificationPreferences: await getUserNotificationPreferences(ctx.user.openId),
-      })),
+      .query(async ({ ctx }) => {
+        assertAccountReadRateLimit(ctx);
+        return {
+          sleeperAccounts: await listUserSleeperAccounts(ctx.user.openId),
+          favoriteLeagues: await listUserFavoriteLeagues(ctx.user.openId),
+          recentReports: await listUserRecentReports(ctx.user.openId),
+          notificationPreferences: await getUserNotificationPreferences(ctx.user.openId),
+        };
+      }),
     saveSleeperAccount: protectedProcedure
       .input(z.object({
         sleeperUserId: sleeperUserIdSchema,

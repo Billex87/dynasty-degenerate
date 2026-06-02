@@ -128,6 +128,28 @@ describe("user-load provider boundary", () => {
     expect(readBucketIndex).toBeGreaterThan(sweepIndex);
   });
 
+  it("keeps protected account link reads behind the route limiter", () => {
+    const guardSource = extractSource("function assertAccountReadRateLimit", "\n\nasync function assertAccountSavedResourceLimit");
+    const routeSource = extractSource("links: protectedProcedure", "\n    saveSleeperAccount: protectedProcedure");
+    const rateLimitIndex = routeSource.indexOf("assertAccountReadRateLimit(ctx)");
+    const readMarkers = [
+      "listUserSleeperAccounts(ctx.user.openId)",
+      "listUserFavoriteLeagues(ctx.user.openId)",
+      "listUserRecentReports(ctx.user.openId)",
+      "getUserNotificationPreferences(ctx.user.openId)",
+    ];
+
+    expect(guardSource).toContain("assertRateLimit(ctx.req as any");
+    expect(guardSource).toContain('id: "account.links"');
+    expect(guardSource).toContain("max: 60");
+    expect(guardSource).toContain("windowMs: 1000 * 60 * 10");
+    expect(guardSource).toContain("scope: getActionPlanUserKey(ctx.user)");
+    expect(rateLimitIndex).toBeGreaterThan(0);
+    for (const marker of readMarkers) {
+      expect(routeSource.indexOf(marker), marker).toBeGreaterThan(rateLimitIndex);
+    }
+  });
+
   it("keeps protected account writes behind the route limiter", () => {
     const guardSource = extractSource("function assertAccountWriteRateLimit", "\n\nasync function assertAccountSavedResourceLimit");
     const routeChecks = [
