@@ -2131,6 +2131,59 @@ describe('buildAutopilotData', () => {
     expect(waiverQueueItem?.changeTriggers.join(' ')).toContain('FantasyPros WR weekly ECR');
   });
 
+  it('does not turn dynasty-only waiver stash evidence into a redraft queue action', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    const dynastyOnlyStash = {
+      player_id: 'dynasty-only-stash',
+      name: 'Dynasty Only Stash',
+      pos: 'WR',
+      team: 'DAL',
+      owner: null,
+      count: 900,
+      ktcValue: null,
+      currentPositionRank: null,
+      playerDetails: {
+        playerId: 'dynasty-only-stash',
+        fullName: 'Dynasty Only Stash',
+        team: 'DAL',
+        position: 'WR',
+        valueProfile: {
+          dynastyValue: 2600,
+          dynastyPositionRank: 'WR48',
+          sources: ['KTC', 'FantasyCalc'],
+        },
+      },
+    } as TrendingPlayer;
+
+    reportData.waiverIntelligence = {
+      availableTrendingAdds: [],
+      highestKtcAvailable: null,
+      bestAvailableByPosition: {
+        QB: null,
+        RB: null,
+        WR: null,
+        TE: null,
+        K: null,
+        DEF: null,
+      },
+      bestTaxiStashes: [dynastyOnlyStash],
+      recentlyDroppedValuable: [],
+      omittedCandidates: [],
+      weeklyEcrTargets: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'redraft',
+      fallback: AUTOPILOT_MOCK_DATA.redraft,
+    });
+
+    expect(data.waivers.map((recommendation) => recommendation.player)).not.toContain('Dynasty Only Stash');
+    expect(data.actionQueue.map((item) => item.target)).not.toContain('Dynasty Only Stash');
+    expect(JSON.stringify(data.actionQueue)).not.toContain('dynasty-only-stash');
+  });
+
   it('switches the recommendation lens for redraft mode', () => {
     const reportData = createCachedCommandCenterReport().reportData;
     reportData.recentTransactions = [];
