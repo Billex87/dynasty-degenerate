@@ -178,6 +178,7 @@ describe("AI prediction event builder", () => {
               name: "Schedule Receiver",
               pos: "WR",
               team: "BUF",
+              owner: null,
               ktcValue: 5200,
               currentPositionRank: "WR18",
             },

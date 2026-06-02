@@ -272,6 +272,13 @@ function hasRosterAvailabilityProof(player: AIEvidencePlayerContext): boolean {
   );
 }
 
+function hasLineupStateProof(player: AIEvidencePlayerContext): boolean {
+  return (
+    Object.prototype.hasOwnProperty.call(player, "isStarter") &&
+    typeof player.isStarter === "boolean"
+  );
+}
+
 function isSkillPlayerPosition(position?: string | null): boolean {
   const clean = String(position || "").toUpperCase();
   return clean === "QB" || clean === "RB" || clean === "WR" || clean === "TE";
@@ -948,6 +955,22 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
 
   if (input.action === "sit" && player.isStarter === false) {
     hardBlockers.push(`${player.name || "This player"} is already out of the starting lineup.`);
+  }
+
+  if ((input.action === "start" || input.action === "sit") && input.player && !hasLineupStateProof(player)) {
+    missingEvidence.push("No current lineup state proof returned for this start/sit read.");
+    softPenalties.push({
+      label: "Missing lineup state proof limits start/sit confidence",
+      points: 10,
+    });
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      55,
+      "Missing lineup state proof"
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
   }
 
   if ((input.action === "start" || input.action === "sit") && player.isGameLocked) {

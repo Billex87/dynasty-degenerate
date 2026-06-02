@@ -327,6 +327,7 @@ describe("ai evidence engine", () => {
         value: 5300,
         sourceCount: 3,
         hasCurrentSeasonValue: true,
+        isStarter: false,
       },
       requiresCurrentSeasonEvidence: true,
     });
@@ -337,6 +338,44 @@ describe("ai evidence engine", () => {
     expect(read.missingEvidence).toContain("No projection or matchup proof returned for this start/sit read.");
     expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing projection or matchup proof limits start/sit confidence");
     expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 56% because Missing start/sit projection or matchup proof");
+  });
+
+  it("caps start/sit reads without current lineup state proof", () => {
+    const read = evaluateAIEvidence({
+      surface: "player-detail",
+      action: "start",
+      leagueValueMode: "redraft",
+      baseScore: 94,
+      evidence: ["WR18 current-season rank is attached.", "Latest projection is attached."],
+      sourceTrace: [{
+        label: "Weekly projection snapshot",
+        status: "loaded",
+      }, {
+        label: "Sleeper roster snapshot",
+        status: "loaded",
+      }],
+      signalModes: ["redraft", "current", "schedule"],
+      player: {
+        name: "Lineup Unknown Receiver",
+        position: "WR",
+        team: "MIN",
+        value: 5300,
+        sourceCount: 3,
+        hasCurrentSeasonValue: true,
+        weeklyProjectionStatus: "projected",
+      },
+      schedule: {
+        hasScheduleData: true,
+      },
+      requiresCurrentSeasonEvidence: true,
+    });
+
+    expect(read.canAct).toBe(false);
+    expect(read.finalScore).toBeLessThanOrEqual(55);
+    expect(read.confidenceCapReason).toBe("Missing lineup state proof");
+    expect(read.missingEvidence).toContain("No current lineup state proof returned for this start/sit read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing lineup state proof limits start/sit confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 55% because Missing lineup state proof");
   });
 
   it("blocks immediate add/start actions for unavailable players", () => {
@@ -379,6 +418,7 @@ describe("ai evidence engine", () => {
         hasCurrentSeasonValue: true,
         weeklyProjectionStatus: "projected",
         injuryStatus: "Questionable",
+        isStarter: false,
       },
       requiresCurrentSeasonEvidence: true,
     });
@@ -404,6 +444,7 @@ describe("ai evidence engine", () => {
         value: 5100,
         sourceCount: 2,
         hasCurrentSeasonValue: true,
+        isStarter: true,
         isGameLocked: true,
       },
       requiresCurrentSeasonEvidence: true,

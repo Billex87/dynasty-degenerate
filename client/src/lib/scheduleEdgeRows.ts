@@ -813,7 +813,7 @@ function getScheduleEvidenceAction(
 ): AIEvidenceAction {
   if (position === "K" || position === "DEF") return "stream";
   if (/avoid|tough/i.test(action.action)) return "avoid";
-  if (action.actionTone === "good") return "start";
+  if (action.actionTone === "good") return "pickup";
   return "watch";
 }
 
@@ -982,7 +982,7 @@ function buildScheduleEvidenceRead(input: {
       name: input.player.name || input.signal.name,
       position: input.position,
       team: input.team,
-      owner: isStreamRead && hasRosterOwner ? input.availability.availabilityLabel : null,
+      owner: hasRosterOwner ? input.availability.availabilityLabel : null,
       rosterStatus: input.player.playerDetails?.rosterStatus || input.player.playerDetails?.displayStatus || null,
       injuryStatus: input.player.playerDetails?.injuryStatus || null,
       nflStatus: input.player.playerDetails?.status || null,
