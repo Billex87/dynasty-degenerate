@@ -1320,6 +1320,82 @@ describe('buildAutopilotData', () => {
     expect(mustStartRead?.expectedAction?.expectedLineupChange).not.toContain('should be in a starting lineup slot');
   });
 
+  it('does not treat start-player expected actions without a slot or starter-out side as concrete queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const starterRef = {
+      id: 'slotless-start-player',
+      name: 'Slotless Start Player',
+      position: 'WR',
+      team: 'SEA',
+    };
+    const loadedEvidence = {
+      evidence: ['High confidence lineup rationale.'],
+      missingEvidence: [],
+      hardBlockers: [],
+      softPenalties: [],
+      confidenceCap: 100,
+      confidenceCapReason: null,
+      sourceTrace: [{ label: 'Lineup context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+      rawScore: 95,
+      finalScore: 95,
+      label: 'high conviction',
+      shouldRender: true,
+      canAct: true,
+      whyThisFired: 'Lineup context is loaded but no concrete starter slot is attached.',
+    } as any;
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [{
+        id: 'slotless-start-action',
+        type: 'Start/Sit',
+        player: 'Slotless Start Player',
+        action: 'Start now',
+        confidence: 95,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture incorrectly asks for a start without a starter-out side or slot.',
+        reasons: ['Malformed expected action should not become a direct lineup action.'],
+        signals: ['Lineup proof'],
+        evidenceRead: loadedEvidence,
+        expectedAction: {
+          type: 'start_player',
+          playerIn: starterRef,
+          expectedLineupChange: 'Start Slotless Start Player this week.',
+          source: 'autopilot',
+          reason: 'Malformed slotless start fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      waivers: [],
+      trades: [],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const lineupQueueItem = data.actionQueue.find((item) => item.id.includes('slotless-start-action'));
+    expect(lineupQueueItem).toMatchObject({
+      source: 'lineup',
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'start_player',
+      },
+    });
+    expect(lineupQueueItem?.missingEvidence.join(' ')).toContain('missing the starter-out side or explicit lineup slot proof');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('does not create AI projection claims from stale stored projection rows', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];

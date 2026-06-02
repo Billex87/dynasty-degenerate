@@ -1657,6 +1657,12 @@ function isSameRecommendationPlayerRef(
   return Boolean(aKey && bKey && aKey === bKey);
 }
 
+function hasExplicitLineupSlotProof(action: RecommendationExpectedAction): boolean {
+  const proofText = `${action.expectedLineupChange || ''} ${action.expectedRosterChange || ''} ${action.reason || ''}`.toLowerCase();
+  return /\b(?:qb|rb|wr|te|flex|superflex|sf|dst|d\/st|defense|k|kicker)\b/.test(proofText) ||
+    /\b(?:lineup|starter)\s+(?:spot|slot)\s+(?:at|for|is)\s+(?:qb|rb|wr|te|flex|superflex|sf|dst|d\/st|defense|k|kicker)\b/.test(proofText);
+}
+
 function hasConcreteTradeProof(action: RecommendationExpectedAction): boolean {
   if (hasRecommendationPlayerRef(action.playerIn) && hasRecommendationPlayerRef(action.playerOut)) return true;
 
@@ -1680,13 +1686,24 @@ function getQueueSourceLabel(source: AIActionQueueSource): string {
 }
 
 function getExpectedActionIdentityGap(action: RecommendationExpectedAction): string | null {
-  if (action.type === 'add_player' || action.type === 'waiver_add' || action.type === 'stream_player' || action.type === 'start_player') {
+  if (action.type === 'add_player' || action.type === 'waiver_add' || action.type === 'stream_player') {
     if (!hasRecommendationPlayerRef(action.playerIn)) {
       return 'Expected action is missing the player to add/start.';
     }
     return isSameRecommendationPlayerRef(action.playerIn, action.playerOut)
       ? 'Expected action uses the same player as both the add/start and drop/bench side.'
       : null;
+  }
+  if (action.type === 'start_player') {
+    if (!hasRecommendationPlayerRef(action.playerIn)) {
+      return 'Expected action is missing the player to add/start.';
+    }
+    if (isSameRecommendationPlayerRef(action.playerIn, action.playerOut)) {
+      return 'Expected action uses the same player as both the add/start and drop/bench side.';
+    }
+    return hasRecommendationPlayerRef(action.playerOut) || hasExplicitLineupSlotProof(action)
+      ? null
+      : 'Expected start action is missing the starter-out side or explicit lineup slot proof.';
   }
   if (action.type === 'drop_player' || action.type === 'bench_player') {
     if (!hasRecommendationPlayerRef(action.playerOut)) {
