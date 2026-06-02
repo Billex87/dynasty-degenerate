@@ -13,7 +13,9 @@ import { buildLeagueFormatPills } from "@/features/report/lib/reportOverviewPrev
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
 import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsContainer";
 import { HomeReportExperience } from "@/features/home/components/HomeReportExperience";
+import { useHomeAIVoiceMode } from "@/features/home/hooks/useHomeAIVoiceMode";
 import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
+import { useQueuedTimeouts } from "@/features/home/hooks/useQueuedTimeouts";
 import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
 import {
   buildHomePortfolioRows,
@@ -114,13 +116,6 @@ import {
   buildAIPredictionEventsForReport,
   getAIPredictionEventBatchSignature,
 } from "@/lib/aiPredictionEvents";
-import {
-  AI_VOICE_MODE_CHANGE_EVENT,
-  getAIVoiceMode,
-  getAIVoiceModeLabel,
-  setAIVoiceMode as persistAIVoiceMode,
-  type AIVoiceMode,
-} from "@/lib/aiVoice";
 
 // Cached reports render immediately, then refresh volatile Sleeper activity in the background.
 const REPORT_BACKGROUND_REFRESH_AFTER_MS = 0;
@@ -181,9 +176,7 @@ export default function Home() {
   const [adminViewerManager, setAdminViewerManager] = useState<string | null>(
     null
   );
-  const [aiVoiceMode, setAiVoiceMode] = useState<AIVoiceMode>(() =>
-    getAIVoiceMode()
-  );
+  const { aiVoiceMode, handleAIVoiceModeChange } = useHomeAIVoiceMode();
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [reportScanCompletedAt, setReportScanCompletedAt] = useState<
     number | null
@@ -219,23 +212,6 @@ export default function Home() {
       ? null
       : new URLSearchParams(window.location.search).get("preview");
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const syncVoiceMode = () => setAiVoiceMode(getAIVoiceMode());
-    window.addEventListener("storage", syncVoiceMode);
-    window.addEventListener(AI_VOICE_MODE_CHANGE_EVENT, syncVoiceMode);
-    return () => {
-      window.removeEventListener("storage", syncVoiceMode);
-      window.removeEventListener(AI_VOICE_MODE_CHANGE_EVENT, syncVoiceMode);
-    };
-  }, []);
-
-  const handleAIVoiceModeChange = (mode: AIVoiceMode) => {
-    const nextMode = persistAIVoiceMode(mode);
-    setAiVoiceMode(nextMode);
-    toast.success(`AI voice set to ${getAIVoiceModeLabel(nextMode)}.`);
-  };
-
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
   const [isChangeLeagueModalOpen, setIsChangeLeagueModalOpen] = useState(false);
   const [isClownModalOpen, setIsClownModalOpen] = useState(false);
@@ -258,7 +234,10 @@ export default function Home() {
     setLoadingManagerAnchors,
     setPreviewLoadingLoopTick,
   });
-  const successTransitionTimerRefs = useRef<number[]>([]);
+  const {
+    clearQueuedTimeouts: clearSuccessTransitionTimers,
+    queueTimeout: queueSuccessTransitionTimer,
+  } = useQueuedTimeouts();
   const activeAnalysisLeagueIdRef = useRef<string | null>(null);
   const reportLoadStartedAtRef = useRef<number | null>(null);
   const analyzeRequestStartedAtRef = useRef<{
@@ -287,24 +266,6 @@ export default function Home() {
       toast.error(loginError.message);
     },
   });
-
-  const clearSuccessTransitionTimers = () => {
-    successTransitionTimerRefs.current.forEach(timer =>
-      window.clearTimeout(timer)
-    );
-    successTransitionTimerRefs.current = [];
-  };
-
-  const queueSuccessTransitionTimer = (callback: () => void, delay: number) => {
-    const timer = window.setTimeout(() => {
-      successTransitionTimerRefs.current =
-        successTransitionTimerRefs.current.filter(
-          queuedTimer => queuedTimer !== timer
-        );
-      callback();
-    }, delay);
-    successTransitionTimerRefs.current.push(timer);
-  };
 
   const queueReportVisibleTelemetry = (
     event: Omit<ReportLoadTelemetryEvent, "createdAt" | "visibleMs">
