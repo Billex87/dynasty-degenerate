@@ -1,0 +1,34 @@
+# Local dependency/build artifacts
+node_modules/
+.pnpm-store/
+dist/
+build/
+output/
+.vercel/
+
+# Local test and automation artifacts
+.playwright-cli/
+test-results/
+playwright-report/
+blob-report/
+.manus-logs/
+dev_server.log
+
+# Local environment files
+.env
+.env.*
+.tmp.prod.env
+
+# Generated/offline value-history archives; production uses checked-in or hosted shards.
+server/value-history-archive/
+
+# Local design/prototype inputs
+design-inputs/
+design-inputs v2/
+rightpanel/
+interactive-globe/
+
+# OS/editor metadata
+.DS_Store
+*.log
+*.tsbuildinfo
