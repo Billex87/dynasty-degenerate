@@ -1689,7 +1689,12 @@ function getExpectedActionIdentityGap(action: RecommendationExpectedAction): str
       : null;
   }
   if (action.type === 'drop_player' || action.type === 'bench_player') {
-    return hasRecommendationPlayerRef(action.playerOut) ? null : 'Expected action is missing the player to drop/bench.';
+    if (!hasRecommendationPlayerRef(action.playerOut)) {
+      return 'Expected action is missing the player to drop/bench.';
+    }
+    return isSameRecommendationPlayerRef(action.playerIn, action.playerOut)
+      ? 'Expected action uses the same player as both the add/start and drop/bench side.'
+      : null;
   }
   if (action.type === 'drop_for_add' || action.type === 'swap_starter') {
     if (!hasRecommendationPlayerRef(action.playerIn) || !hasRecommendationPlayerRef(action.playerOut)) {

@@ -457,6 +457,83 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('does not treat same-player bench expected actions as concrete queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const samePlayerRef = {
+      id: 'same-bench-player',
+      name: 'Same Bench Player',
+      position: 'TE',
+      team: 'DET',
+    };
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [{
+        id: 'same-player-bench',
+        type: 'Start/Sit',
+        player: 'Same Bench Player',
+        action: 'Bench',
+        confidence: 91,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture incorrectly benches and starts the same player.',
+        reasons: ['Malformed expected action should not become a direct action.'],
+        signals: ['Lineup proof'],
+        evidenceRead: {
+          evidence: ['High confidence lineup rationale.'],
+          missingEvidence: [],
+          hardBlockers: [],
+          softPenalties: [],
+          confidenceCap: 100,
+          confidenceCapReason: null,
+          sourceTrace: [{ label: 'Lineup context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+          rawScore: 91,
+          finalScore: 91,
+          label: 'high conviction',
+          shouldRender: true,
+          canAct: true,
+          whyThisFired: 'Lineup context is loaded but the expected action is malformed.',
+        } as any,
+        expectedAction: {
+          type: 'bench_player',
+          playerIn: samePlayerRef,
+          playerOut: samePlayerRef,
+          playersInvolved: [samePlayerRef, samePlayerRef],
+          expectedLineupChange: 'Bench Same Bench Player for Same Bench Player.',
+          source: 'autopilot',
+          reason: 'Malformed same-player bench fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      waivers: [],
+      trades: [],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const benchQueueItem = data.actionQueue.find((item) => item.id.includes('same-player-bench'));
+    expect(benchQueueItem).toMatchObject({
+      source: 'lineup',
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'bench_player',
+      },
+    });
+    expect(benchQueueItem?.missingEvidence.join(' ')).toContain('same player');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('does not treat single-player trade ideas without partner proof as concrete queue moves', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];
