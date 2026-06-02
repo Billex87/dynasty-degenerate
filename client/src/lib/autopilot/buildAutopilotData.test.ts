@@ -88,10 +88,14 @@ describe('buildAutopilotData', () => {
     expect(data.weeklyPlan?.starterToReview?.player).toBe('Sample Tight End');
     expect(data.weeklyPlan?.options.map((option) => option.player)).toEqual(['Replacement Tight End']);
     expect(data.weeklyPlan?.options.map((option) => option.player)).not.toEqual(expect.arrayContaining(['Sample Quarterback', 'Sample Receiver']));
-    expect(data.weeklyRecap?.headline).toContain('Sample Tight End');
+    expect(data.weeklyRecap?.headline).toBe('Lineup pressure test: Sample Tight End');
+    expect(data.weeklyRecap?.headline).not.toMatch(/^Start\b/);
+    expect(data.weeklyRecap?.summary).toContain('This support read does not replace the Action Queue');
+    expect(data.weeklyRecap?.summary).not.toContain('Start Replacement Tight End over Sample Tight End');
     expect(data.weeklyRecap?.startSitCalls).toContainEqual(expect.objectContaining({
       sit: 'Sample Tight End',
       start: 'Replacement Tight End',
+      note: expect.stringContaining('Pressure-test Sample Tight End with Replacement Tight End'),
     }));
     expect(data.futurePickTrajectory?.manager).toBe('Tester');
     expect(data.futurePickTrajectory?.points.length).toBeGreaterThan(0);

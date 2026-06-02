@@ -1511,7 +1511,7 @@ function buildWeeklyRecapRead(
       sit: starter.player,
       start: option.player,
       confidence: option.confidence,
-      note: `Start ${option.player} over ${starter.player}: ${option.note}`,
+      note: `Pressure-test ${starter.player} with ${option.player}: ${option.note}`,
       tone: option.tone,
     }))
     : [];
@@ -1529,12 +1529,12 @@ function buildWeeklyRecapRead(
   const topCall = startSitCalls[0];
   return {
     headline: topCall
-      ? `Start ${topCall.start} over ${topCall.sit}`
+      ? `Lineup pressure test: ${topCall.sit}`
       : mode === 'redraft'
         ? `${manager} weekly recap`
         : `${manager} dynasty week-in-review`,
     summary: topCall
-      ? `${topCall.note} This is a dynamic recap call, so it should tighten after games once actual usage and points are available.`
+      ? `${topCall.note} This support read does not replace the Action Queue; it should tighten after games once actual usage and points are available.`
       : 'No lineup swap is forced yet; the recap focuses on waiver and trade moves until weekly result data lands.',
     startSitCalls,
     waiverNotes: topWaivers,
