@@ -82,9 +82,10 @@ import {
   loadStoredSleeperProjectionSnapshot,
   type SleeperProjectionScoringProfile,
 } from "./sleeperProjectionSnapshots";
-import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, findMagicLinkTokenByHash, getUserByOpenId, insertLoginAttempt, insertMagicLinkToken, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, markMagicLinkTokenConsumed, parseLeagueReportCachePayloadFromStorage, recordUsageEvent, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser } from "./db";
+import { findBillingCustomerForUser, findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, findMagicLinkTokenByHash, getUserByOpenId, insertLoginAttempt, insertMagicLinkToken, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, markMagicLinkTokenConsumed, parseLeagueReportCachePayloadFromStorage, recordUsageEvent, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser } from "./db";
 import { consumeMagicLinkToken, createMagicLinkToken, getMagicLinkUserOpenId, hashMagicLinkToken, normalizeMagicLinkRedirectPath } from "./magicLinkTokens";
 import { buildUsageEvent } from "./usageEvents";
+import { createStripeCheckoutSession, createStripeCustomerPortalSession, resolveStripeBillingAppBaseUrl, STRIPE_BILLING_PRODUCT_KEYS } from "./stripeBilling";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { LeagueDraftStatus, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
 import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
@@ -106,6 +107,27 @@ function getRequestIpAddress(ctx: TrpcContext): string | null {
 function getRequestUserAgent(ctx: TrpcContext): string | null {
   const userAgent = ctx.req.headers["user-agent"];
   return Array.isArray(userAgent) ? userAgent[0] ?? null : userAgent ?? null;
+}
+
+function getFirstHeaderValue(value: string | string[] | undefined): string | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw?.split(",")[0]?.trim() || null;
+}
+
+function getRequestBillingAppBaseUrl(ctx: TrpcContext): string {
+  return resolveStripeBillingAppBaseUrl({
+    requestProtocol: getFirstHeaderValue(ctx.req.headers["x-forwarded-proto"]) || ctx.req.protocol,
+    requestHost: getFirstHeaderValue(ctx.req.headers["x-forwarded-host"]) || getFirstHeaderValue(ctx.req.headers.host),
+  });
+}
+
+function assertBillingPersistenceConfigured() {
+  if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Stripe billing requires DATABASE_URL in production.",
+    });
+  }
 }
 
 function assertSessionJwtSecretConfigured() {
@@ -6319,6 +6341,50 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+  }),
+
+  billing: router({
+    createCheckoutSession: protectedProcedure
+      .input(z.object({
+        productKey: z.enum(STRIPE_BILLING_PRODUCT_KEYS),
+        leagueId: z.string().trim().regex(SLEEPER_ENTITY_ID_PATTERN).optional(),
+        returnPath: z.string().trim().max(512).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        assertBillingPersistenceConfigured();
+
+        const billingCustomer = await findBillingCustomerForUser(ctx.user.openId);
+        return createStripeCheckoutSession({
+          productKey: input.productKey,
+          userOpenId: ctx.user.openId,
+          userEmail: ctx.user.email,
+          stripeCustomerId: billingCustomer?.stripeCustomerId,
+          leagueId: input.leagueId,
+          appBaseUrl: getRequestBillingAppBaseUrl(ctx),
+          returnPath: normalizeMagicLinkRedirectPath(input.returnPath),
+        });
+      }),
+    createCustomerPortalSession: protectedProcedure
+      .input(z.object({
+        returnPath: z.string().trim().max(512).optional(),
+      }).optional())
+      .mutation(async ({ input, ctx }) => {
+        assertBillingPersistenceConfigured();
+
+        const billingCustomer = await findBillingCustomerForUser(ctx.user.openId);
+        if (!billingCustomer) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "No Stripe customer is linked to this user yet.",
+          });
+        }
+
+        return createStripeCustomerPortalSession({
+          stripeCustomerId: billingCustomer.stripeCustomerId,
+          appBaseUrl: getRequestBillingAppBaseUrl(ctx),
+          returnPath: normalizeMagicLinkRedirectPath(input?.returnPath),
+        });
+      }),
   }),
 
   actionPlans: router({

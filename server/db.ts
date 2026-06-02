@@ -174,6 +174,13 @@ export type BillingSubscriptionAccessRecord = {
   currentPeriodEnd: Date | null;
 };
 
+export type BillingCustomerAccessRecord = {
+  stripeCustomerId: string;
+  email: string | null;
+  status: string;
+  updatedAt: Date | null;
+};
+
 export type CountUsageEventsInput = {
   userOpenId?: string | null;
   leagueId?: string | null;
@@ -1132,6 +1139,38 @@ export async function listBillingSubscriptionsForUser(userOpenId: string): Promi
     status: String(row.status || ""),
     currentPeriodEnd: normalizeDateForDb(row.currentPeriodEnd),
   }));
+}
+
+export async function findBillingCustomerForUser(userOpenId: string): Promise<BillingCustomerAccessRecord | null> {
+  const normalizedUserOpenId = requiredTrimmed(userOpenId, "userOpenId");
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot find billing customer: database not available");
+    return null;
+  }
+
+  const result = await sql`
+    SELECT
+      "stripeCustomerId",
+      email,
+      status,
+      "updatedAt"
+    FROM "billingCustomers"
+    WHERE "userOpenId" = ${normalizedUserOpenId}
+    ORDER BY
+      CASE WHEN status = 'active' THEN 0 ELSE 1 END,
+      "updatedAt" DESC
+    LIMIT 1
+  ` as Record<string, any>[];
+
+  const row = result[0];
+  if (!row?.stripeCustomerId) return null;
+  return {
+    stripeCustomerId: String(row.stripeCustomerId),
+    email: row.email ? String(row.email) : null,
+    status: String(row.status || ""),
+    updatedAt: normalizeDateForDb(row.updatedAt),
+  };
 }
 
 export async function recordUsageEvent(input: UsageEventInput): Promise<boolean> {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   countUsageEvents,
+  findBillingCustomerForUser,
   listBillingSubscriptionsForUser,
   recordUsageEvent,
   upsertBillingCustomer,
@@ -47,6 +48,10 @@ describe("billing persistence helpers", () => {
 
   it("fails safely when subscription reads have no database", async () => {
     await expect(listBillingSubscriptionsForUser("email:user")).resolves.toEqual([]);
+  });
+
+  it("fails safely when billing customer reads have no database", async () => {
+    await expect(findBillingCustomerForUser("email:user")).resolves.toBeNull();
   });
 
   it("fails safely when usage event persistence has no database", async () => {
