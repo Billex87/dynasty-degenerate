@@ -480,7 +480,10 @@ describe("user-load provider boundary", () => {
     const textIndex = graphqlImportSource.indexOf("const rawBody = await response.text()");
     const byteLengthIndex = graphqlImportSource.indexOf("Buffer.byteLength(rawBody, 'utf8')");
     const parseIndex = graphqlImportSource.indexOf("JSON.parse(rawBody)");
-    const signalIndex = hiddenImportHelperSource.indexOf("buildTradeProposalSignals(hiddenTransactions");
+    const tradeSignalIndex = hiddenImportHelperSource.indexOf("buildTradeProposalSignals(");
+    const tradeSignalLimitIndex = hiddenImportHelperSource.indexOf("SLEEPER_HIDDEN_IMPORT_TRADE_SIGNAL_LIMIT", tradeSignalIndex);
+    const waiverSignalIndex = hiddenImportHelperSource.indexOf("buildSleeperWaiverClaimSignals(");
+    const waiverSignalLimitIndex = hiddenImportHelperSource.indexOf("SLEEPER_HIDDEN_IMPORT_WAIVER_SIGNAL_LIMIT", waiverSignalIndex);
 
     expect(accessIndex).toBeGreaterThan(0);
     expect(ipRateLimitIndex).toBeGreaterThan(accessIndex);
@@ -494,7 +497,12 @@ describe("user-load provider boundary", () => {
     expect(textIndex).toBeGreaterThan(contentLengthIndex);
     expect(byteLengthIndex).toBeGreaterThan(textIndex);
     expect(parseIndex).toBeGreaterThan(byteLengthIndex);
-    expect(signalIndex).toBeGreaterThan(0);
+    expect(tradeSignalIndex).toBeGreaterThan(0);
+    expect(tradeSignalLimitIndex).toBeGreaterThan(tradeSignalIndex);
+    expect(waiverSignalIndex).toBeGreaterThan(tradeSignalIndex);
+    expect(waiverSignalLimitIndex).toBeGreaterThan(waiverSignalIndex);
+    expect(routersSource).toContain("SLEEPER_HIDDEN_IMPORT_TRADE_SIGNAL_LIMIT = 80");
+    expect(routersSource).toContain("SLEEPER_HIDDEN_IMPORT_WAIVER_SIGNAL_LIMIT = 120");
   });
 
   it("keeps ranking detail endpoints behind report access and rate limits", () => {

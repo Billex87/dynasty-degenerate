@@ -647,6 +647,8 @@ const sleeperUserIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter a
 const sleeperUsernameSchema = z.string().trim().min(1).max(64);
 const sleeperAuthTokenSchema = z.string().trim().min(1).max(4096);
 const MAX_SLEEPER_HIDDEN_TRADE_CENTER_RESPONSE_BYTES = 5 * 1024 * 1024;
+const SLEEPER_HIDDEN_IMPORT_TRADE_SIGNAL_LIMIT = 80;
+const SLEEPER_HIDDEN_IMPORT_WAIVER_SIGNAL_LIMIT = 120;
 const valueTimelineWindowSchema = z.enum(['1m', '3m', '6m', '1y', 'all']);
 const MAX_AI_PREDICTION_EVENT_BYTES = 64 * 1024;
 const aiSourceTraceSchema = z.object({
@@ -3454,8 +3456,19 @@ async function loadSleeperHiddenTradeCenterImport(input: {
     ])
   );
 
-  const tradeProposalSignals = buildTradeProposalSignals(hiddenTransactions, rosterUserMap, safePlayers, null);
-  const waiverSignals = buildSleeperWaiverClaimSignals(hiddenTransactions, rosterUserMap, safePlayers, userMap);
+  const tradeProposalSignals = buildTradeProposalSignals(
+    hiddenTransactions,
+    rosterUserMap,
+    safePlayers,
+    SLEEPER_HIDDEN_IMPORT_TRADE_SIGNAL_LIMIT
+  );
+  const waiverSignals = buildSleeperWaiverClaimSignals(
+    hiddenTransactions,
+    rosterUserMap,
+    safePlayers,
+    userMap,
+    SLEEPER_HIDDEN_IMPORT_WAIVER_SIGNAL_LIMIT
+  );
 
   return {
     tradeProposalSignals,
@@ -6261,11 +6274,17 @@ function buildSleeperWaiverClaimSignals(
   transactions: any[],
   rosterUserMap: Record<string, string>,
   players: Record<string, any>,
-  userMap?: Record<string, any>
+  userMap?: Record<string, any>,
+  limit: number | null = 40
 ): SleeperWaiverClaimSignal[] {
-  return [...transactions]
+  const orderedTransactions = [...transactions]
     .filter((transaction) => transaction?.type === 'waiver' && transaction?.status !== 'complete')
-    .sort((a, b) => Number(b?.status_updated || b?.created || 0) - Number(a?.status_updated || a?.created || 0))
+    .sort((a, b) => Number(b?.status_updated || b?.created || 0) - Number(a?.status_updated || a?.created || 0));
+  const selectedTransactions = typeof limit === 'number' && Number.isFinite(limit)
+    ? orderedTransactions.slice(0, limit)
+    : orderedTransactions;
+
+  return selectedTransactions
     .map((transaction) => {
       const managers = getTransactionManagerNames(transaction, rosterUserMap, userMap);
       const playerIds = getHiddenTransactionPlayerIds(transaction);
