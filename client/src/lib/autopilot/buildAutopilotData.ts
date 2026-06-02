@@ -1880,7 +1880,7 @@ function getActionSourceHealthGap(recommendation: AutopilotRecommendation, sourc
 function getSourceTraceHealth(trace: AISourceTrace): 'loaded' | 'missing' | 'unhealthy' | 'unknown' {
   const status = String(trace.status || '').trim().toLowerCase();
   const detail = String(trace.detail || '').trim();
-  if (status === 'missing' || /\b0\s+rows\b|no source/i.test(detail)) return 'missing';
+  if (status === 'missing' || /\b(?:0|zero)\s+rows?\b|no source/i.test(detail)) return 'missing';
   if (
     status === 'stale' ||
     status === 'error' ||
@@ -2469,7 +2469,7 @@ function buildAIReportCardRead({
   const doCount = actionQueue.filter((item) => item.decision === 'do').length;
   const blockedOrWatch = actionQueue.filter((item) => item.decision === 'blocked' || item.decision === 'watch').length;
   const sourceWarnings = actionQueue.flatMap((item) => item.sourceHealth)
-    .filter((source) => /missing|stale|error|limited|0 rows|no source/i.test(source));
+    .filter((source) => /missing|stale|error|limited|\b(?:0|zero)\s+rows?\b|no source/i.test(source));
   const grade =
     confidence >= 88 && !sourceWarnings.length
       ? 'A'

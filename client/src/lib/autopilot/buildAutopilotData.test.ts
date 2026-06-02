@@ -158,7 +158,7 @@ describe('buildAutopilotData', () => {
       expect(item.missingEvidence.join(' ')).not.toMatch(/precondition|concrete expected action/i);
       expect(item.sourceHealth.length, item.id).toBeGreaterThan(0);
       expect(item.sourceHealth.join(' '), item.id).toMatch(/loaded|current|fresh|source|roster|lineup|transaction|league|evidence/i);
-      expect(item.sourceHealth.join(' '), item.id).not.toMatch(/stale|missing|error|limited|unavailable|unverified|0 rows|no source/i);
+      expect(item.sourceHealth.join(' '), item.id).not.toMatch(/stale|missing|error|limited|unavailable|unverified|\b(?:0|zero)\s+rows?\b|no source/i);
       expect(item.receipts.length, item.id).toBeGreaterThan(0);
       expect(item.changeTriggers.length, item.id).toBeGreaterThan(0);
       expect(item.changeTriggers.join(' '), item.id).toMatch(/verify|check|review|clear|source|roster|lineup|transaction|evidence|threshold|blocker|confidence|action/i);
@@ -2669,7 +2669,7 @@ describe('buildAutopilotData', () => {
         scoring: 'PPR',
         week: 1,
         position: 'WR',
-        evidence: '0 rows returned by source probe',
+        evidence: 'zero rows returned by source probe',
         rowCount: 12,
       }],
       traceSummary: 'Fixture intentionally carries no source rows.',
@@ -2745,7 +2745,7 @@ describe('buildAutopilotData', () => {
     expect(waiverRead?.confidence).toBeLessThanOrEqual(52);
     expect(waiverRead?.signals).toEqual(expect.arrayContaining(['Outcome-calibrated']));
     expect(waiverRead?.reasons.join(' ')).toContain('Split source proof should stay below action confidence');
-    expect(waiverRead?.evidenceRead?.sourceTrace.map((trace) => `${trace.label}: ${trace.status} ${trace.detail || ''}`).join(' ')).toContain('0 rows');
+    expect(waiverRead?.evidenceRead?.sourceTrace.map((trace) => `${trace.label}: ${trace.status} ${trace.detail || ''}`).join(' ')).toContain('zero rows');
     expect(data.actionQueue.filter((item) => item.target === 'Waiver Receiver' && item.decision === 'do')).toHaveLength(0);
   });
 

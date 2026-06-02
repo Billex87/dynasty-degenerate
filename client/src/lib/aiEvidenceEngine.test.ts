@@ -336,7 +336,7 @@ describe("ai evidence engine", () => {
     expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 55% because FantasyPros waiver snapshot source freshness");
   });
 
-  it("caps missing source traces below actionable confidence", () => {
+  it("caps zero-row source trace details below actionable confidence", () => {
     const read = evaluateAIEvidence({
       surface: "waiver",
       action: "pickup",
@@ -346,10 +346,11 @@ describe("ai evidence engine", () => {
       signalModes: ["redraft", "current"],
       sourceTrace: [{
         label: "FantasyPros waiver snapshot",
-        status: "missing",
+        status: "loaded",
+        detail: "zero rows returned by source probe",
       }],
       player: {
-        name: "Missing Source Receiver",
+        name: "Zero Row Source Receiver",
         position: "WR",
         team: "LV",
         value: 5200,
@@ -363,6 +364,7 @@ describe("ai evidence engine", () => {
     expect(read.confidenceCapReason).toBe("FantasyPros waiver snapshot source freshness");
     expect(read.missingEvidence).toContain("Fresh source proof is stale or unhealthy for this action read.");
     expect(read.softPenalties.map(penalty => penalty.label)).toContain("FantasyPros waiver snapshot is stale or unhealthy");
+    expect(read.sourceTrace.map(trace => trace.detail).join(" ")).toContain("zero rows");
   });
 
   it("caps player action reads without source count or source trace", () => {
