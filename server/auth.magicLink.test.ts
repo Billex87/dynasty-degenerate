@@ -310,6 +310,29 @@ describe("auth magic-link procedures", () => {
     });
   });
 
+  it("keeps magic-link consume lookups and session writes behind a route rate limit", () => {
+    const start = routersSource.indexOf("consumeMagicLink: publicProcedure");
+    const end = routersSource.indexOf("adminLogin: publicProcedure", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const routeSource = routersSource.slice(start, end);
+    const secretCheckIndex = routeSource.indexOf("assertSessionJwtSecretConfigured()");
+    const rateLimitIndex = routeSource.indexOf("assertRateLimit(ctx.req as any");
+    const tokenLookupIndex = routeSource.indexOf("findMagicLinkTokenByHash");
+    const consumeTokenIndex = routeSource.indexOf("consumeMagicLinkToken({");
+    const upsertUserIndex = routeSource.indexOf("upsertUser({");
+    const cookieIndex = routeSource.indexOf("ctx.res.cookie(COOKIE_NAME");
+
+    expect(secretCheckIndex).toBeGreaterThan(0);
+    expect(rateLimitIndex).toBeGreaterThan(secretCheckIndex);
+    expect(tokenLookupIndex).toBeGreaterThan(rateLimitIndex);
+    expect(consumeTokenIndex).toBeGreaterThan(rateLimitIndex);
+    expect(upsertUserIndex).toBeGreaterThan(rateLimitIndex);
+    expect(cookieIndex).toBeGreaterThan(rateLimitIndex);
+    expect(routeSource).toContain('id: "auth.consumeMagicLink"');
+    expect(routeSource).toContain('max: 20');
+  });
+
   it("rejects replayed magic-link tokens when the consume update loses the race", async () => {
     const created = createMagicLinkToken({
       email: "sample@example.com",

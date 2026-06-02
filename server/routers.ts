@@ -6425,6 +6425,12 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         assertSessionJwtSecretConfigured();
+        assertRateLimit(ctx.req as any, {
+          id: "auth.consumeMagicLink",
+          max: 20,
+          windowMs: 1000 * 60 * 10,
+          message: "Too many magic-link sign-in attempts. Please wait a few minutes and try again.",
+        });
 
         const record = await findMagicLinkTokenByHash(hashMagicLinkToken(input.token));
         if (!record) {
