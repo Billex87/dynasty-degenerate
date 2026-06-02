@@ -21,6 +21,7 @@ import { useHomeAIVoiceMode } from "@/features/home/hooks/useHomeAIVoiceMode";
 import { useHomeAIPredictionTelemetry } from "@/features/home/hooks/useHomeAIPredictionTelemetry";
 import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeout";
 import { useHomeLeagueIntelRanks } from "@/features/home/hooks/useHomeLeagueIntelRanks";
+import { useHomeNavigationActions } from "@/features/home/hooks/useHomeNavigationActions";
 import { useHomePortfolio } from "@/features/home/hooks/useHomePortfolio";
 import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
 import { usePersistHomeReportCache } from "@/features/home/hooks/usePersistHomeReportCache";
@@ -976,100 +977,51 @@ export default function Home() {
     setAdminViewerManager(null);
   };
 
-  const handleStartOver = () => {
-    clearBrowserReportCache();
-    localStorage.removeItem(LAST_LEAGUE_KEY);
-    localStorage.removeItem(SLEEPER_SESSION_KEY);
-    updateReportTabUrl("overview", "");
-    clearSuccessTransitionTimers();
-    activeAnalysisLeagueIdRef.current = null;
-    setIsLeaguePickerOpen(false);
-    setIsChangeLeagueModalOpen(false);
-    setIsAdminAccessModalOpen(false);
-    setAnalysisCompleteMessage(null);
-    setAnalysisErrorMessage(null);
-    setPendingAnalysisLeague(null);
-    setLoadingTransitionPhase("loading");
-    setHasLoadingTimedOut(false);
-    setLoadingManagerAnchors([]);
-    setIsLoading(false);
-    setReportData(null);
-    setLeagueId("");
-    setSleeperUsername("");
-    setPortfolioSearch("");
-    setLeagueName("");
-    setLeagueLogo(null);
-    setLeagueFormat("");
-    setUserLeagues([]);
-    setIsLeagueIntelLoading(false);
-    setViewerUserId(null);
-    setViewerUsername(null);
-    setAdminViewMode(null);
-    setAdminViewerManager(null);
-    setAdminPassphrase("");
-    setActiveTab("overview");
-  };
-
-  const handleCancelLoading = () => {
-    clearSuccessTransitionTimers();
-    activeAnalysisLeagueIdRef.current = null;
-    reportLoadStartedAtRef.current = null;
-    analyzeRequestStartedAtRef.current = null;
-    analysisModeRef.current = "blocking";
-    setAnalysisCompleteMessage(null);
-    setPendingAnalysisLeague(null);
-    setLoadingTransitionPhase("loading");
-    setHasLoadingTimedOut(false);
-    setLoadingManagerAnchors([]);
-    setIsLoading(false);
-
-    if (userLeagues.length > 0) {
-      setIsLeaguePickerOpen(true);
-      return;
-    }
-
-    if (!reportData) {
-      updateReportTabUrl("overview", "");
-      setLeagueId("");
-      setAnalysisErrorMessage(null);
-      setLeagueName("");
-      setLeagueLogo(null);
-      setLeagueFormat("");
-      setActiveTab("overview");
-    }
-  };
-
-  const handleRetryLoading = () => {
-    const retryLeagueId =
-      activeAnalysisLeagueIdRef.current || normalizeReportLeagueId(leagueId);
-    if (!retryLeagueId) {
-      handleCancelLoading();
-      return;
-    }
-    void handleAnalyze(retryLeagueId);
-  };
-
-  const handleAnalyzeAnotherLeague = () => {
-    if (userLeagues.length > 0) {
-      setIsLeaguePickerOpen(true);
-      return;
-    }
-    setIsChangeLeagueModalOpen(true);
-  };
-
-  const handleHeaderLeagueClick = () => {
-    if (userLeagues.length > 0) {
-      setIsLeaguePickerOpen(true);
-      return;
-    }
-    setIsChangeLeagueModalOpen(true);
-  };
-
-  const handleAnalyzeLeagueOption = async (nextLeagueId: string) => {
-    setIsLeaguePickerOpen(false);
-    clearBrowserReportCache(nextLeagueId);
-    await handleAnalyze(nextLeagueId);
-  };
+  const {
+    handleAnalyzeAnotherLeague,
+    handleAnalyzeLeagueOption,
+    handleCancelLoading,
+    handleHeaderLeagueClick,
+    handleRetryLoading,
+    handleStartOver,
+  } = useHomeNavigationActions({
+    activeAnalysisLeagueIdRef,
+    analysisModeRef,
+    analyzeRequestStartedAtRef,
+    clearSuccessTransitionTimers,
+    lastLeagueKey: LAST_LEAGUE_KEY,
+    leagueId,
+    reportData,
+    reportLoadStartedAtRef,
+    sleeperSessionKey: SLEEPER_SESSION_KEY,
+    userLeagues,
+    handleAnalyze,
+    setActiveTab,
+    setAdminPassphrase,
+    setAdminViewMode,
+    setAdminViewerManager,
+    setAnalysisCompleteMessage,
+    setAnalysisErrorMessage,
+    setHasLoadingTimedOut,
+    setIsAdminAccessModalOpen,
+    setIsChangeLeagueModalOpen,
+    setIsLeagueIntelLoading,
+    setIsLeaguePickerOpen,
+    setIsLoading,
+    setLeagueFormat,
+    setLeagueId,
+    setLeagueLogo,
+    setLeagueName,
+    setLoadingManagerAnchors,
+    setLoadingTransitionPhase,
+    setPendingAnalysisLeague,
+    setPortfolioSearch,
+    setReportData,
+    setSleeperUsername,
+    setUserLeagues,
+    setViewerUserId,
+    setViewerUsername,
+  });
 
   const usernameAutocompleteOptions = getFilteredAutocompleteOptions(
     sleeperUsernameHistory,
