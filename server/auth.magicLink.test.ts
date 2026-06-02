@@ -325,6 +325,7 @@ describe("auth magic-link procedures", () => {
     const routeSource = routersSource.slice(start, end);
     const secretCheckIndex = routeSource.indexOf("assertSessionJwtSecretConfigured()");
     const rateLimitIndex = routeSource.indexOf("assertRateLimit(ctx.req as any");
+    const emailRateLimitIndex = routeSource.indexOf('id: "auth.consumeMagicLink.email"');
     const tokenLookupIndex = routeSource.indexOf("findMagicLinkTokenByHash");
     const consumeTokenIndex = routeSource.indexOf("consumeMagicLinkToken({");
     const upsertUserIndex = routeSource.indexOf("upsertUser({");
@@ -332,10 +333,13 @@ describe("auth magic-link procedures", () => {
 
     expect(secretCheckIndex).toBeGreaterThan(0);
     expect(rateLimitIndex).toBeGreaterThan(secretCheckIndex);
-    expect(tokenLookupIndex).toBeGreaterThan(rateLimitIndex);
-    expect(consumeTokenIndex).toBeGreaterThan(rateLimitIndex);
-    expect(upsertUserIndex).toBeGreaterThan(rateLimitIndex);
-    expect(cookieIndex).toBeGreaterThan(rateLimitIndex);
+    expect(emailRateLimitIndex).toBeGreaterThan(rateLimitIndex);
+    expect(routeSource).toContain("scope: getMagicLinkUserOpenId(input.email)");
+    expect(routeSource).toContain('clientKey: "recipient"');
+    expect(tokenLookupIndex).toBeGreaterThan(emailRateLimitIndex);
+    expect(consumeTokenIndex).toBeGreaterThan(emailRateLimitIndex);
+    expect(upsertUserIndex).toBeGreaterThan(emailRateLimitIndex);
+    expect(cookieIndex).toBeGreaterThan(emailRateLimitIndex);
     expect(routeSource).toContain('id: "auth.consumeMagicLink"');
     expect(routeSource).toContain('max: 20');
   });

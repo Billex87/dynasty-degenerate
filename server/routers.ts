@@ -6902,6 +6902,14 @@ export const appRouter = router({
           windowMs: 1000 * 60 * 10,
           message: "Too many magic-link sign-in attempts. Please wait a few minutes and try again.",
         });
+        assertRateLimit(ctx.req as any, {
+          id: "auth.consumeMagicLink.email",
+          max: 10,
+          windowMs: 1000 * 60 * 10,
+          scope: getMagicLinkUserOpenId(input.email),
+          clientKey: "recipient",
+          message: "Too many magic-link sign-in attempts for this email. Please wait a few minutes and try again.",
+        });
 
         const record = await findMagicLinkTokenByHash(hashMagicLinkToken(input.token));
         if (!record) {
