@@ -2228,10 +2228,9 @@ export function buildWaiverRecommendationContext({
       const competitionCopy = recommendation.competitionRead
         ? `${recommendation.competitionRead.manager} is the top competing-claim risk`
         : "no strong competing-claim risk returned";
-      const decisionLabel = getVoicedAIActionLabel(
-        recommendation.evidenceRead.canAct ? "Do this" : "Don't force it",
-        recommendation.evidenceRead.canAct ? "do" : "watch"
-      );
+      const decisionLabel = recommendation.evidenceRead.canAct
+        ? "Review this"
+        : getVoicedAIActionLabel("Don't force it", "watch");
       return `${recommendation.player.name}: ${decisionLabel} - ${recommendation.reason} (${recommendation.evidenceRead.label}; ${bidCopy}; ${competitionCopy})`;
     })
     .join(" Next: ");
@@ -2472,7 +2471,7 @@ export default function WaiverIntelligencePanel({
                       </span>
                       <strong>
                         {recommendation.evidenceRead.canAct
-                          ? "Do this"
+                          ? "Review this"
                           : "Don't add yet"}
                       </strong>
                     </div>

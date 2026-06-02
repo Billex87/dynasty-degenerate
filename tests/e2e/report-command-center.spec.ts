@@ -825,6 +825,36 @@ test.describe("command center feature surfaces", () => {
     expect(desktopOverflow).toBeLessThanOrEqual(1);
   });
 
+  test("keeps waiver intelligence as receipt language instead of a second action owner", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    cachedReport.reportData.recentTransactions =
+      cachedReport.reportData.recentTransactions?.map(transaction =>
+        transaction.id === "tx-waiver-2" && transaction.addedPlayer
+          ? {
+              ...transaction,
+              addedPlayer: {
+                ...transaction.addedPlayer,
+                player_id: "alternate-waiver-wr",
+                name: "Alternate Waiver Receiver",
+              },
+            }
+          : transaction
+      );
+    await loadCachedReport(page, cachedReport, "#momentum");
+
+    const waiverSection = await openReportSection(page, "Waiver Intelligence");
+    await expect(waiverSection.getByText("Waiver Receiver").first()).toBeVisible();
+    await expect(
+      waiverSection.locator(".waiver-intel-recommendation-banner")
+    ).toContainText("Review this");
+    await expect(
+      waiverSection.locator(".waiver-ai-target-card").first()
+    ).toContainText("Review this");
+    await expect(waiverSection.getByText("Do this", { exact: true })).toHaveCount(0);
+  });
+
   test("shows one compact delta brief only when a saved report baseline changed", async ({
     page,
   }) => {
