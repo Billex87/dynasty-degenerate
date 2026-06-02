@@ -1851,6 +1851,36 @@ function getActionPreconditionGap(
     return `${sourceLabel} read still has missing evidence: ${missingEvidence}`;
   }
 
+  const sourceHealthGap = getActionSourceHealthGap(recommendation, sourceLabel);
+  if (sourceHealthGap) return sourceHealthGap;
+
+  return null;
+}
+
+function getActionSourceHealthGap(recommendation: AutopilotRecommendation, sourceLabel: string): string | null {
+  const traces = recommendation.evidenceRead?.sourceTrace || [];
+  if (!traces.length) {
+    return `${sourceLabel} read is missing source-health proof.`;
+  }
+
+  const unhealthyTrace = traces.find((trace) => {
+    const status = String(trace.status || '').trim().toLowerCase();
+    const detail = String(trace.detail || '').trim();
+    return (
+      status === 'missing' ||
+      status === 'stale' ||
+      status === 'error' ||
+      status === 'limited' ||
+      status === 'unavailable' ||
+      status === 'unverified' ||
+      /\b0\s+rows\b|no source/i.test(detail)
+    );
+  });
+
+  if (unhealthyTrace) {
+    return `${sourceLabel} read has unhealthy source proof: ${unhealthyTrace.label}.`;
+  }
+
   return null;
 }
 

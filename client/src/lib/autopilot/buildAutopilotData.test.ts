@@ -385,6 +385,88 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('does not promote direct actions without source-health proof', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const playerIn = {
+      id: 'untraced-add',
+      name: 'Untraced Add',
+      position: 'WR',
+      team: 'DEN',
+    };
+    const playerOut = {
+      id: 'untraced-drop',
+      name: 'Untraced Drop',
+      position: 'RB',
+      team: 'NO',
+    };
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [],
+      waivers: [{
+        id: 'untraced-waiver',
+        type: 'Waiver',
+        player: 'Untraced Add',
+        action: 'Queue-backed pickup',
+        confidence: 94,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture incorrectly marks canAct true without source-health proof.',
+        reasons: ['Generic source text is not enough.'],
+        signals: ['Generic source text is not enough.'],
+        evidenceRead: {
+          evidence: ['Roster move and availability are claimed loaded.'],
+          missingEvidence: [],
+          hardBlockers: [],
+          softPenalties: [],
+          confidenceCap: 100,
+          confidenceCapReason: null,
+          sourceTrace: [],
+          rawScore: 94,
+          finalScore: 94,
+          label: 'high conviction',
+          shouldRender: true,
+          canAct: true,
+          whyThisFired: 'Untraced fixture claims action proof.',
+        } as any,
+        expectedAction: {
+          type: 'add_player',
+          playerIn,
+          playerOut,
+          playersInvolved: [playerIn, playerOut],
+          expectedRosterChange: 'Add Untraced Add and drop Untraced Drop.',
+          source: 'autopilot',
+          reason: 'Malformed missing-source-health fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      trades: [],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const waiverQueueItem = data.actionQueue.find((item) => item.id.includes('untraced-waiver'));
+    expect(waiverQueueItem).toMatchObject({
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'add_player',
+      },
+    });
+    expect(waiverQueueItem?.missingEvidence.join(' ')).toContain('missing source-health proof');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('does not treat reason-only trade expected actions as concrete queue moves', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.managerRosterIntelligence = [];
