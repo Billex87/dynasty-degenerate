@@ -647,6 +647,60 @@ describe("ai evidence engine", () => {
     expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Calibration memory");
   });
 
+  it("caps action reads when matching outcome calibration has too few resolved samples", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 92,
+      evidence: ["WR33 current-season rank is attached.", "Roster need is attached."],
+      sourceTrace: [{
+        label: "FantasyPros waiver snapshot",
+        status: "loaded",
+      }, {
+        label: "Sleeper availability snapshot",
+        status: "loaded",
+      }],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Low Sample Receiver",
+        position: "WR",
+        team: "LV",
+        value: 4300,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+      },
+      calibrationProfile: {
+        globalAdjustment: null,
+        adjustments: [{
+          key: "surfaceAction:waiver|pickup",
+          scope: "surfaceAction",
+          group: { surface: "waiver", action: "pickup" },
+          eventCount: 9,
+          scoredCount: 2,
+          pendingCount: 7,
+          hitRate: 100,
+          scoreAdjustment: 12,
+          confidenceCap: null,
+          recommendation: "raise-confidence",
+          priority: "info",
+          reason: "Early pickup calls have hit, but most outcomes are still pending.",
+        }],
+      },
+    });
+
+    expect(read.canAct).toBe(false);
+    expect(read.finalScore).toBeLessThanOrEqual(56);
+    expect(read.confidenceCapReason).toBe("Insufficient resolved outcomes");
+    expect(read.missingEvidence).toContain("Too few resolved outcomes returned for this action read's calibration bucket.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Insufficient resolved outcomes cap action confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 56% from Insufficient resolved outcomes");
+    expect(read.calibrationAdjustment).toMatchObject({
+      scope: "surfaceAction",
+      scoredCount: 2,
+    });
+  });
+
   it("prefers exact manager calibration over exact league and cohort fallbacks", () => {
     const read = evaluateAIEvidence({
       surface: "trade",

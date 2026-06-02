@@ -199,6 +199,7 @@ const STRONG_LABEL_MINIMUMS: Array<[AIConfidenceLabel, number]> = [
   ["watchlist", 42],
   ["thin", 0],
 ];
+const MIN_RESOLVED_OUTCOMES_FOR_ACTION_CONFIDENCE = 6;
 
 function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -1120,6 +1121,25 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
       });
     } else if (calibrationScoreAdjustment > 0) {
       evidence.push(`Calibration memory supports this read: ${calibrationAdjustment.reason}`);
+    }
+
+    if (
+      isDirectPlayerAction &&
+      Number(calibrationAdjustment.scoredCount || 0) < MIN_RESOLVED_OUTCOMES_FOR_ACTION_CONFIDENCE
+    ) {
+      missingEvidence.push("Too few resolved outcomes returned for this action read's calibration bucket.");
+      softPenalties.push({
+        label: "Insufficient resolved outcomes cap action confidence",
+        points: 6,
+      });
+      const capped = applyCap(
+        confidenceCap,
+        confidenceCapReason,
+        56,
+        "Insufficient resolved outcomes"
+      );
+      confidenceCap = capped.cap;
+      confidenceCapReason = capped.reason;
     }
   }
   const adjustedScore = hardBlockers.length
