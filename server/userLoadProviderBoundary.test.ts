@@ -79,6 +79,23 @@ describe("user-load provider boundary", () => {
     expect(insertIndex).toBeGreaterThan(pruneIndex);
   });
 
+  it("bounds the full league report memory cache before cache writes", () => {
+    const setMemorySource = extractSource("function setMemoryCachedLeagueReport", "\n\nasync function readCachedLeagueReport");
+    const readCacheSource = extractSource("async function readCachedLeagueReport", "\n\nasync function writeCachedLeagueReport");
+    const writeCacheSource = extractSource("async function writeCachedLeagueReport", "\nasync function readFileCachedLeagueReport");
+    const pruneIndex = setMemorySource.indexOf("pruneLeagueReportMemoryCache()");
+    const insertIndex = setMemorySource.indexOf("leagueReportMemoryCache.set(cacheKey");
+
+    expect(routersSource).toContain("const LEAGUE_REPORT_MEMORY_CACHE_MAX_ENTRIES = 60");
+    expect(pruneIndex).toBeGreaterThan(0);
+    expect(insertIndex).toBeGreaterThan(pruneIndex);
+    expect(readCacheSource).toContain("setMemoryCachedLeagueReport(cacheKey, slimmedStoredCached)");
+    expect(readCacheSource).toContain("setMemoryCachedLeagueReport(cacheKey, slimmedFileCached)");
+    expect(writeCacheSource).toContain("setMemoryCachedLeagueReport(cacheKey, slimmedPayload)");
+    expect(readCacheSource).not.toContain("leagueReportMemoryCache.set(");
+    expect(writeCacheSource).not.toContain("leagueReportMemoryCache.set(");
+  });
+
   it("keeps Sleeper username lookup provider calls behind the route limiter", () => {
     const getUserLeaguesSource = extractSource("getUserLeagues: publicProcedure", "\n    getUserLeagueRanks: publicProcedure");
     const rateLimitIndex = getUserLeaguesSource.indexOf("assertRateLimit(ctx.req as any");

@@ -1496,6 +1496,7 @@ const SLEEPER_TRENDING_LIMIT = 25;
 const LEAGUE_REPORT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'league-reports');
 const MONTHLY_BLUEPRINT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'monthly-blueprints');
 const leagueReportMemoryCache = new Map<string, { loadedAt: number; payload: unknown }>();
+const LEAGUE_REPORT_MEMORY_CACHE_MAX_ENTRIES = 60;
 const ktcValueProfileLookupCache = new WeakMap<KTCValues, Map<string, KtcValueProfileCandidate>>();
 const LIVE_SLEEPER_ACTIVITY_CACHE_TTL_MS = 90 * 1000;
 const LIVE_SLEEPER_ACTIVITY_CACHE_MAX_LEAGUES = 80;
@@ -1610,12 +1611,32 @@ function getMemoryCachedLeagueReport(cacheKey: string): unknown | null {
   return cached.payload;
 }
 
+function pruneLeagueReportMemoryCache(now = Date.now()) {
+  for (const [cacheKey, cached] of Array.from(leagueReportMemoryCache.entries())) {
+    if (now - cached.loadedAt > LEAGUE_REPORT_CACHE_TTL_MS) {
+      leagueReportMemoryCache.delete(cacheKey);
+    }
+  }
+
+  while (leagueReportMemoryCache.size >= LEAGUE_REPORT_MEMORY_CACHE_MAX_ENTRIES) {
+    const oldestCacheKey = Array.from(leagueReportMemoryCache.entries())
+      .sort((a, b) => a[1].loadedAt - b[1].loadedAt)[0]?.[0];
+    if (!oldestCacheKey) break;
+    leagueReportMemoryCache.delete(oldestCacheKey);
+  }
+}
+
+function setMemoryCachedLeagueReport(cacheKey: string, payload: unknown) {
+  pruneLeagueReportMemoryCache();
+  leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload });
+}
+
 async function readCachedLeagueReport(cacheKey: string): Promise<unknown | null> {
   const memoryCached = getMemoryCachedLeagueReport(cacheKey);
   if (memoryCached) {
     const { payload: slimmedMemoryCached } = slimCachedLeagueReportPayload(memoryCached);
     if (slimmedMemoryCached !== memoryCached) {
-      leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: slimmedMemoryCached });
+      setMemoryCachedLeagueReport(cacheKey, slimmedMemoryCached);
     }
     return slimmedMemoryCached;
   }
@@ -1623,7 +1644,7 @@ async function readCachedLeagueReport(cacheKey: string): Promise<unknown | null>
   const storedCached = await findLeagueReportCache(cacheKey, LEAGUE_REPORT_CACHE_TTL_MS);
   if (storedCached) {
     const { payload: slimmedStoredCached } = slimCachedLeagueReportPayload(storedCached);
-    leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: slimmedStoredCached });
+    setMemoryCachedLeagueReport(cacheKey, slimmedStoredCached);
     void writeFileCachedLeagueReport(cacheKey, slimmedStoredCached);
     return slimmedStoredCached;
   }
@@ -1631,7 +1652,7 @@ async function readCachedLeagueReport(cacheKey: string): Promise<unknown | null>
   const fileCached = await readFileCachedLeagueReport(cacheKey);
   if (fileCached) {
     const { payload: slimmedFileCached } = slimCachedLeagueReportPayload(fileCached);
-    leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: slimmedFileCached });
+    setMemoryCachedLeagueReport(cacheKey, slimmedFileCached);
     if (slimmedFileCached !== fileCached) {
       void writeFileCachedLeagueReport(cacheKey, slimmedFileCached);
     }
@@ -1648,7 +1669,7 @@ async function writeCachedLeagueReport(
   payload: unknown
 ) {
   const { payload: slimmedPayload } = slimCachedLeagueReportPayload(payload);
-  leagueReportMemoryCache.set(cacheKey, { loadedAt: Date.now(), payload: slimmedPayload });
+  setMemoryCachedLeagueReport(cacheKey, slimmedPayload);
   await Promise.allSettled([
     writeFileCachedLeagueReport(cacheKey, slimmedPayload),
     upsertLeagueReportCache({
