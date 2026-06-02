@@ -447,6 +447,7 @@ describe("user-load provider boundary", () => {
     const validMissingFilterIndex = leagueRanksSource.indexOf("const validMissingRankInputs = missingRankInputs.filter");
     const noValidReturnIndex = leagueRanksSource.indexOf("if (!validMissingRankInputs.length)");
     const playerIndexFetch = leagueRanksSource.indexOf("fetchSleeperPlayersIndex()");
+    const playerIndexCall = leagueRanksSource.indexOf("getPlayers(),");
     const leagueFetchIndex = leagueRanksSource.indexOf("fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`)");
     const rostersFetchIndex = leagueRanksSource.indexOf("fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/rosters`)");
     const cacheWriteIndex = leagueRanksSource.indexOf("return setCachedUserLeagueRank(cacheKey");
@@ -462,8 +463,9 @@ describe("user-load provider boundary", () => {
     expect(validMissingFilterIndex).toBeGreaterThan(missingFilterIndex);
     expect(noValidReturnIndex).toBeGreaterThan(validMissingFilterIndex);
     expect(playerIndexFetch).toBeGreaterThan(noValidReturnIndex);
-    expect(leagueFetchIndex).toBeGreaterThan(playerIndexFetch);
-    expect(rostersFetchIndex).toBeGreaterThan(playerIndexFetch);
+    expect(leagueFetchIndex).toBeGreaterThan(noValidReturnIndex);
+    expect(playerIndexCall).toBeGreaterThan(leagueFetchIndex);
+    expect(rostersFetchIndex).toBeGreaterThan(leagueFetchIndex);
     expect(cacheWriteIndex).toBeGreaterThan(rostersFetchIndex);
     expect(leagueRanksSource).toContain("id: 'league.getUserLeagueRanks'");
     expect(routersSource).toContain("const USER_LEAGUE_RANK_CACHE_MAX_ENTRIES = 500");

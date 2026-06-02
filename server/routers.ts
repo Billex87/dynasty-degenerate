@@ -7587,7 +7587,11 @@ export const appRouter = router({
           };
         }
 
-        const players = await fetchSleeperPlayersIndex();
+        let playersPromise: ReturnType<typeof fetchSleeperPlayersIndex> | null = null;
+        const getPlayers = () => {
+          playersPromise ||= fetchSleeperPlayersIndex();
+          return playersPromise;
+        };
         const leagueValueCache = new Map<string, Promise<KTCValues>>();
         const getLeagueValues = (leagueInfo: any): Promise<KTCValues> => {
           const options = getLeagueValueBlendOptions(leagueInfo);
@@ -7607,7 +7611,8 @@ export const appRouter = router({
             return { leagueId: normalizedLeagueId, standingsRank: null, powerRank: null };
           }
 
-          const [rosters, users] = await Promise.all([
+          const [players, rosters, users] = await Promise.all([
+            getPlayers(),
             fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/rosters`),
             fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/users`),
           ]);
