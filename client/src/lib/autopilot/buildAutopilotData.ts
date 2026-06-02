@@ -1735,6 +1735,29 @@ function getExpectedActionIdentityGap(action: RecommendationExpectedAction): str
   return null;
 }
 
+function getExpectedActionSourceGap(
+  action: RecommendationExpectedAction,
+  source: AIActionQueueSource,
+): string | null {
+  const lineupActionTypes = new Set(['start_player', 'bench_player', 'swap_starter']);
+  const waiverActionTypes = new Set(['add_player', 'waiver_add', 'stream_player', 'drop_player', 'drop_for_add']);
+
+  if (source === 'lineup' && !lineupActionTypes.has(action.type)) {
+    return `Lineup read cannot use a ${action.type} expected action.`;
+  }
+  if (source === 'waiver' && !waiverActionTypes.has(action.type)) {
+    return `Waiver read cannot use a ${action.type} expected action.`;
+  }
+  if (source === 'trade' && action.type !== 'trade') {
+    return `Trade read cannot use a ${action.type} expected action.`;
+  }
+  if (source === 'strategy' && action.type !== 'unknown') {
+    return `Strategy read cannot use a ${action.type} expected action.`;
+  }
+
+  return null;
+}
+
 function hasWaiverRosterMoveProof(action: RecommendationExpectedAction): boolean {
   if (hasRecommendationPlayerRef(action.playerOut)) return true;
   const proofText = `${action.expectedRosterChange || ''} ${action.reason || ''}`.toLowerCase();
@@ -1757,6 +1780,8 @@ function getActionPreconditionGap(
 
   const identityGap = getExpectedActionIdentityGap(action);
   if (identityGap) return identityGap;
+  const sourceGap = getExpectedActionSourceGap(action, source);
+  if (sourceGap) return sourceGap;
 
   if (
     source === 'waiver' &&

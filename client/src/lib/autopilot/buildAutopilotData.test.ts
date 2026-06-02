@@ -457,6 +457,81 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('does not treat lineup reads with waiver expected actions as concrete queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const waiverPlayerRef = {
+      id: 'wrong-source-add',
+      name: 'Wrong Source Add',
+      position: 'WR',
+      team: 'LAC',
+    };
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [{
+        id: 'lineup-with-waiver-action',
+        type: 'Start/Sit',
+        player: 'Wrong Source Add',
+        action: 'Start',
+        confidence: 95,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture incorrectly attaches a waiver action to a lineup read.',
+        reasons: ['Malformed expected action should not become a direct action.'],
+        signals: ['Lineup proof'],
+        evidenceRead: {
+          evidence: ['High confidence lineup rationale.'],
+          missingEvidence: [],
+          hardBlockers: [],
+          softPenalties: [],
+          confidenceCap: 100,
+          confidenceCapReason: null,
+          sourceTrace: [{ label: 'Lineup context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+          rawScore: 95,
+          finalScore: 95,
+          label: 'high conviction',
+          shouldRender: true,
+          canAct: true,
+          whyThisFired: 'Lineup context is loaded but the expected action belongs to waiver.',
+        } as any,
+        expectedAction: {
+          type: 'add_player',
+          playerIn: waiverPlayerRef,
+          expectedRosterChange: 'Add Wrong Source Add.',
+          source: 'autopilot',
+          reason: 'Malformed source/action fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      waivers: [],
+      trades: [],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const lineupQueueItem = data.actionQueue.find((item) => item.id.includes('lineup-with-waiver-action'));
+    expect(lineupQueueItem).toMatchObject({
+      source: 'lineup',
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'add_player',
+      },
+    });
+    expect(lineupQueueItem?.missingEvidence.join(' ')).toContain('Lineup read cannot use a add_player expected action');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('does not treat same-player bench expected actions as concrete queue moves', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.managerRosterIntelligence = [];
