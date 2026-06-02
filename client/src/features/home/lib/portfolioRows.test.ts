@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildHomePortfolioRows,
   filterHomePortfolioRows,
+  sortHomePortfolioRows,
   type PortfolioLeaguePlayer,
 } from "@/features/home/lib/portfolioRows";
 
@@ -135,5 +136,52 @@ describe("portfolioRows", () => {
     expect(filterHomePortfolioRows(quickFilterRows, { query: "taxi" }).map(row => row.name)).toEqual([
       "Taxi Receiver",
     ]);
+  });
+
+  it("sorts portfolio rows by value, name, and stash priority", () => {
+    const sortableRows = buildHomePortfolioRows([
+      {
+        leagueId: "league-a",
+        name: "Alpha League",
+        avatarUrl: null,
+        format: "Dynasty SF PPR",
+        mobileFormat: "Dynasty SF",
+        rosterPlayers: [
+          player({ playerId: "p1", name: "Shared Back", value: 4000 }),
+          player({
+            playerId: "p2",
+            name: "Taxi Receiver",
+            position: "WR",
+            value: 900,
+            rosterSpot: "taxi",
+          }),
+          player({ playerId: "p3", name: "Alpha Quarterback", position: "QB", value: 6200 }),
+        ],
+      },
+      {
+        leagueId: "league-b",
+        name: "Beta League",
+        avatarUrl: null,
+        format: "Dynasty SF PPR",
+        mobileFormat: "Dynasty SF",
+        rosterPlayers: [
+          player({ playerId: "p1", name: "Shared Back", value: 4100 }),
+        ],
+      },
+    ]);
+
+    expect(sortHomePortfolioRows(sortableRows, "value").map(row => row.name)).toEqual([
+      "Alpha Quarterback",
+      "Shared Back",
+      "Taxi Receiver",
+    ]);
+    expect(sortHomePortfolioRows(sortableRows, "name").map(row => row.name)).toEqual([
+      "Alpha Quarterback",
+      "Shared Back",
+      "Taxi Receiver",
+    ]);
+    expect(sortHomePortfolioRows(sortableRows, "stash").map(row => row.name)[0]).toBe(
+      "Taxi Receiver"
+    );
   });
 });

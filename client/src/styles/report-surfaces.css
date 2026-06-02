@@ -10653,7 +10653,16 @@ body {
   padding: 0 0.7rem;
 }
 
+.home-portfolio-utility-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(10rem, 13rem) auto;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: -0.15rem;
+}
+
 .home-portfolio-select span,
+.home-portfolio-sort span,
 .home-portfolio-result-count {
   color: rgba(148, 163, 184, 0.82);
   font-size: 0.7rem;
@@ -10662,7 +10671,24 @@ body {
   text-transform: uppercase;
 }
 
-.home-portfolio-select select {
+.home-portfolio-sort,
+.home-portfolio-reset {
+  min-height: 2.35rem;
+}
+
+.home-portfolio-sort {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.52rem;
+  border: 1px solid rgba(0, 200, 232, 0.18);
+  border-radius: 0.8rem;
+  background: rgba(2, 6, 23, 0.52);
+  padding: 0 0.7rem;
+}
+
+.home-portfolio-select select,
+.home-portfolio-sort select {
   min-width: 0;
   border: 0;
   outline: 0;
@@ -10672,14 +10698,46 @@ body {
   font-weight: 850;
 }
 
-.home-portfolio-select select option {
+.home-portfolio-select select option,
+.home-portfolio-sort select option {
   background: #061018;
   color: #f8fafc;
 }
 
 .home-portfolio-result-count {
-  margin-top: -0.2rem;
   color: rgba(203, 213, 225, 0.7);
+}
+
+.home-portfolio-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.52);
+  padding: 0 0.82rem;
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+.home-portfolio-reset:not(:disabled):hover {
+  border-color: rgba(103, 232, 249, 0.5);
+  background: rgba(103, 232, 249, 0.12);
+  color: #f8fafc;
+}
+
+.home-portfolio-reset:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
 }
 
 .home-portfolio-list {
@@ -10810,6 +10868,9 @@ body {
 }
 
 .home-portfolio-empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.8rem;
   border: 1px dashed rgba(0, 200, 232, 0.22);
   border-radius: 0.95rem;
   background:
@@ -10819,6 +10880,25 @@ body {
   color: rgba(226, 232, 240, 0.76);
   font-weight: 800;
   text-align: center;
+}
+
+.home-portfolio-empty button {
+  min-height: 2.35rem;
+  border: 1px solid rgba(244, 160, 32, 0.52);
+  border-radius: 999px;
+  background: rgba(244, 160, 32, 0.14);
+  padding: 0 0.9rem;
+  color: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.home-portfolio-panel :is(button, input, select):focus-visible {
+  outline: 2px solid rgba(103, 232, 249, 0.92);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(103, 232, 249, 0.14);
 }
 
 .home-league-chooser {
@@ -10855,6 +10935,10 @@ body {
 
   .home-portfolio-controls {
     grid-template-columns: 1fr;
+  }
+
+  .home-portfolio-utility-row {
+    grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 12rem) auto;
   }
 
   .home-portfolio-league-stack,
@@ -10908,6 +10992,24 @@ body {
     min-width: 0;
     padding: 0 0.38rem;
     white-space: normal;
+  }
+
+  .home-portfolio-utility-row {
+    grid-template-columns: 1fr;
+    gap: 0.48rem;
+  }
+
+  .home-portfolio-result-count {
+    justify-self: start;
+  }
+
+  .home-portfolio-sort,
+  .home-portfolio-reset {
+    width: 100%;
+  }
+
+  .home-portfolio-reset {
+    min-height: 2.55rem;
   }
 
   .home-portfolio-row {
@@ -12289,8 +12391,27 @@ body,
 
 .report-shell .report-tab-content {
   max-width: 100%;
+  padding-bottom: 0 !important;
   padding-top: 0 !important;
   overflow-x: clip;
+}
+
+.report-shell .report-tab-content > :last-child,
+.report-shell :is(.dashboard-overview-section-stack, .report-command-section-stack, .trade-sections, .draft-analysis-stack) > :last-child {
+  margin-bottom: 0 !important;
+}
+
+.report-shell .report-dashboard-shell {
+  padding-bottom: clamp(0.2rem, 0.6vw, 0.55rem) !important;
+}
+
+.report-shell .report-footer {
+  margin-top: 0 !important;
+}
+
+.report-shell .report-footer .dd-header-content {
+  padding-top: clamp(0.85rem, 1.6vw, 1.25rem) !important;
+  padding-bottom: clamp(0.85rem, 1.6vw, 1.25rem) !important;
 }
 
 .report-shell .report-disclosure-summary {

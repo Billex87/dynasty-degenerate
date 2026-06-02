@@ -6,11 +6,15 @@ export function HomePortfolioList({
   rows,
   filteredRows,
   totalLeagues,
+  hasActiveFilters,
+  onResetFilters,
 }: {
   isLoading: boolean;
   rows: HomePortfolioRowData[];
   filteredRows: HomePortfolioRowData[];
   totalLeagues: number;
+  hasActiveFilters?: boolean;
+  onResetFilters?: () => void;
 }) {
   if (isLoading && !rows.length) {
     return (
@@ -29,7 +33,12 @@ export function HomePortfolioList({
   if (!filteredRows.length) {
     return (
       <div className="home-portfolio-empty">
-        No roster edges match that search.
+        <span>No roster edges match those filters.</span>
+        {hasActiveFilters && onResetFilters ? (
+          <button type="button" onClick={onResetFilters}>
+            Reset filters
+          </button>
+        ) : null}
       </div>
     );
   }

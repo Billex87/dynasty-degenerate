@@ -11,6 +11,8 @@ export type HomePortfolioExposureFilter =
   | "te"
   | "stash";
 
+export type HomePortfolioSortMode = "exposure" | "value" | "name" | "stash";
+
 export type HomePortfolioFilters = {
   query?: string;
   exposure?: HomePortfolioExposureFilter;
@@ -165,6 +167,42 @@ export function filterHomePortfolioRows(
   });
 }
 
+export function sortHomePortfolioRows(
+  rows: HomePortfolioRow[],
+  sortMode: HomePortfolioSortMode
+): HomePortfolioRow[] {
+  return [...rows].sort((a, b) => {
+    if (sortMode === "name") {
+      return a.name.localeCompare(b.name);
+    }
+
+    if (sortMode === "value") {
+      return (
+        b.value - a.value ||
+        b.leagueCount - a.leagueCount ||
+        a.name.localeCompare(b.name)
+      );
+    }
+
+    if (sortMode === "stash") {
+      const aStash = hasPortfolioStashSpot(a) ? 1 : 0;
+      const bStash = hasPortfolioStashSpot(b) ? 1 : 0;
+      return (
+        bStash - aStash ||
+        b.leagueCount - a.leagueCount ||
+        b.value - a.value ||
+        a.name.localeCompare(b.name)
+      );
+    }
+
+    return (
+      b.leagueCount - a.leagueCount ||
+      b.value - a.value ||
+      a.name.localeCompare(b.name)
+    );
+  });
+}
+
 export function normalizePortfolioLeaguePlayer(
   value: unknown
 ): PortfolioLeaguePlayer | null {
@@ -210,6 +248,10 @@ export function normalizePortfolioLeaguePlayer(
         : null,
     rosterSpot,
   };
+}
+
+function hasPortfolioStashSpot(row: HomePortfolioRow): boolean {
+  return row.rosterSpots.some(spot => spot === "taxi" || spot === "reserve");
 }
 
 function normalizePortfolioSearchValue(value?: string | number | null): string {

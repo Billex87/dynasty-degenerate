@@ -1784,6 +1784,13 @@ test.describe("command center feature surfaces", () => {
     await expect(leagueNames.filter({ hasText: "Beta Exposure" }).first()).toBeVisible();
     await expect(leagueNames.filter({ hasText: "Gamma Exposure" }).first()).toBeVisible();
 
+    await playerHoard
+      .getByLabel("Sort portfolio players")
+      .selectOption("value");
+    await expect(playerHoard.locator(".home-portfolio-row").first()).toContainText(
+      "Shared Quarterback"
+    );
+
     await playerHoard.getByRole("button", { name: "3+ Leagues" }).click();
     await expect(playerHoard.getByText("1 of 3 shown")).toBeVisible();
     await expect(playerHoard.getByText("Shared Quarterback")).toBeVisible();
@@ -1793,6 +1800,15 @@ test.describe("command center feature surfaces", () => {
     await expect(playerHoard.getByText("1 of 3 shown")).toBeVisible();
     await expect(playerHoard.getByText("Taxi Receiver")).toBeVisible();
     await expect(playerHoard.getByText("Shared Quarterback")).toHaveCount(0);
+
+    await playerHoard.getByPlaceholder("Search players").fill("nobody here");
+    await expect(playerHoard.getByText("No roster edges match those filters.")).toBeVisible();
+    await playerHoard
+      .locator(".home-portfolio-empty")
+      .getByRole("button", { name: "Reset filters" })
+      .click();
+    await expect(playerHoard.getByText("3 of 3 shown")).toBeVisible();
+    await expect(playerHoard.getByText("Shared Quarterback")).toBeVisible();
   });
 
   test("keeps blueprint export controls print-focused without clipboard copy", async ({

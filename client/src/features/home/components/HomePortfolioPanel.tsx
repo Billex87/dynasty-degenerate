@@ -1,11 +1,16 @@
-import { Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ListRestart, Search } from "lucide-react";
 import { LeaguePickerCard } from "@/features/home/components/LeaguePickerCard";
 import { HomePortfolioList } from "@/features/home/components/HomePortfolioList";
 import type {
   HomeLeagueSelectionLeague,
   HomePortfolioRow,
 } from "@/features/home/components/HomeLeagueSelection";
-import type { HomePortfolioExposureFilter } from "@/features/home/lib/portfolioRows";
+import {
+  sortHomePortfolioRows,
+  type HomePortfolioExposureFilter,
+  type HomePortfolioSortMode,
+} from "@/features/home/lib/portfolioRows";
 
 const EXPOSURE_FILTERS: Array<{
   value: HomePortfolioExposureFilter;
@@ -26,6 +31,16 @@ const QUICK_FILTERS: Array<{
   { value: "wr", label: "WR" },
   { value: "te", label: "TE" },
   { value: "stash", label: "Taxi/IR" },
+];
+
+const SORT_OPTIONS: Array<{
+  value: HomePortfolioSortMode;
+  label: string;
+}> = [
+  { value: "exposure", label: "Most owned" },
+  { value: "value", label: "Highest value" },
+  { value: "stash", label: "Stash first" },
+  { value: "name", label: "Name A-Z" },
 ];
 
 export function HomePortfolioPanel({
@@ -57,14 +72,30 @@ export function HomePortfolioPanel({
   showLeagueChooser?: boolean;
   className?: string;
 }) {
+  const [sortMode, setSortMode] =
+    useState<HomePortfolioSortMode>("exposure");
   const duplicatedAssets = rows.filter(row => row.leagueCount > 1).length;
   const maxExposure = rows[0]?.leagueCount || 0;
   const selectedLeague = leagues.find(league => league.leagueId === selectedLeagueId);
+  const sortedFilteredRows = useMemo(
+    () => sortHomePortfolioRows(filteredRows, sortMode),
+    [filteredRows, sortMode]
+  );
+  const hasActiveFilters =
+    Boolean(query.trim()) ||
+    exposureFilter !== "all" ||
+    selectedLeagueId !== "all";
   const resultLabel = selectedLeague
     ? `${filteredRows.length} shown in ${selectedLeague.name}`
     : `${filteredRows.length} of ${rows.length || 0} shown`;
 
   if (!leagues.length) return null;
+
+  const resetFilters = () => {
+    onQueryChange("");
+    onExposureFilterChange("all");
+    onLeagueFilterChange("all");
+  };
 
   return (
     <section
@@ -168,15 +199,44 @@ export function HomePortfolioPanel({
           </label>
         </div>
 
-        <div className="home-portfolio-result-count" aria-live="polite">
-          {resultLabel}
+        <div className="home-portfolio-utility-row">
+          <div className="home-portfolio-result-count" aria-live="polite">
+            {resultLabel}
+          </div>
+          <label className="home-portfolio-sort">
+            <span>Sort</span>
+            <select
+              value={sortMode}
+              onChange={event =>
+                setSortMode(event.target.value as HomePortfolioSortMode)
+              }
+              aria-label="Sort portfolio players"
+            >
+              {SORT_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="home-portfolio-reset"
+            disabled={!hasActiveFilters}
+            onClick={resetFilters}
+          >
+            <ListRestart size={15} aria-hidden="true" />
+            <span>Reset filters</span>
+          </button>
         </div>
 
         <HomePortfolioList
           isLoading={isLoading}
           rows={rows}
-          filteredRows={filteredRows}
+          filteredRows={sortedFilteredRows}
           totalLeagues={leagues.length}
+          hasActiveFilters={hasActiveFilters}
+          onResetFilters={resetFilters}
         />
       </div>
 

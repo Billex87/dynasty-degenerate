@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { Layers2, Shield, Users } from "lucide-react";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import {
   buildManagerPositionRoomPreviewMetrics,
@@ -168,18 +169,21 @@ export function ReportOverviewTab({
         {
           label: "Players",
           compactLabel: "Ply",
+          icon: <Users size={13} />,
           value: homePortfolioRows.length || 0,
           tone: homePortfolioRows.length ? "info" : "neutral",
         },
         {
           label: "Overlap",
           compactLabel: "Dup",
+          icon: <Layers2 size={13} />,
           value: portfolioOverlapCount,
           tone: portfolioOverlapCount ? "warn" : "neutral",
         },
         {
           label: "Leagues",
           compactLabel: "Lg",
+          icon: <Shield size={13} />,
           value: orderedUserLeagues.length,
           tone: orderedUserLeagues.length > 1 ? "good" : "neutral",
         },
