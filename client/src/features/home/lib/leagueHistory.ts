@@ -11,6 +11,7 @@ import { normalizeViewerIdentifier } from "@/features/home/lib/sleeperIdentity";
 const CACHED_SLEEPER_USERS_KEY = "dynasty-degenerates:sleeper-user-history:v1";
 const MAX_CACHED_SLEEPER_USERS = 5;
 const MAX_RECENT_LEAGUES_PER_USER = 3;
+export const MAX_LEAGUE_RANK_LOOKUP_BATCH = 10;
 
 export type SleeperLeagueOption = {
   leagueId: string;
@@ -305,6 +306,32 @@ export function mergeLeagueRanks(
         : league.managerAnchors,
     };
   });
+}
+
+export function getLeagueRankLookupBatch(
+  leagues: SleeperLeagueOption[],
+  batchSize = MAX_LEAGUE_RANK_LOOKUP_BATCH
+): string[] {
+  const seen = new Set<string>();
+  const limit = Math.max(1, Math.floor(batchSize));
+  const leagueIds: string[] = [];
+
+  for (const league of leagues) {
+    if (
+      league.standingsRank != null &&
+      league.powerRank != null &&
+      Array.isArray(league.managerAnchors)
+    ) {
+      continue;
+    }
+    const leagueId = league.leagueId.trim();
+    if (!leagueId || seen.has(leagueId)) continue;
+    seen.add(leagueId);
+    leagueIds.push(leagueId);
+    if (leagueIds.length >= limit) break;
+  }
+
+  return leagueIds;
 }
 
 export function findCachedSleeperUser(

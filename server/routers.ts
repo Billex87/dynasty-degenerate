@@ -7031,7 +7031,7 @@ export const appRouter = router({
         username: sleeperUsernameSchema,
         userId: sleeperUserIdSchema,
         displayName: z.string().optional(),
-        leagueIds: z.array(sleeperLeagueIdSchema).max(50),
+        leagueIds: z.array(sleeperLeagueIdSchema).max(10),
       }))
       .mutation(async ({ input, ctx }) => {
         assertRateLimit(ctx.req as any, {

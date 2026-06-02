@@ -3,6 +3,7 @@ import { useEffect, type Dispatch, type SetStateAction } from "react";
 import { trpc } from "@/lib/trpc";
 import { getValidSleeperUserId } from "@/features/home/lib/sleeperIdentity";
 import {
+  getLeagueRankLookupBatch,
   mergeLeagueRanks,
   type SleeperLeagueOption,
 } from "@/features/home/lib/leagueHistory";
@@ -73,15 +74,13 @@ export function useHomeLeagueIntelRanks({
       setIsLeagueIntelLoading(false);
       return;
     }
-    if (
-      userLeagues.every(
-        league =>
-          league.standingsRank != null &&
-          league.powerRank != null &&
-          Array.isArray(league.managerAnchors)
-      )
-    ) {
+    const leagueIds = getLeagueRankLookupBatch(userLeagues);
+    if (!leagueIds.length) {
       setIsLeagueIntelLoading(false);
+      return;
+    }
+    if (userLeagueRanksMutation.isPending) {
+      setIsLeagueIntelLoading(true);
       return;
     }
 
@@ -90,12 +89,13 @@ export function useHomeLeagueIntelRanks({
       username: sleeperUsername,
       userId: validViewerUserId,
       displayName: viewerUsername || sleeperUsername,
-      leagueIds: userLeagues.map(league => league.leagueId),
+      leagueIds,
     });
   }, [
     requestUserLeagueRanks,
     setIsLeagueIntelLoading,
     sleeperUsername,
+    userLeagueRanksMutation.isPending,
     userLeagues,
     viewerUserId,
     viewerUsername,

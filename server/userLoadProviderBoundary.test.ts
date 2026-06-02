@@ -104,6 +104,21 @@ describe("user-load provider boundary", () => {
     expect(latestNewsSource).toContain("...getUserLoadSnapshotOptions()");
   });
 
+  it("keeps user league-rank fanout bounded and rate-limited", () => {
+    const leagueRanksSource = extractSource("getUserLeagueRanks: publicProcedure", "\n    importSleeperTradeCenter: publicProcedure");
+    const rateLimitIndex = leagueRanksSource.indexOf("assertRateLimit(ctx.req as any");
+    const playerIndexFetch = leagueRanksSource.indexOf("fetchSleeperPlayersIndex()");
+    const leagueFetchIndex = leagueRanksSource.indexOf("fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`)");
+    const rostersFetchIndex = leagueRanksSource.indexOf("fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/rosters`)");
+
+    expect(leagueRanksSource).toContain("leagueIds: z.array(sleeperLeagueIdSchema).max(10)");
+    expect(rateLimitIndex).toBeGreaterThan(0);
+    expect(playerIndexFetch).toBeGreaterThan(rateLimitIndex);
+    expect(leagueFetchIndex).toBeGreaterThan(rateLimitIndex);
+    expect(rostersFetchIndex).toBeGreaterThan(rateLimitIndex);
+    expect(leagueRanksSource).toContain("id: 'league.getUserLeagueRanks'");
+  });
+
   it("keeps player headshot provider work bounded behind cache and rate limits", () => {
     const headshotSource = extractSource("playerHeadshot: publicProcedure", "\n  }),\n});");
     const cacheIndex = headshotSource.indexOf("getCachedImage(input.playerId)");
