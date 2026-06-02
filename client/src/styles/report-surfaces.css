@@ -12396,13 +12396,16 @@ body,
   overflow-x: clip;
 }
 
-.report-shell .report-tab-content > :last-child,
-.report-shell :is(.dashboard-overview-section-stack, .report-command-section-stack, .trade-sections, .draft-analysis-stack) > :last-child {
-  margin-bottom: 0 !important;
-}
-
 .report-shell .report-dashboard-shell {
   padding-bottom: clamp(0.2rem, 0.6vw, 0.55rem) !important;
+}
+
+.report-shell .dashboard-overview-section-stack,
+.report-shell .report-command-section-stack,
+.report-shell .trade-sections,
+.report-shell .draft-analysis-stack {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 .report-shell .report-footer {
