@@ -787,6 +787,7 @@ const aiPredictionEventSchema = aiPredictionEventBaseSchema.superRefine((event, 
     });
   }
 }) satisfies z.ZodType<AIPredictionEvent>;
+const LEAGUE_RANK_FANOUT_CONCURRENCY = 3;
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 let lastRateLimitSweepAt = 0;
 
@@ -818,6 +819,26 @@ function getClientIp(req: { headers: Record<string, any>; socket?: { remoteAddre
 
   if (!raw) return null;
   return String(raw).trim().replace(/^::ffff:/, "") || null;
+}
+
+async function mapWithConcurrencyLimit<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+  let nextIndex = 0;
+
+  async function run() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await worker(items[index]);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return results;
 }
 
 function isTrustedAutomationRequest(req: RequestLike): boolean {
@@ -7055,7 +7076,7 @@ export const appRouter = router({
           return leagueValueCache.get(key)!;
         };
 
-        const ranks = await Promise.all(leagueIds.map(async (leagueId) => {
+        const ranks = await mapWithConcurrencyLimit(leagueIds, LEAGUE_RANK_FANOUT_CONCURRENCY, async (leagueId) => {
           const normalizedLeagueId = getValidSleeperEntityId(leagueId);
           if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
             return { leagueId, standingsRank: null, powerRank: null };
@@ -7104,7 +7125,7 @@ export const appRouter = router({
           const managerAnchors = buildManagerAnchorsFromSleeperUsers(safeUsers);
 
           return { leagueId, standingsRank, powerRank, rosterPlayers, managerAnchors };
-        }));
+        });
 
         return { ranks };
       }),

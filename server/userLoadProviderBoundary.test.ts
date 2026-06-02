@@ -112,6 +112,9 @@ describe("user-load provider boundary", () => {
     const rostersFetchIndex = leagueRanksSource.indexOf("fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/rosters`)");
 
     expect(leagueRanksSource).toContain("leagueIds: z.array(sleeperLeagueIdSchema).max(10)");
+    expect(routersSource).toContain("const LEAGUE_RANK_FANOUT_CONCURRENCY = 3");
+    expect(leagueRanksSource).toContain("mapWithConcurrencyLimit(leagueIds, LEAGUE_RANK_FANOUT_CONCURRENCY");
+    expect(leagueRanksSource).not.toContain("Promise.all(leagueIds.map");
     expect(rateLimitIndex).toBeGreaterThan(0);
     expect(playerIndexFetch).toBeGreaterThan(rateLimitIndex);
     expect(leagueFetchIndex).toBeGreaterThan(rateLimitIndex);
