@@ -155,6 +155,12 @@ describe('buildAutopilotData', () => {
       expect(item.expectedAction?.type).not.toBe('hold');
       expect(item.expectedAction?.type).not.toBe('unknown');
       expect(item.missingEvidence.join(' ')).not.toMatch(/precondition|concrete expected action/i);
+      expect(item.sourceHealth.length, item.id).toBeGreaterThan(0);
+      expect(item.sourceHealth.join(' '), item.id).toMatch(/loaded|current|fresh|source|roster|lineup|transaction|league|evidence/i);
+      expect(item.receipts.length, item.id).toBeGreaterThan(0);
+      expect(item.changeTriggers.length, item.id).toBeGreaterThan(0);
+      expect(item.changeTriggers.join(' '), item.id).toMatch(/verify|check|review|clear|source|roster|lineup|transaction|evidence|threshold|blocker|confidence|action/i);
+      expect(item.dominoEffects?.length || 0, item.id).toBeGreaterThan(0);
     });
 
     const downgradedRows = scenarios.flatMap((data) =>
