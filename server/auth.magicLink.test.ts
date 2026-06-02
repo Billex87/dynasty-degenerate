@@ -1,4 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import fs from "fs";
+import path from "path";
 import { COOKIE_NAME } from "../shared/const";
 import type { User } from "../drizzle/schema";
 import type { TrpcContext } from "./_core/context";
@@ -44,6 +46,7 @@ const mockedUpsertUser = vi.mocked(upsertUser);
 const mockedGetUserByOpenId = vi.mocked(getUserByOpenId);
 const mockedIsTransactionalEmailConfigured = vi.mocked(isTransactionalEmailConfigured);
 const mockedSendMagicLinkEmail = vi.mocked(sendMagicLinkEmail);
+const routersSource = fs.readFileSync(path.resolve(__dirname, "routers.ts"), "utf8");
 
 type CookieCall = {
   name: string;
@@ -235,6 +238,25 @@ describe("auth magic-link procedures", () => {
     })).rejects.toMatchObject({
       code: "PRECONDITION_FAILED",
     });
+  });
+
+  it("keeps magic-link request writes and email sends behind a route rate limit", () => {
+    const start = routersSource.indexOf("requestMagicLink: publicProcedure");
+    const end = routersSource.indexOf("consumeMagicLink: publicProcedure", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const routeSource = routersSource.slice(start, end);
+    const rateLimitIndex = routeSource.indexOf("assertRateLimit(ctx.req as any");
+    const createTokenIndex = routeSource.indexOf("createMagicLinkToken({");
+    const insertTokenIndex = routeSource.indexOf("insertMagicLinkToken(created.record)");
+    const sendEmailIndex = routeSource.indexOf("sendMagicLinkEmail({");
+
+    expect(rateLimitIndex).toBeGreaterThan(0);
+    expect(createTokenIndex).toBeGreaterThan(rateLimitIndex);
+    expect(insertTokenIndex).toBeGreaterThan(rateLimitIndex);
+    expect(sendEmailIndex).toBeGreaterThan(rateLimitIndex);
+    expect(routeSource).toContain('id: "auth.requestMagicLink"');
+    expect(routeSource).toContain('max: 5');
   });
 
   it("consumes a valid token, creates a user session, and sets the session cookie", async () => {

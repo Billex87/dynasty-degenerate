@@ -6369,6 +6369,12 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         assertTransactionalEmailConfiguredForProduction();
+        assertRateLimit(ctx.req as any, {
+          id: "auth.requestMagicLink",
+          max: 5,
+          windowMs: 1000 * 60 * 10,
+          message: "Too many magic-link requests. Please wait a few minutes and try again.",
+        });
         const shouldSendEmail = isTransactionalEmailConfigured();
         const emailAppBaseUrl = shouldSendEmail ? getRequestTransactionalEmailAppBaseUrl(ctx) : null;
         const created = createMagicLinkToken({
