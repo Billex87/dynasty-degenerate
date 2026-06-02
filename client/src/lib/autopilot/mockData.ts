@@ -62,7 +62,7 @@ export const AUTOPILOT_MOCK_DATA: Record<AutopilotMode, AutopilotData> = {
         confidence: 86,
         tone: 'warn',
         blockers: [],
-        missingEvidence: ['Live partner pricing is not attached in mock mode.'],
+        missingEvidence: ['Verify trade partner pricing; live partner demand is not attached in mock mode.'],
         sourceHealth: ['Trade leverage: 84%', 'Future value: 61%'],
         receipts: ['Older RB value can fall fast.', 'Contenders may still pay for current production.'],
         changeTriggers: ['If partner demand disappears, do not force the trade.', "If the return lacks young value or picks, don't force it."],

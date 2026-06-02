@@ -157,6 +157,20 @@ describe('buildAutopilotData', () => {
       expect(item.missingEvidence.join(' ')).not.toMatch(/precondition|concrete expected action/i);
     });
 
+    const downgradedRows = scenarios.flatMap((data) =>
+      data.actionQueue.filter((item) => item.decision !== 'do')
+    );
+    expect(downgradedRows.length).toBeGreaterThan(0);
+    downgradedRows.forEach((item) => {
+      const verificationText = [
+        ...item.missingEvidence,
+        ...item.sourceHealth,
+        ...item.changeTriggers,
+      ].join(' ');
+
+      expect(verificationText, item.id).toMatch(/verify|check|review|clear|source|roster|lineup|transaction|evidence|threshold|blocker|confidence|action/i);
+    });
+
     const mockRows = scenarios
       .filter((data) => !data.dataStatus)
       .flatMap((data) => data.actionQueue);
