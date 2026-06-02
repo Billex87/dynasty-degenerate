@@ -85,5 +85,13 @@ describe("AI read action copy boundaries", () => {
     expect(source).not.toMatch(/Why this swap/i);
     expect(source).not.toMatch(/Why Better Cut/i);
     expect(source).not.toMatch(/Add missing evidence/i);
+    expect(source).not.toMatch(/do-this-now/i);
+    expect(source).not.toMatch(/Prove preconditions/i);
+    expect(source).not.toMatch(/Clear blocker/i);
+    expect(source).not.toMatch(/Resolve confidence cap/i);
+    expect(source).not.toMatch(/Refresh source:/i);
+    expect(source).not.toMatch(/queue refused/i);
+    expect(source).not.toMatch(/do-nothing counterfactual/i);
+    expect(source).not.toMatch(/actively refusing/i);
   });
 });

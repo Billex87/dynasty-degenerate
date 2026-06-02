@@ -1717,14 +1717,14 @@ function buildQueueChangeTriggers(
         ? 'Clear the blocker and reload live data before this can become actionable.'
         : decision === 'hold'
           ? 'A new recommendation must clear the action threshold before the queue should move.'
-          : 'More evidence must clear the action threshold before this becomes a do-this-now move.';
+          : 'More evidence must clear the action threshold before this becomes the top action.';
 
   return dedupeStrings([
-    preconditionGap ? `Prove preconditions: ${preconditionGap}` : null,
-    evidence?.hardBlockers?.[0] ? `Clear blocker: ${evidence.hardBlockers[0]}` : null,
-    evidence?.confidenceCapReason ? `Resolve confidence cap: ${evidence.confidenceCapReason}.` : null,
+    preconditionGap ? `Verify preconditions: ${preconditionGap}` : null,
+    evidence?.hardBlockers?.[0] ? `Review blocker: ${evidence.hardBlockers[0]}` : null,
+    evidence?.confidenceCapReason ? `Review confidence cap: ${evidence.confidenceCapReason}.` : null,
     evidence?.missingEvidence?.[0] ? `Verify evidence gap: ${evidence.missingEvidence[0]}` : null,
-    unhealthyTrace ? `Refresh source: ${unhealthyTrace.label}.` : null,
+    unhealthyTrace ? `Check source freshness: ${unhealthyTrace.label}.` : null,
     sharpness?.confidence === 'thin' ? 'Add more league behavior before letting sharpness change the recommendation.' : null,
     sharpness?.tier === 'sleepy' ? 'A spike in league activity would raise urgency.' : null,
     sharpness?.tier === 'sharp' || sharpness?.tier === 'shark-tank' ? 'A quieter league market would lower urgency.' : null,
@@ -1886,7 +1886,7 @@ function buildNoForcedMoveQueueItem({
     label: 'No move is best',
     action: 'Hold current setup',
     target: direction.label,
-    detail: 'The queue refused to force a low-evidence action.',
+    detail: 'No action cleared enough evidence to force a move.',
     why: direction.summary,
     risk: bestCandidate?.risk || 'The biggest risk is acting on a thin edge before newer information arrives.',
     confidence: clampPercent(Math.min(direction.confidence, bestCandidate?.confidence ?? direction.confidence)),
@@ -1902,7 +1902,7 @@ function buildNoForcedMoveQueueItem({
     ], 4),
     dominoEffects: dedupeStrings([
       'No drop, trade, or lineup swap should fire from this read.',
-      'Keep the current roster baseline until one action beats the do-nothing counterfactual.',
+      'Keep the current roster baseline until one action clearly beats standing pat.',
     ], 3),
     signals: dedupeStrings(['No forced action', direction.label, weeklyPlan?.summary], 4),
     expectedAction: {
@@ -2192,7 +2192,7 @@ function buildAIReportCardRead({
       label: 'Bad-idea engine',
       status: rejections.length ? `${rejections.length} blocked/watch reads` : 'No bad ideas flagged',
       detail: rejections.length
-        ? 'The app is actively refusing low-evidence moves.'
+        ? 'No low-evidence moves are being promoted.'
         : 'No blocked read is attached to this queue right now.',
       tone: rejections.length ? 'good' : 'info',
     },
