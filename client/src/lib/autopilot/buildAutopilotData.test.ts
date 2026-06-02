@@ -431,6 +431,50 @@ describe('buildAutopilotData', () => {
     expect(data.weeklyPlan?.options.map((option) => option.player)).toContain('Replacement Tight End');
   });
 
+  it('does not promote stored-projection swaps when the replacement is unavailable', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    const weeklyProjection = (playerId: string, points: number) => ({
+      source: 'stored-weekly-projection' as const,
+      provider: 'sleeper',
+      season: '2026',
+      week: 1,
+      scoringProfile: 'PPR',
+      projectedFantasyPoints: points,
+      opponent: 'KC',
+      homeAway: 'home' as const,
+      status: 'ready' as const,
+      note: 'Stored weekly projection fixture.',
+      statSummary: playerId === 'te2' ? '6 targets · 4 rec' : '3 targets · 2 rec',
+    });
+    const row = reportData.managerPositionCounts?.find((managerRow) => managerRow.manager === 'Tester');
+    for (const player of [
+      ...(row?.starterPlayers || []),
+      ...(row?.lineupPlayers || []),
+      ...(row?.rosterPlayers || []),
+    ]) {
+      if (player.player_id === 'te1') player.weeklyProjection = weeklyProjection('te1', 7.1) as any;
+      if (player.player_id === 'te2') {
+        player.weeklyProjection = weeklyProjection('te2', 12.6) as any;
+        player.playerDetails = {
+          ...(player.playerDetails || {}),
+          injuryStatus: 'Out',
+          displayStatus: 'Out',
+        } as any;
+      }
+    }
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    expect(data.lineup.some((recommendation) => recommendation.id.includes('lineup-projection-swap'))).toBe(false);
+    expect(data.lineup.filter((recommendation) => recommendation.expectedAction?.type === 'swap_starter')).toHaveLength(0);
+    expect(JSON.stringify(data.lineup)).not.toContain('stored weekly projection edge');
+  });
+
   it('keeps generic must-start lineup reads review-only without a concrete starter swap', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];

@@ -98,6 +98,45 @@ function normalizeAutopilotPosition(value?: string | null) {
   return position;
 }
 
+function normalizeAutopilotStatus(value?: string | null) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isHardUnavailableAutopilotStatus(value?: string | null): boolean {
+  const normalized = normalizeAutopilotStatus(value);
+  if (!normalized) return false;
+  if (normalized === 'OUT' || normalized === 'O' || normalized === 'IR') return true;
+  return [
+    'INJURED RESERVE',
+    'PHYSICALLY UNABLE',
+    'PUP',
+    'NON FOOTBALL INJURY',
+    'NFI',
+    'SUSPENDED',
+    'SUSP',
+    'INACTIVE',
+    'RESERVE',
+  ].some((pattern) => normalized.includes(pattern));
+}
+
+function isAutopilotLineupCandidateAvailable(player?: AutopilotPlayerLike | null): boolean {
+  if (!player) return false;
+  const projection = getWeeklyProjection(player);
+  if (projection?.homeAway === 'bye' || projection?.status === 'bye') return false;
+  return ![
+    player.playerDetails?.injuryStatus,
+    player.playerDetails?.status,
+    player.playerDetails?.rosterStatus,
+    player.playerDetails?.displayStatus,
+    projection?.status,
+  ].some(isHardUnavailableAutopilotStatus);
+}
+
 function getAutopilotPlayerTeam(player?: AutopilotPlayerLike | null) {
   return String(
     player?.team ||
@@ -721,6 +760,7 @@ function canReplaceStarterInKnownSlot({
   const resolvedCandidate = managerRow ? findManagerPlayerByIdentity(managerRow, candidate) : candidate;
   const resolvedStarter = managerRow ? findManagerPlayerByIdentity(managerRow, starter) : starter;
   if (!resolvedCandidate || !resolvedStarter) return false;
+  if (!isAutopilotLineupCandidateAvailable(resolvedCandidate)) return false;
   const candidatePosition = getPlayerLineupPosition(resolvedCandidate);
   const starterPosition = getPlayerLineupPosition(resolvedStarter);
   const starterSlots = getStarterSlotKeys(managerRow, resolvedStarter);
