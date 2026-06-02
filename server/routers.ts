@@ -1507,6 +1507,9 @@ const invalidLeagueIdCache = new Map<string, { fetchedAt: number }>();
 const LEAGUE_PREVIEW_CACHE_TTL_MS = 2 * 60 * 1000;
 const LEAGUE_PREVIEW_CACHE_MAX_ENTRIES = 100;
 const leaguePreviewCache = new Map<string, { loadedAt: number; preview: SleeperLeaguePreview }>();
+const LEAGUE_SCORING_SETTINGS_CACHE_TTL_MS = 10 * 60 * 1000;
+const LEAGUE_SCORING_SETTINGS_CACHE_MAX_ENTRIES = 200;
+const leagueScoringSettingsCache = new Map<string, { loadedAt: number; scoringSettings: Record<string, any> }>();
 
 function cloneLeaguePreview(preview: SleeperLeaguePreview): SleeperLeaguePreview {
   return {
@@ -1593,6 +1596,59 @@ function setCachedLeaguePreview(leagueId: string, preview: SleeperLeaguePreview)
     preview: cloneLeaguePreview(preview),
   });
   return preview;
+}
+
+function pruneLeagueScoringSettingsCache(now = Date.now()) {
+  for (const [leagueId, cached] of Array.from(leagueScoringSettingsCache.entries())) {
+    if (now - cached.loadedAt > LEAGUE_SCORING_SETTINGS_CACHE_TTL_MS) {
+      leagueScoringSettingsCache.delete(leagueId);
+    }
+  }
+
+  while (leagueScoringSettingsCache.size >= LEAGUE_SCORING_SETTINGS_CACHE_MAX_ENTRIES) {
+    const oldestLeagueId = Array.from(leagueScoringSettingsCache.entries())
+      .sort((a, b) => a[1].loadedAt - b[1].loadedAt)[0]?.[0];
+    if (!oldestLeagueId) break;
+    leagueScoringSettingsCache.delete(oldestLeagueId);
+  }
+}
+
+function cloneLeagueScoringSettings(scoringSettings: Record<string, any> | undefined): Record<string, any> {
+  return scoringSettings && typeof scoringSettings === 'object' && !Array.isArray(scoringSettings)
+    ? { ...scoringSettings }
+    : {};
+}
+
+function getCachedLeagueScoringSettings(leagueId: string): Record<string, any> | null {
+  const validLeagueId = getValidSleeperEntityId(leagueId);
+  if (!validLeagueId) return null;
+
+  const cached = leagueScoringSettingsCache.get(validLeagueId);
+  if (!cached) return null;
+
+  if (Date.now() - cached.loadedAt > LEAGUE_SCORING_SETTINGS_CACHE_TTL_MS) {
+    leagueScoringSettingsCache.delete(validLeagueId);
+    return null;
+  }
+
+  return cloneLeagueScoringSettings(cached.scoringSettings);
+}
+
+function setCachedLeagueScoringSettings(
+  leagueId: string,
+  scoringSettings: Record<string, any> | undefined
+): Record<string, any> {
+  const clonedSettings = cloneLeagueScoringSettings(scoringSettings);
+  const validLeagueId = getValidSleeperEntityId(leagueId);
+  if (!validLeagueId) return clonedSettings;
+
+  pruneLeagueScoringSettingsCache();
+  leagueScoringSettingsCache.set(validLeagueId, {
+    loadedAt: Date.now(),
+    scoringSettings: cloneLeagueScoringSettings(clonedSettings),
+  });
+
+  return clonedSettings;
 }
 
 export function clearLeaguePreviewCacheForTests() {
@@ -8847,19 +8903,23 @@ export const appRouter = router({
           });
         }
 
-        const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`);
-        if (!leagueInfo?.league_id) {
-          markInvalidLeagueId(normalizedLeagueId);
-          throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: 'Invalid league ID',
-          });
+        let scoringSettings = getCachedLeagueScoringSettings(normalizedLeagueId);
+        if (!scoringSettings) {
+          const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`);
+          if (!leagueInfo?.league_id) {
+            markInvalidLeagueId(normalizedLeagueId);
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Invalid league ID',
+            });
+          }
+          scoringSettings = setCachedLeagueScoringSettings(normalizedLeagueId, leagueInfo.scoring_settings || {});
         }
 
         const seasonGameLog = await buildSleeperSeasonGameLog(
           input.playerId,
           input.position || null,
-          leagueInfo.scoring_settings || {},
+          scoringSettings,
           input.season
         );
 

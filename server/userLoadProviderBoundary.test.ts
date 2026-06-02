@@ -399,10 +399,13 @@ describe("user-load provider boundary", () => {
 
   it("keeps player season-game-log live work behind report access and rate limits", () => {
     const seasonLogSource = extractSource("seasonGameLog: publicProcedure", "\n  }),\n\n  images: router");
+    const scoringCacheSetSource = extractSource("function setCachedLeagueScoringSettings", "\n\nexport function clearLeaguePreviewCacheForTests");
     const accessIndex = seasonLogSource.indexOf("assertReportAccess(ctx)");
     const ipRateLimitIndex = seasonLogSource.indexOf("id: 'players.seasonGameLog.ip'");
     const rateLimitIndex = seasonLogSource.indexOf("id: 'players.seasonGameLog',", ipRateLimitIndex);
+    const cacheReadIndex = seasonLogSource.indexOf("let scoringSettings = getCachedLeagueScoringSettings(normalizedLeagueId)");
     const leagueFetchIndex = seasonLogSource.indexOf("fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`)");
+    const cacheWriteIndex = seasonLogSource.indexOf("setCachedLeagueScoringSettings(normalizedLeagueId");
     const logBuildIndex = seasonLogSource.indexOf("buildSleeperSeasonGameLog(");
 
     expect(seasonLogSource).toContain("leagueId: sleeperLeagueIdSchema");
@@ -411,10 +414,16 @@ describe("user-load provider boundary", () => {
     expect(accessIndex).toBeGreaterThan(0);
     expect(ipRateLimitIndex).toBeGreaterThan(accessIndex);
     expect(rateLimitIndex).toBeGreaterThan(ipRateLimitIndex);
-    expect(leagueFetchIndex).toBeGreaterThan(rateLimitIndex);
-    expect(logBuildIndex).toBeGreaterThan(leagueFetchIndex);
+    expect(cacheReadIndex).toBeGreaterThan(rateLimitIndex);
+    expect(leagueFetchIndex).toBeGreaterThan(cacheReadIndex);
+    expect(cacheWriteIndex).toBeGreaterThan(leagueFetchIndex);
+    expect(logBuildIndex).toBeGreaterThan(cacheReadIndex);
     expect(seasonLogSource).toContain("id: 'players.seasonGameLog.ip'");
     expect(seasonLogSource).toContain("id: 'players.seasonGameLog'");
+    expect(routersSource).toContain("const LEAGUE_SCORING_SETTINGS_CACHE_MAX_ENTRIES = 200");
+    expect(scoringCacheSetSource).toContain("pruneLeagueScoringSettingsCache()");
+    expect(scoringCacheSetSource).toContain("leagueScoringSettingsCache.set(validLeagueId");
+    expect(routersSource).toContain("while (leagueScoringSettingsCache.size >= LEAGUE_SCORING_SETTINGS_CACHE_MAX_ENTRIES)");
   });
 
   it("keeps user league-rank fanout behind report access, bounded, and rate-limited", () => {
