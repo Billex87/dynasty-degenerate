@@ -112,10 +112,10 @@ function getVerificationTraceItems(evidenceRead?: AIEvidenceResult | null) {
       .filter(Boolean)
       .join(' ')
   );
-  const blockerItems = evidenceRead.hardBlockers.map(item => `Blocked: ${item}`);
-  const missingItems = evidenceRead.missingEvidence.map(item => `Missing: ${item}`);
+  const blockerItems = evidenceRead.hardBlockers.map(item => `Do not act yet: ${item}`);
+  const missingItems = evidenceRead.missingEvidence.map(item => `Verify first: ${item}`);
   const capItem = evidenceRead.confidenceCapReason
-    ? `Confidence cap: ${evidenceRead.confidenceCap}% from ${evidenceRead.confidenceCapReason}`
+    ? `Confidence limited to ${evidenceRead.confidenceCap}% because ${evidenceRead.confidenceCapReason}`
     : null;
   const items = [...sourceItems, ...blockerItems, ...missingItems, capItem]
     .map(item => String(item || '').replace(/\s+/g, ' ').trim())

@@ -55,6 +55,17 @@ describe("AI read action copy boundaries", () => {
     expect(source).not.toContain("<em>{item.missingEvidence[0] || item.changeTriggers[0]}</em>");
   });
 
+  it("keeps shared AI verification rows in user-facing language", () => {
+    const source = fs.readFileSync(path.join(SOURCE_ROOT, "components/AIReadPanel.tsx"), "utf8");
+
+    expect(source).toContain("Do not act yet:");
+    expect(source).toContain("Verify first:");
+    expect(source).toContain("Confidence limited to");
+    expect(source).not.toContain("Blocked:");
+    expect(source).not.toContain("Missing:");
+    expect(source).not.toContain("Confidence cap:");
+  });
+
   it("keeps exact Do this copy limited to reviewed action-owned component panels", () => {
     const matches = findExplicitComponentDoThisLabels();
 
