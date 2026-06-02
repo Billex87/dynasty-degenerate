@@ -314,6 +314,45 @@ describe('buildAutopilotData', () => {
     expect(data.weeklyPlan?.options.map((option) => option.player)).toContain('Replacement Tight End');
   });
 
+  it('keeps generic must-start lineup reads review-only without a concrete starter swap', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    const row = reportData.managerPositionCounts?.find((managerRow) => managerRow.manager === 'Tester');
+    const replacementTightEnd = row?.rosterPlayers?.find((player) => player.player_id === 'te2');
+    expect(replacementTightEnd).toBeTruthy();
+
+    reportData.matchupPreviews = [{
+      week: 1,
+      manager: 'Tester',
+      opponentManager: 'Rival',
+      mustStarts: [replacementTightEnd as any],
+      vulnerableSpots: [],
+      boomBustRisks: [],
+      howToWin: 'Replacement Tight End has the cleanest weekly matchup.',
+      source: 'manual',
+      updatedAt: '2026-06-02T00:00:00.000Z',
+    }];
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    const mustStartRead = data.lineup.find((recommendation) => recommendation.id.includes('lineup-start-te2'));
+    expect(mustStartRead).toMatchObject({
+      type: 'Lineup review',
+      player: 'Replacement Tight End',
+      action: 'Review starter slot',
+      expectedAction: {
+        type: 'hold',
+      },
+    });
+    expect(mustStartRead?.summary).toContain('Review the actual starter slot');
+    expect(mustStartRead?.expectedAction?.expectedLineupChange).toContain('No lineup change');
+    expect(mustStartRead?.expectedAction?.expectedLineupChange).not.toContain('should be in a starting lineup slot');
+  });
+
   it('does not create AI projection claims from stale stored projection rows', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];
