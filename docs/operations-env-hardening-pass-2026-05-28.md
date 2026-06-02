@@ -51,7 +51,7 @@
 - `PRODUCTION_SMOKE=true PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm exec playwright test tests/e2e/production-smoke.spec.ts --project=desktop-chrome` passed after updating the smoke selectors to the current home page.
 - `env -u NO_COLOR PRODUCTION_SMOKE=true PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm exec playwright test tests/e2e/production-smoke.spec.ts --project=mobile-chrome --project=tablet-chrome` passed: `8` tests across the four representative leagues.
 - Final post-smoke Vercel log checks found no `/var/task`, league-report file-cache, missing-cookie, or `500` entries in the checked post-traffic window.
-- Current production deployment `dpl_AFqMDXkufYkeg2yXuUyUQVx4hMdP` for `https://dynasty-degenerate-fggoi6z1c-billex87s-projects.vercel.app` is `Ready` and aliased to `https://dynastydegens.com`.
+- Checked production deployment `dpl_AFqMDXkufYkeg2yXuUyUQVx4hMdP` for `https://dynasty-degenerate-fggoi6z1c-billex87s-projects.vercel.app` was `Ready` and aliased to `https://dynastydegens.com`.
 
 ## Production Follow-up (manual)
 - Configure `SOURCE_HEALTH_ALERT_WEBHOOK_URL` and, if desired, `SOURCE_HEALTH_ALERT_WEBHOOK_MIN_LEVEL` in the production secret store.
