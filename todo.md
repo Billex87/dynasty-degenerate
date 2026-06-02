@@ -162,6 +162,7 @@
 - [ ] Add Stripe checkout for individual subscriptions, league passes, and one-time seasonal products such as a rookie draft kit or redraft draft kit.
 - [ ] Add Stripe customer portal support so users can self-serve payment updates, cancellations, and plan changes.
 - [ ] Add Stripe webhook handling for subscription created, updated, canceled, payment failed, and one-time purchase completed events.
+  - 2026-06-02 webhook verification scaffold: added `/api/billing/stripe-webhook` in local and Vercel Express entrypoints with raw-body Stripe HMAC verification, timestamp tolerance checks, missing-secret fail-closed behavior, JSON parsing only after signature verification, and supported event recognition for checkout/session, subscription create/update/delete, and payment-failed events. Supported billing events return `501` until verified-event persistence is implemented, so this does not close the item until events upsert `billingCustomers`, `subscriptions`, `leaguePasses`, `featureEntitlements`, and `usageEvents`.
 - [ ] Add billing and entitlement tables for `billingCustomers`, `subscriptions`, `leaguePasses`, `featureEntitlements`, and `usageEvents`.
   - 2026-06-02 billing schema scaffold: added Drizzle schema entries, idempotent DB bootstrap DDL, and migration SQL for billing customers, subscriptions, league passes, feature entitlements, and usage events. This does not close the item until Stripe webhook upserts, customer portal/checkout flows, production migration execution, and read/write helpers for persisted entitlements are wired and verified.
 - [ ] Enforce paid access on the backend with a shared entitlement helper such as `canUseFeature(user, feature, leagueId)`; frontend paywalls should only be UX hints.
@@ -179,6 +180,7 @@
 - [ ] Add tests for auth token expiry, magic-link replay protection, webhook signature verification, entitlement checks, usage limits, and paid/free report boundaries.
   - 2026-06-02 entitlement test slice: added unit coverage for anonymous free report access, monthly blueprint limit metadata, paid-feature fail-closed behavior before billing launch, pro/elite plan checks when billing is enabled, and admin diagnostics access. Remaining tests: auth token expiry, magic-link replay protection, Stripe webhook signature verification, persisted usage events, and real paid/free report boundaries.
   - 2026-06-02 auth expiry test slice: added coverage proving an expired session JWT is treated as an anonymous public request instead of authenticating the user. Remaining tests: magic-link replay protection, Stripe webhook signature verification, persisted usage events, and real paid/free report boundaries.
+  - 2026-06-02 Stripe webhook signature test slice: added HMAC verifier coverage for valid signatures, signature mismatch, stale timestamps, missing secrets, invalid JSON after verification, supported billing events, and ignored unsupported events. Remaining tests: magic-link replay protection, persisted usage events, webhook-to-DB upserts, and real paid/free report boundaries.
 
 ## Source Audit / Feature Roadmap
 
