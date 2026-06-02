@@ -331,7 +331,16 @@ function actionFromQueueItem(item: AIActionQueueItem): AIEvidenceAction {
 }
 
 function decisionFromQueueItem(item: AIActionQueueItem): ClientAIPredictionDecision {
-  if (item.decision === "do") return "do";
+  if (item.blockers.length) return "blocked";
+  if (item.decision === "do") {
+    const sourceHealth = item.sourceHealth.join(" ");
+    if (item.missingEvidence.length) return "watch";
+    if (!item.sourceHealth.length) return "watch";
+    if (/stale|missing|error|limited|unavailable|unverified|disabled|empty source|source empty|\b(?:0|zero)\s+rows?\b|no source/i.test(sourceHealth)) {
+      return "watch";
+    }
+    return "do";
+  }
   if (item.decision === "watch") return "watch";
   if (item.decision === "blocked") return "blocked";
   return "hold";
@@ -1450,4 +1459,5 @@ export function getAIPredictionEventBatchSignature(events: ClientAIPredictionEve
 
 export const __testing = {
   decisionFromEvidence,
+  decisionFromQueueItem,
 };

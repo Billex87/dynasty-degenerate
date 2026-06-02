@@ -276,6 +276,53 @@ describe("AI prediction event builder", () => {
     expect(decision).toBe("watch");
   });
 
+  it("does not calibrate malformed queue items with evidence gaps as do decisions", () => {
+    const baseQueueItem = {
+      id: "queue-test",
+      source: "waiver",
+      decision: "do",
+      rank: 1,
+      label: "Do this now",
+      action: "Add Player",
+      target: "Waiver Receiver",
+      detail: "Add the player.",
+      why: "Good waiver edge.",
+      risk: "Medium",
+      confidence: 78,
+      tone: "good",
+      blockers: [],
+      missingEvidence: [],
+      sourceHealth: ["Sleeper roster source loaded"],
+      receipts: ["Roster need confirmed."],
+      changeTriggers: [],
+      signals: [],
+      expectedAction: null,
+      observedOutcome: null,
+    } as const;
+
+    expect(__testing.decisionFromQueueItem(baseQueueItem as any)).toBe("do");
+    expect(__testing.decisionFromQueueItem({
+      ...baseQueueItem,
+      missingEvidence: ["Verify live roster state before acting."],
+    } as any)).toBe("watch");
+    expect(__testing.decisionFromQueueItem({
+      ...baseQueueItem,
+      sourceHealth: [],
+    } as any)).toBe("watch");
+    expect(__testing.decisionFromQueueItem({
+      ...baseQueueItem,
+      sourceHealth: ["FantasyPros source stale"],
+    } as any)).toBe("watch");
+    expect(__testing.decisionFromQueueItem({
+      ...baseQueueItem,
+      sourceHealth: ["FantasyPros source disabled"],
+    } as any)).toBe("watch");
+    expect(__testing.decisionFromQueueItem({
+      ...baseQueueItem,
+      blockers: ["Player is already rostered."],
+    } as any)).toBe("blocked");
+  });
+
   it("classifies unavailable source traces as missing source-agreement proof", () => {
     const agreement = buildClientSourceAgreementRead({
       sourceTrace: [{
