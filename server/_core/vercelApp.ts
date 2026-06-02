@@ -57,8 +57,8 @@ function isCronAuthorized(req: express.Request): { ok: true; configuredSecret?: 
 
 configureSecurity(app);
 
-app.post('/api/billing/stripe-webhook', express.raw({ type: 'application/json', limit: '1mb' }), (req, res) => {
-  const result = handleStripeWebhookPayload({
+app.post('/api/billing/stripe-webhook', express.raw({ type: 'application/json', limit: '1mb' }), async (req, res) => {
+  const result = await handleStripeWebhookPayload({
     payload: Buffer.isBuffer(req.body) ? req.body : Buffer.from(String(req.body || ''), 'utf8'),
     signatureHeader: typeof req.headers['stripe-signature'] === 'string' ? req.headers['stripe-signature'] : null,
     secret: process.env.STRIPE_WEBHOOK_SECRET,
