@@ -378,10 +378,52 @@ function decisionFromEvidence(read: AIEvidenceResult, fallbackScore: number): Cl
 function sourceTraceFromStrings(values: string[]): AISourceTrace[] {
   return values.slice(0, 8).map(value => ({
     label: value,
-    status: /missing|stale|error|limited|blocked|rough/i.test(value)
+    status: /missing|stale|error|limited|blocked|rough|unavailable|unverified|disabled|\b(?:0|zero)\s+rows?\b/i.test(value)
       ? "limited"
       : "loaded",
   }));
+}
+
+function isAvailableOwnerLabel(value?: string | null): boolean {
+  const clean = cleanText(value);
+  return !clean || /^(available|fa|free agent|unowned|waiver|waiver wire|none)$/i.test(clean);
+}
+
+function isAvailableRosterStatus(value?: string | null): boolean {
+  const clean = cleanText(value);
+  return Boolean(clean && /available|free agent|\bfa\b|unowned|waiver/i.test(clean));
+}
+
+function isRosteredStatus(value?: string | null): boolean {
+  const clean = cleanText(value);
+  return Boolean(clean && !isAvailableRosterStatus(clean) && /starter|bench|taxi|roster|owned/i.test(clean));
+}
+
+function getWaiverCandidateRosterState(player: TrendingPlayer): {
+  hasAvailabilityProof: boolean;
+  isRostered: boolean;
+  ownerLabel: string | null;
+} {
+  const ownerIsPresent =
+    Object.prototype.hasOwnProperty.call(player, "owner") &&
+    player.owner !== undefined;
+  const ownerLabel = cleanText(player.owner);
+  const rosterStatus = cleanText(
+    player.playerDetails?.rosterStatus ||
+      player.playerDetails?.displayStatus ||
+      null
+  );
+  const hasAvailabilityProof = ownerIsPresent || Boolean(rosterStatus);
+  const isRostered = Boolean(
+    (ownerLabel && !isAvailableOwnerLabel(ownerLabel)) ||
+      isRosteredStatus(rosterStatus)
+  );
+
+  return {
+    hasAvailabilityProof,
+    isRostered,
+    ownerLabel,
+  };
 }
 
 function sourceTraceFromWaiverPlayer(player: TrendingPlayer): AISourceTrace[] {
@@ -401,9 +443,14 @@ function sourceTraceFromWaiverPlayer(player: TrendingPlayer): AISourceTrace[] {
     }));
   }
 
+  const rosterState = getWaiverCandidateRosterState(player);
   return sourceTraceFromStrings([
     player.weeklyEcr?.source || "Sleeper availability",
-    player.owner ? `Owned by ${player.owner}` : "Available player pool",
+    rosterState.isRostered && rosterState.ownerLabel
+      ? `Owned by ${rosterState.ownerLabel}`
+      : rosterState.hasAvailabilityProof
+        ? "Available player pool"
+        : "Unverified roster availability",
   ]);
 }
 
@@ -1012,11 +1059,14 @@ function eventFromWaiverCandidate(input: {
     ? `${input.target.signal.position} schedule score ${Math.round(input.target.score)} from ${input.target.signal.source}.`
     : null;
   const isTaxi = /stash|taxi|rookie/i.test(targetReason || "");
-  const hasOwner = Boolean(input.player.owner);
+  const rosterState = getWaiverCandidateRosterState(input.player);
+  const hasOwner = rosterState.isRostered;
+  const hasAvailabilityProof = rosterState.hasAvailabilityProof;
+  const missingAvailabilityProof = !hasOwner && !hasAvailabilityProof;
   const counterfactual = buildCounterfactual({
     aiScore: score,
     baseline: input.baseline,
-    blocked: hasOwner,
+    blocked: hasOwner || missingAvailabilityProof,
   });
 
   return buildEvent({
@@ -1029,26 +1079,42 @@ function eventFromWaiverCandidate(input: {
     week: input.week,
     surface: "waiver",
     action: isTaxi ? "stash" : "pickup",
-    decision: hasOwner ? "blocked" : score >= 58 ? "do" : "watch",
+    decision: hasOwner ? "blocked" : missingAvailabilityProof ? "watch" : score >= 58 ? "do" : "watch",
     entityType: "player",
     entityId: input.player.player_id || `waiver-${input.index}`,
     entityName: input.player.name,
     finalScore: score,
-    confidenceCap: hasOwner ? Math.min(35, score) : 100,
-    confidenceCapReason: hasOwner ? "Player is already rostered in the live report snapshot." : null,
+    confidenceCap: hasOwner ? Math.min(35, score) : missingAvailabilityProof ? Math.min(55, score) : 100,
+    confidenceCapReason: hasOwner
+      ? "Player is already rostered in the live report snapshot."
+      : missingAvailabilityProof
+        ? "Missing roster ownership proof"
+        : null,
     evidence: [
       targetReason,
       input.player.count ? `${input.player.count.toLocaleString()} Sleeper adds in the trend window.` : null,
       input.player.currentPositionRank ? `${input.player.currentPositionRank} current-season rank.` : null,
       input.player.ktcValue ? `Market value ${Math.round(input.player.ktcValue).toLocaleString()}.` : null,
     ].filter((value): value is string => Boolean(value)),
-    missingEvidence: input.player.weeklyEcr ? [] : ["No DraftSharks schedule signal attached to this waiver candidate."],
-    hardBlockers: hasOwner ? [`Already rostered by ${input.player.owner}.`] : [],
+    missingEvidence: [
+      input.player.weeklyEcr ? null : "No DraftSharks schedule signal attached to this waiver candidate.",
+      missingAvailabilityProof ? "No current roster ownership or availability proof returned for this waiver candidate." : null,
+    ].filter((value): value is string => Boolean(value)),
+    hardBlockers: hasOwner ? [`Already rostered by ${rosterState.ownerLabel || "another manager"}.`] : [],
     sourceTrace: sourceTraceFromWaiverPlayer(input.player),
     decisionSnapshotFacts: [
       snapshotFact({ key: "position", label: "Position", value: input.player.pos, source: "Sleeper player index" }),
       snapshotFact({ key: "team", label: "Team", value: input.player.team, source: "Sleeper player index" }),
-      snapshotFact({ key: "owner", label: "Roster owner", value: input.player.owner || "Available", source: "live roster snapshot" }),
+      snapshotFact({
+        key: "owner",
+        label: "Roster owner",
+        value: hasOwner
+          ? rosterState.ownerLabel
+          : hasAvailabilityProof
+            ? "Available"
+            : "Unverified",
+        source: "live roster snapshot",
+      }),
       snapshotFact({ key: "trendAdds", label: "Trend adds", value: input.player.count || 0, source: "Sleeper trends" }),
       snapshotFact({ key: "marketValue", label: "Market value", value: input.player.ktcValue, source: "stored value snapshot" }),
       snapshotFact({ key: "currentRank", label: "Current rank", value: input.player.currentPositionRank ?? null, source: "redraft/current rank snapshot" }),
@@ -1066,7 +1132,7 @@ function eventFromWaiverCandidate(input: {
       hasScheduleSignal: Boolean(input.player.weeklyEcr),
       scheduleSource: input.player.weeklyEcr?.source || null,
       currentPositionRank: input.player.currentPositionRank || null,
-      ownerStatus: input.player.owner ? "rostered" : "available",
+      ownerStatus: hasOwner ? "rostered" : hasAvailabilityProof ? "available" : "unverified",
     },
   });
 }

@@ -323,6 +323,71 @@ describe("AI prediction event builder", () => {
     } as any)).toBe("blocked");
   });
 
+  it("does not calibrate waiver candidates with missing roster proof as do decisions", () => {
+    const events = buildAIPredictionEventsForReport({
+      leagueId: "13000000000000",
+      createdAt: "2026-09-01T00:00:00.000Z",
+      reportData: {
+        leagueDiagnostics: {
+          currentSeason: "2026",
+          currentWeek: 2,
+          valueMode: "redraft",
+        },
+        leagueValueMode: "redraft",
+        waiverIntelligence: {
+          rosteredTrendingAdds: [],
+          availableTrendingAdds: [
+            {
+              player_id: "missing-owner-waiver",
+              name: "Missing Owner Receiver",
+              pos: "WR",
+              team: "BUF",
+              count: 4200,
+              ktcValue: 5200,
+              currentPositionRank: "WR22",
+            },
+          ],
+          highestKtcAvailable: null,
+          bestAvailableByPosition: {
+            QB: null,
+            RB: null,
+            WR: null,
+            TE: null,
+            K: null,
+            DEF: null,
+          },
+          bestTaxiStashes: [],
+          recentlyDroppedValuable: [],
+          weeklyEcrTargets: [],
+          omittedCandidates: [],
+        },
+      } as any,
+    });
+
+    const waiverEvent = events.find(event =>
+      event.surface === "waiver" &&
+      event.entityId === "missing-owner-waiver"
+    );
+
+    expect(waiverEvent).toMatchObject({
+      decision: "watch",
+      confidenceCap: 55,
+      confidenceCapReason: "Missing roster ownership proof",
+      metadata: {
+        ownerStatus: "unverified",
+      },
+    });
+    expect(waiverEvent?.missingEvidence).toContain(
+      "No current roster ownership or availability proof returned for this waiver candidate."
+    );
+    expect(waiverEvent?.sourceTrace).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        label: "Unverified roster availability",
+        status: "limited",
+      }),
+    ]));
+  });
+
   it("classifies unavailable source traces as missing source-agreement proof", () => {
     const agreement = buildClientSourceAgreementRead({
       sourceTrace: [{
