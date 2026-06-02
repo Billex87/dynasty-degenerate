@@ -213,6 +213,7 @@ describe("billing router", () => {
     expect(guardSource).toContain("max: 20");
     expect(guardSource).toContain("windowMs: 1000 * 60 * 10");
     expect(guardSource).toContain("scope: getActionPlanUserKey(ctx.user)");
+    expect(guardSource).toContain('clientKey: "authenticated-user"');
 
     for (const route of routeChecks) {
       const rateLimitIndex = route.source.indexOf(`assertBillingRouteRateLimit(ctx, "${route.rateLimitId}")`);

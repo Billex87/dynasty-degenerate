@@ -160,6 +160,7 @@ function assertBillingRouteRateLimit(
     max: 20,
     windowMs: 1000 * 60 * 10,
     scope: getActionPlanUserKey(ctx.user),
+    clientKey: "authenticated-user",
     message: "Too many billing requests. Please wait a few minutes and try again.",
   });
 }
