@@ -7332,6 +7332,7 @@ export const appRouter = router({
           max: 20,
           windowMs: 1000 * 60 * 10,
           scope: userKey,
+          clientKey: "authenticated-user",
           message: "Too many AI prediction telemetry writes. Please wait a few minutes and try again.",
         });
         const results = await Promise.all(
@@ -7355,6 +7356,7 @@ export const appRouter = router({
           max: 60,
           windowMs: 1000 * 60 * 10,
           scope: userKey,
+          clientKey: "authenticated-user",
           message: "Too many AI prediction history requests. Please wait a few minutes and try again.",
         });
         const events = await listAiPredictionEvents({
@@ -7377,6 +7379,7 @@ export const appRouter = router({
           max: 30,
           windowMs: 1000 * 60 * 10,
           scope: userKey,
+          clientKey: "authenticated-user",
           message: "Too many AI prediction outcome updates. Please wait a few minutes and try again.",
         });
         const persisted = await updateAiPredictionOutcome({

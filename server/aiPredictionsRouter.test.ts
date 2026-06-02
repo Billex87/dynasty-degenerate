@@ -223,6 +223,7 @@ describe("aiPredictions router", () => {
     expect(routeSource).toContain('id: "aiPredictions.list"');
     expect(routeSource).toContain('id: "aiPredictions.updateOutcome"');
     expect(routeSource).toContain("scope: userKey");
+    expect(routeSource).toContain('clientKey: "authenticated-user"');
     expect(source).toContain("leagueId: sleeperLeagueIdSchema.nullable().optional()");
     expect(routeSource).toContain("leagueId: sleeperLeagueIdSchema.optional().nullable()");
   });
