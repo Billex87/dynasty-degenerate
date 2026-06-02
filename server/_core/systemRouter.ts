@@ -191,7 +191,7 @@ export const systemRouter = router({
       ok: true,
     })),
 
-  snapshotCoverage: publicProcedure
+  snapshotCoverage: adminProcedure
     .input(
       z.object({
         lookbackDays: z.number().int().min(1).max(90).default(14),
