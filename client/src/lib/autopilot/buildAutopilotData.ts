@@ -2051,6 +2051,32 @@ function buildRecommendationQueueItem(
   };
 }
 
+function getQueueDirectActionTargetKey(item: Omit<AIActionQueueItem, 'rank'>): string | null {
+  const action = item.expectedAction;
+  if (!action || action.type === 'hold' || action.type === 'unknown') return null;
+
+  const playerKey = [
+    action.playerIn,
+    action.playerOut,
+    ...(action.playersInvolved || []),
+  ].map(getRecommendationPlayerRefKey).find(Boolean);
+  const targetKey = playerKey || String(item.target || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+  return targetKey || null;
+}
+
+function removeDuplicateDirectActionTargets<T extends Omit<AIActionQueueItem, 'rank'>>(items: T[]): T[] {
+  const seenTargets = new Set<string>();
+
+  return items.filter((item) => {
+    const targetKey = getQueueDirectActionTargetKey(item);
+    if (!targetKey) return true;
+    if (seenTargets.has(targetKey)) return false;
+    seenTargets.add(targetKey);
+    return true;
+  });
+}
+
 function buildNoForcedMoveQueueItem({
   direction,
   weeklyPlan,
@@ -2129,11 +2155,12 @@ function buildAIActionQueue({
     .filter((item): item is Omit<AIActionQueueItem, 'rank'> & { score: number } => Boolean(item))
     .sort((a, b) => b.score - a.score);
 
-  const actionable = candidates.filter((item) => item.decision === 'do');
-  const supporting = candidates.filter((item) => item.decision !== 'do');
+  const uniqueCandidates = removeDuplicateDirectActionTargets(candidates);
+  const actionable = uniqueCandidates.filter((item) => item.decision === 'do');
+  const supporting = uniqueCandidates.filter((item) => item.decision !== 'do');
   const selected = actionable.length
     ? [actionable[0], ...supporting]
-    : [buildNoForcedMoveQueueItem({ direction, weeklyPlan, candidates }), ...supporting];
+    : [buildNoForcedMoveQueueItem({ direction, weeklyPlan, candidates: uniqueCandidates }), ...supporting];
 
   return selected
     .slice(0, 4)

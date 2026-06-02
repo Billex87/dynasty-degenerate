@@ -183,6 +183,123 @@ describe('buildAutopilotData', () => {
     expect(mockRows.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('keeps duplicate direct-action targets from competing in the action queue', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const playerIn = {
+      id: 'repeat-add-player',
+      name: 'Repeat Add Player',
+      position: 'WR',
+      team: 'DET',
+    };
+    const firstDrop = {
+      id: 'first-drop-player',
+      name: 'First Drop Player',
+      position: 'RB',
+      team: 'LV',
+    };
+    const secondDrop = {
+      id: 'second-drop-player',
+      name: 'Second Drop Player',
+      position: 'TE',
+      team: 'NYJ',
+    };
+    const loadedWaiverEvidence = (score: number) => ({
+      evidence: ['Current roster, availability, and league-format proof are loaded.'],
+      missingEvidence: [],
+      hardBlockers: [],
+      softPenalties: [],
+      confidenceCap: 100,
+      confidenceCapReason: null,
+      sourceTrace: [{ label: 'Waiver context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+      rawScore: score,
+      finalScore: score,
+      label: 'high conviction',
+      shouldRender: true,
+      canAct: true,
+      whyThisFired: 'Waiver context is loaded and the pickup cleared action preconditions.',
+    });
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [],
+      waivers: [
+        {
+          id: 'repeat-add-primary',
+          type: 'Waiver',
+          player: 'Repeat Add Player',
+          action: 'Queue-backed pickup',
+          confidence: 91,
+          risk: 'Low' as const,
+          upside: 'High' as const,
+          summary: 'The stronger duplicate pickup should own this target.',
+          reasons: ['Primary waiver proof is loaded.'],
+          signals: ['Waiver proof'],
+          evidenceRead: loadedWaiverEvidence(91) as any,
+          expectedAction: {
+            type: 'add_player',
+            playerIn,
+            playerOut: firstDrop,
+            playersInvolved: [playerIn, firstDrop],
+            expectedRosterChange: 'Add Repeat Add Player and drop First Drop Player.',
+            source: 'autopilot',
+            reason: 'Primary pickup fixture.',
+          },
+          tone: 'good' as const,
+        },
+        {
+          id: 'repeat-add-support',
+          type: 'Waiver',
+          player: 'Repeat Add Player',
+          action: 'Add only if the first read changes',
+          confidence: 62,
+          risk: 'Medium' as const,
+          upside: 'High' as const,
+          summary: 'The weaker duplicate pickup should not become a second queue row.',
+          reasons: ['Supporting waiver proof is loaded.'],
+          signals: ['Waiver proof'],
+          evidenceRead: loadedWaiverEvidence(62) as any,
+          expectedAction: {
+            type: 'add_player',
+            playerIn,
+            playerOut: secondDrop,
+            playersInvolved: [playerIn, secondDrop],
+            expectedRosterChange: 'Add Repeat Add Player and drop Second Drop Player.',
+            source: 'autopilot',
+            reason: 'Supporting pickup fixture.',
+          },
+          tone: 'warn' as const,
+        },
+      ],
+      trades: [],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const repeatedTargetRows = data.actionQueue.filter((item) => item.target === 'Repeat Add Player');
+    expect(repeatedTargetRows).toHaveLength(1);
+    expect(repeatedTargetRows[0]).toMatchObject({
+      id: 'queue-waiver-repeat-add-primary',
+      decision: 'do',
+      action: 'Queue-backed pickup',
+      expectedAction: {
+        type: 'add_player',
+        playerOut: firstDrop,
+      },
+    });
+    expect(JSON.stringify(data.actionQueue)).not.toContain('repeat-add-support');
+    expect(JSON.stringify(data.actionQueue)).not.toContain('Second Drop Player');
+  });
+
   it('does not treat reason-only trade expected actions as concrete queue moves', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.managerRosterIntelligence = [];
