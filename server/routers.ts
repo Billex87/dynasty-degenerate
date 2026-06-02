@@ -86,6 +86,12 @@ import { findBillingCustomerForUser, findLatestSleeperHiddenLeagueSnapshot, find
 import { consumeMagicLinkToken, createMagicLinkToken, getMagicLinkUserOpenId, hashMagicLinkToken, normalizeMagicLinkRedirectPath } from "./magicLinkTokens";
 import { buildUsageEvent } from "./usageEvents";
 import { createStripeCheckoutSession, createStripeCustomerPortalSession, resolveStripeBillingAppBaseUrl, STRIPE_BILLING_PRODUCT_KEYS } from "./stripeBilling";
+import {
+  assertTransactionalEmailConfiguredForProduction,
+  isTransactionalEmailConfigured,
+  resolveTransactionalEmailAppBaseUrl,
+  sendMagicLinkEmail,
+} from "./transactionalEmail";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { LeagueDraftStatus, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
 import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
@@ -116,6 +122,13 @@ function getFirstHeaderValue(value: string | string[] | undefined): string | nul
 
 function getRequestBillingAppBaseUrl(ctx: TrpcContext): string {
   return resolveStripeBillingAppBaseUrl({
+    requestProtocol: getFirstHeaderValue(ctx.req.headers["x-forwarded-proto"]) || ctx.req.protocol,
+    requestHost: getFirstHeaderValue(ctx.req.headers["x-forwarded-host"]) || getFirstHeaderValue(ctx.req.headers.host),
+  });
+}
+
+function getRequestTransactionalEmailAppBaseUrl(ctx: TrpcContext): string {
+  return resolveTransactionalEmailAppBaseUrl({
     requestProtocol: getFirstHeaderValue(ctx.req.headers["x-forwarded-proto"]) || ctx.req.protocol,
     requestHost: getFirstHeaderValue(ctx.req.headers["x-forwarded-host"]) || getFirstHeaderValue(ctx.req.headers.host),
   });
@@ -6185,6 +6198,9 @@ export const appRouter = router({
         redirectPath: z.string().trim().max(512).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        assertTransactionalEmailConfiguredForProduction();
+        const shouldSendEmail = isTransactionalEmailConfigured();
+        const emailAppBaseUrl = shouldSendEmail ? getRequestTransactionalEmailAppBaseUrl(ctx) : null;
         const created = createMagicLinkToken({
           email: input.email,
           redirectPath: input.redirectPath,
@@ -6200,11 +6216,23 @@ export const appRouter = router({
           });
         }
 
+        if (shouldSendEmail && emailAppBaseUrl) {
+          await sendMagicLinkEmail({
+            email: created.record.email,
+            token: created.token,
+            tokenId: created.record.tokenId,
+            redirectPath: created.record.redirectPath,
+            expiresAt: created.record.expiresAt,
+            appBaseUrl: emailAppBaseUrl,
+          });
+        }
+
+        const delivery = shouldSendEmail ? "sent" : "pending-email-provider";
         const baseResponse = {
           success: true,
           expiresAt: created.record.expiresAt,
           redirectPath: created.record.redirectPath ?? "/",
-          delivery: "pending-email-provider",
+          delivery,
         } as const;
 
         if (!shouldExposeMagicLinkDevToken()) return baseResponse;

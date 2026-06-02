@@ -11,6 +11,10 @@ import {
   markMagicLinkTokenConsumed,
   upsertUser,
 } from "./db";
+import {
+  isTransactionalEmailConfigured,
+  sendMagicLinkEmail,
+} from "./transactionalEmail";
 
 vi.mock("./db", async () => {
   const actual = await vi.importActual<typeof import("./db")>("./db");
@@ -24,11 +28,22 @@ vi.mock("./db", async () => {
   };
 });
 
+vi.mock("./transactionalEmail", async () => {
+  const actual = await vi.importActual<typeof import("./transactionalEmail")>("./transactionalEmail");
+  return {
+    ...actual,
+    isTransactionalEmailConfigured: vi.fn(),
+    sendMagicLinkEmail: vi.fn(),
+  };
+});
+
 const mockedInsertMagicLinkToken = vi.mocked(insertMagicLinkToken);
 const mockedFindMagicLinkTokenByHash = vi.mocked(findMagicLinkTokenByHash);
 const mockedMarkMagicLinkTokenConsumed = vi.mocked(markMagicLinkTokenConsumed);
 const mockedUpsertUser = vi.mocked(upsertUser);
 const mockedGetUserByOpenId = vi.mocked(getUserByOpenId);
+const mockedIsTransactionalEmailConfigured = vi.mocked(isTransactionalEmailConfigured);
+const mockedSendMagicLinkEmail = vi.mocked(sendMagicLinkEmail);
 
 type CookieCall = {
   name: string;
@@ -75,18 +90,32 @@ describe("auth magic-link procedures", () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalJwtSecret = process.env.JWT_SECRET;
   const originalExposeToken = process.env.EXPOSE_MAGIC_LINK_DEV_TOKEN;
+  const originalAppBaseUrl = process.env.APP_BASE_URL;
+  const originalResendApiKey = process.env.RESEND_API_KEY;
+  const originalTransactionalEmailFrom = process.env.TRANSACTIONAL_EMAIL_FROM;
 
   beforeEach(() => {
     process.env.NODE_ENV = "test";
     process.env.JWT_SECRET = "test-secret";
+    process.env.APP_BASE_URL = "https://dynastydegens.test";
     delete process.env.EXPOSE_MAGIC_LINK_DEV_TOKEN;
+    delete process.env.RESEND_API_KEY;
+    delete process.env.TRANSACTIONAL_EMAIL_FROM;
     vi.clearAllMocks();
+    mockedIsTransactionalEmailConfigured.mockReturnValue(false);
+    mockedSendMagicLinkEmail.mockResolvedValue({ id: "email_test" });
   });
 
   afterEach(() => {
     process.env.NODE_ENV = originalNodeEnv;
     if (originalJwtSecret === undefined) delete process.env.JWT_SECRET;
     else process.env.JWT_SECRET = originalJwtSecret;
+    if (originalAppBaseUrl === undefined) delete process.env.APP_BASE_URL;
+    else process.env.APP_BASE_URL = originalAppBaseUrl;
+    if (originalResendApiKey === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = originalResendApiKey;
+    if (originalTransactionalEmailFrom === undefined) delete process.env.TRANSACTIONAL_EMAIL_FROM;
+    else process.env.TRANSACTIONAL_EMAIL_FROM = originalTransactionalEmailFrom;
     if (originalExposeToken === undefined) delete process.env.EXPOSE_MAGIC_LINK_DEV_TOKEN;
     else process.env.EXPOSE_MAGIC_LINK_DEV_TOKEN = originalExposeToken;
   });
@@ -120,10 +149,14 @@ describe("auth magic-link procedures", () => {
     expect(result.devToken).toEqual(expect.any(String));
     expect(persistedTokenHash).toBe(hashMagicLinkToken(result.devToken));
     expect(persistedTokenHash).not.toBe(result.devToken);
+    expect(mockedSendMagicLinkEmail).not.toHaveBeenCalled();
   });
 
-  it("does not expose the raw magic-link token in production", async () => {
+  it("sends configured magic-link email without exposing the raw token in production", async () => {
     process.env.NODE_ENV = "production";
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.TRANSACTIONAL_EMAIL_FROM = "login@example.com";
+    mockedIsTransactionalEmailConfigured.mockReturnValue(true);
     const { ctx } = createTestContext();
     const caller = appRouter.createCaller(ctx);
 
@@ -138,7 +171,56 @@ describe("auth magic-link procedures", () => {
       success: true,
       expiresAt: expect.any(Date),
       redirectPath: "/",
-      delivery: "pending-email-provider",
+      delivery: "sent",
+    });
+    expect("devToken" in result).toBe(false);
+    expect(mockedSendMagicLinkEmail).toHaveBeenCalledWith({
+      email: "sample@example.com",
+      token: expect.any(String),
+      tokenId: expect.any(String),
+      redirectPath: "/",
+      expiresAt: expect.any(Date),
+      appBaseUrl: "https://dynastydegens.test",
+    });
+  });
+
+  it("fails closed in production when magic-link email delivery is not configured", async () => {
+    process.env.NODE_ENV = "production";
+    mockedIsTransactionalEmailConfigured.mockReturnValue(false);
+    const { ctx } = createTestContext();
+    const caller = appRouter.createCaller(ctx);
+
+    await expect(caller.auth.requestMagicLink({
+      email: "sample@example.com",
+    })).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: "Magic-link email delivery requires RESEND_API_KEY and TRANSACTIONAL_EMAIL_FROM in production.",
+    });
+    expect(mockedInsertMagicLinkToken).not.toHaveBeenCalled();
+    expect(mockedSendMagicLinkEmail).not.toHaveBeenCalled();
+  });
+
+  it("marks delivery as sent when transactional email is configured in development", async () => {
+    mockedIsTransactionalEmailConfigured.mockReturnValue(true);
+    const { ctx } = createTestContext();
+    const caller = appRouter.createCaller(ctx);
+
+    mockedInsertMagicLinkToken.mockResolvedValue(true);
+
+    const result = await caller.auth.requestMagicLink({
+      email: "sample@example.com",
+      redirectPath: "/report?leagueId=123",
+    });
+
+    expect(result.delivery).toBe("sent");
+    expect(result.devToken).toEqual(expect.any(String));
+    expect(mockedSendMagicLinkEmail).toHaveBeenCalledWith({
+      email: "sample@example.com",
+      token: result.devToken,
+      tokenId: expect.any(String),
+      redirectPath: "/report?leagueId=123",
+      expiresAt: expect.any(Date),
+      appBaseUrl: "https://dynastydegens.test",
     });
   });
 
