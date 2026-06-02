@@ -323,6 +323,59 @@ describe("AI prediction event builder", () => {
     } as any)).toBe("blocked");
   });
 
+  it("does not keep raw do events when source proof is missing", () => {
+    const event = __testing.buildEvent({
+      reportRunKey: "test-report-run",
+      createdAt: "2026-09-01T00:00:00.000Z",
+      valueMode: "redraft",
+      leagueId: "13000000000000",
+      season: "2026",
+      week: 2,
+      surface: "autopilot",
+      action: "pickup",
+      decision: "do",
+      entityType: "player",
+      entityId: "missing-source-player",
+      entityName: "Missing Source Player",
+      finalScore: 82,
+      evidence: ["Raw caller tried to persist a do event."],
+      missingEvidence: [],
+      hardBlockers: [],
+      sourceTrace: [],
+      whyThisFired: "No source proof was attached.",
+    });
+
+    expect(event.decision).toBe("watch");
+    expect(event.sourceAgreement).toBeNull();
+    expect(event.outcome.status).toBe("pending");
+
+    const blockedEvent = __testing.buildEvent({
+      reportRunKey: "test-report-run",
+      createdAt: "2026-09-01T00:00:00.000Z",
+      valueMode: "redraft",
+      leagueId: "13000000000000",
+      season: "2026",
+      week: 2,
+      surface: "autopilot",
+      action: "pickup",
+      decision: "do",
+      entityType: "player",
+      entityId: "blocked-player",
+      entityName: "Blocked Player",
+      finalScore: 82,
+      evidence: ["Raw caller tried to persist a do event."],
+      missingEvidence: [],
+      hardBlockers: ["Roster ownership already blocks this add."],
+      sourceTrace: [{
+        label: "Sleeper roster snapshot",
+        status: "loaded",
+      }],
+    });
+
+    expect(blockedEvent.decision).toBe("blocked");
+    expect(blockedEvent.outcome.status).toBe("blocked");
+  });
+
   it("does not calibrate waiver candidates with missing roster proof as do decisions", () => {
     const events = buildAIPredictionEventsForReport({
       leagueId: "13000000000000",

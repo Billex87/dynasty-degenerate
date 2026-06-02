@@ -321,6 +321,28 @@ function scoreAfterCounterfactual(score: number, counterfactual?: AICounterfactu
   return clampPercent(score);
 }
 
+function decisionAfterEvidenceGuards(input: {
+  decision: ClientAIPredictionDecision;
+  confidenceCapReason?: string | null;
+  hardBlockers: string[];
+  missingEvidence: string[];
+  sourceAgreement: ClientAISourceAgreementRead | null;
+}): ClientAIPredictionDecision {
+  if (input.hardBlockers.length) return "blocked";
+  if (input.decision !== "do") return input.decision;
+  if (input.confidenceCapReason || input.missingEvidence.length) return "watch";
+  if (
+    !input.sourceAgreement ||
+    input.sourceAgreement.state === "missing" ||
+    input.sourceAgreement.state === "unknown" ||
+    input.sourceAgreement.state === "split" ||
+    input.sourceAgreement.state === "conflicted"
+  ) {
+    return "watch";
+  }
+  return input.decision;
+}
+
 function actionFromQueueItem(item: AIActionQueueItem): AIEvidenceAction {
   if (item.decision === "blocked") return "avoid";
   if (item.source === "waiver") return /stash/i.test(item.action) ? "stash" : "pickup";
@@ -763,6 +785,13 @@ function buildEvent(input: {
     hardBlockers,
     missingEvidence,
   });
+  const safeDecision = decisionAfterEvidenceGuards({
+    decision,
+    confidenceCapReason: input.confidenceCapReason,
+    hardBlockers,
+    missingEvidence,
+    sourceAgreement,
+  });
   const decisionSnapshot = buildAIDecisionSnapshot({
     capturedAt: input.createdAt,
     valueMode: input.valueMode || "unknown",
@@ -783,7 +812,7 @@ function buildEvent(input: {
     action: input.action,
   });
   const predictionKey = makePredictionKey(input);
-  const eventId = `ai-${hashText(`${input.reportRunKey}:${predictionKey}:${decision}:${finalScore}`)}`;
+  const eventId = `ai-${hashText(`${input.reportRunKey}:${predictionKey}:${safeDecision}:${finalScore}`)}`;
   return {
     schemaVersion: 1,
     eventId,
@@ -791,7 +820,7 @@ function buildEvent(input: {
     createdAt: input.createdAt,
     surface: input.surface,
     action: input.action,
-    decision,
+    decision: safeDecision,
     entityType: input.entityType,
     entityId: cleanText(input.entityId),
     entityName: cleanText(input.entityName),
@@ -815,7 +844,7 @@ function buildEvent(input: {
     expiresAt: decay.expiresAt,
     whyThisFired: cleanText(input.whyThisFired) || "AI read was rendered with traceable evidence.",
     outcome: {
-      status: decision === "blocked" ? "blocked" : "pending",
+      status: safeDecision === "blocked" ? "blocked" : "pending",
       baselineValue: counterfactual?.baseline.score ?? null,
       feedbackSource: "system",
     },
@@ -1524,6 +1553,7 @@ export function getAIPredictionEventBatchSignature(events: ClientAIPredictionEve
 }
 
 export const __testing = {
+  buildEvent,
   decisionFromEvidence,
   decisionFromQueueItem,
 };
