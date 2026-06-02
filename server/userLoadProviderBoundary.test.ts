@@ -100,6 +100,10 @@ describe("user-load provider boundary", () => {
     expect(accessIndex).toBeGreaterThan(nameGuardIndex);
     expect(rateLimitIndex).toBeGreaterThan(accessIndex);
     expect(fetchIndex).toBeGreaterThan(rateLimitIndex);
+    expect(latestNewsSource).toContain("playerId: z.string().trim().max(64).optional()");
+    expect(latestNewsSource).toContain("playerName: z.string().trim().max(120).optional()");
+    expect(latestNewsSource).toContain("team: z.string().trim().max(16).optional().nullable()");
+    expect(latestNewsSource).toContain("position: z.string().trim().max(16).optional().nullable()");
     expect(latestNewsSource).toContain("id: 'players.latestNews'");
     expect(latestNewsSource).toContain("...getUserLoadSnapshotOptions()");
   });

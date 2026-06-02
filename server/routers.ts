@@ -8416,10 +8416,10 @@ export const appRouter = router({
   players: router({
     latestNews: publicProcedure
       .input(z.object({
-        playerId: z.string().optional(),
-        playerName: z.string().optional(),
-        team: z.string().optional().nullable(),
-        position: z.string().optional().nullable(),
+        playerId: z.string().trim().max(64).optional(),
+        playerName: z.string().trim().max(120).optional(),
+        team: z.string().trim().max(16).optional().nullable(),
+        position: z.string().trim().max(16).optional().nullable(),
       }))
       .query(async ({ input, ctx }) => {
         const playerName = input.playerName?.trim();
