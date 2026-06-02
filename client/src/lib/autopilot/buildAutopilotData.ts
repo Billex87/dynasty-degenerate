@@ -2629,6 +2629,38 @@ function findTradePartner(data: ReportData, manager: string, needPosition?: stri
   return partnerBySurplus?.manager || null;
 }
 
+function buildTradeExpectedAction(input: {
+  player: AutopilotPlayerLike;
+  action: 'sell' | 'buy';
+  manager: string;
+  partner?: string | null;
+  needPosition?: string | null;
+  surplusPosition?: string | null;
+  reason?: string | null;
+}): RecommendationExpectedAction {
+  const player = toRecommendationPlayerRef(input.player);
+  const playerName = getPlayerName(input.player);
+  const partnerCopy = input.partner ? ` with ${input.partner}` : '';
+  const directionCopy = input.action === 'sell'
+    ? `Shop ${playerName}${partnerCopy}`
+    : `Test an offer for ${playerName}${partnerCopy}`;
+  const fitCopy = input.needPosition
+    ? ` only if the return upgrades ${input.manager}'s ${input.needPosition} need`
+    : input.surplusPosition
+      ? ` only if it converts ${input.manager}'s ${input.surplusPosition} surplus into a cleaner roster fit`
+      : ' only if the return improves a starter, pick tier, or roster weakness';
+
+  return {
+    type: 'trade',
+    playerIn: input.action === 'buy' ? player : null,
+    playerOut: input.action === 'sell' ? player : null,
+    playersInvolved: [player].filter(Boolean) as RecommendationPlayerRef[],
+    expectedRosterChange: `${directionCopy}${fitCopy}.`,
+    source: 'autopilot',
+    reason: input.reason || `${playerName} is a trade idea, not a submit-now instruction until partner, return, and roster preconditions clear.`,
+  };
+}
+
 function buildTradeRecommendations(data: ReportData, mode: AutopilotMode, manager: string, fallback: AutopilotRecommendation[]): AutopilotRecommendation[] {
   const intel = findManagerIntel(data, manager);
   if (!intel) return fallback;
@@ -2641,6 +2673,7 @@ function buildTradeRecommendations(data: ReportData, mode: AutopilotMode, manage
     const player = withReportPlayerDetails(data, blueprint.givePlayer || blueprint.getPlayer || intel.sellCandidate || intel.buyTarget);
     if (!player) return;
     const isSell = blueprint.tone === 'sell' || blueprint.givePlayer;
+    const action = isSell ? 'sell' : 'buy';
     cards.push({
       id: `trade-blueprint-${index}-${player.player_id || player.name}`,
       type: 'Trade',
@@ -2659,6 +2692,15 @@ function buildTradeRecommendations(data: ReportData, mode: AutopilotMode, manage
         mode === 'dynasty' ? 'Dynasty mode weighs age curve, value liquidity, and future picks.' : 'Redraft mode only cares about current-season starter points.',
       ], 3),
       signals: dedupeStrings([blueprint.label, blueprint.tone, getPlayerSituationSignal(player), intel.tradePlan?.needPosition ? `Need ${intel.tradePlan.needPosition}` : null, intel.tradePlan?.surplusPosition ? `Surplus ${intel.tradePlan.surplusPosition}` : null], 4),
+      expectedAction: buildTradeExpectedAction({
+        player,
+        action,
+        manager,
+        partner,
+        needPosition: intel.tradePlan?.needPosition,
+        surplusPosition: intel.tradePlan?.surplusPosition,
+        reason: blueprint.summary,
+      }),
       tone: isSell ? 'warn' : 'good',
     });
   });
@@ -2679,6 +2721,15 @@ function buildTradeRecommendations(data: ReportData, mode: AutopilotMode, manage
         : `${getPlayerName(sellCandidate)} is the best trade-away candidate if the return upgrades a weekly starter slot.`,
       reasons: dedupeStrings([intel.tradePlan?.summary, getPlayerSituationSignal(sellCandidate), intel.marketSignals?.[0], intel.pressurePoints?.[0]], 3),
       signals: dedupeStrings(['Sell candidate', getPlayerSituationSignal(sellCandidate), partner ? 'Partner fit' : null, intel.tradePlan?.surplusPosition ? `Surplus ${intel.tradePlan.surplusPosition}` : null], 4),
+      expectedAction: buildTradeExpectedAction({
+        player: sellCandidate,
+        action: 'sell',
+        manager,
+        partner,
+        needPosition: intel.tradePlan?.needPosition,
+        surplusPosition: intel.tradePlan?.surplusPosition,
+        reason: intel.tradePlan?.summary,
+      }),
       tone: 'warn',
     });
   }
@@ -2697,6 +2748,15 @@ function buildTradeRecommendations(data: ReportData, mode: AutopilotMode, manage
       summary: `${getPlayerName(buyTarget)} is the cleanest external target profile for this roster's current need.`,
       reasons: dedupeStrings([intel.tradePlan?.summary, getPlayerSituationSignal(buyTarget), mode === 'redraft' ? 'The target improves current-season scoring.' : 'The target fits the roster window better than a generic best-player trade.'], 3),
       signals: dedupeStrings(['Buy target', getPlayerSituationSignal(buyTarget), partner ? 'Partner fit' : null, intel.tradePlan?.needPosition ? `Need ${intel.tradePlan.needPosition}` : null], 4),
+      expectedAction: buildTradeExpectedAction({
+        player: buyTarget,
+        action: 'buy',
+        manager,
+        partner,
+        needPosition: intel.tradePlan?.needPosition,
+        surplusPosition: intel.tradePlan?.surplusPosition,
+        reason: intel.tradePlan?.summary,
+      }),
       tone: 'good',
     });
   }

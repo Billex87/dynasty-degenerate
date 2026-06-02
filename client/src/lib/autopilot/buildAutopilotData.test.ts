@@ -319,12 +319,27 @@ describe('buildAutopilotData', () => {
     expect(JSON.stringify(data.waivers)).not.toContain('Blake Corum');
     expect(JSON.stringify(data.actionQueue)).not.toContain('Waiver Receiver');
     expect(JSON.stringify(data.actionQueue)).not.toContain('Blake Corum');
+    const tradeCard = data.trades.find((recommendation) => recommendation.player === 'Sample Runner');
+    expect(tradeCard).toMatchObject({
+      expectedAction: {
+        type: 'trade',
+        playerOut: {
+          name: 'Sample Runner',
+        },
+      },
+    });
+    expect(tradeCard?.expectedAction?.expectedRosterChange).toContain('only if the return upgrades');
     const unprovedTrade = data.actionQueue.find((item) => item.source === 'trade' && item.target === 'Sample Runner');
     expect(unprovedTrade).toMatchObject({
       decision: 'watch',
       label: "Don't force it",
+      expectedAction: {
+        type: 'trade',
+      },
     });
-    expect(unprovedTrade?.missingEvidence.join(' ')).toContain('no concrete expected action');
+    expect(unprovedTrade?.expectedAction?.expectedRosterChange).toContain('only if the return upgrades');
+    expect(unprovedTrade?.missingEvidence.join(' ')).toContain('has not cleared current roster');
+    expect(unprovedTrade?.missingEvidence.join(' ')).not.toContain('no concrete expected action');
   });
 
   it('downranks D/ST waiver targets with rough early matchup windows', () => {
