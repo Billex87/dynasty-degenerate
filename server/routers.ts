@@ -646,6 +646,7 @@ const sleeperLeagueIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter
 const sleeperUserIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter a valid Sleeper user ID');
 const sleeperUsernameSchema = z.string().trim().min(1).max(64);
 const sleeperAuthTokenSchema = z.string().trim().min(1).max(4096);
+const MAX_SLEEPER_HIDDEN_TRADE_CENTER_RESPONSE_BYTES = 5 * 1024 * 1024;
 const valueTimelineWindowSchema = z.enum(['1m', '3m', '6m', '1y', 'all']);
 const MAX_AI_PREDICTION_EVENT_BYTES = 64 * 1024;
 const aiSourceTraceSchema = z.object({
@@ -3177,7 +3178,22 @@ async function fetchSleeperTradeCenterTransactions(leagueId: string, authToken: 
     }),
   });
 
+  const declaredResponseBytes = Number(response.headers.get('content-length') || 0);
+  if (Number.isFinite(declaredResponseBytes) && declaredResponseBytes > MAX_SLEEPER_HIDDEN_TRADE_CENTER_RESPONSE_BYTES) {
+    throw new TRPCError({
+      code: 'PAYLOAD_TOO_LARGE',
+      message: 'Sleeper hidden trade center response was too large to import safely.',
+    });
+  }
+
   const rawBody = await response.text();
+  if (Buffer.byteLength(rawBody, 'utf8') > MAX_SLEEPER_HIDDEN_TRADE_CENTER_RESPONSE_BYTES) {
+    throw new TRPCError({
+      code: 'PAYLOAD_TOO_LARGE',
+      message: 'Sleeper hidden trade center response was too large to import safely.',
+    });
+  }
+
   let payload: SleeperGraphQLTransactionResponse | null = null;
   try {
     payload = rawBody ? JSON.parse(rawBody) as SleeperGraphQLTransactionResponse : null;

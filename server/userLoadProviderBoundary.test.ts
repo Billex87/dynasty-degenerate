@@ -404,11 +404,18 @@ describe("user-load provider boundary", () => {
 
   it("keeps hidden Sleeper trade imports behind report access and rate limits", () => {
     const importSource = extractSource("importSleeperTradeCenter: publicProcedure", "\n    rankings: publicProcedure");
+    const graphqlImportSource = extractSource("async function fetchSleeperTradeCenterTransactions", "\n\ntype SleeperHiddenTradeCenterImport");
+    const hiddenImportHelperSource = extractSource("async function loadSleeperHiddenTradeCenterImport", "\n\nfunction buildSleeperHiddenLeagueSnapshotMetadata");
     const accessIndex = importSource.indexOf("assertReportAccess(ctx)");
     const rateLimitIndex = importSource.indexOf("assertRateLimit(ctx.req as any");
     const leagueFetchIndex = importSource.indexOf("fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`)");
     const hiddenImportIndex = importSource.indexOf("loadSleeperHiddenTradeCenterImport({");
     const writeIndex = importSource.indexOf("upsertSleeperHiddenLeagueSnapshot({");
+    const contentLengthIndex = graphqlImportSource.indexOf("response.headers.get('content-length')");
+    const textIndex = graphqlImportSource.indexOf("const rawBody = await response.text()");
+    const byteLengthIndex = graphqlImportSource.indexOf("Buffer.byteLength(rawBody, 'utf8')");
+    const parseIndex = graphqlImportSource.indexOf("JSON.parse(rawBody)");
+    const signalIndex = hiddenImportHelperSource.indexOf("buildTradeProposalSignals(hiddenTransactions");
 
     expect(accessIndex).toBeGreaterThan(0);
     expect(rateLimitIndex).toBeGreaterThan(accessIndex);
@@ -416,6 +423,12 @@ describe("user-load provider boundary", () => {
     expect(hiddenImportIndex).toBeGreaterThan(rateLimitIndex);
     expect(writeIndex).toBeGreaterThan(hiddenImportIndex);
     expect(importSource).toContain("id: 'league.importSleeperTradeCenter'");
+    expect(routersSource).toContain("MAX_SLEEPER_HIDDEN_TRADE_CENTER_RESPONSE_BYTES = 5 * 1024 * 1024");
+    expect(contentLengthIndex).toBeGreaterThan(0);
+    expect(textIndex).toBeGreaterThan(contentLengthIndex);
+    expect(byteLengthIndex).toBeGreaterThan(textIndex);
+    expect(parseIndex).toBeGreaterThan(byteLengthIndex);
+    expect(signalIndex).toBeGreaterThan(0);
   });
 
   it("keeps ranking detail endpoints behind report access and rate limits", () => {
