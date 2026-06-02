@@ -3487,7 +3487,7 @@ export function AssistantFeatureShells({
                 position: player.pos,
                 team: player.playerDetails?.team || null,
                 playerId: player.player_id,
-                meta: matchupPreview.vulnerableSpots?.some((spot) => spot.player_id === player.player_id) ? 'Vulnerable spot' : 'Must start',
+                meta: matchupPreview.vulnerableSpots?.some((spot) => spot.player_id === player.player_id) ? 'Vulnerable spot' : 'Starter review',
                 value: formatCompactValue(getStarterValue(player)),
                 tone: matchupPreview.vulnerableSpots?.some((spot) => spot.player_id === player.player_id) ? 'warn' : 'good',
               })))}
@@ -3497,7 +3497,7 @@ export function AssistantFeatureShells({
               <CalendarDays className="h-5 w-5" aria-hidden="true" />
               <div>
                 <strong>NFL schedule dependent</strong>
-                <p>Once schedule-week matchup projections are returned, this panel will add opponent edge, boom/bust, must-start, and how-you-win analysis on top of the submitted Sleeper lineup when available.</p>
+                <p>Once schedule-week matchup projections are returned, this panel will add opponent edge, boom/bust, starter review, and how-you-win analysis on top of the submitted Sleeper lineup when available.</p>
               </div>
             </div>
           )}

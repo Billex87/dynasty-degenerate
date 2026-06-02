@@ -38,6 +38,12 @@ function findExplicitComponentDoThisLabels(): DoThisMatch[] {
   });
 }
 
+function readComponentSource(): string {
+  return listSourceFiles(path.join(SOURCE_ROOT, "components"))
+    .map((filePath) => fs.readFileSync(filePath, "utf8"))
+    .join("\n");
+}
+
 describe("AI read action copy boundaries", () => {
   it("keeps exact Do this copy limited to reviewed action-owned component panels", () => {
     const matches = findExplicitComponentDoThisLabels();
@@ -55,5 +61,12 @@ describe("AI read action copy boundaries", () => {
     const ownerBestMove = matches.find((match) => match.file === "components/ReportTables.tsx");
     expect(ownerBestMove?.context).toContain('title={isRedraft ? "Best Move" : "Dynasty Best Move"}');
     expect(ownerBestMove?.context).toContain('status: "Primary move"');
+  });
+
+  it("keeps matchup support labels out of must-start command copy", () => {
+    const source = readComponentSource();
+
+    expect(source).not.toMatch(/\bMust start\b/i);
+    expect(source).not.toMatch(/\bmust-start\b/i);
   });
 });
