@@ -260,7 +260,7 @@ describe("auth magic-link procedures", () => {
   });
 
   it("consumes a valid token, creates a user session, and sets the session cookie", async () => {
-    const now = new Date("2026-06-02T12:00:00.000Z");
+    const now = new Date();
     const created = createMagicLinkToken({
       email: "sample@example.com",
       token: "valid-test-token-for-route",

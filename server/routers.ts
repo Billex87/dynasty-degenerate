@@ -789,6 +789,8 @@ const aiPredictionEventSchema = aiPredictionEventBaseSchema.superRefine((event, 
 }) satisfies z.ZodType<AIPredictionEvent>;
 const LEAGUE_RANK_FANOUT_CONCURRENCY = 3;
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_BUCKET_MAX_ENTRIES = 5000;
+const RATE_LIMIT_BUCKET_SWEEP_INTERVAL_MS = 1000 * 60 * 5;
 let lastRateLimitSweepAt = 0;
 
 type RequestLike = { headers?: Record<string, any>; socket?: { remoteAddress?: string | null } };
@@ -879,11 +881,20 @@ function isValidAdminLoginPassword(input: string): boolean {
   );
 }
 
-function sweepRateLimitBuckets(now = Date.now()) {
-  if (now - lastRateLimitSweepAt < 1000 * 60 * 5) return;
-  lastRateLimitSweepAt = now;
-  for (const [key, bucket] of Array.from(rateLimitBuckets.entries())) {
-    if (bucket.resetAt <= now) rateLimitBuckets.delete(key);
+function sweepRateLimitBuckets(now = Date.now(), reserveKey?: string) {
+  if (now - lastRateLimitSweepAt >= RATE_LIMIT_BUCKET_SWEEP_INTERVAL_MS) {
+    lastRateLimitSweepAt = now;
+    for (const [key, bucket] of Array.from(rateLimitBuckets.entries())) {
+      if (bucket.resetAt <= now) rateLimitBuckets.delete(key);
+    }
+  }
+
+  while (rateLimitBuckets.size >= RATE_LIMIT_BUCKET_MAX_ENTRIES) {
+    const oldestKey = Array.from(rateLimitBuckets.entries())
+      .filter(([key]) => key !== reserveKey)
+      .sort((a, b) => a[1].resetAt - b[1].resetAt)[0]?.[0];
+    if (!oldestKey) break;
+    rateLimitBuckets.delete(oldestKey);
   }
 }
 
@@ -891,12 +902,12 @@ function assertRateLimit(req: RequestLike, options: RateLimitOptions) {
   if (process.env.NODE_ENV === 'test' || isTrustedAutomationRequest(req)) return;
 
   const now = Date.now();
-  sweepRateLimitBuckets(now);
   const clientId = getClientIp({
     headers: req.headers || {},
     socket: req.socket,
   }) || 'anonymous';
   const key = [options.id, clientId, options.scope || 'global'].join(':');
+  sweepRateLimitBuckets(now, key);
   const existing = rateLimitBuckets.get(key);
   const bucket = existing && existing.resetAt > now
     ? existing

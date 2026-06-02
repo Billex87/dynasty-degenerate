@@ -106,6 +106,22 @@ describe("user-load provider boundary", () => {
     expect(insertIndex).toBeGreaterThan(pruneIndex);
   });
 
+  it("bounds route-limit buckets while preserving the current request key", () => {
+    const sweepSource = extractSource("function sweepRateLimitBuckets", "\n\nfunction assertRateLimit");
+    const assertSource = extractSource("function assertRateLimit", "\n\nfunction assertReportAccess");
+    const keyIndex = assertSource.indexOf("const key = [options.id, clientId, options.scope || 'global'].join(':')");
+    const sweepIndex = assertSource.indexOf("sweepRateLimitBuckets(now, key)");
+    const readBucketIndex = assertSource.indexOf("const existing = rateLimitBuckets.get(key)");
+
+    expect(routersSource).toContain("const RATE_LIMIT_BUCKET_MAX_ENTRIES = 5000");
+    expect(routersSource).toContain("const RATE_LIMIT_BUCKET_SWEEP_INTERVAL_MS = 1000 * 60 * 5");
+    expect(sweepSource).toContain("while (rateLimitBuckets.size >= RATE_LIMIT_BUCKET_MAX_ENTRIES)");
+    expect(sweepSource).toContain(".filter(([key]) => key !== reserveKey)");
+    expect(keyIndex).toBeGreaterThan(0);
+    expect(sweepIndex).toBeGreaterThan(keyIndex);
+    expect(readBucketIndex).toBeGreaterThan(sweepIndex);
+  });
+
   it("keeps Sleeper username lookup provider calls behind the route limiter", () => {
     const getUserLeaguesSource = extractSource("getUserLeagues: publicProcedure", "\n    getUserLeagueRanks: publicProcedure");
     const rateLimitIndex = getUserLeaguesSource.indexOf("assertRateLimit(ctx.req as any");
