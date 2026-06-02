@@ -1380,7 +1380,14 @@ export function buildTradeWarPackageIdeas({
     });
   }
 
-  if (addOnSuggestion) {
+  const addOnSuggestionSelectionKey = addOnSuggestion
+    ? getTradeWarAssetSelectionKey(addOnSuggestion.asset)
+    : null;
+  if (
+    addOnSuggestion &&
+    addOnSuggestionSelectionKey &&
+    !selectedAllIds.has(addOnSuggestionSelectionKey)
+  ) {
     const addToSideA = valueGap > 0;
     makeIdea({
       id: `add-${addOnSuggestion.asset.player_id}`,
@@ -2669,17 +2676,23 @@ export default function TradeWarRoom({
       sideKey === addOnSide && !hasSearchQuery
         ? addOnSuggestions
             .map(suggestion => suggestion.asset)
-            .filter(asset => !selectedAllIds.has(asset.player_id))
+            .filter(
+              asset => !selectedAllIds.has(getTradeWarAssetSelectionKey(asset))
+            )
             .filter(asset => !manager || asset.manager === manager)
         : [];
     const suggestedAddIds = new Set(
       sideKey === addOnSide
-        ? addOnSuggestions.map(suggestion => suggestion.asset.player_id)
+        ? addOnSuggestions.map(suggestion =>
+            getTradeWarAssetSelectionKey(suggestion.asset)
+          )
         : []
     );
     const results = [
       ...suggestedAddAssets,
-      ...baseResults.filter(asset => !suggestedAddIds.has(asset.player_id)),
+      ...baseResults.filter(
+        asset => !suggestedAddIds.has(getTradeWarAssetSelectionKey(asset))
+      ),
     ].slice(0, hasSearchQuery ? baseResults.length : 6);
     const highlightedManagers = new Set(
       [manager, ...assets.map(asset => asset.manager)].filter(Boolean)

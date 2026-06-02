@@ -1,4 +1,9 @@
-import type { CSSProperties, MouseEventHandler, ReactNode } from "react";
+import {
+  Fragment,
+  type CSSProperties,
+  type MouseEventHandler,
+  type ReactNode,
+} from "react";
 import type {
   DraftPick,
   ManagerIntelPlayer,
@@ -436,6 +441,14 @@ export function TradeOutcomePanelDisplay({
   outcome: TradeOutcomePanelData;
   renderAssetLine: (asset: unknown) => ReactNode;
 }) {
+  const getAssetKey = (asset: unknown, index: number) => {
+    if (asset && typeof asset === "object" && "id" in asset) {
+      const id = (asset as { id?: unknown }).id;
+      if (typeof id === "string" && id.trim()) return `${id}-${index}`;
+    }
+    return `asset-${index}`;
+  };
+
   return (
     <div className="trade-outcome-card">
       <div className="trade-outcome-header">
@@ -469,7 +482,13 @@ export function TradeOutcomePanelDisplay({
               <span>{side.manager}</span>
               <strong>{side.evaluation.total.toLocaleString()}</strong>
             </div>
-            <ul>{side.assets.slice(0, 4).map(renderAssetLine)}</ul>
+            <ul>
+              {side.assets.slice(0, 4).map((asset, index) => (
+                <Fragment key={getAssetKey(asset, index)}>
+                  {renderAssetLine(asset)}
+                </Fragment>
+              ))}
+            </ul>
           </div>
         ))}
       </div>

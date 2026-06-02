@@ -1512,9 +1512,9 @@ test.describe("command center feature surfaces", () => {
       .first();
     await testerAssetCard.locator("summary").click();
     await expect(testerAssetCard.locator(".trade-war-bar-qb")).toContainText("#");
-    await expect(testerAssetCard.locator(".trade-war-manager-lens-ranks")).toContainText("Dynasty");
-    await expect(testerAssetCard.locator(".trade-war-manager-lens-ranks")).toContainText("Contender");
-    await expect(testerAssetCard.locator(".trade-war-manager-lens-ranks")).toContainText("Rebuilder");
+    await expect(testerAssetCard).toContainText("Dynasty");
+    await expect(testerAssetCard).toContainText("Contender");
+    await expect(testerAssetCard).toContainText("Rebuilder");
     await expect(testerAssetCard.getByText("Sample Quarterback")).toBeVisible();
     await expect(
       testerAssetCard

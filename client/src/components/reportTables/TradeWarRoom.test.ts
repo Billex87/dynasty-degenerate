@@ -103,6 +103,52 @@ describe("buildTradeWarPackageIdeas", () => {
     );
     expect(ideas[0].gap).toBeLessThanOrEqual(650);
   });
+
+  it("does not propose an add-on asset that is already selected", () => {
+    const a1 = asset("a1", "Sender WR", "Bill", 1000);
+    const b1 = asset("b1", "Target WR", "Rival", 2600);
+    const aPick = asset("pick-a", "2027 Round 2", "Bill", 650, {
+      pos: "PICK",
+      assetState: "pick",
+      assetKind: "pick",
+      pickAssetId: "pick:bill-2027-2",
+    });
+    const allAssets = [a1, b1, aPick];
+    const assetById = new Map(allAssets.map(row => [row.player_id, row]));
+
+    const ideas = buildTradeWarPackageIdeas({
+      sideAIds: [a1.player_id, aPick.player_id],
+      sideBIds: [b1.player_id],
+      sideAAssets: [a1, aPick],
+      sideBAssets: [b1],
+      assetById,
+      addOnSuggestion: {
+        label: "Bill pick sweetener",
+        summary: "Bill can add a second.",
+        asset: aPick,
+      },
+      valueGap: 950,
+      managerA: "Bill",
+      managerB: "Rival",
+      mode: "dynasty",
+      tradeWarModeOptions: ["dynasty", "contender"],
+      allAssets,
+      selectedAllIds: new Set([
+        getTradeWarAssetSelectionKey(a1),
+        getTradeWarAssetSelectionKey(aPick),
+        getTradeWarAssetSelectionKey(b1),
+      ]),
+    });
+
+    expect(ideas.map(idea => idea.id)).not.toContain(`add-${aPick.player_id}`);
+    expect(
+      ideas.every(
+        idea =>
+          idea.sideAIds.filter(leagueAssetId => leagueAssetId === aPick.player_id)
+            .length <= 1
+      )
+    ).toBe(true);
+  });
 });
 
 describe("buildTradeWarAssetPools", () => {
