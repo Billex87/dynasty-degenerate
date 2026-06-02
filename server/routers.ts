@@ -611,6 +611,7 @@ const sleeperUserIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter a
 const sleeperUsernameSchema = z.string().trim().min(1).max(64);
 const sleeperAuthTokenSchema = z.string().trim().min(1).max(4096);
 const valueTimelineWindowSchema = z.enum(['1m', '3m', '6m', '1y', 'all']);
+const MAX_AI_PREDICTION_EVENT_BYTES = 64 * 1024;
 const aiSourceTraceSchema = z.object({
   label: z.string().min(1).max(240),
   status: z.enum(["loaded", "stale", "missing", "error", "limited"]).optional(),
@@ -670,7 +671,25 @@ const aiPredictionOutcomeSchema = z.object({
   note: z.string().max(1000).nullable().optional(),
   observedOutcome: recommendationObservedOutcomeSchema.nullable().optional(),
 }) satisfies z.ZodType<AIPredictionOutcome>;
-const aiSourceAgreementReadSchema = z.any().nullable().optional() as z.ZodType<AISourceAgreementRead | null | undefined>;
+const aiSourceAgreementSignalSchema = z.object({
+  source: z.string().min(1).max(180),
+  direction: z.enum(["for", "against", "neutral", "missing"]),
+  confidence: z.number().int().min(0).max(100).nullable().optional(),
+  status: z.enum(["loaded", "stale", "missing", "error", "limited"]).nullable().optional(),
+  detail: z.string().max(500).nullable().optional(),
+});
+const aiSourceAgreementReadSchema = z.object({
+  state: z.enum(["aligned", "split", "conflicted", "thin", "missing", "unknown"]),
+  directionalSourceCount: z.number().int().min(0).max(24),
+  sourceCount: z.number().int().min(0).max(24),
+  forWeight: z.number().finite().min(0).max(1000),
+  againstWeight: z.number().finite().min(0).max(1000),
+  neutralWeight: z.number().finite().min(0).max(1000),
+  missingCount: z.number().int().min(0).max(24),
+  confidenceCap: z.number().int().min(0).max(100).nullable(),
+  reason: z.string().min(1).max(500),
+  signals: z.array(aiSourceAgreementSignalSchema).max(12),
+}).nullable().optional() satisfies z.ZodType<AISourceAgreementRead | null | undefined>;
 const aiDecisionBaselineSchema = z.object({
   kind: z.enum([
     "do-nothing",
@@ -722,7 +741,7 @@ const aiDecisionSnapshotSchema = z.object({
   baseline: aiDecisionBaselineSchema.nullable().optional(),
   counterfactual: aiCounterfactualReadSchema.nullable().optional(),
 }) satisfies z.ZodType<AIDecisionSnapshot>;
-const aiPredictionEventSchema = z.object({
+const aiPredictionEventBaseSchema = z.object({
   schemaVersion: z.literal(1),
   eventId: z.string().min(1).max(128),
   predictionKey: z.string().min(1).max(512),
@@ -758,6 +777,15 @@ const aiPredictionEventSchema = z.object({
   whyThisFired: z.string().min(1).max(1200),
   outcome: aiPredictionOutcomeSchema,
   metadata: z.record(z.string(), z.unknown()).optional(),
+});
+const aiPredictionEventSchema = aiPredictionEventBaseSchema.superRefine((event, ctx) => {
+  const payloadSize = Buffer.byteLength(JSON.stringify(event), "utf8");
+  if (payloadSize > MAX_AI_PREDICTION_EVENT_BYTES) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `AI prediction event payload is too large (${payloadSize} bytes; max ${MAX_AI_PREDICTION_EVENT_BYTES}).`,
+    });
+  }
 }) satisfies z.ZodType<AIPredictionEvent>;
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 let lastRateLimitSweepAt = 0;

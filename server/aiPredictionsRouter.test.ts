@@ -52,7 +52,24 @@ function predictionEvent() {
     hardBlockers: [],
     softPenalties: [],
     sourceTrace: [{ label: "Sleeper roster snapshot", status: "loaded" as const }],
-    sourceAgreement: null,
+    sourceAgreement: {
+      state: "aligned" as const,
+      directionalSourceCount: 1,
+      sourceCount: 1,
+      forWeight: 80,
+      againstWeight: 0,
+      neutralWeight: 0,
+      missingCount: 0,
+      confidenceCap: null,
+      reason: "Directional sources align.",
+      signals: [{
+        source: "Sleeper roster snapshot",
+        direction: "for" as const,
+        confidence: 80,
+        status: "loaded" as const,
+        detail: "Available in live roster snapshot.",
+      }],
+    },
     whyThisFired: "Waiver read fired with enough evidence.",
     outcome: { status: "pending" as const },
     metadata: { source: "test" },
@@ -87,6 +104,56 @@ describe("aiPredictions router", () => {
     expect(result).toEqual({
       accepted: 1,
       persisted: 0,
+    });
+  });
+
+  it("rejects oversized prediction event payloads before persistence", async () => {
+    delete process.env.DATABASE_URL;
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(caller.aiPredictions.upsertMany({
+      events: [{
+        ...predictionEvent(),
+        eventId: "ai-huge-event",
+        metadata: {
+          source: "test",
+          oversized: "x".repeat(70_000),
+        },
+      }],
+    })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+  });
+
+  it("rejects unbounded source-agreement payloads", async () => {
+    delete process.env.DATABASE_URL;
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(caller.aiPredictions.upsertMany({
+      events: [{
+        ...predictionEvent(),
+        eventId: "ai-invalid-source-agreement",
+        sourceAgreement: {
+          state: "aligned",
+          directionalSourceCount: 1,
+          sourceCount: 1,
+          forWeight: 80,
+          againstWeight: 0,
+          neutralWeight: 0,
+          missingCount: 0,
+          confidenceCap: null,
+          reason: "Directional sources align.",
+          signals: Array.from({ length: 13 }, (_, index) => ({
+            source: `source-${index}`,
+            direction: "for",
+            confidence: 80,
+            status: "loaded",
+            detail: "loaded",
+          })),
+        },
+      }],
+    })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
     });
   });
 });
