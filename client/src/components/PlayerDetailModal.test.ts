@@ -103,4 +103,43 @@ describe("buildPlayerAiRead", () => {
     expect(read?.evidenceRead.missingEvidence).toContain("No cohort or situation-delta context returned.");
     expect(read?.confidenceNote).toContain("Missing current role context");
   });
+
+  it("caps player-detail reads without recent usage trend", () => {
+    const read = buildPlayerAiRead({
+      playerName: "Usage Thin Receiver",
+      position: "WR",
+      currentRank: "WR11",
+      currentValue: 7300,
+      valueMode: "redraft",
+      valueProfile: {
+        fantasyProsSeasonValue: 7300,
+        fantasyProsPositionRank: "WR11",
+        sources: ["FantasyPros", "FantasyCalc"],
+        fantasyProsSourceTrace: [{
+          source: "FantasyPros",
+          label: "FantasyPros WR weekly ECR",
+          status: "loaded",
+          positionRank: "WR11",
+          fetchedAt: new Date().toISOString(),
+        }],
+      } as PlayerDetails["valueProfile"],
+      details: {
+        team: "DAL",
+        playerCohort: {
+          calibration: {
+            evidenceGrade: "usable",
+            note: "Cohort context exists, but usage trend is absent.",
+          },
+          trace: ["Cohort context attached."],
+        },
+      } as PlayerDetails,
+    });
+
+    expect(read).not.toBeNull();
+    expect(read?.evidenceRead.canAct).toBe(false);
+    expect(read?.evidenceRead.finalScore).toBeLessThanOrEqual(56);
+    expect(read?.evidenceRead.confidenceCapReason).toBe("Missing recent usage trend");
+    expect(read?.evidenceRead.missingEvidence).toContain("No recent usage trend returned.");
+    expect(read?.confidenceNote).toContain("Missing recent usage trend");
+  });
 });

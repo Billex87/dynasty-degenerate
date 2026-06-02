@@ -3609,6 +3609,7 @@ function buildPlayerAiEvidenceRead(input: {
   const sourceTrace = buildPlayerAiSourceTrace(input.details, input.valueProfile);
   const sourceCount = sourceTrace.length;
   const hasRoleEvidence = Boolean(input.details?.playerCohort || input.details?.playerSituationDelta);
+  const hasRecentUsageTrend = Boolean(input.details?.usageTrend);
   const hasValueEvidence = Boolean(input.valueFraming.marketPrice || input.currentValue || input.valueProfile?.sources?.length);
 
   return evaluateAIEvidence({
@@ -3644,6 +3645,9 @@ function buildPlayerAiEvidenceRead(input: {
       !sourceCount ? 'No player source trace available.' : null,
       !hasValueEvidence ? 'No market value evidence returned.' : null,
       !hasRoleEvidence && !input.isCollegeProspect ? 'No cohort or situation-delta context returned.' : null,
+      sourceCount && hasRoleEvidence && !hasRecentUsageTrend && !input.isCollegeProspect
+        ? 'No recent usage trend returned.'
+        : null,
       input.valueMode === 'redraft' && !hasCurrentSeasonEvidence
         ? 'No current-season redraft evidence returned.'
         : null,
@@ -3656,11 +3660,15 @@ function buildPlayerAiEvidenceRead(input: {
       ? 58
       : !hasRoleEvidence && !input.isCollegeProspect
         ? 57
+        : !hasRecentUsageTrend && !input.isCollegeProspect
+          ? 56
         : null,
     confidenceCapReason: !sourceCount
       ? 'No player source trace'
       : !hasRoleEvidence && !input.isCollegeProspect
         ? 'Missing current role context'
+        : !hasRecentUsageTrend && !input.isCollegeProspect
+          ? 'Missing recent usage trend'
         : null,
     player: {
       name: input.playerName,
