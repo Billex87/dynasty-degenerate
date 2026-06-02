@@ -1838,7 +1838,7 @@ test.describe("command center feature surfaces", () => {
 
     await page.getByRole("button", { name: "Redraft" }).click();
     await expect(page.getByText("Tester win-now cockpit")).toBeVisible();
-    await expect(page.getByText("Weekly ceiling")).toBeVisible();
+    await expect(page.getByText("Weekly ceiling", { exact: true })).toBeVisible();
     await expect(
       page.getByText("Bench reads held back").first()
     ).toBeVisible();
