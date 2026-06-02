@@ -709,7 +709,7 @@ export default function AITeamAutopilot({
           <strong>{data.trades.length ? `${data.trades.length} trade reads` : 'No trade cards'}</strong>
         </div>
         <div>
-          <span>Backend phase</span>
+          <span>Data status</span>
           <strong>{data.dataStatus || 'Live'}</strong>
         </div>
       </div>
@@ -812,7 +812,7 @@ export default function AITeamAutopilot({
 
       <div className="autopilot-footer-read">
         <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-        <p>{reportData ? 'This Autopilot read is generated from the current report data: rosters, manager intel, power ranks, waiver signals, value movement, trade context, and any matchup previews available.' : 'Phase 1 uses structured mock recommendations. The component is shaped so later phases can replace this data with Sleeper rosters, ranking blends, usage feeds, long-term manager tendencies, and schedule strength.'}</p>
+        <p>{reportData ? 'This Autopilot read is generated from the current report data: rosters, manager intel, power ranks, waiver signals, value movement, trade context, and any matchup previews available.' : 'This preview uses sample recommendations until a league report is loaded. Live reads use Sleeper rosters, ranking blends, usage feeds, manager tendencies, and schedule strength when available.'}</p>
       </div>
     </section>
   );
