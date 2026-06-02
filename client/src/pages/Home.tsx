@@ -2,13 +2,11 @@ import {
   useEffect,
   useRef,
   useState,
-  type CSSProperties,
 } from "react";
 import "@/styles/home-backgrounds-v12.css";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
-import { buildLeagueFormatPills } from "@/features/report/lib/reportOverviewPreview";
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
 import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsContainer";
 import { HomeReportExperience } from "@/features/home/components/HomeReportExperience";
@@ -30,6 +28,7 @@ import { useHomeSleeperLeagueSearch } from "@/features/home/hooks/useHomeSleeper
 import { usePersistHomeReportCache } from "@/features/home/hooks/usePersistHomeReportCache";
 import { useHomeReportRankings } from "@/features/home/hooks/useHomeReportRankings";
 import { useHomeReportTabActions } from "@/features/home/hooks/useHomeReportTabActions";
+import { useHomeViewState } from "@/features/home/hooks/useHomeViewState";
 import { useQueuedTimeouts } from "@/features/home/hooks/useQueuedTimeouts";
 import { useReportBackgroundRefresh } from "@/features/home/hooks/useReportBackgroundRefresh";
 import { useReportLoadTelemetry } from "@/features/home/hooks/useReportLoadTelemetry";
@@ -39,21 +38,16 @@ import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntel
 import {
   type HomePortfolioExposureFilter,
 } from "@/features/home/lib/portfolioRows";
-import { getLeagueFallbackInitials } from "@/features/home/lib/leagueIdentity";
 import { type AdminViewMode } from "@/features/home/lib/adminMode";
 import {
   getValidSleeperUserId,
 } from "@/features/home/lib/sleeperIdentity";
-import {
-  getFilteredAutocompleteOptions,
-  readAutocompleteHistory,
-} from "@/features/home/lib/inputHelpers";
+import { readAutocompleteHistory } from "@/features/home/lib/inputHelpers";
 import {
   readAdminPassphraseVerifiedForSession,
   ReportAnalysisMode,
 } from "@/features/home/lib/adminSessionState";
 import {
-  buildHomeReportTabState,
   getInitialReportTabFromUrl,
   updateReportTabUrl,
 } from "@/features/home/lib/reportRouteState";
@@ -63,7 +57,6 @@ import {
   REPORT_CACHE_MAX_AGE_MS,
   STALE_REPORT_CACHE_KEYS,
   clearBrowserReportCache,
-  hasDraftReportData,
   formatMutationErrorMessage,
   showMutationErrorToast,
 } from "@/features/home/lib/reportCache";
@@ -81,7 +74,6 @@ import {
   type AnalysisLoadingLeague,
   type LoadingTransitionPhase,
 } from "@/features/report/components/ReportDialogs";
-import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
 import {
   getBestDraftAdpValueManager,
   getBestDraftSignalManager,
@@ -653,14 +645,6 @@ export default function Home() {
     setViewerUsername,
   });
 
-  const usernameAutocompleteOptions = getFilteredAutocompleteOptions(
-    sleeperUsernameHistory,
-    sleeperUsername
-  );
-  const leagueIdAutocompleteOptions = getFilteredAutocompleteOptions(
-    leagueIdHistory,
-    leagueId
-  );
   const activeCachedSleeperUser = findCachedSleeperUser(
     cachedSleeperUsers,
     viewerUserId,
@@ -711,29 +695,36 @@ export default function Home() {
     setIsAdminAccessModalOpen,
   });
 
-  const canViewAutopilotTab = canViewAdminFeatureExpansion;
-  const tabLeagueValueMode = normalizeLeagueValueMode(
-    reportData?.leagueDiagnostics?.valueMode || reportData?.leagueValueMode
-  );
-  const shouldShowDraftHistoryTab =
-    tabLeagueValueMode !== "redraft" || hasDraftReportData(reportData);
   const {
-    resolvedActiveTab,
-    visibleReportTabCount,
-    reportTabsClassName,
-    resolvedReportTabIndex,
-    shouldDeferAutopilotUrlSync,
-  } = buildHomeReportTabState({
-    activeTab,
     canViewAutopilotTab,
+    isLoadingRevealPhase,
+    leagueFormatPills,
+    leagueIdAutocompleteOptions,
+    leagueLogoInitials,
+    loadingLeague,
+    reportTabsClassName,
+    reportTabsStyle,
+    resolvedActiveTab,
+    shouldDeferAutopilotUrlSync,
     shouldShowDraftHistoryTab,
+    usernameAutocompleteOptions,
+  } = useHomeViewState({
+    activeTab,
+    analysisCompleteMessage,
+    canViewAdminFeatureExpansion,
     isAuthLoading: authQuery.isLoading,
+    leagueFormat,
+    leagueId,
+    leagueIdHistory,
+    leagueLogo,
+    leagueName,
+    loadingTransitionPhase,
+    pendingAnalysisLeague,
+    reportData,
+    sleeperUsername,
+    sleeperUsernameHistory,
   });
-  const reportTabsStyle = {
-    width: "100%",
-    "--dd-report-tab-count": String(visibleReportTabCount),
-    "--dd-report-tab-index": String(resolvedReportTabIndex),
-  } as CSSProperties;
+
   const {
     rankingsForReport,
     rankingsQueryIsLoading,
@@ -781,20 +772,6 @@ export default function Home() {
       setRosterScannerFocusKey,
     });
 
-  const loadingLeague =
-    analysisCompleteMessage ||
-    pendingAnalysisLeague ||
-    (leagueName || leagueFormat || leagueLogo
-      ? { leagueName, leagueFormat, leagueLogo }
-      : null);
-  const isLoadingRevealPhase =
-    loadingTransitionPhase === "reveal" || loadingTransitionPhase === "kick";
-  const leagueFormatPills = buildLeagueFormatPills(
-    leagueFormat,
-    reportData?.leagueDiagnostics,
-    reportData?.leagueDiagnostics?.valueMode || reportData?.leagueValueMode
-  );
-  const leagueLogoInitials = getLeagueFallbackInitials(leagueName);
   const homeDialogs = (
     <HomeDialogsContainer
       isLeaguePickerOpen={isLeaguePickerOpen}
