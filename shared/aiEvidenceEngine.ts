@@ -122,6 +122,8 @@ export type AIEvidencePlayerContext = {
   hasCurrentSeasonValue?: boolean;
   hasDynastyValue?: boolean;
   hasProspectOnlyValue?: boolean;
+  hasRecentUsage?: boolean;
+  hasRoleContext?: boolean;
   isStarter?: boolean | null;
   hasByeWeek?: boolean | null;
   isGameLocked?: boolean | null;
@@ -256,6 +258,11 @@ function hasRosterAvailabilityProof(player: AIEvidencePlayerContext): boolean {
       player.owner !== undefined) ||
     Boolean(cleanText(player.rosterStatus))
   );
+}
+
+function isSkillPlayerPosition(position?: string | null): boolean {
+  const clean = String(position || "").toUpperCase();
+  return clean === "QB" || clean === "RB" || clean === "WR" || clean === "TE";
 }
 
 function isHardUnavailableStatus(value?: string | null): boolean {
@@ -601,6 +608,30 @@ function getLeagueActivityTrace(activity?: AIEvidenceLeagueActivityContext | nul
 function traceMentionsAny(trace: AISourceTrace, patterns: RegExp[]): boolean {
   const text = [trace.label, trace.detail].filter(Boolean).join(" ");
   return patterns.some(pattern => pattern.test(text));
+}
+
+function hasRecentRoleOrUsageProof(input: AIEvidenceInput, player: AIEvidencePlayerContext, sourceTrace: AISourceTrace[]): boolean {
+  if (player.hasRecentUsage || player.hasRoleContext) return true;
+  if (cleanText(player.weeklyProjectionStatus)) return true;
+  if (input.schedule?.hasScheduleData) return true;
+
+  const signalModes = new Set(input.signalModes || []);
+  if (signalModes.has("schedule")) return true;
+
+  return sourceTrace.some(trace =>
+    traceMentionsAny(trace, [
+      /usage/i,
+      /\brole\b/i,
+      /\bsnaps?\b/i,
+      /route/i,
+      /target/i,
+      /carr(?:y|ies)/i,
+      /touch/i,
+      /projection/i,
+      /\bECR\b/i,
+      /matchup/i,
+    ])
+  );
 }
 
 export function getAIEvidenceLeagueContextFromDiagnostics(
@@ -998,6 +1029,26 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
     input.action === "sit" ||
     input.action === "trade" ||
     input.action === "avoid";
+  if (
+    input.player &&
+    isDirectPlayerAction &&
+    isSkillPlayerPosition(position) &&
+    !hasRecentRoleOrUsageProof(input, player, explicitSourceTrace)
+  ) {
+    missingEvidence.push("No recent role, usage, projection, or matchup proof returned for this player action read.");
+    softPenalties.push({
+      label: "Missing role or usage proof limits player-action confidence",
+      points: 8,
+    });
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      57,
+      "Missing role or usage proof"
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
+  }
   const needsDynastyMarketEvidence =
     input.leagueValueMode === "dynasty" &&
     (input.action === "pickup" ||

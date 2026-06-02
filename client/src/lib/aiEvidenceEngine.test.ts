@@ -153,12 +153,47 @@ describe("ai evidence engine", () => {
         value: 6900,
         sourceCount: 2,
         hasCurrentSeasonValue: true,
+        hasRecentUsage: true,
       },
     });
 
     expect(read.canAct).toBe(true);
     expect(read.confidenceCapReason).toBeNull();
     expect(read.missingEvidence).not.toContain("No current roster ownership or availability proof returned for this action read.");
+  });
+
+  it("caps skill-player actions without recent role or usage proof", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 96,
+      evidence: ["WR22 current-season rank is attached.", "Roster need is attached."],
+      sourceTrace: [{
+        label: "FantasyPros waiver snapshot",
+        status: "loaded",
+      }, {
+        label: "Sleeper roster snapshot",
+        status: "loaded",
+      }],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Role-Unproven Receiver",
+        position: "WR",
+        team: "LAC",
+        owner: null,
+        value: 6900,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+      },
+    });
+
+    expect(read.canAct).toBe(false);
+    expect(read.finalScore).toBeLessThanOrEqual(57);
+    expect(read.confidenceCapReason).toBe("Missing role or usage proof");
+    expect(read.missingEvidence).toContain("No recent role, usage, projection, or matchup proof returned for this player action read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing role or usage proof limits player-action confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 57% because Missing role or usage proof");
   });
 
   it("blocks start advice when the player is already starting", () => {
@@ -526,9 +561,11 @@ describe("ai evidence engine", () => {
         name: "Untraced Receiver",
         position: "WR",
         team: "DET",
+        owner: null,
         value: 6800,
         sourceCount: 0,
         hasCurrentSeasonValue: true,
+        hasRecentUsage: true,
       },
     });
 
@@ -560,6 +597,7 @@ describe("ai evidence engine", () => {
         value: 6900,
         sourceCount: 1,
         hasCurrentSeasonValue: true,
+        hasRecentUsage: true,
       },
     });
 
@@ -604,8 +642,10 @@ describe("ai evidence engine", () => {
         position: "QB",
         team: "LV",
         value: 800,
-        sourceCount: 1,
+        sourceCount: 2,
         hasDynastyValue: true,
+        owner: null,
+        hasRoleContext: true,
       },
     });
 
@@ -629,6 +669,8 @@ describe("ai evidence engine", () => {
         value: 800,
         sourceCount: 1,
         hasDynastyValue: true,
+        owner: null,
+        hasRoleContext: true,
       },
     });
 
@@ -889,6 +931,9 @@ describe("ai evidence engine", () => {
       baseScore: 92,
       evidence: ["WR33 current-season rank is attached.", "Roster need is attached."],
       sourceTrace: [{
+        label: "Usage role snapshot",
+        status: "loaded",
+      }, {
         label: "FantasyPros waiver snapshot",
         status: "missing",
       }],
@@ -1061,6 +1106,7 @@ describe("ai evidence engine", () => {
         value: 3200,
         sourceCount: 2,
         hasCurrentSeasonValue: true,
+        hasRecentUsage: true,
       },
       calibrationProfile: {
         globalAdjustment: null,
