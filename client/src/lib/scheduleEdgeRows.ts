@@ -922,11 +922,15 @@ function buildScheduleEvidenceRead(input: {
           : 42;
   const confidenceCap = !sourceTrace.length
     ? 48
+    : input.availability.availabilityTone === "info"
+      ? 54
     : hasPartialSource
       ? 60
       : null;
   const confidenceCapReason = !sourceTrace.length
     ? "No schedule source trace"
+    : input.availability.availabilityTone === "info"
+      ? "Unverified roster availability"
     : hasPartialSource
       ? "Partial schedule source trace"
       : null;

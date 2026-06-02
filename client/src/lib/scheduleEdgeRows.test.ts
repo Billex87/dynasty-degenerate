@@ -141,6 +141,40 @@ function makeReportWithScheduleTargets(
   return { scheduleEdgeTargets } as ReportData;
 }
 
+function withRosterOwnershipMap(report: ReportData): ReportData {
+  return {
+    ...report,
+    managerPositionCounts: [
+      {
+        manager: "Roster Manager",
+        QB: 0,
+        QB_starters: 0,
+        RB: 0,
+        RB_starters: 0,
+        WR: 1,
+        WR_starters: 0,
+        TE: 0,
+        TE_starters: 0,
+        K: 0,
+        K_starters: 0,
+        DEF: 0,
+        DEF_starters: 0,
+        rosterPlayers: [
+          {
+            player_id: "unrelated-roster-player",
+            name: "Unrelated Roster Player",
+            pos: "WR",
+            value: 1000,
+            playerDetails: { team: "DAL" },
+          },
+        ],
+        lineupPlayers: [],
+        starterPlayers: [],
+      },
+    ],
+  } as ReportData;
+}
+
 describe("schedule edge rows", () => {
   it("builds rank-first rows without exposing ECR copy in the table values", () => {
     const signal = makeSignal({
@@ -399,19 +433,21 @@ describe("schedule edge rows", () => {
       sourceTrace: [makeTrace({ position: "K" })],
     });
     const [row] = buildScheduleEdgeRows(
-      makeReportWithScheduleTargets([
-        {
-          player: makePlayer({
-            player_id: "rank-only-kicker",
-            name: "Rank Only Kicker",
-            pos: "K",
-            team: "BUF",
-            ktcValue: 220,
-          }),
-          signal,
-          score: 93,
-        },
-      ]),
+      withRosterOwnershipMap(
+        makeReportWithScheduleTargets([
+          {
+            player: makePlayer({
+              player_id: "rank-only-kicker",
+              name: "Rank Only Kicker",
+              pos: "K",
+              team: "BUF",
+              ktcValue: 220,
+            }),
+            signal,
+            score: 93,
+          },
+        ])
+      ),
       { now: NOW }
     );
 
@@ -891,40 +927,44 @@ describe("schedule edge rows", () => {
 
   it("flags stale and partial source traces", () => {
     const staleRows = buildScheduleEdgeRows(
-      makeReport({
-        weeklyEcrTargets: [
-          {
-            player: makePlayer({ player_id: "stale", name: "Stale Runner" }),
-            signal: makeSignal({
-              playerId: "stale",
-              name: "Stale Runner",
-              sourceTrace: [
-                makeTrace({
-                  fetchedAt: "2026-08-25T18:00:00.000Z",
-                  lastUpdated: "2026-08-25T18:00:00.000Z",
-                }),
-              ],
-            }),
-            score: 50,
-          },
-        ],
-      }),
+      withRosterOwnershipMap(
+        makeReport({
+          weeklyEcrTargets: [
+            {
+              player: makePlayer({ player_id: "stale", name: "Stale Runner" }),
+              signal: makeSignal({
+                playerId: "stale",
+                name: "Stale Runner",
+                sourceTrace: [
+                  makeTrace({
+                    fetchedAt: "2026-08-25T18:00:00.000Z",
+                    lastUpdated: "2026-08-25T18:00:00.000Z",
+                  }),
+                ],
+              }),
+              score: 50,
+            },
+          ],
+        })
+      ),
       { now: NOW }
     );
     const partialRows = buildScheduleEdgeRows(
-      makeReport({
-        weeklyEcrTargets: [
-          {
-            player: makePlayer({ player_id: "partial", name: "Partial Runner" }),
-            signal: makeSignal({
-              playerId: "partial",
-              name: "Partial Runner",
-              sourceTrace: [makeTrace({ status: "missing", rowCount: 0 })],
-            }),
-            score: 50,
-          },
-        ],
-      }),
+      withRosterOwnershipMap(
+        makeReport({
+          weeklyEcrTargets: [
+            {
+              player: makePlayer({ player_id: "partial", name: "Partial Runner" }),
+              signal: makeSignal({
+                playerId: "partial",
+                name: "Partial Runner",
+                sourceTrace: [makeTrace({ status: "missing", rowCount: 0 })],
+              }),
+              score: 50,
+            },
+          ],
+        })
+      ),
       { now: NOW }
     );
 
@@ -961,6 +1001,60 @@ describe("schedule edge rows", () => {
     expect(row.evidenceRead.canAct).toBe(false);
     expect(row.evidenceRead.confidenceCap).toBe(48);
     expect(row.evidenceRead.confidenceCapReason).toBe("No schedule source trace");
+    expect(row.decisionLabel).toBe("Don't force it");
+  });
+
+  it("caps schedule rows when roster availability is unverified", () => {
+    const [row] = buildScheduleEdgeRows(
+      makeReportWithScheduleTargets([
+        {
+          player: makePlayer({
+            player_id: "unverified-streamer",
+            name: "Unverified Streamer",
+            pos: "DEF",
+            team: "SEA",
+            ktcValue: 1800,
+          }),
+          signal: makeSignal({
+            playerId: "unverified-streamer",
+            name: "Unverified Streamer",
+            position: "DEF",
+            team: "SEA",
+            bestRankEcr: 3,
+            sourceTrace: [makeTrace({ position: "DEF" })],
+            weeks: [
+              {
+                week: 2,
+                rankEcr: 3,
+                positionRank: "DEF3",
+                bestRank: null,
+                worstRank: null,
+                averageRank: null,
+                rankStdDev: null,
+                lastUpdated: "2026-09-08T18:00:00.000Z",
+                opponent: "NYJ",
+                homeAway: "home",
+                opponentRank: 4,
+                matchupStars: 5,
+                matchupTier: "easy",
+                isBye: false,
+              },
+            ],
+          }),
+          score: 90,
+        },
+      ]),
+      { now: NOW }
+    );
+
+    expect(row.availabilityLabel).toBe("Unverified");
+    expect(row.availabilityTone).toBe("info");
+    expect(row.evidenceRead.canAct).toBe(false);
+    expect(row.evidenceRead.confidenceCap).toBe(54);
+    expect(row.evidenceRead.confidenceCapReason).toBe("Unverified roster availability");
+    expect(row.evidenceRead.missingEvidence).toContain(
+      "No league roster ownership map was present on this cached report."
+    );
     expect(row.decisionLabel).toBe("Don't force it");
   });
 
