@@ -77,10 +77,10 @@ function getConfidenceLabel(value: number): string {
 }
 
 function getDefaultConfidenceNote(value: number): string {
-  if (value >= 78) return 'Strong source mix.';
-  if (value >= 62) return 'Usable source mix.';
-  if (value >= 46) return 'Directional read.';
-  return 'Verify before acting.';
+  if (value >= 78) return 'Strong evidence; verify current roster and availability before acting.';
+  if (value >= 62) return 'Usable evidence; confirm roster, format, and source freshness.';
+  if (value >= 46) return 'Directional read; verify missing context before acting.';
+  return 'Low evidence; do not act until roster, availability, and sources check out.';
 }
 
 function renderChip(chip: AIReadChip, index: number) {

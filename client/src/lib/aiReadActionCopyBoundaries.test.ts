@@ -67,9 +67,15 @@ describe("AI read action copy boundaries", () => {
     expect(source).toContain("Do not act yet:");
     expect(source).toContain("Verify first:");
     expect(source).toContain("Confidence limited to");
+    expect(source).toContain("verify current roster and availability before acting");
+    expect(source).toContain("confirm roster, format, and source freshness");
+    expect(source).toContain("verify missing context before acting");
     expect(source).not.toContain("Blocked:");
     expect(source).not.toContain("Missing:");
     expect(source).not.toContain("Confidence cap:");
+    expect(source).not.toContain("Strong source mix.");
+    expect(source).not.toContain("Usable source mix.");
+    expect(source).not.toContain("Directional read.");
   });
 
   it("keeps shared AI confidence-limit copy out of internal cap language", () => {
