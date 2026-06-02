@@ -20,6 +20,7 @@ import {
 import { useHomeAIVoiceMode } from "@/features/home/hooks/useHomeAIVoiceMode";
 import { useHomeAIPredictionTelemetry } from "@/features/home/hooks/useHomeAIPredictionTelemetry";
 import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeout";
+import { useHomeLeagueIntelRanks } from "@/features/home/hooks/useHomeLeagueIntelRanks";
 import { useHomePortfolio } from "@/features/home/hooks/useHomePortfolio";
 import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
 import { usePersistHomeReportCache } from "@/features/home/hooks/usePersistHomeReportCache";
@@ -84,7 +85,6 @@ import {
 import {
   type AnalysisLeaguePreview,
   type CachedSleeperUser,
-  type LeagueRankResult,
   type SleeperLeagueOption,
   type SleeperUserSession,
   buildCachedSleeperUser,
@@ -94,7 +94,6 @@ import {
   getAnalysisLeaguePreview,
   getLeagueIdAnalysisPreview,
   getOrderedLeagueOptions,
-  mergeLeagueRanks,
   readCachedSleeperUsers,
   rememberCachedSleeperLeagueShortcut,
   rememberCachedSleeperUser,
@@ -667,75 +666,15 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, leagueId, reportData, userLeagues, viewerUserId]);
 
-  function persistSleeperSessionLeagues(nextLeagues: SleeperLeagueOption[]) {
-    try {
-      const sleeperSession = localStorage.getItem(SLEEPER_SESSION_KEY);
-      if (!sleeperSession) return;
-      const parsed = JSON.parse(sleeperSession) as SleeperSession;
-      localStorage.setItem(
-        SLEEPER_SESSION_KEY,
-        JSON.stringify({
-          ...parsed,
-          leagues: nextLeagues,
-          savedAt: Date.now(),
-        } satisfies SleeperSession)
-      );
-    } catch {
-      // Enriched league cards are a convenience cache; the loader can still fetch preview data.
-    }
-  }
-
-  const userLeagueRanksMutation = trpc.league.getUserLeagueRanks.useMutation({
-    onSuccess: data => {
-      setUserLeagues(prev => {
-        const nextLeagues = mergeLeagueRanks(prev, data.ranks);
-        persistSleeperSessionLeagues(nextLeagues);
-        return nextLeagues;
-      });
-      setIsLeagueIntelLoading(false);
-    },
-    onError: () => {
-      setIsLeagueIntelLoading(false);
-    },
-  });
-  const requestUserLeagueRanks = userLeagueRanksMutation.mutate;
-
-  useEffect(() => {
-    if (!viewerUserId || !sleeperUsername || !userLeagues.length) {
-      setIsLeagueIntelLoading(false);
-      return;
-    }
-    const validViewerUserId = getValidSleeperUserId(viewerUserId);
-    if (!validViewerUserId) {
-      setIsLeagueIntelLoading(false);
-      return;
-    }
-    if (
-      userLeagues.every(
-        league =>
-          league.standingsRank != null &&
-          league.powerRank != null &&
-          Array.isArray(league.managerAnchors)
-      )
-    ) {
-      setIsLeagueIntelLoading(false);
-      return;
-    }
-
-    setIsLeagueIntelLoading(true);
-    requestUserLeagueRanks({
-      username: sleeperUsername,
-      userId: validViewerUserId,
-      displayName: viewerUsername || sleeperUsername,
-      leagueIds: userLeagues.map(league => league.leagueId),
-    });
-  }, [
-    requestUserLeagueRanks,
+  const { isLeagueRanksPending } = useHomeLeagueIntelRanks({
+    sleeperSessionKey: SLEEPER_SESSION_KEY,
     sleeperUsername,
     userLeagues,
     viewerUserId,
     viewerUsername,
-  ]);
+    setIsLeagueIntelLoading,
+    setUserLeagues,
+  });
 
   const userLeaguesMutation = trpc.league.getUserLeagues.useMutation({
     onSuccess: (data, variables) => {
@@ -1150,7 +1089,7 @@ export default function Home() {
     activeCachedSleeperUser
   );
   const isLeaguePickerIntelBusy =
-    isLeagueIntelLoading || userLeagueRanksMutation.isPending;
+    isLeagueIntelLoading || isLeagueRanksPending;
   const {
     homePortfolioRows,
     filteredHomePortfolioRows,
@@ -1158,7 +1097,7 @@ export default function Home() {
   } = useHomePortfolio({
     orderedUserLeagues,
     viewerUserId,
-    isLeagueRanksPending: userLeagueRanksMutation.isPending,
+    isLeagueRanksPending,
     portfolioSearch,
     portfolioExposureFilter,
     portfolioLeagueFilter,
