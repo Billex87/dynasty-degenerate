@@ -2661,6 +2661,10 @@ function buildTradeExpectedAction(input: {
   };
 }
 
+function getTradeRecommendationActionLabel(action: 'sell' | 'buy'): string {
+  return action === 'sell' ? 'Shop only if return clears' : 'Test offer only';
+}
+
 function buildTradeRecommendations(data: ReportData, mode: AutopilotMode, manager: string, fallback: AutopilotRecommendation[]): AutopilotRecommendation[] {
   const intel = findManagerIntel(data, manager);
   if (!intel) return fallback;
@@ -2679,7 +2683,7 @@ function buildTradeRecommendations(data: ReportData, mode: AutopilotMode, manage
       type: 'Trade',
       player: getPlayerName(player),
       secondary: partner ? `target partner: ${partner}` : describePlayer(player, mode) || undefined,
-      action: isSell ? 'Trade away' : 'Acquire',
+      action: getTradeRecommendationActionLabel(action),
       confidence: recommendationConfidence(66, [blueprint, player, partner, intel.tradePlan]),
       risk: blueprint.tone === 'risk' ? 'High' : 'Medium',
       upside: blueprint.tone === 'value' || blueprint.tone === 'buy' ? 'High' : 'Medium',
@@ -2712,7 +2716,7 @@ function buildTradeRecommendations(data: ReportData, mode: AutopilotMode, manage
       type: 'Trade',
       player: getPlayerName(sellCandidate),
       secondary: partner ? `shop to ${partner}` : describePlayer(sellCandidate, mode) || undefined,
-      action: 'Trade away',
+      action: getTradeRecommendationActionLabel('sell'),
       confidence: recommendationConfidence(mode === 'dynasty' ? 68 : 62, [sellCandidate, intel.tradePlan, partner, intel.marketSignals?.length]),
       risk: 'Medium',
       upside: mode === 'dynasty' ? 'High' : 'Medium',
@@ -2741,7 +2745,7 @@ function buildTradeRecommendations(data: ReportData, mode: AutopilotMode, manage
       type: 'Trade',
       player: getPlayerName(buyTarget),
       secondary: partner ? `start with ${partner}` : describePlayer(buyTarget, mode) || undefined,
-      action: 'Acquire',
+      action: getTradeRecommendationActionLabel('buy'),
       confidence: recommendationConfidence(66, [buyTarget, intel.tradePlan, partner, intel.similarValuePlayers]),
       risk: 'Medium',
       upside: 'High',

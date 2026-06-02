@@ -706,7 +706,7 @@ export default function AITeamAutopilot({
         </div>
         <div>
           <span>Trade screenshots</span>
-          <strong>{data.trades.length ? `${data.trades.length} offers ready` : 'No trade cards'}</strong>
+          <strong>{data.trades.length ? `${data.trades.length} trade reads` : 'No trade cards'}</strong>
         </div>
         <div>
           <span>Backend phase</span>

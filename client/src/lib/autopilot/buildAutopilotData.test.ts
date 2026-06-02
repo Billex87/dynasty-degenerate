@@ -50,6 +50,12 @@ describe('buildAutopilotData', () => {
     });
     expect(data.waivers[0]?.player).toBe('Waiver Receiver');
     expect(data.trades.some((recommendation) => recommendation.player === 'Sample Runner')).toBe(true);
+    expect(data.trades.map((recommendation) => recommendation.action)).toEqual(
+      expect.arrayContaining(['Shop only if return clears', 'Test offer only']),
+    );
+    expect(data.trades.map((recommendation) => recommendation.action)).not.toEqual(
+      expect.arrayContaining(['Trade away', 'Acquire']),
+    );
     expect(data.actionQueue[0]).toMatchObject({
       decision: 'do',
       label: 'Do this now',
@@ -321,6 +327,7 @@ describe('buildAutopilotData', () => {
     expect(JSON.stringify(data.actionQueue)).not.toContain('Blake Corum');
     const tradeCard = data.trades.find((recommendation) => recommendation.player === 'Sample Runner');
     expect(tradeCard).toMatchObject({
+      action: 'Shop only if return clears',
       expectedAction: {
         type: 'trade',
         playerOut: {
