@@ -426,6 +426,30 @@ describe("ai evidence engine", () => {
     expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("League activity profile");
   });
 
+  it("caps trade action reads without league trade or manager-history samples", () => {
+    const read = evaluateAIEvidence({
+      surface: "trade",
+      action: "trade",
+      leagueValueMode: "dynasty",
+      baseScore: 94,
+      evidence: ["Roster fit returned.", "Value gap is playable."],
+      player: {
+        name: "Trade browser",
+        sourceCount: 3,
+        hasDynastyValue: true,
+      },
+      requiresActiveTeam: false,
+      requiresLiveAvailability: false,
+    });
+
+    expect(read.canAct).toBe(false);
+    expect(read.finalScore).toBeLessThanOrEqual(57);
+    expect(read.confidenceCapReason).toBe("Missing trade/manager history");
+    expect(read.missingEvidence).toContain("No league trade or manager-history sample returned.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing trade/manager history caps trade-action confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 57% from Missing trade/manager history");
+  });
+
   it("caps trade confidence in quiet trade markets", () => {
     const read = evaluateAIEvidence({
       surface: "trade",

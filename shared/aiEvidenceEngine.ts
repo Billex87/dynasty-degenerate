@@ -820,6 +820,25 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
     confidenceCap = capped.cap;
     confidenceCapReason = capped.reason;
   }
+  if (
+    input.action === "trade" &&
+    !Number(input.leagueActivity?.sampleSize || 0) &&
+    !Number(input.leagueActivity?.tradeSignalCount || 0)
+  ) {
+    missingEvidence.push("No league trade or manager-history sample returned.");
+    softPenalties.push({
+      label: "Missing trade/manager history caps trade-action confidence",
+      points: 8,
+    });
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      57,
+      "Missing trade/manager history"
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
+  }
 
   if (needsLiveAvailability && player.owner) {
     hardBlockers.push(`Roster ownership says ${player.name || "this player"} is already on ${player.owner}.`);
