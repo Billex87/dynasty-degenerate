@@ -452,6 +452,7 @@ describe("user-load provider boundary", () => {
     const rankCacheSetSource = extractSource("function setCachedUserLeagueRank", "\n\nexport function clearLeaguePreviewCacheForTests");
     const accessIndex = leagueRanksSource.indexOf("assertReportAccess(ctx)");
     const rateLimitIndex = leagueRanksSource.indexOf("assertRateLimit(ctx.req as any");
+    const userRateLimitIndex = leagueRanksSource.indexOf("id: 'league.getUserLeagueRanks.user'");
     const cacheReadIndex = leagueRanksSource.indexOf("cachedRank: getCachedUserLeagueRank(cacheKey)");
     const missingFilterIndex = leagueRanksSource.indexOf("const missingRankInputs = rankInputs.filter");
     const validMissingFilterIndex = leagueRanksSource.indexOf("const validMissingRankInputs = missingRankInputs.filter");
@@ -468,7 +469,8 @@ describe("user-load provider boundary", () => {
     expect(leagueRanksSource).not.toContain("Promise.all(leagueIds.map");
     expect(accessIndex).toBeGreaterThan(0);
     expect(rateLimitIndex).toBeGreaterThan(accessIndex);
-    expect(cacheReadIndex).toBeGreaterThan(rateLimitIndex);
+    expect(userRateLimitIndex).toBeGreaterThan(rateLimitIndex);
+    expect(cacheReadIndex).toBeGreaterThan(userRateLimitIndex);
     expect(missingFilterIndex).toBeGreaterThan(cacheReadIndex);
     expect(validMissingFilterIndex).toBeGreaterThan(missingFilterIndex);
     expect(noValidReturnIndex).toBeGreaterThan(validMissingFilterIndex);
@@ -478,6 +480,8 @@ describe("user-load provider boundary", () => {
     expect(rostersFetchIndex).toBeGreaterThan(leagueFetchIndex);
     expect(cacheWriteIndex).toBeGreaterThan(rostersFetchIndex);
     expect(leagueRanksSource).toContain("id: 'league.getUserLeagueRanks'");
+    expect(leagueRanksSource).toContain("id: 'league.getUserLeagueRanks.user'");
+    expect(leagueRanksSource).toContain("clientKey: 'sleeper-user'");
     expect(routersSource).toContain("const USER_LEAGUE_RANK_CACHE_MAX_ENTRIES = 500");
     expect(rankCacheSetSource).toContain("pruneUserLeagueRankCache()");
     expect(rankCacheSetSource).toContain("userLeagueRankCache.set(cacheKey");

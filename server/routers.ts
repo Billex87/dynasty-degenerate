@@ -7592,6 +7592,14 @@ export const appRouter = router({
           windowMs: 1000 * 60 * 10,
           message: 'Too many league rank lookups. Please wait a few minutes and try again.',
         });
+        assertRateLimit(ctx.req as any, {
+          id: 'league.getUserLeagueRanks.user',
+          max: 8,
+          windowMs: 1000 * 60 * 10,
+          scope: input.userId,
+          clientKey: 'sleeper-user',
+          message: 'Too many league rank lookups for this Sleeper user. Please wait a few minutes and try again.',
+        });
         const username = input.username.trim();
         const leagueIds = Array.from(new Set(input.leagueIds.map((leagueId) => leagueId.trim()).filter(Boolean)));
         if (!leagueIds.length) return { ranks: [] };
