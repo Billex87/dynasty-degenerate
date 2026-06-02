@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { TrpcContext } from "./_core/context";
-import { appRouter } from "./routers";
+import { appRouter, normalizeAiPredictionTelemetryEvent } from "./routers";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
@@ -134,6 +134,41 @@ describe("aiPredictions router", () => {
       accepted: 1,
       persisted: 0,
     });
+  });
+
+  it("normalizes unsafe submitted do decisions before telemetry persistence", () => {
+    const missingEvidence = normalizeAiPredictionTelemetryEvent({
+      ...predictionEvent(),
+      eventId: "ai-missing-proof-event",
+      missingEvidence: ["Verify live roster state before acting."],
+    });
+    const blocked = normalizeAiPredictionTelemetryEvent({
+      ...predictionEvent(),
+      eventId: "ai-blocked-event",
+      hardBlockers: ["Player is already rostered."],
+    });
+    const misreportedSource = predictionEvent();
+    misreportedSource.eventId = "ai-misreported-source-event";
+    misreportedSource.sourceAgreement = {
+      ...misreportedSource.sourceAgreement,
+      state: "aligned",
+      missingCount: 1,
+      signals: [{
+        source: "FantasyPros waiver snapshot",
+        direction: "missing",
+        confidence: null,
+        status: "unavailable",
+        detail: "Provider disabled for this environment.",
+      }],
+    };
+
+    expect(missingEvidence.decision).toBe("watch");
+    expect(blocked).toMatchObject({
+      decision: "blocked",
+      outcome: { status: "blocked" },
+    });
+    expect(normalizeAiPredictionTelemetryEvent(misreportedSource).decision).toBe("watch");
+    expect(normalizeAiPredictionTelemetryEvent(predictionEvent()).decision).toBe("do");
   });
 
   it("rejects oversized prediction event payloads before persistence", async () => {

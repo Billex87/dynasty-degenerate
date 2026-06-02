@@ -828,6 +828,43 @@ const aiPredictionEventSchema = aiPredictionEventBaseSchema.superRefine((event, 
     });
   }
 }) satisfies z.ZodType<AIPredictionEvent>;
+function hasUnsafeTelemetrySourceAgreement(sourceAgreement?: AISourceAgreementRead | null): boolean {
+  if (!sourceAgreement) return true;
+  if (
+    sourceAgreement.state === "missing" ||
+    sourceAgreement.state === "unknown" ||
+    sourceAgreement.state === "split" ||
+    sourceAgreement.state === "conflicted"
+  ) {
+    return true;
+  }
+
+  return sourceAgreement.missingCount > 0 || sourceAgreement.signals.some(signal =>
+    signal.direction === "missing" ||
+    signal.status === "missing" ||
+    signal.status === "stale" ||
+    signal.status === "error" ||
+    signal.status === "limited" ||
+    signal.status === "unavailable" ||
+    signal.status === "unverified"
+  );
+}
+
+export function normalizeAiPredictionTelemetryEvent(event: AIPredictionEvent): AIPredictionEvent {
+  if (event.decision !== "do") return event;
+  if (event.hardBlockers.length || event.label === "blocked") {
+    return { ...event, decision: "blocked", outcome: { ...event.outcome, status: "blocked" } };
+  }
+  if (
+    event.confidenceCapReason ||
+    event.missingEvidence.length ||
+    (event.counterfactual && event.counterfactual.status !== "beats-baseline") ||
+    hasUnsafeTelemetrySourceAgreement(event.sourceAgreement)
+  ) {
+    return { ...event, decision: "watch" };
+  }
+  return event;
+}
 const LEAGUE_RANK_FANOUT_CONCURRENCY = 3;
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_BUCKET_MAX_ENTRIES = 5000;
@@ -7339,7 +7376,10 @@ export const appRouter = router({
           message: "Too many AI prediction telemetry writes. Please wait a few minutes and try again.",
         });
         const results = await Promise.all(
-          input.events.map(event => upsertAiPredictionEvent({ userKey, event }))
+          input.events.map(event => upsertAiPredictionEvent({
+            userKey,
+            event: normalizeAiPredictionTelemetryEvent(event),
+          }))
         );
 
         return {
