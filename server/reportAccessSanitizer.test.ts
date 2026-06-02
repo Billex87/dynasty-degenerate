@@ -143,4 +143,28 @@ describe("report access sanitizer", () => {
     expect((result.payload.reportData as any).waiverIntelligence.weeklyEcrTargets[0].signal).not.toHaveProperty("sourceTraceText");
     expect(result.payload.reportData.leagueDiagnostics?.aiConfidence?.history).toHaveLength(1);
   });
+
+  it("strips all paid trace and confidence history fields from cached reports without access", () => {
+    const payload = {
+      leagueId: "123456789012345678",
+      reportData: createReportData(),
+    };
+    const result = sanitizeLeagueReportPayloadForPaidAccess(payload, {
+      canViewSourceTraceDetails: false,
+      canViewAiConfidenceHistory: false,
+    });
+
+    expect(result.stats).toMatchObject({
+      removedSourceTraceFields: 2,
+      removedTraceSummaryFields: 1,
+      removedAiConfidenceHistoryFields: 1,
+      retainedSourceTraceFields: 0,
+      retainedTraceSummaryFields: 0,
+      retainedAiConfidenceHistoryFields: 0,
+    });
+    expect((result.payload.reportData as any).waiverIntelligence.weeklyEcrTargets[0].signal).not.toHaveProperty("sourceTrace");
+    expect((result.payload.reportData as any).waiverIntelligence.weeklyEcrTargets[0].signal).not.toHaveProperty("sourceTraceText");
+    expect((result.payload.reportData as any).waiverIntelligence.weeklyEcrTargets[0].signal).not.toHaveProperty("traceSummary");
+    expect(result.payload.reportData.leagueDiagnostics?.aiConfidence).not.toHaveProperty("history");
+  });
 });
