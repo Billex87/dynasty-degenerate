@@ -14,10 +14,12 @@ import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLa
 import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsContainer";
 import { HomeReportExperience } from "@/features/home/components/HomeReportExperience";
 import { useHomeAIVoiceMode } from "@/features/home/hooks/useHomeAIVoiceMode";
+import { useHomeAIPredictionTelemetry } from "@/features/home/hooks/useHomeAIPredictionTelemetry";
 import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeout";
 import { useHomePortfolio } from "@/features/home/hooks/useHomePortfolio";
 import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
 import { useQueuedTimeouts } from "@/features/home/hooks/useQueuedTimeouts";
+import { useReportBackgroundRefresh } from "@/features/home/hooks/useReportBackgroundRefresh";
 import { useReportLoadTelemetry } from "@/features/home/hooks/useReportLoadTelemetry";
 import { useReportDeltaSnapshots } from "@/features/home/hooks/useReportDeltaSnapshots";
 import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
@@ -106,10 +108,6 @@ import {
 } from "@/lib/draftDashboardMetrics";
 import { sanitizeCachedReport } from "@/lib/reportCacheSanitizer";
 import type { ReportData } from "@shared/types";
-import {
-  buildAIPredictionEventsForReport,
-  getAIPredictionEventBatchSignature,
-} from "@/lib/aiPredictionEvents";
 
 // Cached reports render immediately, then refresh volatile Sleeper activity in the background.
 const REPORT_BACKGROUND_REFRESH_AFTER_MS = 0;
@@ -135,10 +133,6 @@ export default function Home() {
     staleTime: 1000 * 60 * 5,
   });
   const utils = trpc.useUtils();
-  const lastAiPredictionBatchSignatureRef = useRef("");
-  const aiPredictionMutation = trpc.aiPredictions.upsertMany.useMutation({
-    retry: false,
-  });
   const [leagueId, setLeagueId] = useState("");
   const [sleeperUsername, setSleeperUsername] = useState("");
   const [leagueIdHistory, setLeagueIdHistory] = useState<string[]>(() =>
@@ -172,9 +166,6 @@ export default function Home() {
   );
   const { aiVoiceMode, handleAIVoiceModeChange } = useHomeAIVoiceMode();
   const [reportData, setReportData] = useState<ReportData | null>(null);
-  const [reportScanCompletedAt, setReportScanCompletedAt] = useState<
-    number | null
-  >(null);
   const [reportDataCacheVersion, setReportDataCacheVersion] = useState<
     string | null
   >(null);
@@ -1342,36 +1333,12 @@ export default function Home() {
         : reportData,
     [rankingsForReport, reportData]
   );
-  const aiPredictionEvents = useMemo(
-    () =>
-      buildAIPredictionEventsForReport({
-        reportData: reportDataWithRankings,
-        leagueId,
-        leagueName,
-        manager: reportDataWithRankings?.viewerManager || null,
-      }),
-    [leagueId, leagueName, reportDataWithRankings]
-  );
-  const aiPredictionBatchSignature = useMemo(
-    () => getAIPredictionEventBatchSignature(aiPredictionEvents),
-    [aiPredictionEvents]
-  );
-
-  useEffect(() => {
-    if (!authQuery.data || !aiPredictionEvents.length || !aiPredictionBatchSignature) {
-      return;
-    }
-    if (lastAiPredictionBatchSignatureRef.current === aiPredictionBatchSignature) {
-      return;
-    }
-    lastAiPredictionBatchSignatureRef.current = aiPredictionBatchSignature;
-    aiPredictionMutation.mutate({ events: aiPredictionEvents });
-  }, [
-    aiPredictionBatchSignature,
-    aiPredictionEvents,
-    aiPredictionMutation,
-    authQuery.data,
-  ]);
+  useHomeAIPredictionTelemetry({
+    enabled: Boolean(authQuery.data),
+    reportData: reportDataWithRankings,
+    leagueId,
+    leagueName,
+  });
   const {
     currentReportDeltaSnapshot,
     previousReportDeltaSnapshot,
@@ -1424,51 +1391,17 @@ export default function Home() {
     }
   }, [activeTab, authQuery.isLoading, canViewAutopilotTab, leagueId]);
 
-  useEffect(() => {
-    setReportScanCompletedAt(reportData ? Date.now() : null);
-  }, [reportData]);
-
-  useEffect(() => {
-    if (
-      !reportData ||
-      !leagueId ||
-      reportDataCacheVersion !== REPORT_CACHE_DATA_VERSION ||
-      isLoading ||
-      isReportRefreshing
-    ) {
-      return;
-    }
-
-    const getAgeMs = () =>
-      Date.now() - (reportScanCompletedAt || Date.now());
-    const refreshIfNeeded = () => {
-      if (getAgeMs() < REPORT_BACKGROUND_REFRESH_AFTER_MS) return;
-      refreshReportInBackground(leagueId, viewerUserId);
-    };
-    const delay = Math.max(
-      REPORT_BACKGROUND_REFRESH_AFTER_MS - getAgeMs(),
-      REPORT_CACHE_PREFETCH_DEBOUNCE_MS
-    );
-    const timer = window.setTimeout(refreshIfNeeded, delay);
-    const handleVisible = () => {
-      if (document.visibilityState === "visible") refreshIfNeeded();
-    };
-    window.addEventListener("focus", refreshIfNeeded);
-    document.addEventListener("visibilitychange", handleVisible);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("focus", refreshIfNeeded);
-      document.removeEventListener("visibilitychange", handleVisible);
-    };
-  }, [
+  useReportBackgroundRefresh({
+    reportData,
+    leagueId,
+    reportDataCacheVersion,
     isLoading,
     isReportRefreshing,
-    leagueId,
-    reportData,
-    reportDataCacheVersion,
-    reportScanCompletedAt,
     viewerUserId,
-  ]);
+    refreshAfterMs: REPORT_BACKGROUND_REFRESH_AFTER_MS,
+    prefetchDebounceMs: REPORT_CACHE_PREFETCH_DEBOUNCE_MS,
+    onRefreshReport: refreshReportInBackground,
+  });
 
   useEffect(() => {
     if (!reportData || activeTab !== "draft" || shouldShowDraftHistoryTab)
