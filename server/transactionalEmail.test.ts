@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   assertTransactionalEmailConfiguredForProduction,
+  buildBillingNotificationEmail,
   buildMagicLinkUrl,
   isTransactionalEmailConfigured,
+  sendBillingNotificationEmail,
   resolveTransactionalEmailAppBaseUrl,
   sendMagicLinkEmail,
   sendTransactionalEmail,
@@ -146,6 +148,40 @@ describe("transactional email", () => {
     })).rejects.toMatchObject({
       code: "INTERNAL_SERVER_ERROR",
       message: "Transactional email request failed with status 403.",
+    });
+  });
+
+  it("builds and sends sanitized billing notification emails", async () => {
+    const email = buildBillingNotificationEmail({
+      kind: "payment-failed",
+      plan: "pro<script>",
+      appBaseUrl: "https://dynastydegens.com/ignored",
+    });
+    expect(email.subject).toBe("Payment failed for Dynasty Degens");
+    expect(email.text).toContain("pro<script>");
+    expect(email.html).toContain("pro&lt;script&gt;");
+    expect(email.html).toContain("https://dynastydegens.com/support");
+
+    const fetchMock = createFetchMock({});
+    await expect(sendBillingNotificationEmail({
+      email: "billing@example.com",
+      kind: "subscription-canceled",
+      plan: "elite",
+      appBaseUrl: "https://dynastydegens.com",
+      eventId: "evt_deleted",
+      eventType: "customer.subscription.deleted",
+      env: {
+        RESEND_API_KEY: "re_test_secret",
+        TRANSACTIONAL_EMAIL_FROM: "billing@example.com",
+      },
+      fetchImpl: fetchMock,
+    })).resolves.toEqual({ id: "email_test" });
+
+    const request = getRequest(fetchMock);
+    expect(request.headers["Idempotency-Key"]).toBe("billing/customer.subscription.deleted/evt_deleted");
+    expect(request.body).toMatchObject({
+      to: ["billing@example.com"],
+      subject: "Your Dynasty Degens subscription was canceled",
     });
   });
 });

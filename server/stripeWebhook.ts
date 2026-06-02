@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { upsertBillingCustomer, upsertBillingSubscription, upsertFeatureEntitlement, upsertLeaguePass } from "./db";
+import { isTransactionalEmailConfigured, sendBillingNotificationEmail, type BillingNotificationKind } from "./transactionalEmail";
 
 const DEFAULT_TOLERANCE_SECONDS = 300;
 const SUPPORTED_STRIPE_WEBHOOK_EVENTS = new Set([
@@ -195,6 +196,37 @@ function getStripeMetadataValue(object: Record<string, unknown>, ...keys: string
     if (value) return value;
   }
   return null;
+}
+
+function getStripeCustomerEmail(object: Record<string, unknown>): string | null {
+  return getObjectStringValue(object, "customer_email")
+    ?? getObjectStringValue(getNestedObject(object, "customer_details"), "email")
+    ?? getObjectStringValue(getNestedObject(object, "customer"), "email");
+}
+
+async function sendBillingNotificationIfPossible(input: {
+  object: Record<string, unknown>;
+  kind: BillingNotificationKind;
+  plan: string | null;
+  eventId: string | null;
+  eventType: string;
+}) {
+  const email = getStripeCustomerEmail(input.object);
+  const appBaseUrl = process.env.APP_BASE_URL?.trim();
+  if (!email || !appBaseUrl || !isTransactionalEmailConfigured()) return;
+
+  try {
+    await sendBillingNotificationEmail({
+      email,
+      kind: input.kind,
+      plan: input.plan,
+      appBaseUrl,
+      eventId: input.eventId,
+      eventType: input.eventType,
+    });
+  } catch (error) {
+    console.warn("[Stripe Webhook] Billing notification email failed:", error instanceof Error ? error.message : "unknown error");
+  }
 }
 
 function getCheckoutProductKey(checkoutSession: Record<string, unknown>): string | null {
@@ -427,6 +459,16 @@ async function persistSubscriptionEvent(event: StripeWebhookEvent, eventType: st
     };
   }
 
+  if (eventType === "customer.subscription.deleted") {
+    await sendBillingNotificationIfPossible({
+      object,
+      kind: "subscription-canceled",
+      plan,
+      eventId,
+      eventType,
+    });
+  }
+
   return {
     status: 200,
     body: {
@@ -560,6 +602,14 @@ async function persistInvoicePaymentFailedEvent(event: StripeWebhookEvent, event
       },
     };
   }
+
+  await sendBillingNotificationIfPossible({
+    object,
+    kind: "payment-failed",
+    plan,
+    eventId,
+    eventType,
+  });
 
   return {
     status: 200,

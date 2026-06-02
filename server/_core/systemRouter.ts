@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { adminProcedure, publicProcedure, router } from "./trpc";
 import {
+  getAdminBillingOverview,
   getLoginAttemptsSince,
   listAiPredictionEvents,
   listKtcSnapshotDateKeysSince,
@@ -323,6 +324,27 @@ export const systemRouter = router({
           rowCount: event.rowCount ?? null,
           message: event.message,
         })),
+      } as const;
+    }),
+
+  billingOverview: adminProcedure
+    .input(
+      z.object({
+        lookbackDays: z.number().int().min(1).max(365).default(30),
+      })
+    )
+    .query(async ({ input }) => {
+      const usageSince = new Date(Date.now() - input.lookbackDays * 24 * 60 * 60 * 1000);
+      const overview = await getAdminBillingOverview({
+        usageSince,
+        limit: 12,
+      });
+
+      return {
+        generatedAt: new Date().toISOString(),
+        lookbackDays: input.lookbackDays,
+        usageSince: usageSince.toISOString(),
+        ...overview,
       } as const;
     }),
 

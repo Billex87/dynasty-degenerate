@@ -181,6 +181,49 @@ export type BillingCustomerAccessRecord = {
   updatedAt: Date | null;
 };
 
+export type AdminBillingBucket = {
+  label: string;
+  count: number;
+};
+
+export type AdminBillingSubscriptionBucket = {
+  plan: string;
+  status: string;
+  count: number;
+};
+
+export type AdminBillingUsageBucket = {
+  featureKey: string;
+  quantity: number;
+};
+
+export type AdminBillingOverview = {
+  totals: {
+    billingCustomers: number;
+    activeBillingCustomers: number;
+    subscriptions: number;
+    activeSubscriptions: number;
+    failedPaymentSubscriptions: number;
+    leaguePasses: number;
+    activeLeaguePasses: number;
+    featureEntitlements: number;
+    activeFeatureEntitlements: number;
+    entitlementOverrides: number;
+    usageEvents: number;
+  };
+  subscriptionsByPlanStatus: AdminBillingSubscriptionBucket[];
+  leaguePassesByStatus: AdminBillingBucket[];
+  entitlementsByFeature: AdminBillingBucket[];
+  usageByFeature: AdminBillingUsageBucket[];
+  recentSubscriptions: Array<{
+    userOpenId: string;
+    plan: string;
+    status: string;
+    currentPeriodEnd: Date | null;
+    updatedAt: Date | null;
+  }>;
+};
+
 export type LeaguePassUpsertInput = {
   leagueId: string;
   purchaserUserId?: number | null;
@@ -1399,6 +1442,174 @@ export async function findBillingCustomerForUser(userOpenId: string): Promise<Bi
     email: row.email ? String(row.email) : null,
     status: String(row.status || ""),
     updatedAt: normalizeDateForDb(row.updatedAt),
+  };
+}
+
+function emptyAdminBillingOverview(): AdminBillingOverview {
+  return {
+    totals: {
+      billingCustomers: 0,
+      activeBillingCustomers: 0,
+      subscriptions: 0,
+      activeSubscriptions: 0,
+      failedPaymentSubscriptions: 0,
+      leaguePasses: 0,
+      activeLeaguePasses: 0,
+      featureEntitlements: 0,
+      activeFeatureEntitlements: 0,
+      entitlementOverrides: 0,
+      usageEvents: 0,
+    },
+    subscriptionsByPlanStatus: [],
+    leaguePassesByStatus: [],
+    entitlementsByFeature: [],
+    usageByFeature: [],
+    recentSubscriptions: [],
+  };
+}
+
+function numberFromDb(value: unknown): number {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
+export async function getAdminBillingOverview(input: {
+  usageSince: Date | string;
+  limit?: number;
+}): Promise<AdminBillingOverview> {
+  const usageSince = normalizeDateForDb(input.usageSince) ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const limit = Math.max(1, Math.min(50, Math.floor(Number(input.limit) || 10)));
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot build admin billing overview: database not available");
+    return emptyAdminBillingOverview();
+  }
+
+  const [
+    customerTotals,
+    subscriptionTotals,
+    leaguePassTotals,
+    entitlementTotals,
+    usageTotals,
+    subscriptionsByPlanStatus,
+    leaguePassesByStatus,
+    entitlementsByFeature,
+    usageByFeature,
+    recentSubscriptions,
+  ] = await Promise.all([
+    sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'active')::int AS active
+      FROM "billingCustomers"
+    ` as Promise<Array<{ total?: number | string; active?: number | string }>>,
+    sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status IN ('active', 'trialing'))::int AS active,
+        COUNT(*) FILTER (WHERE status IN ('past_due', 'unpaid', 'incomplete', 'incomplete_expired'))::int AS failed
+      FROM subscriptions
+    ` as Promise<Array<{ total?: number | string; active?: number | string; failed?: number | string }>>,
+    sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'active')::int AS active
+      FROM "leaguePasses"
+    ` as Promise<Array<{ total?: number | string; active?: number | string }>>,
+    sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'active')::int AS active,
+        COUNT(*) FILTER (WHERE source <> 'stripe')::int AS overrides
+      FROM "featureEntitlements"
+    ` as Promise<Array<{ total?: number | string; active?: number | string; overrides?: number | string }>>,
+    sql`
+      SELECT COUNT(*)::int AS total
+      FROM "usageEvents"
+      WHERE "createdAt" >= ${usageSince}
+    ` as Promise<Array<{ total?: number | string }>>,
+    sql`
+      SELECT plan, status, COUNT(*)::int AS count
+      FROM subscriptions
+      GROUP BY plan, status
+      ORDER BY count DESC, plan ASC, status ASC
+      LIMIT ${limit}
+    ` as Promise<Array<{ plan?: string | null; status?: string | null; count?: number | string }>>,
+    sql`
+      SELECT status AS label, COUNT(*)::int AS count
+      FROM "leaguePasses"
+      GROUP BY status
+      ORDER BY count DESC, status ASC
+      LIMIT ${limit}
+    ` as Promise<Array<{ label?: string | null; count?: number | string }>>,
+    sql`
+      SELECT "featureKey" AS label, COUNT(*)::int AS count
+      FROM "featureEntitlements"
+      WHERE status = 'active'
+      GROUP BY "featureKey"
+      ORDER BY count DESC, "featureKey" ASC
+      LIMIT ${limit}
+    ` as Promise<Array<{ label?: string | null; count?: number | string }>>,
+    sql`
+      SELECT "featureKey", COALESCE(SUM(quantity), 0)::int AS quantity
+      FROM "usageEvents"
+      WHERE "createdAt" >= ${usageSince}
+      GROUP BY "featureKey"
+      ORDER BY quantity DESC, "featureKey" ASC
+      LIMIT ${limit}
+    ` as Promise<Array<{ featureKey?: string | null; quantity?: number | string }>>,
+    sql`
+      SELECT "userOpenId", plan, status, "currentPeriodEnd", "updatedAt"
+      FROM subscriptions
+      ORDER BY "updatedAt" DESC
+      LIMIT ${limit}
+    ` as Promise<Array<{
+      userOpenId?: string | null;
+      plan?: string | null;
+      status?: string | null;
+      currentPeriodEnd?: Date | string | null;
+      updatedAt?: Date | string | null;
+    }>>,
+  ]);
+
+  return {
+    totals: {
+      billingCustomers: numberFromDb(customerTotals[0]?.total),
+      activeBillingCustomers: numberFromDb(customerTotals[0]?.active),
+      subscriptions: numberFromDb(subscriptionTotals[0]?.total),
+      activeSubscriptions: numberFromDb(subscriptionTotals[0]?.active),
+      failedPaymentSubscriptions: numberFromDb(subscriptionTotals[0]?.failed),
+      leaguePasses: numberFromDb(leaguePassTotals[0]?.total),
+      activeLeaguePasses: numberFromDb(leaguePassTotals[0]?.active),
+      featureEntitlements: numberFromDb(entitlementTotals[0]?.total),
+      activeFeatureEntitlements: numberFromDb(entitlementTotals[0]?.active),
+      entitlementOverrides: numberFromDb(entitlementTotals[0]?.overrides),
+      usageEvents: numberFromDb(usageTotals[0]?.total),
+    },
+    subscriptionsByPlanStatus: subscriptionsByPlanStatus.map((row) => ({
+      plan: String(row.plan || "unknown"),
+      status: String(row.status || "unknown"),
+      count: numberFromDb(row.count),
+    })),
+    leaguePassesByStatus: leaguePassesByStatus.map((row) => ({
+      label: String(row.label || "unknown"),
+      count: numberFromDb(row.count),
+    })),
+    entitlementsByFeature: entitlementsByFeature.map((row) => ({
+      label: String(row.label || "unknown"),
+      count: numberFromDb(row.count),
+    })),
+    usageByFeature: usageByFeature.map((row) => ({
+      featureKey: String(row.featureKey || "unknown"),
+      quantity: numberFromDb(row.quantity),
+    })),
+    recentSubscriptions: recentSubscriptions.map((row) => ({
+      userOpenId: String(row.userOpenId || ""),
+      plan: String(row.plan || "unknown"),
+      status: String(row.status || "unknown"),
+      currentPeriodEnd: normalizeDateForDb(row.currentPeriodEnd),
+      updatedAt: normalizeDateForDb(row.updatedAt),
+    })),
   };
 }
 

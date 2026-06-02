@@ -89,4 +89,27 @@ describe("system.abuseTelemetry", () => {
 
     expect(result).toEqual({ persisted: false });
   });
+
+  it("exposes an admin-only billing overview without database persistence", async () => {
+    process.env.ADMIN_PERMISSIONS = "mynameisbillex";
+    delete process.env.DATABASE_URL;
+    const caller = appRouter.createCaller(createContext({
+      openId: "mynameisbillex",
+      name: "mynameisbillex",
+    }));
+
+    const result = await caller.system.billingOverview({ lookbackDays: 30 });
+
+    expect(result.lookbackDays).toBe(30);
+    expect(result.usageSince).toMatch(/T/);
+    expect(result.totals).toMatchObject({
+      billingCustomers: 0,
+      subscriptions: 0,
+      failedPaymentSubscriptions: 0,
+      activeLeaguePasses: 0,
+      entitlementOverrides: 0,
+      usageEvents: 0,
+    });
+    expect(result.recentSubscriptions).toEqual([]);
+  });
 });

@@ -32,6 +32,19 @@ export type SendMagicLinkEmailInput = {
   fetchImpl?: TransactionalEmailFetch;
 };
 
+export type BillingNotificationKind = "payment-failed" | "subscription-canceled";
+
+export type SendBillingNotificationEmailInput = {
+  email: string;
+  kind: BillingNotificationKind;
+  plan?: string | null;
+  appBaseUrl: string;
+  eventId?: string | null;
+  eventType?: string | null;
+  env?: Record<string, string | undefined>;
+  fetchImpl?: TransactionalEmailFetch;
+};
+
 type ResendEmailResponse = {
   id?: unknown;
 };
@@ -157,6 +170,47 @@ export function buildMagicLinkEmail(input: {
   };
 }
 
+export function buildBillingNotificationEmail(input: {
+  kind: BillingNotificationKind;
+  plan?: string | null;
+  appBaseUrl: string;
+}) {
+  const appBaseUrl = normalizeAppBaseUrl(input.appBaseUrl);
+  const supportUrl = `${appBaseUrl}/support`;
+  const escapedSupportUrl = escapeHtml(supportUrl);
+  const planLabel = input.plan?.trim() || "paid";
+
+  if (input.kind === "subscription-canceled") {
+    return {
+      subject: "Your Dynasty Degens subscription was canceled",
+      text: [
+        `Your Dynasty Degens ${planLabel} subscription has been canceled.`,
+        "If this was expected, no action is needed.",
+        `If you need help, contact support: ${supportUrl}`,
+      ].join("\n"),
+      html: [
+        `<p>Your Dynasty Degens ${escapeHtml(planLabel)} subscription has been canceled.</p>`,
+        "<p>If this was expected, no action is needed.</p>",
+        `<p>If you need help, contact support: <a href="${escapedSupportUrl}">${escapedSupportUrl}</a></p>`,
+      ].join(""),
+    };
+  }
+
+  return {
+    subject: "Payment failed for Dynasty Degens",
+    text: [
+      `We could not process the latest payment for your Dynasty Degens ${planLabel} subscription.`,
+      "Your paid access may be interrupted if the payment is not updated.",
+      `Need help? Contact support: ${supportUrl}`,
+    ].join("\n"),
+    html: [
+      `<p>We could not process the latest payment for your Dynasty Degens ${escapeHtml(planLabel)} subscription.</p>`,
+      "<p>Your paid access may be interrupted if the payment is not updated.</p>",
+      `<p>Need help? Contact support: <a href="${escapedSupportUrl}">${escapedSupportUrl}</a></p>`,
+    ].join(""),
+  };
+}
+
 export async function sendTransactionalEmail(input: SendTransactionalEmailInput) {
   const env = input.env ?? process.env;
   const apiKey = requiredTrimmed(env.RESEND_API_KEY, "RESEND_API_KEY");
@@ -226,6 +280,25 @@ export async function sendMagicLinkEmail(input: SendMagicLinkEmailInput) {
     text: email.text,
     html: email.html,
     idempotencyKey: `magic-link/${input.tokenId}`,
+    env: input.env,
+    fetchImpl: input.fetchImpl,
+  });
+}
+
+export async function sendBillingNotificationEmail(input: SendBillingNotificationEmailInput) {
+  const email = buildBillingNotificationEmail({
+    kind: input.kind,
+    plan: input.plan,
+    appBaseUrl: input.appBaseUrl,
+  });
+  const eventKey = [input.eventType, input.eventId].filter(Boolean).join("/");
+
+  return sendTransactionalEmail({
+    to: input.email,
+    subject: email.subject,
+    text: email.text,
+    html: email.html,
+    idempotencyKey: eventKey ? `billing/${eventKey}` : `billing/${input.kind}`,
     env: input.env,
     fetchImpl: input.fetchImpl,
   });

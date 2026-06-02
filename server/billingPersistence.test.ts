@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   countUsageEvents,
   findBillingCustomerForUser,
+  getAdminBillingOverview,
   listActiveFeatureEntitlementsForLeague,
   listActiveFeatureEntitlementsForUser,
   listActiveLeaguePassesForLeague,
@@ -114,6 +115,31 @@ describe("billing persistence helpers", () => {
       createdAtFrom: "2026-06-02T00:00:00.000Z",
       createdAtTo: "2026-06-03T00:00:00.000Z",
     })).resolves.toBe(0);
+  });
+
+  it("returns an empty admin billing overview when no database is configured", async () => {
+    await expect(getAdminBillingOverview({
+      usageSince: "2026-06-01T00:00:00.000Z",
+    })).resolves.toMatchObject({
+      totals: {
+        billingCustomers: 0,
+        activeBillingCustomers: 0,
+        subscriptions: 0,
+        activeSubscriptions: 0,
+        failedPaymentSubscriptions: 0,
+        leaguePasses: 0,
+        activeLeaguePasses: 0,
+        featureEntitlements: 0,
+        activeFeatureEntitlements: 0,
+        entitlementOverrides: 0,
+        usageEvents: 0,
+      },
+      subscriptionsByPlanStatus: [],
+      leaguePassesByStatus: [],
+      entitlementsByFeature: [],
+      usageByFeature: [],
+      recentSubscriptions: [],
+    });
   });
 
   it("validates required identifiers before attempting database work", async () => {

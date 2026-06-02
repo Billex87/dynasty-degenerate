@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   computeStripeWebhookSignature,
   handleStripeWebhookPayload,
@@ -10,6 +10,10 @@ import {
   upsertFeatureEntitlement,
   upsertLeaguePass,
 } from "./db";
+import {
+  isTransactionalEmailConfigured,
+  sendBillingNotificationEmail,
+} from "./transactionalEmail";
 
 vi.mock("./db", () => ({
   upsertBillingCustomer: vi.fn(),
@@ -18,14 +22,22 @@ vi.mock("./db", () => ({
   upsertLeaguePass: vi.fn(),
 }));
 
+vi.mock("./transactionalEmail", () => ({
+  isTransactionalEmailConfigured: vi.fn(),
+  sendBillingNotificationEmail: vi.fn(),
+}));
+
 const mockedUpsertBillingCustomer = vi.mocked(upsertBillingCustomer);
 const mockedUpsertBillingSubscription = vi.mocked(upsertBillingSubscription);
 const mockedUpsertFeatureEntitlement = vi.mocked(upsertFeatureEntitlement);
 const mockedUpsertLeaguePass = vi.mocked(upsertLeaguePass);
+const mockedIsTransactionalEmailConfigured = vi.mocked(isTransactionalEmailConfigured);
+const mockedSendBillingNotificationEmail = vi.mocked(sendBillingNotificationEmail);
 
 const secret = "whsec_test_secret";
 const now = new Date("2026-06-02T12:00:00.000Z");
 const timestamp = Math.floor(now.getTime() / 1000);
+const originalAppBaseUrl = process.env.APP_BASE_URL;
 
 function signedHeader(payload: string, overrideTimestamp = timestamp) {
   const signature = computeStripeWebhookSignature({
@@ -44,6 +56,14 @@ describe("Stripe webhook signature verification", () => {
     mockedUpsertBillingSubscription.mockResolvedValue(true);
     mockedUpsertFeatureEntitlement.mockResolvedValue(true);
     mockedUpsertLeaguePass.mockResolvedValue(true);
+    mockedIsTransactionalEmailConfigured.mockReturnValue(false);
+    mockedSendBillingNotificationEmail.mockResolvedValue({ id: "email_test" });
+    process.env.APP_BASE_URL = "https://dynastydegens.com";
+  });
+
+  afterEach(() => {
+    if (originalAppBaseUrl === undefined) delete process.env.APP_BASE_URL;
+    else process.env.APP_BASE_URL = originalAppBaseUrl;
   });
 
   it("accepts a valid Stripe-style HMAC signature", () => {
@@ -244,6 +264,7 @@ describe("Stripe webhook signature verification", () => {
   });
 
   it("marks deleted subscription events as canceled", async () => {
+    mockedIsTransactionalEmailConfigured.mockReturnValue(true);
     const payload = JSON.stringify({
       id: "evt_deleted",
       type: "customer.subscription.deleted",
@@ -251,6 +272,7 @@ describe("Stripe webhook signature verification", () => {
         object: {
           id: "sub_test",
           customer: "cus_test",
+          customer_email: "billing@example.com",
           metadata: {
             userOpenId: "email:user",
             plan: "elite",
@@ -270,6 +292,14 @@ describe("Stripe webhook signature verification", () => {
     expect(mockedUpsertBillingSubscription).toHaveBeenCalledWith(expect.objectContaining({
       status: "canceled",
       plan: "elite",
+    }));
+    expect(mockedSendBillingNotificationEmail).toHaveBeenCalledWith(expect.objectContaining({
+      email: "billing@example.com",
+      kind: "subscription-canceled",
+      plan: "elite",
+      appBaseUrl: "https://dynastydegens.com",
+      eventId: "evt_deleted",
+      eventType: "customer.subscription.deleted",
     }));
   });
 
@@ -492,6 +522,7 @@ describe("Stripe webhook signature verification", () => {
   });
 
   it("marks subscriptions past due on failed invoice events with billing metadata", async () => {
+    mockedIsTransactionalEmailConfigured.mockReturnValue(true);
     const payload = JSON.stringify({
       id: "evt_invoice_failed",
       type: "invoice.payment_failed",
@@ -499,6 +530,7 @@ describe("Stripe webhook signature verification", () => {
         object: {
           id: "in_test",
           customer: "cus_test",
+          customer_email: "billing@example.com",
           subscription: "sub_test",
           subscription_details: {
             metadata: {
@@ -538,6 +570,54 @@ describe("Stripe webhook signature verification", () => {
         stripeEventType: "invoice.payment_failed",
       }),
     }));
+    expect(mockedSendBillingNotificationEmail).toHaveBeenCalledWith(expect.objectContaining({
+      email: "billing@example.com",
+      kind: "payment-failed",
+      plan: "pro",
+      appBaseUrl: "https://dynastydegens.com",
+      eventId: "evt_invoice_failed",
+      eventType: "invoice.payment_failed",
+    }));
+  });
+
+  it("does not fail Stripe webhook persistence when billing email delivery fails", async () => {
+    mockedIsTransactionalEmailConfigured.mockReturnValue(true);
+    mockedSendBillingNotificationEmail.mockRejectedValue(new Error("provider unavailable"));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const payload = JSON.stringify({
+      id: "evt_invoice_failed",
+      type: "invoice.payment_failed",
+      data: {
+        object: {
+          id: "in_test",
+          customer: "cus_test",
+          customer_email: "billing@example.com",
+          subscription: "sub_test",
+          subscription_details: {
+            metadata: {
+              userOpenId: "email:user",
+              plan: "pro",
+            },
+          },
+        },
+      },
+    });
+
+    const result = await handleStripeWebhookPayload({
+      payload,
+      signatureHeader: signedHeader(payload),
+      secret,
+      now,
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.persisted).toBe(true);
+    expect(mockedSendBillingNotificationEmail).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[Stripe Webhook] Billing notification email failed:",
+      "provider unavailable"
+    );
+    warnSpy.mockRestore();
   });
 
   it("acknowledges and ignores unsupported Stripe events", async () => {
