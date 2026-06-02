@@ -7572,6 +7572,20 @@ export const appRouter = router({
         if (!missingRankInputs.length) {
           return { ranks: rankInputs.map((rankInput) => rankInput.cachedRank!) };
         }
+        const validMissingRankInputs = missingRankInputs.filter((rankInput) =>
+          rankInput.normalizedLeagueId && !isInvalidLeagueIdCached(rankInput.normalizedLeagueId)
+        );
+        if (!validMissingRankInputs.length) {
+          return {
+            ranks: rankInputs.map((rankInput) =>
+              rankInput.cachedRank || {
+                leagueId: rankInput.leagueId,
+                standingsRank: null,
+                powerRank: null,
+              }
+            ),
+          };
+        }
 
         const players = await fetchSleeperPlayersIndex();
         const leagueValueCache = new Map<string, Promise<KTCValues>>();
@@ -7584,11 +7598,8 @@ export const appRouter = router({
           return leagueValueCache.get(key)!;
         };
 
-        const missingRanks = await mapWithConcurrencyLimit(missingRankInputs, LEAGUE_RANK_FANOUT_CONCURRENCY, async (rankInput) => {
+        const missingRanks = await mapWithConcurrencyLimit(validMissingRankInputs, LEAGUE_RANK_FANOUT_CONCURRENCY, async (rankInput) => {
           const { leagueId, normalizedLeagueId, cacheKey } = rankInput;
-          if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
-            return { leagueId, standingsRank: null, powerRank: null };
-          }
 
           const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`);
           if (!leagueInfo?.league_id) {
@@ -7633,7 +7644,7 @@ export const appRouter = router({
 
           return setCachedUserLeagueRank(cacheKey, { leagueId, standingsRank, powerRank, rosterPlayers, managerAnchors });
         });
-        const missingRankByLeagueId = new Map(missingRankInputs.map((rankInput, index) => [
+        const missingRankByLeagueId = new Map(validMissingRankInputs.map((rankInput, index) => [
           rankInput.leagueId,
           missingRanks[index],
         ]));

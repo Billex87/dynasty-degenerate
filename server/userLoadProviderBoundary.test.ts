@@ -444,6 +444,8 @@ describe("user-load provider boundary", () => {
     const rateLimitIndex = leagueRanksSource.indexOf("assertRateLimit(ctx.req as any");
     const cacheReadIndex = leagueRanksSource.indexOf("cachedRank: getCachedUserLeagueRank(cacheKey)");
     const missingFilterIndex = leagueRanksSource.indexOf("const missingRankInputs = rankInputs.filter");
+    const validMissingFilterIndex = leagueRanksSource.indexOf("const validMissingRankInputs = missingRankInputs.filter");
+    const noValidReturnIndex = leagueRanksSource.indexOf("if (!validMissingRankInputs.length)");
     const playerIndexFetch = leagueRanksSource.indexOf("fetchSleeperPlayersIndex()");
     const leagueFetchIndex = leagueRanksSource.indexOf("fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`)");
     const rostersFetchIndex = leagueRanksSource.indexOf("fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/rosters`)");
@@ -451,17 +453,20 @@ describe("user-load provider boundary", () => {
 
     expect(leagueRanksSource).toContain("leagueIds: z.array(sleeperLeagueIdSchema).max(10)");
     expect(routersSource).toContain("const LEAGUE_RANK_FANOUT_CONCURRENCY = 3");
-    expect(leagueRanksSource).toContain("mapWithConcurrencyLimit(missingRankInputs, LEAGUE_RANK_FANOUT_CONCURRENCY");
+    expect(leagueRanksSource).toContain("mapWithConcurrencyLimit(validMissingRankInputs, LEAGUE_RANK_FANOUT_CONCURRENCY");
     expect(leagueRanksSource).not.toContain("Promise.all(leagueIds.map");
     expect(accessIndex).toBeGreaterThan(0);
     expect(rateLimitIndex).toBeGreaterThan(accessIndex);
     expect(cacheReadIndex).toBeGreaterThan(rateLimitIndex);
     expect(missingFilterIndex).toBeGreaterThan(cacheReadIndex);
-    expect(playerIndexFetch).toBeGreaterThan(missingFilterIndex);
+    expect(validMissingFilterIndex).toBeGreaterThan(missingFilterIndex);
+    expect(noValidReturnIndex).toBeGreaterThan(validMissingFilterIndex);
+    expect(playerIndexFetch).toBeGreaterThan(noValidReturnIndex);
     expect(leagueFetchIndex).toBeGreaterThan(playerIndexFetch);
     expect(rostersFetchIndex).toBeGreaterThan(playerIndexFetch);
     expect(cacheWriteIndex).toBeGreaterThan(rostersFetchIndex);
     expect(leagueRanksSource).toContain("id: 'league.getUserLeagueRanks'");
+    expect(leagueRanksSource).toContain("mapWithConcurrencyLimit(validMissingRankInputs, LEAGUE_RANK_FANOUT_CONCURRENCY");
     expect(routersSource).toContain("const USER_LEAGUE_RANK_CACHE_MAX_ENTRIES = 500");
     expect(rankCacheSetSource).toContain("pruneUserLeagueRankCache()");
     expect(rankCacheSetSource).toContain("userLeagueRankCache.set(cacheKey");
