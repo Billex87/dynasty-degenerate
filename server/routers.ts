@@ -8679,6 +8679,12 @@ export const appRouter = router({
         if (!playerName) return { latestNews: null };
         assertReportAccess(ctx);
         assertRateLimit(ctx.req as any, {
+          id: 'players.latestNews.ip',
+          max: 200,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many player news requests. Please wait a few minutes and try again.',
+        });
+        assertRateLimit(ctx.req as any, {
           id: 'players.latestNews',
           max: 80,
           windowMs: 1000 * 60 * 10,

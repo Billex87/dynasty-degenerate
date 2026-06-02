@@ -323,17 +323,20 @@ describe("user-load provider boundary", () => {
     const latestNewsSource = extractSource("latestNews: publicProcedure", "\n    redraftValueTimeline: publicProcedure");
     const nameGuardIndex = latestNewsSource.indexOf("if (!playerName) return { latestNews: null }");
     const accessIndex = latestNewsSource.indexOf("assertReportAccess(ctx)");
-    const rateLimitIndex = latestNewsSource.indexOf("assertRateLimit(ctx.req as any");
+    const ipRateLimitIndex = latestNewsSource.indexOf("id: 'players.latestNews.ip'");
+    const rateLimitIndex = latestNewsSource.indexOf("id: 'players.latestNews',", ipRateLimitIndex);
     const fetchIndex = latestNewsSource.indexOf("fetchLatestPlayerNews({");
 
     expect(nameGuardIndex).toBeGreaterThan(0);
     expect(accessIndex).toBeGreaterThan(nameGuardIndex);
-    expect(rateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(ipRateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(rateLimitIndex).toBeGreaterThan(ipRateLimitIndex);
     expect(fetchIndex).toBeGreaterThan(rateLimitIndex);
     expect(latestNewsSource).toContain("playerId: z.string().trim().max(64).optional()");
     expect(latestNewsSource).toContain("playerName: z.string().trim().max(120).optional()");
     expect(latestNewsSource).toContain("team: z.string().trim().max(16).optional().nullable()");
     expect(latestNewsSource).toContain("position: z.string().trim().max(16).optional().nullable()");
+    expect(latestNewsSource).toContain("id: 'players.latestNews.ip'");
     expect(latestNewsSource).toContain("id: 'players.latestNews'");
     expect(latestNewsSource).toContain("...getUserLoadSnapshotOptions()");
   });
