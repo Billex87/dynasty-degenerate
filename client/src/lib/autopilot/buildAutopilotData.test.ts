@@ -163,6 +163,74 @@ describe('buildAutopilotData', () => {
     expect(mockRows.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('does not treat reason-only trade expected actions as concrete queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [],
+      waivers: [],
+      trades: [{
+        id: 'reason-only-trade',
+        type: 'Trade',
+        player: 'Vague Trade Target',
+        action: 'Trade now',
+        confidence: 92,
+        risk: 'Medium' as const,
+        upside: 'High' as const,
+        summary: 'This recommendation has a rationale but no player, pick, or return details.',
+        reasons: ['Needs a concrete return before it can become an action.'],
+        signals: ['Trade rationale only'],
+        evidenceRead: {
+          evidence: ['High confidence trade rationale.'],
+          missingEvidence: [],
+          hardBlockers: [],
+          softPenalties: [],
+          confidenceCap: 100,
+          confidenceCapReason: null,
+          sourceTrace: [{ label: 'Trade context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+          rawScore: 92,
+          finalScore: 92,
+          label: 'high conviction',
+          shouldRender: true,
+          canAct: true,
+          whyThisFired: 'Trade context is loaded but the expected action is not concrete.',
+        } as any,
+        expectedAction: {
+          type: 'trade',
+          playersInvolved: [],
+          expectedRosterChange: null,
+          source: 'autopilot',
+          reason: 'Trade because the roster needs help.',
+        },
+        tone: 'good' as const,
+      }],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const tradeQueueItem = data.actionQueue.find((item) => item.id.includes('reason-only-trade'));
+    expect(tradeQueueItem).toMatchObject({
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'trade',
+      },
+    });
+    expect(tradeQueueItem?.missingEvidence.join(' ')).toContain('missing concrete player, pick, or return details');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('surfaces legal stored-projection start/sit swaps without changing dynasty value copy', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];

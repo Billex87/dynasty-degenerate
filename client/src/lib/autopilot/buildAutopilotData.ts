@@ -1581,7 +1581,7 @@ function getExpectedActionIdentityGap(action: RecommendationExpectedAction): str
       : 'Expected action is missing one side of the roster or lineup change.';
   }
   if (action.type === 'trade') {
-    return action.playersInvolved?.some(hasRecommendationPlayerRef) || action.expectedRosterChange || action.reason
+    return action.playersInvolved?.some(hasRecommendationPlayerRef) || action.expectedRosterChange
       ? null
       : 'Expected trade action is missing concrete player, pick, or return details.';
   }
