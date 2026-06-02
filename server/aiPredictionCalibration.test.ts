@@ -319,6 +319,12 @@ describe('AI prediction calibration', () => {
         outcome: { status: 'miss' },
       }),
       event({
+        entityId: 'missing-source-do',
+        decision: 'do',
+        sourceAgreement: buildSourceAgreementRead([]),
+        outcome: { status: 'miss' },
+      }),
+      event({
         entityId: 'blocked-do',
         decision: 'do',
         label: 'blocked',
@@ -332,8 +338,8 @@ describe('AI prediction calibration', () => {
       hitCount: 1,
     });
     expect(summary.buckets.find(bucket => bucket.key === 'decision=watch')).toMatchObject({
-      eventCount: 1,
-      missCount: 1,
+      eventCount: 2,
+      missCount: 2,
     });
     expect(summary.buckets.find(bucket => bucket.key === 'decision=blocked')).toMatchObject({
       eventCount: 1,

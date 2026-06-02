@@ -415,6 +415,16 @@ function defaultDecision(result: AIEvidenceResult): AIPredictionDecision {
   return 'dont';
 }
 
+function hasUnsafeSourceAgreementForAction(sourceAgreement?: AISourceAgreementRead | null): boolean {
+  return (
+    !sourceAgreement ||
+    sourceAgreement.state === 'missing' ||
+    sourceAgreement.state === 'unknown' ||
+    sourceAgreement.state === 'split' ||
+    sourceAgreement.state === 'conflicted'
+  );
+}
+
 function normalizePredictionDecision(
   decision: AIPredictionDecision,
   evidenceRead: AIEvidenceResult,
@@ -424,16 +434,7 @@ function normalizePredictionDecision(
   if (!evidenceRead.shouldRender || evidenceRead.hardBlockers.length || evidenceRead.label === 'blocked') return 'blocked';
   if (decision === 'do' && (evidenceRead.confidenceCapReason || evidenceRead.missingEvidence.length)) return 'watch';
   if (decision === 'do' && counterfactual && counterfactual.status !== 'beats-baseline') return 'watch';
-  if (
-    decision === 'do' &&
-    (!sourceAgreement ||
-      sourceAgreement.state === 'missing' ||
-      sourceAgreement.state === 'unknown' ||
-      sourceAgreement.state === 'split' ||
-      sourceAgreement.state === 'conflicted')
-  ) {
-    return 'watch';
-  }
+  if (decision === 'do' && hasUnsafeSourceAgreementForAction(sourceAgreement)) return 'watch';
   return decision;
 }
 
@@ -445,6 +446,7 @@ function getEffectivePredictionDecision(event: AIPredictionEvent): AIPredictionD
   ) {
     return 'watch';
   }
+  if (event.decision === 'do' && hasUnsafeSourceAgreementForAction(event.sourceAgreement)) return 'watch';
   return event.decision;
 }
 
