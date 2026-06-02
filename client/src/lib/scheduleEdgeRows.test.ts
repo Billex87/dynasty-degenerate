@@ -970,7 +970,8 @@ describe("schedule edge rows", () => {
 
     expect(staleRows[0].sourceFreshness).toMatch(/^Stale - /);
     expect(staleRows[0].sourceTone).toBe("warn");
-    expect(staleRows[0].evidenceRead.confidenceCap).toBe(58);
+    expect(staleRows[0].evidenceRead.canAct).toBe(false);
+    expect(staleRows[0].evidenceRead.confidenceCap).toBe(55);
     expect(staleRows[0].evidenceRead.confidenceCapReason).toContain(
       "source freshness"
     );

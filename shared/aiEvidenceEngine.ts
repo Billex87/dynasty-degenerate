@@ -1030,6 +1030,13 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
     return Number(trace.ageHours || 0) >= 168;
   });
   if (staleTrace) {
+    const defaultStaleSourceCap = input.staleSourceCap ?? (staleTrace.status === "error" ? 48 : 64);
+    const staleSourceCap = isDirectPlayerAction
+      ? Math.min(defaultStaleSourceCap, staleTrace.status === "error" ? 48 : 55)
+      : defaultStaleSourceCap;
+    if (isDirectPlayerAction && staleSourceCap < defaultStaleSourceCap) {
+      missingEvidence.push("Fresh source proof is stale or unhealthy for this action read.");
+    }
     softPenalties.push({
       label: `${staleTrace.label} is stale or unhealthy`,
       points: staleTrace.status === "error" ? 24 : 16,
@@ -1037,7 +1044,7 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
     const capped = applyCap(
       confidenceCap,
       confidenceCapReason,
-      input.staleSourceCap ?? (staleTrace.status === "error" ? 48 : 64),
+      staleSourceCap,
       `${staleTrace.label} source freshness`
     );
     confidenceCap = capped.cap;
