@@ -407,7 +407,8 @@ describe("user-load provider boundary", () => {
     const graphqlImportSource = extractSource("async function fetchSleeperTradeCenterTransactions", "\n\ntype SleeperHiddenTradeCenterImport");
     const hiddenImportHelperSource = extractSource("async function loadSleeperHiddenTradeCenterImport", "\n\nfunction buildSleeperHiddenLeagueSnapshotMetadata");
     const accessIndex = importSource.indexOf("assertReportAccess(ctx)");
-    const rateLimitIndex = importSource.indexOf("assertRateLimit(ctx.req as any");
+    const ipRateLimitIndex = importSource.indexOf("id: 'league.importSleeperTradeCenter.ip'");
+    const rateLimitIndex = importSource.indexOf("id: 'league.importSleeperTradeCenter',", ipRateLimitIndex);
     const leagueFetchIndex = importSource.indexOf("fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`)");
     const hiddenImportIndex = importSource.indexOf("loadSleeperHiddenTradeCenterImport({");
     const writeIndex = importSource.indexOf("upsertSleeperHiddenLeagueSnapshot({");
@@ -418,7 +419,8 @@ describe("user-load provider boundary", () => {
     const signalIndex = hiddenImportHelperSource.indexOf("buildTradeProposalSignals(hiddenTransactions");
 
     expect(accessIndex).toBeGreaterThan(0);
-    expect(rateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(ipRateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(rateLimitIndex).toBeGreaterThan(ipRateLimitIndex);
     expect(leagueFetchIndex).toBeGreaterThan(rateLimitIndex);
     expect(hiddenImportIndex).toBeGreaterThan(rateLimitIndex);
     expect(writeIndex).toBeGreaterThan(hiddenImportIndex);
