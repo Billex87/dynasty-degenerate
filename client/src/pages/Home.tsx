@@ -17,6 +17,7 @@ import { useHomeAnalysisLoading } from "@/features/home/hooks/useHomeAnalysisLoa
 import { useHomeAIVoiceMode } from "@/features/home/hooks/useHomeAIVoiceMode";
 import { useHomeAIPredictionTelemetry } from "@/features/home/hooks/useHomeAIPredictionTelemetry";
 import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeout";
+import { useHomeLeagueHistoryActions } from "@/features/home/hooks/useHomeLeagueHistoryActions";
 import { useHomeLeagueIntelRanks } from "@/features/home/hooks/useHomeLeagueIntelRanks";
 import { useHomeNavigationActions } from "@/features/home/hooks/useHomeNavigationActions";
 import { useHomePortfolio } from "@/features/home/hooks/useHomePortfolio";
@@ -85,14 +86,12 @@ import {
   type AnalysisLeaguePreview,
   type CachedSleeperUser,
   type SleeperLeagueOption,
-  type SleeperUserSession,
   buildCachedSleeperUser,
   buildLoadingManagerAnchors,
   findCachedSleeperUser,
   findKnownSleeperLeague,
   getOrderedLeagueOptions,
   readCachedSleeperUsers,
-  rememberCachedSleeperLeagueShortcut,
   rememberCachedSleeperUser,
 } from "@/features/home/lib/leagueHistory";
 import {
@@ -268,48 +267,19 @@ export default function Home() {
     setPendingAnalysisLeague,
   });
 
-  const rememberLeagueId = (value: string) => {
-    setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, value));
-  };
-
-  const getCurrentSessionUserForCache = (): SleeperUserSession | null => {
-    const cachedUser = findCachedSleeperUser(
-      cachedSleeperUsers,
-      viewerUserId,
-      sleeperUsername
-    );
-    const username = sleeperUsername.trim() || cachedUser?.username || "";
-    if (!username) return null;
-
-    return {
-      userId: viewerUserId || cachedUser?.userId || username,
-      username: cachedUser?.username || viewerUsername || username,
-      displayName: cachedUser?.displayName || viewerUsername || username,
-      avatarUrl: cachedUser?.avatarUrl || null,
-      hasAdminPermissions:
-        cachedUser?.hasAdminPermissions === true ||
-        cachedUser?.isPrivilegedReportViewer === true,
-      isPrivilegedReportViewer:
-        cachedUser?.hasAdminPermissions === true ||
-        cachedUser?.isPrivilegedReportViewer === true,
-    };
-  };
-
-  const rememberCurrentUserLeagueShortcut = (nextLeagueId: string) => {
-    if (!userLeagues.some(league => league.leagueId === nextLeagueId)) return;
-    const sessionUser = getCurrentSessionUserForCache();
-    const username = sleeperUsername.trim() || sessionUser?.username || "";
-    if (!sessionUser || !username) return;
-
-    const nextUsers = rememberCachedSleeperLeagueShortcut({
-      users: readCachedSleeperUsers(),
-      user: sessionUser,
-      username,
-      leagues: userLeagues,
-      leagueId: nextLeagueId,
-    });
-    setCachedSleeperUsers(nextUsers);
-  };
+  const {
+    rememberCurrentUserLeagueShortcut,
+    rememberLeagueId,
+  } = useHomeLeagueHistoryActions({
+    cachedSleeperUsers,
+    leagueIdHistoryKey: LEAGUE_ID_HISTORY_KEY,
+    sleeperUsername,
+    userLeagues,
+    viewerUserId,
+    viewerUsername,
+    setCachedSleeperUsers,
+    setLeagueIdHistory,
+  });
 
   const analyzeMutation = trpc.league.analyze.useMutation({
     onMutate: variables => {
