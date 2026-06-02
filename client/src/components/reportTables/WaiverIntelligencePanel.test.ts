@@ -323,6 +323,8 @@ describe("waiver recommendation evidence gate", () => {
     expect(context.recommendations[0]?.bidRangeLabel).toMatch(/priority|waivers|Free add/i);
     expect(context.recommendations[0]?.bidRangeLabel).not.toContain("FAAB");
     expect(context.recommendations[0]?.bidEvidenceLabel).toContain("Waiver priority");
+    expect(context.summary).toContain("Review this");
+    expect(context.summary).not.toContain("Do this");
   });
 
   it("blocks dynasty-only stash evidence from redraft waiver advice", () => {
