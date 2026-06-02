@@ -46,9 +46,11 @@ type PersistedFeatureEntitlementAccess = {
 
 type PersistedLeaguePassAccess = {
   leagueId?: string | null;
+  purchaserOpenId?: string | null;
   status: string;
   startsAt?: Date | string | null;
   expiresAt?: Date | string | null;
+  metadata?: unknown;
 };
 
 type FeaturePolicy = {
@@ -189,8 +191,63 @@ function hasActivePersistedLeaguePass(
     if (!isDateStarted(leaguePass.startsAt, now)) return false;
     if (!isDateInFuture(leaguePass.expiresAt, now)) return false;
     const leaguePassLeagueId = leaguePass.leagueId?.trim();
-    return !leaguePassLeagueId || leaguePassLeagueId === input.leagueId;
+    if (leaguePassLeagueId && leaguePassLeagueId !== input.leagueId) return false;
+    return isLeaguePassAudienceAllowed({
+      leaguePass,
+      userOpenId: input.user?.openId,
+    });
   });
+}
+
+function getLeaguePassAudience(metadata: unknown): "all-managers" | "invited-members" | "purchaser-only" {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return "all-managers";
+  const raw = String(
+    (metadata as Record<string, unknown>).audience ||
+    (metadata as Record<string, unknown>).leaguePassAudience ||
+    ""
+  ).trim().toLowerCase();
+
+  if (raw === "invited-members" || raw === "invited" || raw === "invite-only") return "invited-members";
+  if (raw === "purchaser-only" || raw === "owner-only") return "purchaser-only";
+  return "all-managers";
+}
+
+function getLeaguePassInvitedOpenIds(metadata: unknown): Set<string> {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return new Set();
+  const record = metadata as Record<string, unknown>;
+  const raw =
+    record.invitedOpenIds ||
+    record.allowedOpenIds ||
+    record.managerOpenIds ||
+    record.invitedUserOpenIds;
+  const values = Array.isArray(raw)
+    ? raw
+    : typeof raw === "string"
+      ? raw.split(",")
+      : [];
+
+  return new Set(
+    values
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+  );
+}
+
+function isLeaguePassAudienceAllowed(input: {
+  leaguePass: PersistedLeaguePassAccess;
+  userOpenId?: string | null;
+}): boolean {
+  const audience = getLeaguePassAudience(input.leaguePass.metadata);
+  if (audience === "all-managers") return true;
+
+  const userOpenId = input.userOpenId?.trim();
+  if (!userOpenId) return false;
+
+  const purchaserOpenId = input.leaguePass.purchaserOpenId?.trim();
+  if (purchaserOpenId && purchaserOpenId === userOpenId) return true;
+  if (audience === "purchaser-only") return false;
+
+  return getLeaguePassInvitedOpenIds(input.leaguePass.metadata).has(userOpenId);
 }
 
 export function getUserBillingPlan(

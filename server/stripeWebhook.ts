@@ -228,6 +228,7 @@ async function persistLeaguePassCheckout(input: {
     stripeEventType: input.eventType,
     checkoutSessionId,
     productKey: "league-pass-season",
+    audience: "all-managers",
   };
 
   const leaguePassPersisted = await upsertLeaguePass({

@@ -324,6 +324,7 @@ describe("feature entitlements", () => {
       leagueId: "123456789012345678",
       leaguePasses: [{
         leagueId: "123456789012345678",
+        purchaserOpenId: "email:purchaser",
         status: "active",
       }],
       paidFeaturesEnabled: true,
@@ -335,8 +336,73 @@ describe("feature entitlements", () => {
       leagueId: "123456789012345678",
       leaguePasses: [{
         leagueId: "123456789012345678",
+        purchaserOpenId: "email:purchaser",
         status: "active",
       }],
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(false);
+  });
+
+  it("scopes league-pass access to purchasers or invited members when metadata requires it", () => {
+    const leaguePass = {
+      leagueId: "123456789012345678",
+      purchaserOpenId: "email:purchaser",
+      status: "active",
+      metadata: {
+        audience: "invited-members",
+        invitedOpenIds: ["email:invited"],
+      },
+    };
+
+    expect(canUseFeature({
+      user: { ...baseUser, openId: "email:invited" },
+      feature: "exports",
+      leagueId: "123456789012345678",
+      leaguePasses: [leaguePass],
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(true);
+
+    expect(canUseFeature({
+      user: { ...baseUser, openId: "email:purchaser" },
+      feature: "exports",
+      leagueId: "123456789012345678",
+      leaguePasses: [leaguePass],
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(true);
+
+    expect(canUseFeature({
+      user: { ...baseUser, openId: "email:outsider" },
+      feature: "exports",
+      leagueId: "123456789012345678",
+      leaguePasses: [leaguePass],
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(false);
+  });
+
+  it("supports purchaser-only league passes without exposing them to every manager", () => {
+    const leaguePass = {
+      leagueId: "123456789012345678",
+      purchaserOpenId: "email:purchaser",
+      status: "active",
+      metadata: {
+        audience: "purchaser-only",
+        invitedOpenIds: ["email:invited"],
+      },
+    };
+
+    expect(canUseFeature({
+      user: { ...baseUser, openId: "email:purchaser" },
+      feature: "source-trace-details",
+      leagueId: "123456789012345678",
+      leaguePasses: [leaguePass],
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(true);
+
+    expect(canUseFeature({
+      user: { ...baseUser, openId: "email:invited" },
+      feature: "source-trace-details",
+      leagueId: "123456789012345678",
+      leaguePasses: [leaguePass],
       paidFeaturesEnabled: true,
     }).allowed).toBe(false);
   });

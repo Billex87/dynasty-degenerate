@@ -53,7 +53,7 @@ import {
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import { buildPlayerSituationDeltas } from "./playerSituationDelta";
 import { filterCompletedFuturePickPortfolios } from "../shared/pickPortfolioFilters";
-import { assertCanUseFeature } from "./featureEntitlements";
+import { assertCanUseFeature, getUserBillingPlan, loadPersistedFeatureAccess } from "./featureEntitlements";
 import { buildLeaguePlayoffWeeks, buildMatchupWindowSet, getShortTermMatchupOutlook } from "../shared/matchupWindows";
 import {
   buildNflverseDraftCapitalBySleeperId,
@@ -85,6 +85,7 @@ import {
 import { deleteUserFavoriteLeague, deleteUserSleeperAccount, findBillingCustomerForUser, findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, findMagicLinkTokenByHash, getUserByOpenId, getUserNotificationPreferences, insertLoginAttempt, insertMagicLinkToken, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listUserFavoriteLeagues, listUserRecentReports, listUserSleeperAccounts, listWaiverBidHistory, markMagicLinkTokenConsumed, parseLeagueReportCachePayloadFromStorage, recordUsageEvent, recordUserRecentReport, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertUserFavoriteLeague, upsertUserNotificationPreferences, upsertUserSleeperAccount } from "./db";
 import { consumeMagicLinkToken, createMagicLinkToken, getMagicLinkUserOpenId, hashMagicLinkToken, normalizeMagicLinkRedirectPath } from "./magicLinkTokens";
 import { buildUsageEvent } from "./usageEvents";
+import { getPlanUsageLimit, type UsageLimitedFeatureKey } from "./usageLimits";
 import { createStripeCheckoutSession, createStripeCustomerPortalSession, resolveStripeBillingAppBaseUrl, STRIPE_BILLING_PRODUCT_KEYS } from "./stripeBilling";
 import {
   assertTransactionalEmailConfiguredForProduction,
@@ -159,6 +160,30 @@ function assertAccountPersistenceResult(ok: boolean) {
       message: "Account linking requires database availability.",
     });
   }
+}
+
+async function assertAccountSavedResourceLimit(input: {
+  user: NonNullable<TrpcContext["user"]>;
+  featureKey: Extract<UsageLimitedFeatureKey, "saved-league" | "saved-report">;
+  currentCount: number;
+  isExisting: boolean;
+  label: string;
+}) {
+  if (input.isExisting) return;
+
+  const persistedAccess = await loadPersistedFeatureAccess({ user: input.user });
+  const plan = getUserBillingPlan(input.user, null, persistedAccess.subscriptions);
+  const limit = getPlanUsageLimit({
+    featureKey: input.featureKey,
+    plan,
+  });
+
+  if (limit === null || input.currentCount < limit) return;
+
+  throw new TRPCError({
+    code: "TOO_MANY_REQUESTS",
+    message: `Your ${plan} plan allows ${limit} ${input.label}.`,
+  });
 }
 
 function assertSessionJwtSecretConfigured() {
@@ -6440,6 +6465,14 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         assertAccountPersistenceConfigured();
+        const favoriteLeagues = await listUserFavoriteLeagues(ctx.user.openId);
+        await assertAccountSavedResourceLimit({
+          user: ctx.user,
+          featureKey: "saved-league",
+          currentCount: favoriteLeagues.length,
+          isExisting: favoriteLeagues.some((league) => league.leagueId === input.leagueId),
+          label: "saved league",
+        });
         const ok = await upsertUserFavoriteLeague({
           userOpenId: ctx.user.openId,
           leagueId: input.leagueId,
@@ -6473,6 +6506,14 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         assertAccountPersistenceConfigured();
+        const recentReports = await listUserRecentReports(ctx.user.openId, 200);
+        await assertAccountSavedResourceLimit({
+          user: ctx.user,
+          featureKey: "saved-report",
+          currentCount: recentReports.length,
+          isExisting: recentReports.some((report) => report.leagueId === input.leagueId),
+          label: "saved report",
+        });
         const ok = await recordUserRecentReport({
           userOpenId: ctx.user.openId,
           leagueId: input.leagueId,

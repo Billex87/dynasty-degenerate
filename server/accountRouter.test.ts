@@ -6,6 +6,10 @@ import {
   deleteUserFavoriteLeague,
   deleteUserSleeperAccount,
   getUserNotificationPreferences,
+  listActiveFeatureEntitlementsForLeague,
+  listActiveFeatureEntitlementsForUser,
+  listActiveLeaguePassesForLeague,
+  listBillingSubscriptionsForUser,
   listUserFavoriteLeagues,
   listUserRecentReports,
   listUserSleeperAccounts,
@@ -22,6 +26,10 @@ vi.mock("./db", async () => {
     deleteUserFavoriteLeague: vi.fn(),
     deleteUserSleeperAccount: vi.fn(),
     getUserNotificationPreferences: vi.fn(),
+    listActiveFeatureEntitlementsForLeague: vi.fn(),
+    listActiveFeatureEntitlementsForUser: vi.fn(),
+    listActiveLeaguePassesForLeague: vi.fn(),
+    listBillingSubscriptionsForUser: vi.fn(),
     listUserFavoriteLeagues: vi.fn(),
     listUserRecentReports: vi.fn(),
     listUserSleeperAccounts: vi.fn(),
@@ -35,6 +43,10 @@ vi.mock("./db", async () => {
 const mockedDeleteUserFavoriteLeague = vi.mocked(deleteUserFavoriteLeague);
 const mockedDeleteUserSleeperAccount = vi.mocked(deleteUserSleeperAccount);
 const mockedGetUserNotificationPreferences = vi.mocked(getUserNotificationPreferences);
+const mockedListActiveFeatureEntitlementsForLeague = vi.mocked(listActiveFeatureEntitlementsForLeague);
+const mockedListActiveFeatureEntitlementsForUser = vi.mocked(listActiveFeatureEntitlementsForUser);
+const mockedListActiveLeaguePassesForLeague = vi.mocked(listActiveLeaguePassesForLeague);
+const mockedListBillingSubscriptionsForUser = vi.mocked(listBillingSubscriptionsForUser);
 const mockedListUserFavoriteLeagues = vi.mocked(listUserFavoriteLeagues);
 const mockedListUserRecentReports = vi.mocked(listUserRecentReports);
 const mockedListUserSleeperAccounts = vi.mocked(listUserSleeperAccounts);
@@ -99,6 +111,10 @@ describe("account router", () => {
       weeklyDigest: false,
       updatedAt: null,
     });
+    mockedListActiveFeatureEntitlementsForLeague.mockResolvedValue([]);
+    mockedListActiveFeatureEntitlementsForUser.mockResolvedValue([]);
+    mockedListActiveLeaguePassesForLeague.mockResolvedValue([]);
+    mockedListBillingSubscriptionsForUser.mockResolvedValue([]);
     mockedUpsertUserSleeperAccount.mockResolvedValue(true);
     mockedDeleteUserSleeperAccount.mockResolvedValue(true);
     mockedUpsertUserFavoriteLeague.mockResolvedValue(true);
@@ -190,6 +206,69 @@ describe("account router", () => {
       userOpenId: "email:user",
       leagueId: "1312139584427012096",
       platform: "sleeper",
+    }));
+  });
+
+  it("blocks new saved leagues and reports when the free account cap is reached", async () => {
+    mockedListUserRecentReports.mockResolvedValueOnce([{
+      leagueId: "1312139584427012096",
+      leagueName: "Skids Get Beat",
+      sleeperUsername: "mynameisbillex",
+      sleeperUserId: "123456789012345678",
+      platform: "sleeper",
+      lastViewedAt: new Date("2026-06-02T12:00:00.000Z"),
+    }]);
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(caller.account.saveFavoriteLeague({
+      leagueId: "999999999999999999",
+      leagueName: "New League",
+    })).rejects.toMatchObject({
+      code: "TOO_MANY_REQUESTS",
+    });
+    await expect(caller.account.recordRecentReport({
+      leagueId: "999999999999999999",
+      leagueName: "New League",
+    })).rejects.toMatchObject({
+      code: "TOO_MANY_REQUESTS",
+    });
+
+    expect(mockedUpsertUserFavoriteLeague).not.toHaveBeenCalled();
+    expect(mockedRecordUserRecentReport).not.toHaveBeenCalled();
+  });
+
+  it("allows active pro users to save beyond the free account caps", async () => {
+    mockedListBillingSubscriptionsForUser.mockResolvedValue([{
+      plan: "pro",
+      status: "active",
+      currentPeriodEnd: new Date("2026-07-02T00:00:00.000Z"),
+    }]);
+    mockedListUserRecentReports.mockResolvedValueOnce([{
+      leagueId: "1312139584427012096",
+      leagueName: "Skids Get Beat",
+      sleeperUsername: "mynameisbillex",
+      sleeperUserId: "123456789012345678",
+      platform: "sleeper",
+      lastViewedAt: new Date("2026-06-02T12:00:00.000Z"),
+    }]);
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(caller.account.saveFavoriteLeague({
+      leagueId: "999999999999999999",
+      leagueName: "New League",
+    })).resolves.toEqual({ success: true });
+    await expect(caller.account.recordRecentReport({
+      leagueId: "999999999999999999",
+      leagueName: "New League",
+    })).resolves.toEqual({ success: true });
+
+    expect(mockedUpsertUserFavoriteLeague).toHaveBeenCalledWith(expect.objectContaining({
+      userOpenId: "email:user",
+      leagueId: "999999999999999999",
+    }));
+    expect(mockedRecordUserRecentReport).toHaveBeenCalledWith(expect.objectContaining({
+      userOpenId: "email:user",
+      leagueId: "999999999999999999",
     }));
   });
 

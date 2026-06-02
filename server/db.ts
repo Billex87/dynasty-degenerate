@@ -202,6 +202,7 @@ export type LeaguePassAccessRecord = {
   startsAt: Date | null;
   expiresAt: Date | null;
   maxManagers: number | null;
+  metadata: unknown;
 };
 
 export type FeatureEntitlementUpsertInput = {
@@ -1063,6 +1064,16 @@ function serializeMetadataForDb(metadata: unknown): string | null {
   return JSON.stringify(metadata);
 }
 
+function parseMetadataFromDb(metadata: unknown): unknown {
+  if (metadata === undefined || metadata === null || metadata === "") return null;
+  if (typeof metadata !== "string") return metadata;
+  try {
+    return JSON.parse(metadata);
+  } catch {
+    return null;
+  }
+}
+
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) {
     throw new Error("User openId is required for upsert");
@@ -1474,7 +1485,8 @@ export async function listActiveLeaguePassesForLeague(leagueId: string): Promise
       status,
       "startsAt",
       "expiresAt",
-      "maxManagers"
+      "maxManagers",
+      metadata
     FROM "leaguePasses"
     WHERE "leagueId" = ${normalizedLeagueId}
       AND status = 'active'
@@ -1490,6 +1502,7 @@ export async function listActiveLeaguePassesForLeague(leagueId: string): Promise
     startsAt: normalizeDateForDb(row.startsAt),
     expiresAt: normalizeDateForDb(row.expiresAt),
     maxManagers: row.maxManagers === null || row.maxManagers === undefined ? null : Number(row.maxManagers),
+    metadata: parseMetadataFromDb(row.metadata),
   }));
 }
 
@@ -1968,7 +1981,7 @@ export async function recordUserRecentReport(input: UserRecentReportInput): Prom
 
 export async function listUserRecentReports(userOpenId: string, limit = 20): Promise<UserRecentReportRecord[]> {
   const normalizedUserOpenId = requiredTrimmed(userOpenId, "userOpenId");
-  const boundedLimit = Math.max(1, Math.min(50, Math.floor(Number(limit) || 20)));
+  const boundedLimit = Math.max(1, Math.min(200, Math.floor(Number(limit) || 20)));
   const sql = await getDb();
   if (!sql) {
     warnWhenDatabaseUnavailable("[Database] Cannot list user recent reports: database not available");

@@ -158,6 +158,7 @@ describe("persisted usage limits", () => {
       startsAt: null,
       expiresAt: null,
       maxManagers: null,
+      metadata: null,
     }]);
     mockedCountUsageEvents.mockResolvedValueOnce(9);
 

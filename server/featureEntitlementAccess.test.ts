@@ -81,6 +81,7 @@ describe("persisted feature access", () => {
       startsAt: null,
       expiresAt: null,
       maxManagers: null,
+      metadata: null,
     }]);
 
     const result = await loadPersistedFeatureAccess({
@@ -127,6 +128,7 @@ describe("persisted feature access", () => {
       startsAt: null,
       expiresAt: null,
       maxManagers: null,
+      metadata: null,
     }]);
 
     const result = await canUsePersistedFeature({
