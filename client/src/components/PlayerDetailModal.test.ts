@@ -71,4 +71,36 @@ describe("buildPlayerAiRead", () => {
     expect(read?.evidenceRead.finalScore).toBeLessThanOrEqual(58);
     expect(read?.confidenceNote).toContain("No player source trace");
   });
+
+  it("caps player-detail reads without current role context", () => {
+    const read = buildPlayerAiRead({
+      playerName: "Role Thin Receiver",
+      position: "WR",
+      currentRank: "WR9",
+      currentValue: 7600,
+      valueMode: "redraft",
+      valueProfile: {
+        fantasyProsSeasonValue: 7600,
+        fantasyProsPositionRank: "WR9",
+        sources: ["FantasyPros", "FantasyCalc"],
+        fantasyProsSourceTrace: [{
+          source: "FantasyPros",
+          label: "FantasyPros WR weekly ECR",
+          status: "loaded",
+          positionRank: "WR9",
+          fetchedAt: new Date().toISOString(),
+        }],
+      } as PlayerDetails["valueProfile"],
+      details: {
+        team: "DAL",
+      } as PlayerDetails,
+    });
+
+    expect(read).not.toBeNull();
+    expect(read?.evidenceRead.canAct).toBe(false);
+    expect(read?.evidenceRead.finalScore).toBeLessThanOrEqual(57);
+    expect(read?.evidenceRead.confidenceCapReason).toBe("Missing current role context");
+    expect(read?.evidenceRead.missingEvidence).toContain("No cohort or situation-delta context returned.");
+    expect(read?.confidenceNote).toContain("Missing current role context");
+  });
 });

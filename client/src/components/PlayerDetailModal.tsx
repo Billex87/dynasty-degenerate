@@ -3652,8 +3652,16 @@ function buildPlayerAiEvidenceRead(input: {
         : null,
     ].filter((value): value is string => Boolean(value)),
     sourceTrace,
-    confidenceCap: sourceCount ? null : 58,
-    confidenceCapReason: sourceCount ? null : 'No player source trace',
+    confidenceCap: !sourceCount
+      ? 58
+      : !hasRoleEvidence && !input.isCollegeProspect
+        ? 57
+        : null,
+    confidenceCapReason: !sourceCount
+      ? 'No player source trace'
+      : !hasRoleEvidence && !input.isCollegeProspect
+        ? 'Missing current role context'
+        : null,
     player: {
       name: input.playerName,
       position: input.position,
