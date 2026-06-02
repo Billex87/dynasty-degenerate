@@ -7137,6 +7137,7 @@ export const appRouter = router({
         sharedBy: z.string().trim().max(128).optional().nullable(),
       }))
       .mutation(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
         assertRateLimit(ctx.req as any, {
           id: 'league.importSleeperTradeCenter',
           max: 12,

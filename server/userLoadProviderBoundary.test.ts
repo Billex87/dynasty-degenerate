@@ -122,6 +122,22 @@ describe("user-load provider boundary", () => {
     expect(leagueRanksSource).toContain("id: 'league.getUserLeagueRanks'");
   });
 
+  it("keeps hidden Sleeper trade imports behind report access and rate limits", () => {
+    const importSource = extractSource("importSleeperTradeCenter: publicProcedure", "\n    rankings: publicProcedure");
+    const accessIndex = importSource.indexOf("assertReportAccess(ctx)");
+    const rateLimitIndex = importSource.indexOf("assertRateLimit(ctx.req as any");
+    const leagueFetchIndex = importSource.indexOf("fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`)");
+    const hiddenImportIndex = importSource.indexOf("loadSleeperHiddenTradeCenterImport({");
+    const writeIndex = importSource.indexOf("upsertSleeperHiddenLeagueSnapshot({");
+
+    expect(accessIndex).toBeGreaterThan(0);
+    expect(rateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(leagueFetchIndex).toBeGreaterThan(rateLimitIndex);
+    expect(hiddenImportIndex).toBeGreaterThan(rateLimitIndex);
+    expect(writeIndex).toBeGreaterThan(hiddenImportIndex);
+    expect(importSource).toContain("id: 'league.importSleeperTradeCenter'");
+  });
+
   it("keeps player headshot provider work bounded behind cache and rate limits", () => {
     const headshotSource = extractSource("playerHeadshot: publicProcedure", "\n  }),\n});");
     const cacheIndex = headshotSource.indexOf("getCachedImage(input.playerId)");
