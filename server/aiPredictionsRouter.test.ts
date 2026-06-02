@@ -189,6 +189,26 @@ describe("aiPredictions router", () => {
     });
   });
 
+  it("rejects oversized prediction event batches before persistence", async () => {
+    delete process.env.DATABASE_URL;
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(caller.aiPredictions.upsertMany({
+      events: Array.from({ length: 50 }, (_, index) => ({
+        ...predictionEvent(),
+        eventId: `ai-large-batch-${index}`,
+        predictionKey: `waiver:pickup:13000000000000:tester:player:p${index}:2026:1`,
+        entityId: `p${index}`,
+        metadata: {
+          source: "test",
+          padding: "x".repeat(11_000),
+        },
+      })),
+    })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+  });
+
   it("rejects unbounded source-agreement payloads", async () => {
     delete process.env.DATABASE_URL;
     const caller = appRouter.createCaller(createContext());

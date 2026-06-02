@@ -652,6 +652,7 @@ const SLEEPER_HIDDEN_IMPORT_TRADE_SIGNAL_LIMIT = 80;
 const SLEEPER_HIDDEN_IMPORT_WAIVER_SIGNAL_LIMIT = 120;
 const valueTimelineWindowSchema = z.enum(['1m', '3m', '6m', '1y', 'all']);
 const MAX_AI_PREDICTION_EVENT_BYTES = 64 * 1024;
+const MAX_AI_PREDICTION_BATCH_BYTES = 512 * 1024;
 const aiSourceTraceStatusSchema = z.enum(["loaded", "stale", "missing", "error", "limited", "unavailable", "unverified"]);
 const aiSourceTraceSchema = z.object({
   label: z.string().min(1).max(240),
@@ -865,6 +866,18 @@ export function normalizeAiPredictionTelemetryEvent(event: AIPredictionEvent): A
   }
   return event;
 }
+const aiPredictionEventsBatchSchema = z.object({
+  events: z.array(aiPredictionEventSchema).min(1).max(50),
+}).superRefine((input, ctx) => {
+  const payloadSize = Buffer.byteLength(JSON.stringify(input.events), "utf8");
+  if (payloadSize > MAX_AI_PREDICTION_BATCH_BYTES) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `AI prediction event batch is too large (${payloadSize} bytes; max ${MAX_AI_PREDICTION_BATCH_BYTES}).`,
+      path: ["events"],
+    });
+  }
+});
 const LEAGUE_RANK_FANOUT_CONCURRENCY = 3;
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_BUCKET_MAX_ENTRIES = 5000;
@@ -7362,9 +7375,7 @@ export const appRouter = router({
 
   aiPredictions: router({
     upsertMany: protectedProcedure
-      .input(z.object({
-        events: z.array(aiPredictionEventSchema).min(1).max(50),
-      }))
+      .input(aiPredictionEventsBatchSchema)
       .mutation(async ({ input, ctx }) => {
         const userKey = getActionPlanUserKey(ctx.user);
         assertRateLimit(ctx.req as any, {
