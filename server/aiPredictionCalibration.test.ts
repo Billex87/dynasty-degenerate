@@ -155,6 +155,58 @@ describe('AI prediction calibration', () => {
     });
   });
 
+  it('does not persist do decisions when caller-supplied source agreement hides missing proof', () => {
+    const sourceBacked = evaluateAIEvidence({
+      surface: 'waiver',
+      action: 'pickup',
+      baseScore: 88,
+      evidence: ['DraftSharks SOS loaded', 'live roster availability confirmed', 'recent usage trend confirmed'],
+      sourceTrace: [
+        { label: 'DraftSharks SOS', status: 'loaded' },
+        { label: 'Sleeper roster ownership', status: 'loaded' },
+        { label: 'Usage trend snapshot', status: 'loaded' },
+      ],
+      player: {
+        name: 'Misreported Source Player',
+        position: 'WR',
+        team: 'BUF',
+        owner: null,
+        value: 5000,
+        sourceCount: 3,
+        hasRecentUsage: true,
+      },
+      schedule: { hasScheduleData: true },
+      requiresActiveTeam: true,
+      requiresLiveAvailability: true,
+    });
+    const aligned = buildSourceAgreementRead([
+      { source: 'Sleeper roster ownership', direction: 'for', confidence: 85, status: 'loaded' },
+    ]);
+    const created = createAIPredictionEvent({
+      evidenceRead: sourceBacked,
+      decision: 'do',
+      surface: 'waiver',
+      action: 'pickup',
+      entityType: 'player',
+      entityId: 'misreported-source-player',
+      sourceAgreement: {
+        ...aligned,
+        state: 'aligned',
+        missingCount: 1,
+        signals: [{
+          source: 'FantasyPros waiver snapshot',
+          direction: 'missing',
+          confidence: null,
+          status: 'unavailable',
+          detail: 'Provider disabled for this environment.',
+        }],
+      },
+      createdAt: '2026-05-20T00:00:00.000Z',
+    });
+
+    expect(created.decision).toBe('watch');
+  });
+
   it('does not persist do decisions when the read fails its decision-time baseline', () => {
     const evidenceRead = evaluateAIEvidence({
       surface: 'waiver',
@@ -325,6 +377,25 @@ describe('AI prediction calibration', () => {
         outcome: { status: 'miss' },
       }),
       event({
+        entityId: 'misreported-source-do',
+        decision: 'do',
+        sourceAgreement: {
+          ...buildSourceAgreementRead([
+            { source: 'Sleeper roster ownership', direction: 'for', confidence: 85, status: 'loaded' },
+          ]),
+          state: 'aligned',
+          missingCount: 1,
+          signals: [{
+            source: 'FantasyPros waiver snapshot',
+            direction: 'missing',
+            confidence: null,
+            status: 'unavailable',
+            detail: 'Provider disabled for this environment.',
+          }],
+        },
+        outcome: { status: 'miss' },
+      }),
+      event({
         entityId: 'blocked-do',
         decision: 'do',
         label: 'blocked',
@@ -338,8 +409,8 @@ describe('AI prediction calibration', () => {
       hitCount: 1,
     });
     expect(summary.buckets.find(bucket => bucket.key === 'decision=watch')).toMatchObject({
-      eventCount: 2,
-      missCount: 2,
+      eventCount: 3,
+      missCount: 3,
     });
     expect(summary.buckets.find(bucket => bucket.key === 'decision=blocked')).toMatchObject({
       eventCount: 1,

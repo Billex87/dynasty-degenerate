@@ -416,12 +416,24 @@ function defaultDecision(result: AIEvidenceResult): AIPredictionDecision {
 }
 
 function hasUnsafeSourceAgreementForAction(sourceAgreement?: AISourceAgreementRead | null): boolean {
-  return (
-    !sourceAgreement ||
+  if (!sourceAgreement) return true;
+  if (
     sourceAgreement.state === 'missing' ||
     sourceAgreement.state === 'unknown' ||
     sourceAgreement.state === 'split' ||
     sourceAgreement.state === 'conflicted'
+  ) {
+    return true;
+  }
+
+  return sourceAgreement.missingCount > 0 || sourceAgreement.signals.some(signal =>
+    signal.direction === 'missing' ||
+    signal.status === 'missing' ||
+    signal.status === 'stale' ||
+    signal.status === 'error' ||
+    signal.status === 'limited' ||
+    signal.status === 'unavailable' ||
+    signal.status === 'unverified'
   );
 }
 
