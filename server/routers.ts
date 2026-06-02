@@ -788,7 +788,7 @@ const aiPredictionEventBaseSchema = z.object({
   entityType: z.enum(["player", "team", "manager", "league", "trade", "lineup", "schedule", "unknown"]),
   entityId: z.string().max(128).nullable().optional(),
   entityName: z.string().max(240).nullable().optional(),
-  leagueId: z.string().max(64).nullable().optional(),
+  leagueId: sleeperLeagueIdSchema.nullable().optional(),
   manager: z.string().max(160).nullable().optional(),
   season: z.string().max(8).nullable().optional(),
   week: z.number().int().min(1).max(30).nullable().optional(),

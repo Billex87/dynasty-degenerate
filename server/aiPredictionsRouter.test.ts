@@ -159,6 +159,21 @@ describe("aiPredictions router", () => {
     });
   });
 
+  it("rejects invalid prediction event league IDs before persistence", async () => {
+    delete process.env.DATABASE_URL;
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(caller.aiPredictions.upsertMany({
+      events: [{
+        ...predictionEvent(),
+        eventId: "ai-invalid-league-event",
+        leagueId: "not-a-sleeper-league",
+      }],
+    })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+  });
+
   it("rejects invalid league filters before prediction history DB reads", async () => {
     delete process.env.DATABASE_URL;
     const caller = appRouter.createCaller(createContext());
@@ -181,6 +196,7 @@ describe("aiPredictions router", () => {
     expect(routeSource).toContain('id: "aiPredictions.list"');
     expect(routeSource).toContain('id: "aiPredictions.updateOutcome"');
     expect(routeSource).toContain("scope: userKey");
+    expect(source).toContain("leagueId: sleeperLeagueIdSchema.nullable().optional()");
     expect(routeSource).toContain("leagueId: sleeperLeagueIdSchema.optional().nullable()");
   });
 });
