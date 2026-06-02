@@ -45,6 +45,16 @@ function readSourceSubtrees(subtrees: string[]): string {
 }
 
 describe("AI read action copy boundaries", () => {
+  it("keeps secondary action queue rows labeled with verification or change framing", () => {
+    const source = fs.readFileSync(path.join(SOURCE_ROOT, "components/AIActionQueue.tsx"), "utf8");
+
+    expect(source).toContain("function getSecondaryQueueDetail");
+    expect(source).toContain("label: 'Where to verify'");
+    expect(source).toContain("label: 'What changes this'");
+    expect(source).toContain("{secondaryDetail.label}: {secondaryDetail.detail}");
+    expect(source).not.toContain("<em>{item.missingEvidence[0] || item.changeTriggers[0]}</em>");
+  });
+
   it("keeps exact Do this copy limited to reviewed action-owned component panels", () => {
     const matches = findExplicitComponentDoThisLabels();
 

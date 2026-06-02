@@ -48,6 +48,22 @@ function getActionQueueTronTheme(tone: AIActionQueueItem['tone']): AITronTheme {
   return 'cyan';
 }
 
+function getSecondaryQueueDetail(item: AIActionQueueItem): { label: string; detail: string } | null {
+  if (item.missingEvidence[0]) {
+    return {
+      label: 'Where to verify',
+      detail: item.missingEvidence[0],
+    };
+  }
+  if (item.changeTriggers[0]) {
+    return {
+      label: 'What changes this',
+      detail: item.changeTriggers[0],
+    };
+  }
+  return null;
+}
+
 function QueueReceipts({
   item,
   compact,
@@ -404,6 +420,7 @@ export function AIActionQueue({
         <div className="ai-action-queue-list" aria-label="Next AI actions">
           {secondary.map((item) => {
             const RowIcon = getDecisionIcon(item.decision);
+            const secondaryDetail = getSecondaryQueueDetail(item);
             return (
               <article key={item.id} className={cn('ai-action-queue-row', `autopilot-tone-${item.tone}`)}>
                 <span className="ai-action-queue-rank">#{item.rank}</span>
@@ -414,8 +431,8 @@ export function AIActionQueue({
                   </span>
                   <strong>{item.action}: {item.target}</strong>
                   <p>{item.why}</p>
-                  {(item.missingEvidence[0] || item.changeTriggers[0]) && (
-                    <em>{item.missingEvidence[0] || item.changeTriggers[0]}</em>
+                  {secondaryDetail && (
+                    <em>{secondaryDetail.label}: {secondaryDetail.detail}</em>
                   )}
                 </div>
                 <span className="ai-action-queue-row-score">
