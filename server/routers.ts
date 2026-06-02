@@ -6588,6 +6588,16 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         assertAccountPersistenceConfigured();
+        if (input.anomalyAlerts) {
+          const persistedAccess = await loadPersistedFeatureAccess({
+            user: ctx.user,
+          });
+          assertCanUseFeature({
+            user: ctx.user,
+            feature: "anomaly-alerts",
+            ...persistedAccess,
+          });
+        }
         const ok = await upsertUserNotificationPreferences({
           userOpenId: ctx.user.openId,
           ...input,

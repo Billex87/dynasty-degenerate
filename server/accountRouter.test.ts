@@ -82,10 +82,12 @@ function createContext(currentUser: User | null = user): TrpcContext {
 describe("account router", () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
   const originalNodeEnv = process.env.NODE_ENV;
+  const originalPaidFeatures = process.env.ENABLE_PAID_FEATURES;
 
   beforeEach(() => {
     process.env.NODE_ENV = "test";
     delete process.env.DATABASE_URL;
+    delete process.env.ENABLE_PAID_FEATURES;
     vi.clearAllMocks();
     mockedListUserSleeperAccounts.mockResolvedValue([{
       sleeperUserId: "123456789012345678",
@@ -128,6 +130,8 @@ describe("account router", () => {
     else process.env.DATABASE_URL = originalDatabaseUrl;
     if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = originalNodeEnv;
+    if (originalPaidFeatures === undefined) delete process.env.ENABLE_PAID_FEATURES;
+    else process.env.ENABLE_PAID_FEATURES = originalPaidFeatures;
   });
 
   it("requires auth for account links", async () => {
@@ -279,7 +283,7 @@ describe("account router", () => {
       billingEmails: true,
       productEmails: false,
       reportAlerts: true,
-      anomalyAlerts: true,
+      anomalyAlerts: false,
       weeklyDigest: false,
     });
 
@@ -288,8 +292,47 @@ describe("account router", () => {
       billingEmails: true,
       productEmails: false,
       reportAlerts: true,
+      anomalyAlerts: false,
+      weeklyDigest: false,
+    }));
+  });
+
+  it("blocks anomaly alerts without paid feature access", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(caller.account.updateNotificationPreferences({
+      billingEmails: true,
+      productEmails: false,
+      reportAlerts: true,
       anomalyAlerts: true,
       weeklyDigest: false,
+    })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+
+    expect(mockedUpsertUserNotificationPreferences).not.toHaveBeenCalled();
+  });
+
+  it("allows elite users to enable anomaly alerts when paid features are launched", async () => {
+    process.env.ENABLE_PAID_FEATURES = "true";
+    mockedListBillingSubscriptionsForUser.mockResolvedValue([{
+      plan: "elite",
+      status: "active",
+      currentPeriodEnd: new Date("2026-07-02T00:00:00.000Z"),
+    }]);
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(caller.account.updateNotificationPreferences({
+      billingEmails: true,
+      productEmails: false,
+      reportAlerts: true,
+      anomalyAlerts: true,
+      weeklyDigest: false,
+    })).resolves.toEqual({ success: true });
+
+    expect(mockedUpsertUserNotificationPreferences).toHaveBeenCalledWith(expect.objectContaining({
+      userOpenId: "email:user",
+      anomalyAlerts: true,
     }));
   });
 
