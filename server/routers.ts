@@ -8790,6 +8790,12 @@ export const appRouter = router({
       .query(async ({ input, ctx }) => {
         assertReportAccess(ctx);
         assertRateLimit(ctx.req as any, {
+          id: 'players.seasonGameLog.ip',
+          max: 100,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many season log requests. Please wait a few minutes and try again.',
+        });
+        assertRateLimit(ctx.req as any, {
           id: 'players.seasonGameLog',
           max: 30,
           windowMs: 1000 * 60 * 10,

@@ -380,7 +380,8 @@ describe("user-load provider boundary", () => {
   it("keeps player season-game-log live work behind report access and rate limits", () => {
     const seasonLogSource = extractSource("seasonGameLog: publicProcedure", "\n  }),\n\n  images: router");
     const accessIndex = seasonLogSource.indexOf("assertReportAccess(ctx)");
-    const rateLimitIndex = seasonLogSource.indexOf("assertRateLimit(ctx.req as any");
+    const ipRateLimitIndex = seasonLogSource.indexOf("id: 'players.seasonGameLog.ip'");
+    const rateLimitIndex = seasonLogSource.indexOf("id: 'players.seasonGameLog',", ipRateLimitIndex);
     const leagueFetchIndex = seasonLogSource.indexOf("fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`)");
     const logBuildIndex = seasonLogSource.indexOf("buildSleeperSeasonGameLog(");
 
@@ -388,9 +389,11 @@ describe("user-load provider boundary", () => {
     expect(seasonLogSource).toContain("playerId: z.string().trim().min(1).max(64)");
     expect(seasonLogSource).toContain("season: z.string().trim().regex(/^\\d{4}$/)");
     expect(accessIndex).toBeGreaterThan(0);
-    expect(rateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(ipRateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(rateLimitIndex).toBeGreaterThan(ipRateLimitIndex);
     expect(leagueFetchIndex).toBeGreaterThan(rateLimitIndex);
     expect(logBuildIndex).toBeGreaterThan(leagueFetchIndex);
+    expect(seasonLogSource).toContain("id: 'players.seasonGameLog.ip'");
     expect(seasonLogSource).toContain("id: 'players.seasonGameLog'");
   });
 
