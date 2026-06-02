@@ -19,6 +19,10 @@ export function getLeagueReportFileCacheMaxFiles(env: NodeJS.ProcessEnv = proces
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_FILE_CACHE_MAX_FILES;
 }
 
+export function shouldUseLeagueReportFileCache(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.VERCEL !== '1';
+}
+
 export function isLeagueReportCacheExpired(updatedAtMs: number, nowMs = Date.now(), ttlMs = getLeagueReportCacheTtlMs()): boolean {
   return nowMs - updatedAtMs > ttlMs;
 }

@@ -5,6 +5,7 @@ import {
   getLeagueReportFileCacheMaxFiles,
   isLeagueReportCacheExpired,
   shouldPruneLeagueReportFileCacheEntry,
+  shouldUseLeagueReportFileCache,
 } from './leagueReportCachePolicy';
 
 describe('league report cache policy', () => {
@@ -17,6 +18,12 @@ describe('league report cache policy', () => {
   it('allows explicit TTL and file-retention tuning', () => {
     expect(getLeagueReportCacheTtlHours({ LEAGUE_REPORT_CACHE_TTL_HOURS: '6' } as NodeJS.ProcessEnv)).toBe(6);
     expect(getLeagueReportFileCacheMaxFiles({ LEAGUE_REPORT_FILE_CACHE_MAX_FILES: '12' } as NodeJS.ProcessEnv)).toBe(12);
+  });
+
+  it('skips local file-cache reads and writes on Vercel serverless runtimes', () => {
+    expect(shouldUseLeagueReportFileCache({} as NodeJS.ProcessEnv)).toBe(true);
+    expect(shouldUseLeagueReportFileCache({ VERCEL: '0' } as NodeJS.ProcessEnv)).toBe(true);
+    expect(shouldUseLeagueReportFileCache({ VERCEL: '1' } as NodeJS.ProcessEnv)).toBe(false);
   });
 
   it('treats stale or overflow file-cache entries as prunable', () => {

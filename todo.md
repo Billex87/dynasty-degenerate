@@ -39,6 +39,7 @@
   - Source-health alerting is implemented server-side (`SOURCE_HEALTH_ALERT_WEBHOOK_URL`, min-level filter); production URL still needs to be configured.
   - 2026-05-28 follow-up: add a dedicated env-hardening execution note in [docs/operations-env-hardening-pass-2026-05-28.md](docs/operations-env-hardening-pass-2026-05-28.md) and close this after production secret verification.
   - 2026-06-01 local hardening: Vercel/serverless runs no longer attempt local diagnostic writes under `/var/task`; durable DB storage and webhook behavior are preserved.
+  - 2026-06-01 file-cache hardening: post-deploy logs found the same serverless write issue in the league-report local file cache; Vercel now skips local league-report file-cache reads/writes/pruning while preserving memory cache and durable DB cache.
   - 2026-06-01 auth guard: `server/auth.logout.test.ts` now covers production fail-closed admin login behavior for missing `JWT_SECRET` and missing `ADMIN_LOGIN_PASSWORD`, in addition to invalid passphrase rejection and secure session-cookie options.
   - Continue to verify no API keys appear in logs/output and capture a documented rollback plan from the deploy/playbook side.
 - [ ] Before charging users or marketing the product publicly, complete legal/product readiness: Terms, Privacy Policy, Refund/Cancellation Policy, data-source disclosures, paid-feature entitlement checks, usage limits, Stripe webhook verification, and support/contact path.

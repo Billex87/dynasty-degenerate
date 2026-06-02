@@ -30,7 +30,7 @@ import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStat
 import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadResponse, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
 import { slimCachedLeagueReportPayload } from "./reportPayloadSlimming";
 import { buildRankingDraftBuzzDetail, buildRankingProfileDetail, buildRankingsMetadata } from "./rankingPayloadViews";
-import { getLeagueReportCacheTtlHours, getLeagueReportCacheTtlMs, getLeagueReportFileCacheMaxFiles, isLeagueReportCacheExpired, shouldPruneLeagueReportFileCacheEntry } from "./leagueReportCachePolicy";
+import { getLeagueReportCacheTtlHours, getLeagueReportCacheTtlMs, getLeagueReportFileCacheMaxFiles, isLeagueReportCacheExpired, shouldPruneLeagueReportFileCacheEntry, shouldUseLeagueReportFileCache } from "./leagueReportCachePolicy";
 import { shouldBypassLeagueReportCache } from "./leagueReportCacheDecision";
 import { loadReportStaticInputs } from "./reportStaticInputs";
 import { loadReportSourceDiagnosticsSection, loadReportStaticSections } from "./reportStaticSections";
@@ -1277,6 +1277,8 @@ async function getLeagueReportFileCacheMetadata(cacheKey: string): Promise<{
   updatedAt: Date;
   payloadSizeBytes: number;
 } | null> {
+  if (!shouldUseLeagueReportFileCache()) return null;
+
   try {
     const filePath = getLeagueReportFileCachePath(cacheKey);
     const stats = await fs.stat(filePath);
@@ -1298,6 +1300,8 @@ async function getLeagueReportFileCacheMetadata(cacheKey: string): Promise<{
 }
 
 async function pruneLeagueReportFileCache(): Promise<void> {
+  if (!shouldUseLeagueReportFileCache()) return;
+
   try {
     const entries = await fs.readdir(LEAGUE_REPORT_FILE_CACHE_DIR);
     const files = (await Promise.all(
@@ -1394,6 +1398,8 @@ async function writeCachedLeagueReport(
 }
 
 async function readFileCachedLeagueReport(cacheKey: string): Promise<unknown | null> {
+  if (!shouldUseLeagueReportFileCache()) return null;
+
   try {
     const filePath = getLeagueReportFileCachePath(cacheKey);
     const stats = await fs.stat(filePath);
@@ -1652,6 +1658,8 @@ function buildServerReportDelta(previous: ReportData | null, current: ReportData
 }
 
 async function writeFileCachedLeagueReport(cacheKey: string, payload: unknown): Promise<void> {
+  if (!shouldUseLeagueReportFileCache()) return;
+
   try {
     await fs.mkdir(LEAGUE_REPORT_FILE_CACHE_DIR, { recursive: true });
     await fs.writeFile(getLeagueReportFileCachePath(cacheKey), serializeLeagueReportCachePayloadForStorage(payload));

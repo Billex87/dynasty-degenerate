@@ -77,6 +77,8 @@ Traffic-session result:
 - Follow-up refresh found a production cron error log from `/api/cron/ktc-snapshot` on the previous production deployment. The cron returned `200` and stored the durable snapshot rows, but local diagnostic side writes tried to create files under `/var/task/server/ktc-snapshots` and `/var/task/.cache/api-provider-telemetry`, which is not a safe serverless write location.
 - Local fix added after this finding: Vercel/serverless runs now skip local KTC snapshot files, API-provider telemetry JSONL files, and source-health JSONL files while preserving in-memory telemetry, database persistence, and source-health webhook behavior.
 - Local verification for the fix: `pnpm exec vitest run server/localDiagnostics.test.ts` passed; current full `pnpm test` passed (`122` files, `608` passed, `1` skipped); `pnpm run check` passed; `pnpm build` passed.
+- Post-deploy refresh for commit `dbeeea9` showed no new local API-provider telemetry write errors on that deployment, but did expose the same serverless write pattern in the league-report file-cache fallback: `writeFileCachedLeagueReport` tried to create `/var/task/.cache` while the durable database cache response still returned `200`.
+- Second local fix added after that finding: Vercel/serverless runs now skip league-report local file-cache metadata/read/write/prune paths while preserving memory cache and durable database cache. Focused verification passed with `pnpm exec vitest run server/leagueReportCachePolicy.test.ts server/localDiagnostics.test.ts` and `pnpm run check`.
 
 ## Usage And Metrics Availability
 - `vercel metrics schema vercel.function --format json` confirmed the required metric IDs exist, including:
@@ -95,7 +97,7 @@ Traffic-session result:
 ## Decision
 - This pass proves production deployment health, production report traffic health, cron configuration visibility, and absence of recent visible runtime errors through the available CLI/log surfaces.
 - This pass does not fully close the Vercel usage gate because Fluid Active CPU, function invocation totals, transfer, provisioned memory, and route-level CPU attribution are not accessible through the current CLI/API plan.
-- The follow-up local-write fix reduces production log noise from cron diagnostic side effects, but it must be deployed before a post-deploy log check can confirm the `/var/task` errors are gone.
+- The follow-up local-write fixes reduce production log noise from cron diagnostic and league-report file-cache side effects, but the second file-cache guard must be deployed before a post-deploy log check can confirm the `/var/task/.cache` errors are gone.
 - Do not mark the Vercel usage checklist item complete until one of these happens:
   - a Vercel dashboard/manual pass records Fluid Active CPU, memory, invocations, transfer, and route hotspots; or
   - Observability Plus/API metric access is enabled and the CLI metric commands above return usable data.
@@ -103,7 +105,7 @@ Traffic-session result:
 ## Follow-up
 - Manually check Vercel dashboard Usage and Functions after the latest traffic/deploy window.
 - Confirm whether the cron schedule warning is a CLI diff artifact or a real deployment mismatch.
-- Deploy the Vercel local-diagnostics write guard, then re-run production error/cron log checks after the next cron window.
+- Deploy the Vercel local-diagnostics and league-report file-cache write guards, then re-run production error/cron log checks after report traffic and the next cron window.
 - If metrics become available, capture top routes for:
   - `/api/trpc/league.analyze`
   - `/api/trpc/league.rankings`
