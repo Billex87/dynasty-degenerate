@@ -86,7 +86,7 @@ export function ReportDashboardHeader({
                 Overview
               </span>
               <span className="report-tab-label-short" aria-hidden="true">
-                View
+                Home
               </span>
             </TabsTrigger>
 
