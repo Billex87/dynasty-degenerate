@@ -1204,7 +1204,7 @@ function capRecommendationCards(
       confidence: cappedConfidence,
       risk: wasCapped && cappedConfidence < 58 ? 'High' : card.risk,
       signals: wasCapped
-        ? dedupeStrings([...card.signals, 'Confidence capped by league evidence'], 5)
+        ? dedupeStrings([...card.signals, 'Confidence limited by league evidence'], 5)
         : card.signals,
     };
     return applyReportCalibrationToRecommendation(data, manager, source, cappedCard);
@@ -1236,7 +1236,7 @@ function capPlayerProjections(data: ReportData, manager: string, projections: Pl
       ...projection,
       confidence: cappedConfidence,
       signals: wasCapped
-        ? dedupeStrings([...projection.signals, 'Confidence capped by league evidence'], 5)
+        ? dedupeStrings([...projection.signals, 'Confidence limited by league evidence'], 5)
         : projection.signals,
     };
   });
@@ -1636,7 +1636,7 @@ function formatQueueSourceTrace(recommendation: AutopilotRecommendation): string
 
   return dedupeStrings([
     ...recommendation.signals,
-    recommendation.confidence >= 70 ? 'Recommendation confidence is usable.' : 'Recommendation confidence is capped or directional.',
+    recommendation.confidence >= 70 ? 'Recommendation confidence is usable.' : 'Recommendation confidence is limited or directional.',
   ], 4);
 }
 
@@ -1956,7 +1956,7 @@ function buildQueueChangeTriggers(
     : null;
   const decisionTrigger =
     decision === 'do'
-      ? 'A hard blocker or confidence cap below the action threshold would remove this as the top move.'
+      ? 'A hard blocker or confidence limit below the action threshold would remove this as the top move.'
       : decision === 'blocked'
         ? 'Clear the blocker and reload live data before this can become actionable.'
         : decision === 'hold'
@@ -1966,7 +1966,7 @@ function buildQueueChangeTriggers(
   return dedupeStrings([
     preconditionGap ? `Verify preconditions: ${preconditionGap}` : null,
     evidence?.hardBlockers?.[0] ? `Review blocker: ${evidence.hardBlockers[0]}` : null,
-    evidence?.confidenceCapReason ? `Review confidence cap: ${evidence.confidenceCapReason}.` : null,
+    evidence?.confidenceCapReason ? `Review confidence limit: ${evidence.confidenceCapReason}.` : null,
     evidence?.missingEvidence?.[0] ? `Verify evidence gap: ${evidence.missingEvidence[0]}` : null,
     unhealthyTrace ? `Check source freshness: ${unhealthyTrace.label}.` : null,
     sharpness?.confidence === 'thin' ? 'Add more league behavior before letting sharpness change the recommendation.' : null,
@@ -2489,7 +2489,7 @@ function buildAIReportCardRead({
     },
     {
       label: 'Guardrail pressure',
-      status: blockedOrWatch ? `${blockedOrWatch} capped reads` : 'No caps',
+      status: blockedOrWatch ? `${blockedOrWatch} limited reads` : 'No limits',
       detail: blockedOrWatch
         ? 'Watch/blocked reads stay below the action threshold.'
         : 'No lower-confidence read is competing with the verdict.',
@@ -2894,7 +2894,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         : {
             type: 'hold',
             playersInvolved: [toRecommendationPlayerRef(player)].filter(Boolean) as RecommendationPlayerRef[],
-            expectedRosterChange: `Do not add ${player.name} unless the capped waiver read clears the action threshold after fresh data.`,
+            expectedRosterChange: `Do not add ${player.name} unless the limited waiver read clears the action threshold after fresh data.`,
             source: 'autopilot',
             reason: rosterMoveGuard || evidenceRead.whyThisFired,
           },
