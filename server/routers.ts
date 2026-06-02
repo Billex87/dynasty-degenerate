@@ -6989,7 +6989,7 @@ export const appRouter = router({
   actionPlans: router({
     list: protectedProcedure
       .input(z.object({
-        leagueId: z.string().max(64).optional(),
+        leagueId: sleeperLeagueIdSchema.optional(),
         limit: z.number().int().min(1).max(100).optional(),
       }).optional())
       .query(async ({ input, ctx }) => {
@@ -7011,7 +7011,7 @@ export const appRouter = router({
       }),
     listWaiverBidHistory: protectedProcedure
       .input(z.object({
-        leagueId: z.string().max(64).optional(),
+        leagueId: sleeperLeagueIdSchema.optional(),
         limit: z.number().int().min(1).max(150).optional(),
       }).optional())
       .query(async ({ input, ctx }) => {

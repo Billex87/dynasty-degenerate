@@ -70,6 +70,22 @@ describe("actionPlans router", () => {
     expect(result.bidHistory).toEqual([]);
   });
 
+  it("rejects invalid league IDs before legacy action-plan DB reads", async () => {
+    delete process.env.DATABASE_URL;
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(caller.actionPlans.list({
+      leagueId: "not-a-sleeper-league",
+    })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    await expect(caller.actionPlans.listWaiverBidHistory({
+      leagueId: "not-a-sleeper-league",
+    })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+  });
+
   it("keeps action-plan DB reads behind route-level rate limits", () => {
     const start = routersSource.indexOf("actionPlans: router({");
     const end = routersSource.indexOf("\n\n  aiPredictions: router({", start);
@@ -87,5 +103,6 @@ describe("actionPlans router", () => {
     expect(bidHistoryReadIndex).toBeGreaterThan(bidHistoryRateLimitIndex);
     expect(routeSource).toContain("assertRateLimit(ctx.req as any");
     expect(routeSource).toContain("scope: userKey");
+    expect(routeSource).toContain("leagueId: sleeperLeagueIdSchema.optional()");
   });
 });
