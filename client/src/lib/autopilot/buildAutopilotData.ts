@@ -2578,7 +2578,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       player: player.name,
       secondaryPlayerId: dropCandidate?.player_id || null,
       secondary: [getFaabSuggestion(confidence, mode), dropCandidate ? `drop ${dropCandidate.name}` : null].filter(Boolean).join(' | '),
-      action: clearsWaiverActionThreshold ? (index === 0 ? 'Priority add' : 'Add if available') : 'Monitor only',
+      action: clearsWaiverActionThreshold ? 'Queue-backed pickup' : 'Monitor only',
       confidence,
       risk: confidence >= 78 ? 'Low' : 'Medium',
       upside: mode === 'dynasty' && age && age <= 24 ? 'High' : confidence >= 80 ? 'High' : 'Medium',
