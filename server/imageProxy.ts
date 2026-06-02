@@ -10,11 +10,57 @@ const IMAGE_CACHE = new Map<string, { data: Buffer; contentType: string; timesta
 const IMAGE_MISS_CACHE = new Map<string, { status?: number; timestamp: number }>();
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MISS_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const IMAGE_CACHE_MAX_ITEMS = 300;
+const IMAGE_MISS_CACHE_MAX_ITEMS = 1000;
 
 // Sleeper player image URL pattern
 // Format: https://sleepercdn.com/content/nfl/players/{player_id}.jpg
 function getSleeperImageUrl(playerId: string): string {
   return `https://sleepercdn.com/content/nfl/players/${playerId}.jpg`;
+}
+
+function pruneTimedCache<T extends { timestamp: number }>(
+  cache: Map<string, T>,
+  ttlMs: number,
+  maxItems: number,
+  now = Date.now()
+): void {
+  for (const [cacheKey, cached] of Array.from(cache.entries())) {
+    if (now - cached.timestamp > ttlMs) {
+      cache.delete(cacheKey);
+    }
+  }
+
+  while (cache.size >= maxItems) {
+    const oldestCacheKey = Array.from(cache.entries())
+      .sort((a, b) => a[1].timestamp - b[1].timestamp)[0]?.[0];
+    if (!oldestCacheKey) break;
+    cache.delete(oldestCacheKey);
+  }
+}
+
+function pruneImageCache(now = Date.now()): void {
+  pruneTimedCache(IMAGE_CACHE, CACHE_TTL, IMAGE_CACHE_MAX_ITEMS, now);
+}
+
+function pruneImageMissCache(now = Date.now()): void {
+  pruneTimedCache(IMAGE_MISS_CACHE, MISS_CACHE_TTL, IMAGE_MISS_CACHE_MAX_ITEMS, now);
+}
+
+function pruneImageCaches(now = Date.now()): void {
+  pruneImageCache(now);
+  pruneImageMissCache(now);
+}
+
+function setImageMiss(cacheKey: string, value: { status?: number; timestamp?: number }): void {
+  pruneImageMissCache();
+  IMAGE_MISS_CACHE.set(cacheKey, { ...value, timestamp: value.timestamp ?? Date.now() });
+}
+
+function setCachedImage(cacheKey: string, value: { data: Buffer; contentType: string; timestamp?: number }): void {
+  pruneImageCache();
+  IMAGE_CACHE.set(cacheKey, { ...value, timestamp: value.timestamp ?? Date.now() });
+  IMAGE_MISS_CACHE.delete(cacheKey);
 }
 
 /**
@@ -32,6 +78,8 @@ export async function fetchPlayerHeadshot(playerId: string): Promise<Buffer | nu
   const cachedMiss = IMAGE_MISS_CACHE.get(cacheKey);
   if (cachedMiss && Date.now() - cachedMiss.timestamp < MISS_CACHE_TTL) {
     return null;
+  } else if (cachedMiss) {
+    IMAGE_MISS_CACHE.delete(cacheKey);
   }
 
   try {
@@ -58,7 +106,7 @@ export async function fetchPlayerHeadshot(playerId: string): Promise<Buffer | nu
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      IMAGE_MISS_CACHE.set(cacheKey, { status: response.status, timestamp: Date.now() });
+      setImageMiss(cacheKey, { status: response.status });
       if (response.status !== 403 && response.status !== 404) {
         console.warn(`Failed to fetch image for player ${playerId}: ${response.status}`);
       }
@@ -70,16 +118,14 @@ export async function fetchPlayerHeadshot(playerId: string): Promise<Buffer | nu
 
     // Cache the image
     const contentType = response.headers.get('content-type') || 'image/jpeg';
-    IMAGE_CACHE.set(cacheKey, {
+    setCachedImage(cacheKey, {
       data: buffer,
       contentType,
-      timestamp: Date.now(),
     });
-    IMAGE_MISS_CACHE.delete(cacheKey);
 
     return buffer;
   } catch (error) {
-    IMAGE_MISS_CACHE.set(cacheKey, { timestamp: Date.now() });
+    setImageMiss(cacheKey, {});
     if (!(error instanceof Error && error.name === 'AbortError')) {
       console.warn(`Error fetching headshot for player ${playerId}:`, error);
     }
@@ -98,6 +144,8 @@ export function getCachedImage(playerId: string): { data: Buffer; contentType: s
     return { data: cached.data, contentType: cached.contentType };
   }
 
+  if (cached) IMAGE_CACHE.delete(cacheKey);
+
   return null;
 }
 
@@ -113,6 +161,7 @@ export function clearImageCache(): void {
  * Get cache statistics
  */
 export function getImageCacheStats(): { size: number; items: number; misses: number } {
+  pruneImageCaches();
   return {
     size: Array.from(IMAGE_CACHE.values()).reduce((sum, item) => sum + item.data.length, 0),
     items: IMAGE_CACHE.size,

@@ -12,13 +12,19 @@ const reportStaticSectionsPath = path.resolve(__dirname, "reportStaticSections.t
 const reportStaticSectionsSource = fs.readFileSync(reportStaticSectionsPath, "utf8");
 const reportPlayerEnrichmentPath = path.resolve(__dirname, "reportPlayerEnrichment.ts");
 const reportPlayerEnrichmentSource = fs.readFileSync(reportPlayerEnrichmentPath, "utf8");
+const imageProxyPath = path.resolve(__dirname, "imageProxy.ts");
+const imageProxySource = fs.readFileSync(imageProxyPath, "utf8");
 
-function extractSource(startMarker: string, endMarker: string): string {
-  const start = routersSource.indexOf(startMarker);
-  const end = routersSource.indexOf(endMarker, start);
+function extractSourceFrom(source: string, startMarker: string, endMarker: string): string {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start);
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
-  return routersSource.slice(start, end);
+  return source.slice(start, end);
+}
+
+function extractSource(startMarker: string, endMarker: string): string {
+  return extractSourceFrom(routersSource, startMarker, endMarker);
 }
 
 describe("user-load provider boundary", () => {
@@ -244,6 +250,8 @@ describe("user-load provider boundary", () => {
 
   it("keeps player headshot provider work bounded behind cache and rate limits", () => {
     const headshotSource = extractSource("playerHeadshot: publicProcedure", "\n  }),\n});");
+    const imageCacheWriteSource = extractSourceFrom(imageProxySource, "function setCachedImage", "\n\n/**\n * Fetch a player headshot");
+    const missCacheWriteSource = extractSourceFrom(imageProxySource, "function setImageMiss", "\n\nfunction setCachedImage");
     const cacheIndex = headshotSource.indexOf("getCachedImage(input.playerId)");
     const rateLimitIndex = headshotSource.indexOf("assertRateLimit(ctx.req as any");
     const fetchIndex = headshotSource.indexOf("fetchPlayerHeadshot(input.playerId)");
@@ -257,6 +265,13 @@ describe("user-load provider boundary", () => {
     expect(fetchIndex).toBeGreaterThan(rateLimitIndex);
     expect(prospectIndex).toBeGreaterThan(rateLimitIndex);
     expect(headshotSource).toContain("id: 'images.playerHeadshot'");
+    expect(imageProxySource).toContain("const IMAGE_CACHE_MAX_ITEMS = 300");
+    expect(imageProxySource).toContain("const IMAGE_MISS_CACHE_MAX_ITEMS = 1000");
+    expect(imageCacheWriteSource).toContain("pruneImageCache()");
+    expect(imageCacheWriteSource).toContain("IMAGE_CACHE.set(cacheKey");
+    expect(missCacheWriteSource).toContain("pruneImageMissCache()");
+    expect(missCacheWriteSource).toContain("IMAGE_MISS_CACHE.set(cacheKey");
+    expect(imageProxySource).toContain("while (cache.size >= maxItems)");
   });
 
   it("routes user-load live fetches through the guarded wrapper", () => {
