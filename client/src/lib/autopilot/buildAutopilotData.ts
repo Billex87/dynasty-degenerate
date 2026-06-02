@@ -1491,7 +1491,7 @@ function buildWeeklyActionPlan(
     starterToReview,
     options: trimmedOptions,
     summary: starterToReview && topOption
-      ? `${starterToReview.player} is the lineup spot to pressure-test. ${topOption.player} is the preferred start-over option at ${topOption.confidence}% confidence.`
+      ? `${starterToReview.player} is the lineup spot to pressure-test. ${topOption.player} is the preferred review option at ${topOption.confidence}% confidence.`
       : fallback?.summary || 'The weekly action plan will get sharper once matchup and usage data are available.',
   };
 }
@@ -1875,7 +1875,7 @@ function buildNoForcedMoveQueueItem({
   const bestCandidate = candidates[0] || null;
   const missingEvidence = dedupeStrings([
     bestCandidate?.missingEvidence?.[0],
-    !weeklyPlan?.options?.length ? 'No start-over option cleared the action threshold.' : null,
+    !weeklyPlan?.options?.length ? 'No lineup review option cleared the action threshold.' : null,
     'More live schedule, usage, injury, and transaction evidence would tighten the call.',
   ], 3);
 

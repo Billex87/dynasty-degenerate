@@ -129,7 +129,7 @@ export const AUTOPILOT_MOCK_DATA: Record<AutopilotMode, AutopilotData> = {
       {
         id: 'mock-reject-henry-lowball',
         source: 'trade',
-        action: 'Do not force trade away',
+        action: 'Do not force the sell window',
         target: 'Derrick Henry',
         reason: 'Do not sell the name value for a return without young liquidity or picks.',
         alternative: 'Shop the market, but keep him if the offer is just aging production back.',

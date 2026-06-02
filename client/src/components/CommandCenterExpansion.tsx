@@ -2304,7 +2304,7 @@ export function TradeFinderGenerator({
           </select>
         </label>
         <label>
-          <span>Trade away</span>
+          <span>Offer asset</span>
           <select value={selectedAway?.player_id || ''} onChange={(event) => setAwayPlayerId(event.target.value)}>
             {sourcePlayers.map((player) => <option key={player.player_id || player.name} value={player.player_id}>{player.name} ({player.pos})</option>)}
           </select>
