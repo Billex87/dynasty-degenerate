@@ -29,11 +29,58 @@ describe("AdminAIReadoutSections diagnostics", () => {
         .every(row => row.role !== "action-owner")
     ).toBe(true);
     expect(registry.actionOwners).toBe(1);
+    expect(registry.mergeRows).toBe(0);
+    expect(diagnostics.duplicateRisk).toBe(0);
     expect(decisionSummary.actionRows).toBe(1);
+    expect(decisionSummary.mergeRows).toBe(0);
     expect(
       decisionRows.filter(row => row.decision === "Owns Action").map(row => row.id)
     ).toEqual(["readout-autopilot-actions"]);
     expect(decisionRows.some(row => row.id === "action-queue-alternates-held")).toBe(true);
+    expect(decisionRows.some(row => row.blockers.includes("Duplicate claim"))).toBe(false);
+  });
+
+  it("routes duplicate-risk readouts to merge instead of action ownership", () => {
+    const reportData = createCachedCommandCenterReport().reportData;
+    const diagnostics = buildAIReadoutDiagnostics(reportData);
+    const duplicateDiagnostics = {
+      ...diagnostics,
+      duplicateRisk: 1,
+      rows: diagnostics.rows.map(row =>
+        row.id === "overview-trades"
+          ? {
+              ...row,
+              duplicateRisk: true,
+              note: "Trade Finder is repeating the owning Action Queue call.",
+            }
+          : row
+      ),
+    };
+
+    const registry = buildAISurfaceRegistry(duplicateDiagnostics);
+    const decisionRows = buildAIDecisionLogRows(reportData, duplicateDiagnostics);
+    const decisionSummary = buildAIDecisionLogSummary(decisionRows);
+    const tradeRegistryRow = registry.rows.find(row => row.id === "overview-trades");
+    const tradeDecisionRow = decisionRows.find(row => row.id === "readout-overview-trades");
+
+    expect(tradeRegistryRow).toMatchObject({
+      role: "merge",
+      roleLabel: "Merge",
+      allowedClaim: "No separate claim",
+      noiseRule: "Fold into the owner.",
+      nextStep: "Merge into owner.",
+    });
+    expect(tradeDecisionRow).toMatchObject({
+      decision: "Merge",
+      tone: "danger",
+      blockers: ["Duplicate claim"],
+    });
+    expect(tradeDecisionRow?.changeTriggers).toContain("Merge copy");
+    expect(decisionSummary.mergeRows).toBe(1);
+    expect(decisionSummary.actionRows).toBe(1);
+    expect(
+      decisionRows.filter(row => row.decision === "Owns Action").map(row => row.id)
+    ).toEqual(["readout-autopilot-actions"]);
   });
 
   it("removes action ownership when confidence evidence is missing", () => {
