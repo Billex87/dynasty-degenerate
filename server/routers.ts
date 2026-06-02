@@ -8718,6 +8718,12 @@ export const appRouter = router({
       .query(({ input, ctx }) => {
         assertReportAccess(ctx);
         assertRateLimit(ctx.req as any, {
+          id: 'players.redraftValueTimeline.ip',
+          max: 200,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many redraft value timeline requests. Please wait a few minutes and try again.',
+        });
+        assertRateLimit(ctx.req as any, {
           id: 'players.redraftValueTimeline',
           max: 80,
           windowMs: 1000 * 60 * 10,
@@ -8739,6 +8745,12 @@ export const appRouter = router({
       }))
       .query(async ({ input, ctx }) => {
         assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'players.valueTimeline.ip',
+          max: 200,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many player value timeline requests. Please wait a few minutes and try again.',
+        });
         assertRateLimit(ctx.req as any, {
           id: 'players.valueTimeline',
           max: 80,

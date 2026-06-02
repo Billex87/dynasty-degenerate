@@ -345,18 +345,22 @@ describe("user-load provider boundary", () => {
     const redraftTimelineSource = extractSource("redraftValueTimeline: publicProcedure", "\n    valueTimeline: publicProcedure");
     const dynastyTimelineSource = extractSource("valueTimeline: publicProcedure", "\n    seasonGameLog: publicProcedure");
     const redraftAccessIndex = redraftTimelineSource.indexOf("assertReportAccess(ctx)");
-    const redraftRateLimitIndex = redraftTimelineSource.indexOf("assertRateLimit(ctx.req as any");
+    const redraftIpRateLimitIndex = redraftTimelineSource.indexOf("id: 'players.redraftValueTimeline.ip'");
+    const redraftRateLimitIndex = redraftTimelineSource.indexOf("id: 'players.redraftValueTimeline',", redraftIpRateLimitIndex);
     const redraftLoadIndex = redraftTimelineSource.indexOf("getRedraftValueTimelineForPlayer(input.playerName)");
     const dynastyAccessIndex = dynastyTimelineSource.indexOf("assertReportAccess(ctx)");
-    const dynastyRateLimitIndex = dynastyTimelineSource.indexOf("assertRateLimit(ctx.req as any");
+    const dynastyIpRateLimitIndex = dynastyTimelineSource.indexOf("id: 'players.valueTimeline.ip'");
+    const dynastyRateLimitIndex = dynastyTimelineSource.indexOf("id: 'players.valueTimeline',", dynastyIpRateLimitIndex);
     const dynastySnapshotIndex = dynastyTimelineSource.indexOf("loadStoredValueTimelineSnapshotsForPlayers({");
     const dynastyLoadIndex = dynastyTimelineSource.indexOf("getPlayerValueTimelineForPlayer({");
 
     expect(redraftTimelineSource).toContain("leagueId: sleeperLeagueIdSchema.optional()");
     expect(redraftTimelineSource).toContain("playerName: z.string().trim().min(1).max(120)");
     expect(redraftAccessIndex).toBeGreaterThan(0);
-    expect(redraftRateLimitIndex).toBeGreaterThan(redraftAccessIndex);
+    expect(redraftIpRateLimitIndex).toBeGreaterThan(redraftAccessIndex);
+    expect(redraftRateLimitIndex).toBeGreaterThan(redraftIpRateLimitIndex);
     expect(redraftLoadIndex).toBeGreaterThan(redraftRateLimitIndex);
+    expect(redraftTimelineSource).toContain("id: 'players.redraftValueTimeline.ip'");
     expect(redraftTimelineSource).toContain("id: 'players.redraftValueTimeline'");
 
     expect(dynastyTimelineSource).toContain("leagueId: sleeperLeagueIdSchema.optional()");
@@ -364,9 +368,11 @@ describe("user-load provider boundary", () => {
     expect(dynastyTimelineSource).toContain("valueProfileKey: z.string().trim().min(1).max(120).default('12_sf_ppr_base')");
     expect(dynastyTimelineSource).toContain("selectedWindow: valueTimelineWindowSchema.optional()");
     expect(dynastyAccessIndex).toBeGreaterThan(0);
-    expect(dynastyRateLimitIndex).toBeGreaterThan(dynastyAccessIndex);
+    expect(dynastyIpRateLimitIndex).toBeGreaterThan(dynastyAccessIndex);
+    expect(dynastyRateLimitIndex).toBeGreaterThan(dynastyIpRateLimitIndex);
     expect(dynastySnapshotIndex).toBeGreaterThan(dynastyRateLimitIndex);
     expect(dynastyLoadIndex).toBeGreaterThan(dynastySnapshotIndex);
+    expect(dynastyTimelineSource).toContain("id: 'players.valueTimeline.ip'");
     expect(dynastyTimelineSource).toContain("id: 'players.valueTimeline'");
     expect(dynastyTimelineSource).not.toContain("fetchSleeperJson");
   });
