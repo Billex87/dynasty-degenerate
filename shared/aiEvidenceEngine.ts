@@ -946,6 +946,10 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
     hardBlockers.push(`${player.name || "This player"} is already in the starting lineup.`);
   }
 
+  if (input.action === "sit" && player.isStarter === false) {
+    hardBlockers.push(`${player.name || "This player"} is already out of the starting lineup.`);
+  }
+
   if ((input.action === "start" || input.action === "sit") && player.isGameLocked) {
     hardBlockers.push(`${player.name || "This player"} cannot be changed because the game is already locked.`);
   }

@@ -258,6 +258,34 @@ describe("ai evidence engine", () => {
     expect(read.hardBlockers.join(" ")).toContain("Already Starter is already in the starting lineup");
   });
 
+  it("blocks sit advice when the player is already out of the starting lineup", () => {
+    const read = evaluateAIEvidence({
+      surface: "player-detail",
+      action: "sit",
+      leagueValueMode: "redraft",
+      baseScore: 82,
+      evidence: ["Bench alternative is attached.", "Latest projection is attached."],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Already Benched",
+        position: "WR",
+        team: "DET",
+        value: 4200,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+        isStarter: false,
+      },
+      schedule: {
+        hasScheduleData: true,
+      },
+      requiresCurrentSeasonEvidence: true,
+    });
+
+    expect(read.label).toBe("blocked");
+    expect(read.canAct).toBe(false);
+    expect(read.hardBlockers.join(" ")).toContain("Already Benched is already out of the starting lineup");
+  });
+
   it("blocks start and stream advice during bye weeks", () => {
     const read = evaluateAIEvidence({
       surface: "schedule",
