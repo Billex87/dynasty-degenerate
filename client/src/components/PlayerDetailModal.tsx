@@ -3611,10 +3611,11 @@ function buildPlayerAiEvidenceRead(input: {
   const hasRoleEvidence = Boolean(input.details?.playerCohort || input.details?.playerSituationDelta);
   const hasRecentUsageTrend = Boolean(input.details?.usageTrend);
   const hasValueEvidence = Boolean(input.valueFraming.marketPrice || input.currentValue || input.valueProfile?.sources?.length);
+  const evidenceAction = getPlayerAiEvidenceAction(input);
 
   return evaluateAIEvidence({
     surface: 'player-detail',
-    action: getPlayerAiEvidenceAction(input),
+    action: evidenceAction,
     leagueValueMode: input.valueMode === 'redraft' ? 'redraft' : 'dynasty',
     leagueContext: getAIEvidenceLeagueContextFromDiagnostics(
       input.leagueDiagnostics,
@@ -3688,8 +3689,8 @@ function buildPlayerAiEvidenceRead(input: {
       hasProspectOnlyValue: Boolean(input.isCollegeProspect && !hasCurrentSeasonEvidence && !hasDynastyEvidence),
     },
     requiresCurrentSeasonEvidence: input.valueMode === 'redraft',
-    requiresActiveTeam: getPlayerAiEvidenceAction(input) === 'start',
-    requiresLiveAvailability: false,
+    requiresActiveTeam: evidenceAction === 'start',
+    requiresLiveAvailability: evidenceAction === 'start',
     staleSourceCap: 60,
     calibrationProfile: input.calibrationProfile,
     calibrationLeagueId: input.calibrationLeagueId,
@@ -3780,6 +3781,12 @@ export function buildPlayerAiRead({
     details,
   });
   const redraftHistoryContext = valueMode === 'redraft' ? buildRedraftTimelineReadContext(redraftTimeline) : null;
+  const isRedraft = valueMode === 'redraft';
+  const availability = getPlayerAvailability(details);
+
+  if (isRedraft && availability.tone === 'risk') {
+    return null;
+  }
 
   if (isCollegeProspect) {
     const score = prospectProfile?.rating ? `Prospect score ${prospectProfile.rating}` : 'Prospect file';
@@ -3915,7 +3922,6 @@ export function buildPlayerAiRead({
     });
   }
 
-  const isRedraft = valueMode === 'redraft';
   const veteranAge = position === 'RB' ? 27 : position === 'WR' ? 29 : position === 'TE' ? 30 : position === 'QB' ? 33 : 30;
   const youngAge = position === 'RB' ? 24 : position === 'WR' ? 25 : position === 'TE' ? 26 : position === 'QB' ? 27 : 25;
   let readType = 'Player Trend';

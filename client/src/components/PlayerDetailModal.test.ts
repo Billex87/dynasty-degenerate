@@ -52,6 +52,47 @@ describe("buildPlayerAiRead", () => {
     expect(read).toBeNull();
   });
 
+  it("blocks redraft start-like player-detail reads for unavailable players", () => {
+    const read = buildPlayerAiRead({
+      playerName: "Out Receiver",
+      position: "WR",
+      currentRank: "WR7",
+      currentValue: 7400,
+      valueMode: "redraft",
+      valueProfile: {
+        fantasyProsSeasonValue: 7400,
+        fantasyProsPositionRank: "WR7",
+        sources: ["FantasyPros", "FantasyCalc"],
+        fantasyProsSourceTrace: [{
+          source: "FantasyPros",
+          label: "FantasyPros WR weekly ECR",
+          status: "loaded",
+          positionRank: "WR7",
+          fetchedAt: new Date().toISOString(),
+        }],
+      } as PlayerDetails["valueProfile"],
+      details: {
+        team: "DAL",
+        injuryStatus: "Out",
+        usageTrend: {
+          games: 3,
+          snapShare: 0.82,
+          routeShare: 0.88,
+          targetShare: 0.24,
+        },
+        playerCohort: {
+          calibration: {
+            evidenceGrade: "usable",
+            note: "Current-season role context is attached.",
+          },
+          trace: ["Cohort context attached."],
+        },
+      } as PlayerDetails,
+    });
+
+    expect(read).toBeNull();
+  });
+
   it("caps source-thin player-detail reads instead of making them actionable", () => {
     const read = buildPlayerAiRead({
       playerName: "Source Thin Receiver",
