@@ -13,6 +13,10 @@ import { buildLeagueFormatPills } from "@/features/report/lib/reportOverviewPrev
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
 import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsContainer";
 import { HomeReportExperience } from "@/features/home/components/HomeReportExperience";
+import {
+  persistHomeAdminViewMode,
+  useHomeAdminAccess,
+} from "@/features/home/hooks/useHomeAdminAccess";
 import { useHomeAIVoiceMode } from "@/features/home/hooks/useHomeAIVoiceMode";
 import { useHomeAIPredictionTelemetry } from "@/features/home/hooks/useHomeAIPredictionTelemetry";
 import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeout";
@@ -44,8 +48,6 @@ import {
   rememberAutocompleteValue,
 } from "@/features/home/lib/inputHelpers";
 import {
-  AdminAuthUser,
-  canViewAdminTelemetryForUser,
   readAdminPassphraseVerifiedForSession,
   rememberAdminPassphraseVerifiedForSession,
   ReportAnalysisMode,
@@ -198,7 +200,6 @@ export default function Home() {
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
   const [isChangeLeagueModalOpen, setIsChangeLeagueModalOpen] = useState(false);
   const [isClownModalOpen, setIsClownModalOpen] = useState(false);
-  const [isAdminUnlockModalOpen, setIsAdminUnlockModalOpen] = useState(false);
   const [isAdminAccessModalOpen, setIsAdminAccessModalOpen] = useState(false);
   const [adminPassphrase, setAdminPassphrase] = useState("");
   const [
@@ -775,7 +776,10 @@ export default function Home() {
       }
       if (nextHasAdminPermissions) {
         setAdminViewMode("regular");
-        persistAdminViewMode("regular");
+        persistHomeAdminViewMode({
+          mode: "regular",
+          sleeperSessionKey: SLEEPER_SESSION_KEY,
+        });
       }
       toast.success(
         `Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? "" : "s"}`
@@ -1040,41 +1044,6 @@ export default function Home() {
     setAdminViewerManager(null);
   };
 
-  const persistAdminViewMode = (mode: AdminViewMode) => {
-    try {
-      const sleeperSession = localStorage.getItem(SLEEPER_SESSION_KEY);
-      if (!sleeperSession) return;
-      const parsed = JSON.parse(sleeperSession) as SleeperSession;
-      localStorage.setItem(
-        SLEEPER_SESSION_KEY,
-        JSON.stringify({
-          ...parsed,
-          adminViewMode: mode,
-          savedAt: Date.now(),
-        } satisfies SleeperSession)
-      );
-    } catch {
-      // The view-mode choice only needs to last for this browser session.
-    }
-  };
-
-  const handleAdminViewModeChoice = (mode: AdminViewMode) => {
-    setAdminViewMode(mode);
-    if (mode === "regular") {
-      setAdminViewerManager(null);
-    }
-    persistAdminViewMode(mode);
-    if (mode === "regular") {
-      setActiveTab("overview");
-    }
-  };
-
-  const handleAdminModeToggle = () => {
-    handleAdminViewModeChoice(
-      adminViewMode === "admin" ? "regular" : "admin"
-    );
-  };
-
   const handleStartOver = () => {
     clearBrowserReportCache();
     localStorage.removeItem(LAST_LEAGUE_KEY);
@@ -1203,65 +1172,30 @@ export default function Home() {
     setPortfolioLeagueFilter,
   });
   const showHomePortfolioPanel = false;
-  const hasAuthenticatedAdminPermissions = canViewAdminTelemetryForUser(
-    authQuery.data
-  );
-  const hasSleeperAdminPermissions =
-    activeCachedSleeperUser?.hasAdminPermissions === true ||
-    activeCachedSleeperUser?.isPrivilegedReportViewer === true;
-  const hasAdminPermissions =
-    hasAuthenticatedAdminPermissions || hasSleeperAdminPermissions;
-  const canOpenAdminToolsEntry = hasAdminPermissions || !import.meta.env.PROD;
-  const canViewAdminFeatureExpansion =
-    isAdminPassphraseVerifiedForSession &&
-    (hasAuthenticatedAdminPermissions
-      ? adminViewMode === "admin"
-      : hasSleeperAdminPermissions && adminViewMode === "admin");
-  const canViewAdminDiagnostics = canViewAdminFeatureExpansion;
-
-  useEffect(() => {
-    if (
-      !hasAuthenticatedAdminPermissions ||
-      !reportData ||
-      !canViewAdminFeatureExpansion
-    )
-      return;
-    try {
-      if (sessionStorage.getItem(ADMIN_UNLOCK_MODAL_DISMISSED_KEY) === "true")
-        return;
-    } catch {
-      // Session storage only prevents repeating this prompt.
-    }
-    setIsAdminUnlockModalOpen(true);
-  }, [
+  const {
+    canOpenAdminToolsEntry,
+    canViewAdminDiagnostics,
     canViewAdminFeatureExpansion,
+    handleAdminToolsClick,
+    handleAdminUnlockModalDismiss,
+    hasAdminPermissions,
     hasAuthenticatedAdminPermissions,
+    isAdminUnlockModalOpen,
+  } = useHomeAdminAccess({
+    activeCachedSleeperUser,
+    adminViewMode,
+    authUser: authQuery.data,
+    isAdminPassphraseVerifiedForSession,
+    isProduction: import.meta.env.PROD,
     reportData,
-  ]);
-
-  const handleAdminUnlockModalDismiss = () => {
-    setIsAdminUnlockModalOpen(false);
-    try {
-      sessionStorage.setItem(ADMIN_UNLOCK_MODAL_DISMISSED_KEY, "true");
-    } catch {
-      // Non-critical preference.
-    }
-  };
-
-  const handleAdminToolsClick = () => {
-    if (canOpenAdminToolsEntry) {
-      if (!isAdminPassphraseVerifiedForSession) {
-        setAdminPassphrase("");
-        setIsAdminAccessModalOpen(true);
-        return;
-      }
-      handleAdminModeToggle();
-      return;
-    }
-
-    setAdminPassphrase("");
-    setIsAdminAccessModalOpen(true);
-  };
+    sleeperSessionKey: SLEEPER_SESSION_KEY,
+    unlockDismissedKey: ADMIN_UNLOCK_MODAL_DISMISSED_KEY,
+    setActiveTab,
+    setAdminPassphrase,
+    setAdminViewMode,
+    setAdminViewerManager,
+    setIsAdminAccessModalOpen,
+  });
 
   const canViewAutopilotTab = canViewAdminFeatureExpansion;
   const tabLeagueValueMode = normalizeLeagueValueMode(
