@@ -28,6 +28,7 @@ import { useQueuedTimeouts } from "@/features/home/hooks/useQueuedTimeouts";
 import { useReportBackgroundRefresh } from "@/features/home/hooks/useReportBackgroundRefresh";
 import { useReportLoadTelemetry } from "@/features/home/hooks/useReportLoadTelemetry";
 import { useReportDeltaSnapshots } from "@/features/home/hooks/useReportDeltaSnapshots";
+import { useStaleReportCacheRefresh } from "@/features/home/hooks/useStaleReportCacheRefresh";
 import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
 import {
   type HomePortfolioExposureFilter,
@@ -956,24 +957,16 @@ export default function Home() {
     reportData,
   });
 
-  useEffect(() => {
-    if (
-      !reportData ||
-      reportDataCacheVersion === REPORT_CACHE_DATA_VERSION ||
-      !leagueId ||
-      isLoading
-    )
-      return;
-
-    clearBrowserReportCache(leagueId);
-    STALE_REPORT_CACHE_KEYS.forEach(key => localStorage.removeItem(key));
-    setReportDataCacheVersion(null);
-    setAnalysisCompleteMessage(null);
-    refreshReportInBackground(leagueId, viewerUserId);
-    // This intentionally runs when a preserved React Fast Refresh state has report data
-    // from an older browser cache version.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportData, reportDataCacheVersion, leagueId, isLoading, viewerUserId]);
+  useStaleReportCacheRefresh({
+    reportData,
+    reportDataCacheVersion,
+    leagueId,
+    isLoading,
+    viewerUserId,
+    setReportDataCacheVersion,
+    setAnalysisCompleteMessage,
+    onRefreshReport: refreshReportInBackground,
+  });
 
   const handleAnalyze = async (targetLeagueId = leagueId) => {
     const nextLeagueId = targetLeagueId.trim();
