@@ -475,11 +475,10 @@ test.describe("command center feature surfaces", () => {
     ).toBeVisible();
     await blueprintSection.locator("button.command-primary-action").click();
     await expect(page.getByText("The Monthly Blueprint")).toBeVisible();
-    await expect(
-      page
-        .locator(".team-blueprint-ai.ai-read-panel-desktop")
-        .getByText("Blueprint AI Summary")
-    ).toBeVisible();
+    const blueprintAiSummary = page.locator(".team-blueprint-ai.ai-read-panel-desktop");
+    await expect(blueprintAiSummary.getByText("Blueprint AI Summary")).toBeVisible();
+    await expect(blueprintAiSummary.getByText("Do this", { exact: true })).toHaveCount(0);
+    await expect(blueprintAiSummary.getByText(/Review priority:/i)).toBeVisible();
     await expect(page.getByText("Stored 2026-05")).toBeVisible();
 
     await openReportSection(page, "League Power Rankings");

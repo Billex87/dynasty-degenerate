@@ -1835,10 +1835,12 @@ export function MonthlyTeamBlueprint({
               confidence={monthlyConfidence}
               confidenceNote={getAiConfidenceDisplayNote(data, manager)}
               decision={{
-                label: topPriorities[0] ? "Do this" : "Don't force it",
-                detail: topPriorities[0] || "No single priority is strong enough to force from this blueprint.",
-                tone: topPriorities[0] ? "go" : "watch",
-                status: `Blueprint · ${monthlyConfidence}%`,
+                label: "Don't force it",
+                detail: topPriorities[0]
+                  ? `Review priority: ${topPriorities[0]}`
+                  : "No single priority is strong enough to force from this blueprint.",
+                tone: "watch",
+                status: topPriorities[0] ? `Blueprint priority · ${monthlyConfidence}%` : `Blueprint · ${monthlyConfidence}%`,
               }}
               severity={monthlyConfidence >= 78 && !hasPartialHistory ? 'good' : hasPartialHistory ? 'warn' : 'info'}
               chips={[
