@@ -13,7 +13,19 @@ const EXPOSURE_FILTERS: Array<{
 }> = [
   { value: "all", label: "All Players" },
   { value: "overlap", label: "Overlap" },
+  { value: "threePlus", label: "3+ Leagues" },
   { value: "single", label: "Single League" },
+];
+
+const QUICK_FILTERS: Array<{
+  value: HomePortfolioExposureFilter;
+  label: string;
+}> = [
+  { value: "qb", label: "QB" },
+  { value: "rb", label: "RB" },
+  { value: "wr", label: "WR" },
+  { value: "te", label: "TE" },
+  { value: "stash", label: "Taxi/IR" },
 ];
 
 export function HomePortfolioPanel({
@@ -102,6 +114,27 @@ export function HomePortfolioPanel({
             aria-label="Exposure filter"
           >
             {EXPOSURE_FILTERS.map(filter => (
+              <button
+                key={filter.value}
+                type="button"
+                className={
+                  exposureFilter === filter.value
+                    ? "home-portfolio-filter is-active"
+                    : "home-portfolio-filter"
+                }
+                aria-pressed={exposureFilter === filter.value}
+                onClick={() => onExposureFilterChange(filter.value)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+          <div
+            className="home-portfolio-filter-group home-portfolio-filter-group-quick"
+            role="group"
+            aria-label="Quick portfolio filters"
+          >
+            {QUICK_FILTERS.map(filter => (
               <button
                 key={filter.value}
                 type="button"

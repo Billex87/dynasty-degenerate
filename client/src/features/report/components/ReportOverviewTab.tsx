@@ -154,12 +154,60 @@ export function ReportOverviewTab({
     reportData.managerRosterIntelligence?.some(
       row => (row.taxiTriage?.items.length || 0) > 0
     );
+  const portfolioOverlapCount = homePortfolioRows.filter(
+    row => row.leagueCount > 1
+  ).length;
+  const playerHoardSection = orderedUserLeagues.length > 0 ? (
+    <CollapsibleReportSection
+      title="Player Hoard"
+      kicker="Cross-league exposure, roster overlap, and stash risk"
+      previewAccessory={
+        <span className="home-portfolio-open-chip">Open portfolio</span>
+      }
+      previewMetrics={[
+        {
+          label: "Players",
+          compactLabel: "Ply",
+          value: homePortfolioRows.length || 0,
+          tone: homePortfolioRows.length ? "info" : "neutral",
+        },
+        {
+          label: "Overlap",
+          compactLabel: "Dup",
+          value: portfolioOverlapCount,
+          tone: portfolioOverlapCount ? "warn" : "neutral",
+        },
+        {
+          label: "Leagues",
+          compactLabel: "Lg",
+          value: orderedUserLeagues.length,
+          tone: orderedUserLeagues.length > 1 ? "good" : "neutral",
+        },
+      ]}
+    >
+      <HomePortfolioPanel
+        rows={homePortfolioRows}
+        filteredRows={filteredHomePortfolioRows}
+        leagues={orderedUserLeagues}
+        isLoading={isHomePortfolioLoading}
+        query={portfolioSearch}
+        exposureFilter={portfolioExposureFilter}
+        selectedLeagueId={portfolioLeagueFilter}
+        onQueryChange={onPortfolioSearchChange}
+        onExposureFilterChange={onPortfolioExposureFilterChange}
+        onLeagueFilterChange={onPortfolioLeagueFilterChange}
+        showLeagueChooser={false}
+        className="home-portfolio-shell-report"
+      />
+    </CollapsibleReportSection>
+  ) : null;
 
   return (
     <div className="dashboard-overview-section-stack space-y-6 sm:space-y-8">
       {canViewAdminFeatureExpansion && (
         <>
           <OverviewAIPulse data={reportDataForView} />
+          {playerHoardSection}
           <CollapsibleReportSection
             title="Monthly Team Blueprint"
             kicker="Monthly direction, roster age, and plan cadence"
@@ -328,44 +376,7 @@ export function ReportOverviewTab({
           )}
         </>
       )}
-      {orderedUserLeagues.length > 0 ? (
-        <CollapsibleReportSection
-          title="Player Hoard"
-          kicker="Every rostered player tied to this Sleeper username"
-          previewMetrics={[
-            {
-              label: "Players",
-              value: homePortfolioRows.length || 0,
-              tone: homePortfolioRows.length ? "info" : "neutral",
-            },
-            {
-              label: "Overlap",
-              value: homePortfolioRows.filter(row => row.leagueCount > 1).length,
-              tone: "warn",
-            },
-            {
-              label: "Leagues",
-              value: orderedUserLeagues.length,
-              tone: orderedUserLeagues.length > 1 ? "good" : "neutral",
-            },
-          ]}
-        >
-          <HomePortfolioPanel
-            rows={homePortfolioRows}
-            filteredRows={filteredHomePortfolioRows}
-            leagues={orderedUserLeagues}
-            isLoading={isHomePortfolioLoading}
-            query={portfolioSearch}
-            exposureFilter={portfolioExposureFilter}
-            selectedLeagueId={portfolioLeagueFilter}
-            onQueryChange={onPortfolioSearchChange}
-            onExposureFilterChange={onPortfolioExposureFilterChange}
-            onLeagueFilterChange={onPortfolioLeagueFilterChange}
-            showLeagueChooser={false}
-            className="home-portfolio-shell-report"
-          />
-        </CollapsibleReportSection>
-      ) : null}
+      {!canViewAdminFeatureExpansion ? playerHoardSection : null}
       <CollapsibleReportSection
         title={ownerTitle}
         kicker={ownerKicker}

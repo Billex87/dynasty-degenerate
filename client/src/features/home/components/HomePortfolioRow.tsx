@@ -16,7 +16,16 @@ export function HomePortfolioRow({
   totalLeagues: number;
 }) {
   return (
-    <article key={row.id} className="home-portfolio-row">
+    <article
+      key={row.id}
+      className={[
+        "home-portfolio-row",
+        row.leagueCount > 1 ? "is-overlap" : "",
+        row.leagueCount >= 3 ? "is-high-exposure" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <div className="home-portfolio-player">
         <PlayerIdentityRow
           playerId={row.playerId}
@@ -50,4 +59,3 @@ export function HomePortfolioRow({
     </article>
   );
 }
-

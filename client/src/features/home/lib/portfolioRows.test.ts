@@ -70,4 +70,70 @@ describe("portfolioRows", () => {
       }).map(row => row.name)
     ).toEqual(["Beta Only"]);
   });
+
+  it("filters portfolio rows by high exposure, position, and stash state", () => {
+    const quickFilterRows = buildHomePortfolioRows([
+      {
+        leagueId: "league-a",
+        name: "Alpha League",
+        avatarUrl: null,
+        format: "Dynasty SF PPR",
+        mobileFormat: "Dynasty SF",
+        rosterPlayers: [
+          player({ playerId: "qb1", name: "Shared Quarterback", position: "QB" }),
+          player({
+            playerId: "wr1",
+            name: "Taxi Receiver",
+            position: "WR",
+            rosterSpot: "taxi",
+          }),
+        ],
+      },
+      {
+        leagueId: "league-b",
+        name: "Beta League",
+        avatarUrl: null,
+        format: "Dynasty SF PPR",
+        mobileFormat: "Dynasty SF",
+        rosterPlayers: [
+          player({ playerId: "qb1", name: "Shared Quarterback", position: "QB" }),
+        ],
+      },
+      {
+        leagueId: "league-c",
+        name: "Gamma League",
+        avatarUrl: null,
+        format: "Dynasty SF PPR",
+        mobileFormat: "Dynasty SF",
+        rosterPlayers: [
+          player({ playerId: "qb1", name: "Shared Quarterback", position: "QB" }),
+          player({ playerId: "te1", name: "Single Tight End", position: "TE" }),
+        ],
+      },
+    ]);
+
+    expect(
+      filterHomePortfolioRows(quickFilterRows, { exposure: "threePlus" }).map(
+        row => row.name
+      )
+    ).toEqual(["Shared Quarterback"]);
+    expect(
+      filterHomePortfolioRows(quickFilterRows, { exposure: "qb" }).map(
+        row => row.name
+      )
+    ).toEqual(["Shared Quarterback"]);
+    expect(
+      filterHomePortfolioRows(quickFilterRows, { exposure: "te" }).map(
+        row => row.name
+      )
+    ).toEqual(["Single Tight End"]);
+    expect(
+      filterHomePortfolioRows(quickFilterRows, { exposure: "stash" }).map(
+        row => row.name
+      )
+    ).toEqual(["Taxi Receiver"]);
+    expect(filterHomePortfolioRows(quickFilterRows, { query: "taxi" }).map(row => row.name)).toEqual([
+      "Taxi Receiver",
+    ]);
+  });
 });

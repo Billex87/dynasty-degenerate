@@ -18,6 +18,14 @@ export function HomePortfolioList({
     );
   }
 
+  if (!rows.length) {
+    return (
+      <div className="home-portfolio-empty">
+        Player Hoard unlocks after your Sleeper league roster history loads.
+      </div>
+    );
+  }
+
   if (!filteredRows.length) {
     return (
       <div className="home-portfolio-empty">
@@ -38,4 +46,3 @@ export function HomePortfolioList({
     </div>
   );
 }
-

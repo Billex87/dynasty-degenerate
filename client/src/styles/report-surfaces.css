@@ -10463,6 +10463,23 @@ body {
   display: none;
 }
 
+.home-portfolio-open-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  border: 1px solid rgba(103, 232, 249, 0.28);
+  border-radius: 999px;
+  background: rgba(6, 18, 29, 0.78);
+  padding: 0 0.82rem;
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .home-portfolio-panel,
 .home-league-chooser {
   position: relative;
@@ -10581,7 +10598,7 @@ body {
 
 .home-portfolio-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(11rem, 15rem);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(10rem, 14rem);
   gap: 0.65rem;
   align-items: stretch;
 }
@@ -10592,6 +10609,10 @@ body {
   gap: 0.42rem;
   overflow-x: auto;
   padding-bottom: 0.05rem;
+}
+
+.home-portfolio-filter-group-quick {
+  justify-content: flex-start;
 }
 
 .home-portfolio-filter {
@@ -10671,16 +10692,27 @@ body {
 
 .home-portfolio-row {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(4.9rem, 0.32fr) minmax(5.2rem, 0.32fr) minmax(4.7rem, 0.28fr);
+  grid-template-columns: minmax(13rem, 1.1fr) minmax(4.9rem, 0.32fr) minmax(12rem, 0.8fr) minmax(5rem, 0.32fr);
   gap: 0.55rem;
   align-items: center;
-  min-height: 4.35rem;
+  min-height: 3.9rem;
   border: 1px solid rgba(0, 200, 232, 0.14);
   border-radius: 0.95rem;
   background:
     radial-gradient(circle at 0% 50%, rgba(244, 160, 32, 0.12), transparent 36%),
     rgba(255, 255, 255, 0.04);
   padding: 0.72rem 0.8rem;
+}
+
+.home-portfolio-row.is-overlap {
+  border-color: rgba(103, 232, 249, 0.28);
+}
+
+.home-portfolio-row.is-high-exposure {
+  border-color: rgba(244, 160, 32, 0.42);
+  background:
+    radial-gradient(circle at 0% 50%, rgba(244, 160, 32, 0.2), transparent 36%),
+    rgba(255, 255, 255, 0.05);
 }
 
 .home-portfolio-player {
@@ -10728,10 +10760,29 @@ body {
 }
 
 .home-portfolio-league-stack {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
+  gap: 0.42rem;
   min-width: 0;
   padding-left: 0.22rem;
+}
+
+.home-portfolio-league-avatars {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.home-portfolio-league-names {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .home-portfolio-league-avatar,
@@ -10761,7 +10812,9 @@ body {
 .home-portfolio-empty {
   border: 1px dashed rgba(0, 200, 232, 0.22);
   border-radius: 0.95rem;
-  background: rgba(2, 6, 23, 0.34);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(103, 232, 249, 0.08), transparent 32%),
+    rgba(2, 6, 23, 0.34);
   padding: 1.2rem;
   color: rgba(226, 232, 240, 0.76);
   font-weight: 800;
@@ -10809,6 +10862,10 @@ body {
     grid-column: 1 / -1;
   }
 
+  .home-portfolio-league-stack {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
   .home-league-picker-portfolio {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     max-height: none;
@@ -10834,8 +10891,16 @@ body {
 
   .home-portfolio-filter-group {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     overflow: visible;
+  }
+
+  .home-portfolio-filter-group-quick {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .home-portfolio-open-chip {
+    display: none;
   }
 
   .home-portfolio-filter {
@@ -10916,6 +10981,10 @@ body {
     grid-area: leagues;
     max-width: 100%;
     overflow: hidden;
+  }
+
+  .home-portfolio-league-names {
+    display: none;
   }
 
   .home-portfolio-value {

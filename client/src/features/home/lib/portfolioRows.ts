@@ -1,6 +1,15 @@
 import type { HomePortfolioLeague, HomePortfolioRow } from "@/features/home/components/HomeLeagueSelection";
 
-export type HomePortfolioExposureFilter = "all" | "overlap" | "single";
+export type HomePortfolioExposureFilter =
+  | "all"
+  | "overlap"
+  | "single"
+  | "threePlus"
+  | "qb"
+  | "rb"
+  | "wr"
+  | "te"
+  | "stash";
 
 export type HomePortfolioFilters = {
   query?: string;
@@ -117,6 +126,22 @@ export function filterHomePortfolioRows(
   return rows.filter(row => {
     if (exposure === "overlap" && row.leagueCount < 2) return false;
     if (exposure === "single" && row.leagueCount !== 1) return false;
+    if (exposure === "threePlus" && row.leagueCount < 3) return false;
+    if (
+      (exposure === "qb" ||
+        exposure === "rb" ||
+        exposure === "wr" ||
+        exposure === "te") &&
+      normalizePortfolioSearchValue(row.position) !== exposure
+    ) {
+      return false;
+    }
+    if (
+      exposure === "stash" &&
+      !row.rosterSpots.some(spot => spot === "taxi" || spot === "reserve")
+    ) {
+      return false;
+    }
     if (
       leagueId &&
       !row.leagues.some(league => normalizePortfolioSearchValue(league.leagueId) === leagueId)
@@ -130,6 +155,7 @@ export function filterHomePortfolioRows(
       row.team,
       row.position,
       row.positionRank,
+      ...row.rosterSpots,
       ...row.leagues.map(league => league.name),
       ...row.leagues.map(league => league.format),
     ]
