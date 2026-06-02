@@ -395,7 +395,7 @@ function buildWhatChangesThis(
   const changes: string[] = [];
 
   if (signal.missingSignals.length) {
-    changes.push(`Add missing inputs: ${signal.missingSignals.slice(0, 3).join(', ')}.`);
+    changes.push(`Verify missing inputs: ${signal.missingSignals.slice(0, 3).join(', ')}.`);
   }
   if (signal.label === 'rising-role' || signal.label === 'post-hype-window') {
     changes.push('Role signal flips if usage drops, a premium same-position threat arrives, or the market jumps without production support.');

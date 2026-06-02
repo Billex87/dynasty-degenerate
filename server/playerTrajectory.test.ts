@@ -884,7 +884,8 @@ describe('player trajectory signals', () => {
     expect(signals.te1.confidence).toBeLessThanOrEqual(44);
     expect(signals.te1.missingSignals).toContain('stored value timeline');
     expect(signals.te1.missingSignals).toContain('cohort profile');
-    expect(signals.te1.readout.whatChangesThis.join(' ')).toContain('stored value timeline');
+    expect(signals.te1.readout.whatChangesThis.join(' ')).toContain('Verify missing inputs: stored value timeline');
+    expect(signals.te1.readout.whatChangesThis.join(' ')).not.toContain('Add missing inputs');
   });
 
   it('tracks value-source changes as caution flags', () => {

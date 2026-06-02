@@ -661,6 +661,7 @@
 - [x] Add guardrails against blindly trusting draft capital when projection decline, usage collapse, depth-chart loss, or injury recurrence shows the opportunity window may be closing.
 - [x] Add source trace text that can answer "why did the AI say this?" with the exact schedule week, opponent, projection source, projection timestamp, and biggest changing signals.
 - [x] Add fallback copy for missing projections that says the app is using schedule/value context only, not true weekly projections.
+  - 2026-06-02 player-trajectory verification-copy cleanup: thin player trajectory reads now tell users to `Verify missing inputs...` instead of using internal `Add missing inputs...` wording when evidence is limited. Focused trajectory coverage locks the user-facing copy.
 
 ### Admin Tooling, QA, And Observability
 
