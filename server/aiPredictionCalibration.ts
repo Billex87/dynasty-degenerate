@@ -426,6 +426,17 @@ function normalizePredictionDecision(
   return decision;
 }
 
+function getEffectivePredictionDecision(event: AIPredictionEvent): AIPredictionDecision {
+  if (event.hardBlockers.length || event.label === 'blocked') return 'blocked';
+  if (
+    event.decision === 'do' &&
+    (event.confidenceCapReason || event.missingEvidence.length || (event.counterfactual && event.counterfactual.status !== 'beats-baseline'))
+  ) {
+    return 'watch';
+  }
+  return event.decision;
+}
+
 export function createAIPredictionEvent(input: CreateAIPredictionEventInput): AIPredictionEvent {
   const createdAt = isoDate(input.createdAt);
   const entityType = input.entityType || 'unknown';
@@ -617,6 +628,7 @@ export function buildSourceAgreementRead(signals: AISourceAgreementSignal[]): AI
 }
 
 function eventGroupValue(event: AIPredictionEvent, groupBy: AIPredictionReliabilityGroupBy): string {
+  if (groupBy === 'decision') return getEffectivePredictionDecision(event);
   if (groupBy === 'sourceAgreement') return event.sourceAgreement?.state || 'unknown';
   if (groupBy === 'leagueSharpness') return getLeagueSharpnessBucket(event).tier || 'unknown';
   if (groupBy === 'league') return event.leagueId || 'global';
@@ -798,10 +810,10 @@ export function summarizeAICounterfactualReliability(events: AIPredictionEvent[]
   const withCounterfactual = events.filter(event => event.counterfactual);
   const missingBaselineCount = events.filter(event =>
     event.counterfactual?.status === 'missing-baseline' ||
-    (!event.counterfactual && event.decision === 'do')
+    (!event.counterfactual && getEffectivePredictionDecision(event) === 'do')
   ).length;
   const doWithoutBaselineEdgeCount = events.filter(event =>
-    event.decision === 'do' &&
+    getEffectivePredictionDecision(event) === 'do' &&
     event.counterfactual?.status !== 'beats-baseline'
   ).length;
   const byStatus = new Map<AICounterfactualStatus, AIPredictionEvent[]>();

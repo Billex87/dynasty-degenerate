@@ -245,6 +245,39 @@ describe('AI prediction calibration', () => {
     });
   });
 
+  it('groups old unsafe do decisions by effective decision in summaries', () => {
+    const summary = summarizeAIPredictionReliability([
+      event({ entityId: 'safe-do', decision: 'do', outcome: { status: 'hit' } }),
+      event({
+        entityId: 'gap-do',
+        decision: 'do',
+        confidenceCapReason: 'Missing live roster proof',
+        missingEvidence: ['Verify live roster state before acting.'],
+        outcome: { status: 'miss' },
+      }),
+      event({
+        entityId: 'blocked-do',
+        decision: 'do',
+        label: 'blocked',
+        hardBlockers: ['Player is already rostered.'],
+        outcome: { status: 'blocked' },
+      }),
+    ], { groupBy: ['decision'] });
+
+    expect(summary.buckets.find(bucket => bucket.key === 'decision=do')).toMatchObject({
+      eventCount: 1,
+      hitCount: 1,
+    });
+    expect(summary.buckets.find(bucket => bucket.key === 'decision=watch')).toMatchObject({
+      eventCount: 1,
+      missCount: 1,
+    });
+    expect(summary.buckets.find(bucket => bucket.key === 'decision=blocked')).toMatchObject({
+      eventCount: 1,
+      blockedCount: 1,
+    });
+  });
+
   it('treats unavailable source agreement signals as missing proof', () => {
     const read = buildSourceAgreementRead([
       {
@@ -342,7 +375,7 @@ describe('AI prediction calibration', () => {
       eventCount: 3,
       baselineCount: 2,
       missingBaselineCount: 1,
-      doWithoutBaselineEdgeCount: 2,
+      doWithoutBaselineEdgeCount: 1,
       avgEdge: 3,
     });
     expect(summary.buckets.find(bucket => bucket.status === 'beats-baseline')).toMatchObject({
@@ -353,6 +386,37 @@ describe('AI prediction calibration', () => {
       eventCount: 1,
       hitRate: 0,
     });
+  });
+
+  it('does not count old unsafe do decisions as missing-baseline do actions', () => {
+    const below = buildAICounterfactualRead({
+      aiScore: 54,
+      baseline: {
+        kind: 'replacement',
+        label: 'replacement waiver option',
+        score: 62,
+      },
+    });
+
+    const summary = summarizeAICounterfactualReliability([
+      event({
+        entityId: 'gap-do',
+        decision: 'do',
+        confidenceCapReason: 'Missing live roster proof',
+        missingEvidence: ['Verify live roster state before acting.'],
+        outcome: { status: 'pending' },
+      }),
+      event({
+        entityId: 'below-do',
+        decision: 'do',
+        counterfactual: below,
+        outcome: { status: 'miss' },
+      }),
+      event({ entityId: 'safe-do', decision: 'do', outcome: { status: 'pending' } }),
+    ]);
+
+    expect(summary.missingBaselineCount).toBe(1);
+    expect(summary.doWithoutBaselineEdgeCount).toBe(1);
   });
 
   it('builds actionable calibration adjustments from scored prediction outcomes', () => {
