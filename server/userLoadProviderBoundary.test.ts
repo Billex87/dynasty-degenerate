@@ -89,6 +89,21 @@ describe("user-load provider boundary", () => {
     expect(routersSource).not.toContain('sourceMode: "live"');
   });
 
+  it("keeps player latest-news lookups behind report access and rate limits", () => {
+    const latestNewsSource = extractSource("latestNews: publicProcedure", "\n    redraftValueTimeline: publicProcedure");
+    const nameGuardIndex = latestNewsSource.indexOf("if (!playerName) return { latestNews: null }");
+    const accessIndex = latestNewsSource.indexOf("assertReportAccess(ctx)");
+    const rateLimitIndex = latestNewsSource.indexOf("assertRateLimit(ctx.req as any");
+    const fetchIndex = latestNewsSource.indexOf("fetchLatestPlayerNews({");
+
+    expect(nameGuardIndex).toBeGreaterThan(0);
+    expect(accessIndex).toBeGreaterThan(nameGuardIndex);
+    expect(rateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(fetchIndex).toBeGreaterThan(rateLimitIndex);
+    expect(latestNewsSource).toContain("id: 'players.latestNews'");
+    expect(latestNewsSource).toContain("...getUserLoadSnapshotOptions()");
+  });
+
   it("routes user-load live fetches through the guarded wrapper", () => {
     const liveUrlSources = [routersSource, draftAnalysisSource].join("\n");
     const urls = Array.from(liveUrlSources.matchAll(/https:\/\/[^`'")\s]+/g), (match) => match[0]);

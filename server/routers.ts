@@ -8364,9 +8364,17 @@ export const appRouter = router({
         team: z.string().optional().nullable(),
         position: z.string().optional().nullable(),
       }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         const playerName = input.playerName?.trim();
         if (!playerName) return { latestNews: null };
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'players.latestNews',
+          max: 80,
+          windowMs: 1000 * 60 * 10,
+          scope: `${input.team || 'team'}:${input.position || 'pos'}:${playerName}`,
+          message: 'Too many player news requests. Please wait a few minutes and try again.',
+        });
 
         const latestNews = await fetchLatestPlayerNews({
           playerName,
