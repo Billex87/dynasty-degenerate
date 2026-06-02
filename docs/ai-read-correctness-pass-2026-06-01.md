@@ -50,7 +50,9 @@
 - `pnpm build` passed.
 
 ## Remaining AI Correctness Work
-- Inventory every visible and admin-only AI read surface against the TODO matrix.
+- Inventory complete: [ai-read-surface-inventory-2026-06-01.md](ai-read-surface-inventory-2026-06-01.md) maps the visible and admin-only AI read surfaces, current ownership tiers, existing automated coverage, and remaining duplication/correctness risks.
+- Tier policy complete: [ai-read-tier-policy-2026-06-01.md](ai-read-tier-policy-2026-06-01.md) defines the single action-owner rule, support tiers, admin diagnostics role, copy rules, and test rules.
+- Correctness matrix complete: [ai-read-correctness-matrix-2026-06-01.md](ai-read-correctness-matrix-2026-06-01.md) defines required preconditions, hard blockers, downgrade behavior, and regression coverage for waiver, lineup, trade, market, draft, streamer, cut, hold, and no-action reads.
 - Add deeper cross-surface duplicate/conflict assertions beyond the current action-queue owner and admin surface-registry guards.
 - Validate Overview, Autopilot, Player Detail, Waiver, Trade, Rankings, Draft, and admin AI surfaces in browser screenshots.
 - Validate real representative leagues: `Skids Get Beat`, `The Fantasy Degenerates`, `test league`, and `Gov Tech Grid Iron`, in admin and regular mode across desktop, tablet, and mobile.
