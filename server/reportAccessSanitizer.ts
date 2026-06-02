@@ -40,6 +40,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
+function isSourceTraceDetailKey(key: string): boolean {
+  return key === "sourceTrace" || key === "sourceTraceText";
+}
+
 function sanitizeValue(value: unknown, access: ReportAccessInput, stats: SanitizerStats): unknown {
   if (!value || typeof value !== "object") return value;
 
@@ -63,13 +67,13 @@ function sanitizeValue(value: unknown, access: ReportAccessInput, stats: Sanitiz
     Array.isArray(record.signals);
 
   for (const [key, child] of Object.entries(record)) {
-    if (!access.canViewSourceTraceDetails && key === "sourceTrace") {
+    if (!access.canViewSourceTraceDetails && isSourceTraceDetailKey(key)) {
       stats.removedSourceTraceFields += 1;
       changed = true;
       continue;
     }
 
-    if (access.canViewSourceTraceDetails && key === "sourceTrace") {
+    if (access.canViewSourceTraceDetails && isSourceTraceDetailKey(key)) {
       stats.retainedSourceTraceFields += 1;
     }
 

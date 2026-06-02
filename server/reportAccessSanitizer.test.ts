@@ -59,6 +59,7 @@ function createReportData(): ReportData {
             status: "loaded",
             evidence: "Stored endpoint snapshot.",
           }],
+          sourceTraceText: ["Week 1 vs BUF from stored endpoint snapshot."],
           traceSummary: "FantasyPros weekly ECR source trace.",
         },
       }],
@@ -93,7 +94,7 @@ describe("report access sanitizer", () => {
     });
 
     expect(result.stats).toMatchObject({
-      removedSourceTraceFields: 1,
+      removedSourceTraceFields: 2,
       removedTraceSummaryFields: 1,
       removedAiConfidenceHistoryFields: 1,
       retainedSourceTraceFields: 0,
@@ -101,9 +102,11 @@ describe("report access sanitizer", () => {
       retainedAiConfidenceHistoryFields: 0,
     });
     expect((result.payload as any).waiverIntelligence.weeklyEcrTargets[0].signal).not.toHaveProperty("sourceTrace");
+    expect((result.payload as any).waiverIntelligence.weeklyEcrTargets[0].signal).not.toHaveProperty("sourceTraceText");
     expect((result.payload as any).waiverIntelligence.weeklyEcrTargets[0].signal).not.toHaveProperty("traceSummary");
     expect(result.payload.leagueDiagnostics?.aiConfidence).not.toHaveProperty("history");
     expect((report as any).waiverIntelligence.weeklyEcrTargets[0].signal.sourceTrace).toHaveLength(1);
+    expect((report as any).waiverIntelligence.weeklyEcrTargets[0].signal.sourceTraceText).toHaveLength(1);
     expect(report.leagueDiagnostics?.aiConfidence?.history).toHaveLength(1);
   });
 
@@ -116,10 +119,11 @@ describe("report access sanitizer", () => {
 
     expect(result.payload).toBe(report);
     expect(result.stats.removedSourceTraceFields).toBe(0);
-    expect(result.stats.retainedSourceTraceFields).toBe(1);
+    expect(result.stats.retainedSourceTraceFields).toBe(2);
     expect(result.stats.retainedTraceSummaryFields).toBe(1);
     expect(result.stats.retainedAiConfidenceHistoryFields).toBe(1);
     expect((result.payload as any).waiverIntelligence.weeklyEcrTargets[0].signal.sourceTrace).toHaveLength(1);
+    expect((result.payload as any).waiverIntelligence.weeklyEcrTargets[0].signal.sourceTraceText).toHaveLength(1);
     expect(result.payload.leagueDiagnostics?.aiConfidence?.history).toHaveLength(1);
   });
 
@@ -136,6 +140,7 @@ describe("report access sanitizer", () => {
     expect(result.payload).not.toBe(payload);
     expect(result.payload.reportData).not.toBe(payload.reportData);
     expect((result.payload.reportData as any).waiverIntelligence.weeklyEcrTargets[0].signal).not.toHaveProperty("sourceTrace");
+    expect((result.payload.reportData as any).waiverIntelligence.weeklyEcrTargets[0].signal).not.toHaveProperty("sourceTraceText");
     expect(result.payload.reportData.leagueDiagnostics?.aiConfidence?.history).toHaveLength(1);
   });
 });
