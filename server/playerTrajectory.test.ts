@@ -172,7 +172,161 @@ describe('player trajectory signals', () => {
     expect(signal?.evidence.join(' ')).toContain('Usage trend');
     expect(signal?.readout.whyThisFired.join(' ')).toContain('Usage trend');
     expect(signal?.readout.whatChangesThis.join(' ')).toContain('Role signal flips');
+    expect(signal?.actionProof).toMatchObject({ eligible: true });
     expect(signal?.trace.join(' ')).toContain('All first-pass trajectory inputs are present');
+    expect(signal?.trace.join(' ')).toContain('Action proof: complete');
+  });
+
+  it('keeps rising-role trajectory reads below exact action copy when caution flags are active', () => {
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Source Shift Riser',
+      position: 'WR',
+      age: 23,
+      valueProfile: {
+        dynastyValue: 4300,
+        marketKtc: 4200,
+        fantasyCalcDynasty: 4400,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+      valueTimeline: valueTimelineWithSourceChange(4, 170),
+      usageTrend: {
+        season: '2025',
+        games: 17,
+        targets: 110,
+        carries: 2,
+        receptions: 75,
+        fantasyPointsPpr: 240,
+        fantasyPointsPprPerGame: 14.1,
+        avgTargetShare: 0.24,
+        avgOffenseSnapPct: 0.82,
+        recentTargets: 34,
+        recentCarries: 1,
+        rollingWindows: [{
+          games: 3,
+          weeks: [15, 16, 17],
+          targetsPerGame: 9.5,
+          carriesPerGame: 0.3,
+          receptionsPerGame: 6,
+          fantasyPointsPprPerGame: 17,
+          targetDeltaPerGame: 2.2,
+          carryDeltaPerGame: 0,
+          note: 'Recent target volume jumped.',
+        }],
+        targetTrend: 'up',
+        carryTrend: 'flat',
+        note: 'Usage trend from 17 games; targets climbed late.',
+      },
+      rosterRoom: {
+        opportunityDelta: {
+          netOpportunityScore: 72,
+          incumbentPromotionScore: 28,
+          qualitySignal: 'major-opening',
+          note: 'Major target volume opened in the room.',
+        },
+      } as PlayerDetails['rosterRoom'],
+      playerCohort: cohort(),
+      playerSituationDelta: situation(),
+    }), 'wr-source-shift');
+
+    expect(signal).toMatchObject({
+      label: 'rising-role',
+      action: 'buy',
+      readout: {
+        decision: "Don't force it",
+      },
+      actionProof: {
+        eligible: false,
+      },
+    });
+    expect(signal?.cautionFlags).toContain('value source mix changed');
+    expect(signal?.actionProof.blockers.join(' ')).toContain('value source mix changed');
+    expect(signal?.trace.join(' ')).toContain('Action proof blocked');
+  });
+
+  it('keeps post-hype trajectory reads below exact action copy when cohort calibration is not strong-read eligible', () => {
+    const baseCohort = cohort();
+    const signal = buildPlayerTrajectorySignal(player({
+      fullName: 'Uncalibrated Prospect',
+      position: 'WR',
+      age: 22,
+      valueProfile: {
+        dynastyValue: 3600,
+        marketKtc: 3500,
+        fantasyCalcDynasty: 3700,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+      valueTimeline: valueTimeline(-12, -520),
+      usageTrend: {
+        season: '2025',
+        games: 12,
+        targets: 72,
+        carries: 0,
+        receptions: 44,
+        fantasyPointsPpr: 125,
+        fantasyPointsPprPerGame: 10.4,
+        avgTargetShare: 0.19,
+        avgOffenseSnapPct: 0.66,
+        recentTargets: 24,
+        recentCarries: 0,
+        rollingWindows: [{
+          games: 3,
+          weeks: [15, 16, 17],
+          targetsPerGame: 7.7,
+          carriesPerGame: 0,
+          receptionsPerGame: 4.3,
+          fantasyPointsPprPerGame: 12,
+          targetDeltaPerGame: 1.3,
+          carryDeltaPerGame: 0,
+          note: 'Role stabilized late.',
+        }],
+        targetTrend: 'up',
+        carryTrend: 'flat',
+        note: 'Targets improved after a slow start.',
+      },
+      rosterRoom: {
+        opportunityDelta: {
+          netOpportunityScore: 38,
+          incumbentPromotionScore: 20,
+          qualitySignal: 'minor-opening',
+          note: 'Some room opened for a young receiver.',
+        },
+      } as PlayerDetails['rosterRoom'],
+      playerCohort: cohort({
+        outcomeBucket: 'steady',
+        calibration: {
+          ...baseCohort.calibration,
+          strongReadEligible: false,
+          note: 'Cohort evidence is usable but not strong enough for action copy.',
+        },
+        draftCapital: {
+          round: 1,
+          pick: 22,
+          tier: 'premium',
+          label: 'Round 1, pick 22',
+          opportunityWindow: 'protected-runway',
+          patienceScore: 88,
+          note: 'Premium draft capital supports patience.',
+        },
+      }),
+      playerSituationDelta: situation({
+        primaryLabel: 'draft-capital-patience',
+        labels: ['draft-capital-patience'],
+        action: 'monitor',
+        score: 66,
+        summary: 'Draft capital still supports patience.',
+      }),
+    }), 'wr-uncalibrated');
+
+    expect(signal).toMatchObject({
+      label: 'post-hype-window',
+      readout: {
+        decision: "Don't force it",
+      },
+      actionProof: {
+        eligible: false,
+      },
+    });
+    expect(signal?.actionProof.blockers.join(' ')).toContain('Cohort calibration is not strong-read eligible');
   });
 
   it('flags market traps when price rises into declining role evidence', () => {

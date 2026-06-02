@@ -25,6 +25,10 @@ export interface PlayerTrajectorySignal {
   evidence: string[];
   missingSignals: string[];
   cautionFlags: string[];
+  actionProof: {
+    eligible: boolean;
+    blockers: string[];
+  };
   scoreBreakdown: {
     marketMomentum: number | null;
     roleMomentum: number | null;
@@ -239,6 +243,32 @@ function collectCautionFlags(details: PlayerDetails, scores: PlayerTrajectorySig
   return Array.from(new Set(flags));
 }
 
+function buildActionProof(
+  details: PlayerDetails,
+  missingSignals: string[],
+  cautionFlags: string[]
+): PlayerTrajectorySignal['actionProof'] {
+  const blockers: string[] = [];
+  if (missingSignals.length) {
+    blockers.push(`Missing trajectory inputs: ${missingSignals.slice(0, 3).join(', ')}`);
+  }
+  if (cautionFlags.length) {
+    blockers.push(`Resolve caution flags: ${cautionFlags.slice(0, 3).join(', ')}`);
+  }
+  if (details.playerCohort?.calibration.strongReadEligible !== true) {
+    blockers.push('Cohort calibration is not strong-read eligible');
+  }
+  const situationConfidence = numeric(details.playerSituationDelta?.confidence) || 0;
+  if (situationConfidence < 65) {
+    blockers.push('Situation-delta confidence is below the action threshold');
+  }
+
+  return {
+    eligible: blockers.length === 0,
+    blockers,
+  };
+}
+
 function gradeForConfidence(confidence: number, missingSignals: string[]): PlayerCohortEvidenceGrade {
   if (missingSignals.includes('stored value timeline') || missingSignals.includes('cohort profile')) return 'blocked';
   if (confidence >= 76 && missingSignals.length <= 1) return 'strong';
@@ -326,16 +356,18 @@ function buildSummary(name: string, label: PlayerTrajectoryLabel, confidence: nu
 function decisionForSignal(
   label: PlayerTrajectoryLabel,
   confidence: number,
-  confidenceGrade: PlayerCohortEvidenceGrade
+  confidenceGrade: PlayerCohortEvidenceGrade,
+  actionProof: PlayerTrajectorySignal['actionProof']
 ): PlayerTrajectoryReadout['decision'] {
   if (confidenceGrade === 'blocked' || label === 'source-limited' || confidence < 46) {
     return 'Insufficient evidence';
   }
+  const hasActionProof = actionProof.eligible;
   if (label === 'market-trap' || label === 'peak-risk') {
-    return confidence >= 64 ? 'Do not do this' : "Don't force it";
+    return hasActionProof && confidence >= 64 ? 'Do not do this' : "Don't force it";
   }
   if (label === 'rising-role' || label === 'post-hype-window') {
-    return confidence >= 68 ? 'Do this' : "Don't force it";
+    return hasActionProof && confidence >= 68 ? 'Do this' : "Don't force it";
   }
   return "Don't force it";
 }
@@ -398,7 +430,7 @@ function buildReceipts(signal: Omit<PlayerTrajectorySignal, 'readout' | 'trace'>
 function buildPlayerTrajectoryReadout(
   signal: Omit<PlayerTrajectorySignal, 'readout' | 'trace'>
 ): PlayerTrajectoryReadout {
-  const decision = decisionForSignal(signal.label, signal.confidence, signal.confidenceGrade);
+  const decision = decisionForSignal(signal.label, signal.confidence, signal.confidenceGrade, signal.actionProof);
   const statusPrefix = decision === 'Do this'
     ? 'Actionable'
     : decision === 'Do not do this'
@@ -434,6 +466,7 @@ export function buildPlayerTrajectorySignal(details: PlayerDetails, playerId: st
   };
   const missingSignals = collectMissingSignals(details);
   const cautionFlags = collectCautionFlags(details, scoreBreakdown);
+  const actionProof = buildActionProof(details, missingSignals, cautionFlags);
   const label = classify(details, scoreBreakdown, missingSignals);
   const meta = LABEL_META[label];
   const baseConfidence = round(
@@ -465,6 +498,7 @@ export function buildPlayerTrajectorySignal(details: PlayerDetails, playerId: st
     evidence,
     missingSignals,
     cautionFlags,
+    actionProof,
     scoreBreakdown,
   };
   const readout = buildPlayerTrajectoryReadout(baseSignal);
@@ -478,6 +512,7 @@ export function buildPlayerTrajectorySignal(details: PlayerDetails, playerId: st
       `Scores: market ${scoreBreakdown.marketMomentum ?? 'n/a'}, role ${scoreBreakdown.roleMomentum ?? 'n/a'}, situation ${scoreBreakdown.situationScore ?? 'n/a'}, cohort ${scoreBreakdown.cohortScore ?? 'n/a'}, age risk ${scoreBreakdown.ageRisk ?? 'n/a'}, source ${scoreBreakdown.sourceScore ?? 'n/a'}.`,
       missingSignals.length ? `Missing signals: ${missingSignals.join(', ')}.` : 'All first-pass trajectory inputs are present.',
       cautionFlags.length ? `Caution flags: ${cautionFlags.join(', ')}.` : 'No major trajectory caution flags detected.',
+      actionProof.eligible ? 'Action proof: complete.' : `Action proof blocked: ${actionProof.blockers.join('; ')}.`,
     ],
   };
 }
