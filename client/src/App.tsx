@@ -12,6 +12,7 @@ import Home from "./pages/Home";
 
 const ReportComponentShowcase = lazy(() => import("./pages/ReportComponentShowcase"));
 const LoaderKitPreview = lazy(() => import("./pages/LoaderKitPreview"));
+const LegalPage = lazy(() => import("./pages/LegalPage"));
 const LOCAL_TELEMETRY_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
 function shouldRenderVercelTelemetry() {
@@ -24,6 +25,31 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/terms"}>
+        <Suspense fallback={<RouteSuspenseFallback />}>
+          <LegalPage section="terms" />
+        </Suspense>
+      </Route>
+      <Route path={"/privacy"}>
+        <Suspense fallback={<RouteSuspenseFallback />}>
+          <LegalPage section="privacy" />
+        </Suspense>
+      </Route>
+      <Route path={"/refunds"}>
+        <Suspense fallback={<RouteSuspenseFallback />}>
+          <LegalPage section="refunds" />
+        </Suspense>
+      </Route>
+      <Route path={"/data-disclosures"}>
+        <Suspense fallback={<RouteSuspenseFallback />}>
+          <LegalPage section="data-disclosures" />
+        </Suspense>
+      </Route>
+      <Route path={"/support"}>
+        <Suspense fallback={<RouteSuspenseFallback />}>
+          <LegalPage section="support" />
+        </Suspense>
+      </Route>
       <Route path={"/components"}>
         <Suspense fallback={<RouteSuspenseFallback />}>
           <ReportComponentShowcase />

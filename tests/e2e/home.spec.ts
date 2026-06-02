@@ -25,4 +25,23 @@ test.describe('homepage smoke', () => {
     await expect(page.getByText('Season Value')).toBeVisible();
     await expect(page.getByText('Collapsed Preview Contract')).toBeVisible();
   });
+
+  test('renders public legal and product policy pages', async ({ page }) => {
+    const routes = [
+      ['/terms', 'Dynasty Degenerates Terms'],
+      ['/privacy', 'Privacy and Data Handling'],
+      ['/refunds', 'Refunds, Cancellations, and Paid Access'],
+      ['/data-disclosures', 'Fantasy Data Source and Confidence Disclosures'],
+      ['/support', 'Support and Contact'],
+    ] as const;
+
+    for (const [path, heading] of routes) {
+      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: heading })).toBeVisible();
+      await expect(page.getByText('Last updated: June 2, 2026')).toBeVisible();
+      await expect(
+        page.getByRole('main').getByRole('navigation', { name: 'Legal and product policies' })
+      ).toBeVisible();
+    }
+  });
 });

@@ -1,4 +1,5 @@
 import { HeaderCssLights } from "@/components/HeaderCssLights";
+import { LegalLinks } from "@/components/LegalLinks";
 import type { AIVoiceMode } from "@/lib/aiVoice";
 import type { ReportData } from "@shared/types";
 import { ReportFooterActions } from "@/features/report/components/ReportFooterActions";
@@ -59,6 +60,7 @@ export function ReportDashboardFooter({
           leagueName={leagueName}
           leagueFormat={leagueFormat}
         />
+        <LegalLinks className="mt-4" />
       </div>
     </footer>
   );
