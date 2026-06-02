@@ -22,6 +22,12 @@ type UsageLimit = {
   limit: number;
 };
 
+type BillingSubscriptionAccess = {
+  plan: string | null | undefined;
+  status: string;
+  currentPeriodEnd?: Date | string | null;
+};
+
 type FeaturePolicy = {
   minimumPlan: BillingPlan;
   launchState: "active" | "paid-not-launched" | "admin-only";
@@ -34,6 +40,9 @@ const PLAN_RANK: Record<BillingPlan, number> = {
   elite: 2,
   admin: 3,
 };
+
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
+const BILLING_SUBSCRIPTION_PLANS = new Set<BillingPlan>(["free", "pro", "elite"]);
 
 const FEATURE_POLICIES: Record<PaidFeatureKey, FeaturePolicy> = {
   "free-sleeper-report": {
@@ -94,6 +103,7 @@ type CanUseFeatureInput = {
   feature: PaidFeatureKey;
   leagueId?: string | null;
   plan?: BillingPlan | null;
+  subscriptions?: BillingSubscriptionAccess[];
   paidFeaturesEnabled?: boolean;
 };
 
@@ -101,15 +111,39 @@ function isPaidFeatureLaunchEnabled(input: CanUseFeatureInput): boolean {
   return input.paidFeaturesEnabled ?? process.env.ENABLE_PAID_FEATURES === "true";
 }
 
-export function getUserBillingPlan(user?: EntitlementUser, explicitPlan?: BillingPlan | null): BillingPlan {
+function isDateInFuture(value: Date | string | null | undefined, now: Date): boolean {
+  if (!value) return true;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) && date.getTime() > now.getTime();
+}
+
+function normalizeBillingSubscriptionPlan(plan: string | null | undefined): BillingPlan | null {
+  if (!plan) return null;
+  const normalized = plan.trim().toLowerCase() as BillingPlan;
+  return BILLING_SUBSCRIPTION_PLANS.has(normalized) ? normalized : null;
+}
+
+export function getUserBillingPlan(
+  user?: EntitlementUser,
+  explicitPlan?: BillingPlan | null,
+  subscriptions: BillingSubscriptionAccess[] = [],
+  now = new Date()
+): BillingPlan {
   if (explicitPlan) return explicitPlan;
   if (user?.role === "admin") return "admin";
-  return "free";
+
+  return subscriptions.reduce<BillingPlan>((bestPlan, subscription) => {
+    if (!ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status)) return bestPlan;
+    if (!isDateInFuture(subscription.currentPeriodEnd, now)) return bestPlan;
+    const subscriptionPlan = normalizeBillingSubscriptionPlan(subscription.plan);
+    if (!subscriptionPlan || PLAN_RANK[subscriptionPlan] <= PLAN_RANK[bestPlan]) return bestPlan;
+    return subscriptionPlan;
+  }, "free");
 }
 
 export function canUseFeature(input: CanUseFeatureInput): FeatureEntitlementResult {
   const policy = FEATURE_POLICIES[input.feature];
-  const plan = getUserBillingPlan(input.user, input.plan);
+  const plan = getUserBillingPlan(input.user, input.plan, input.subscriptions);
   const usageLimit = policy.usageLimit ?? null;
 
   if (policy.launchState === "paid-not-launched" && !isPaidFeatureLaunchEnabled(input)) {

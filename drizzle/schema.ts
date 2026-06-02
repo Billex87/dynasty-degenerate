@@ -25,6 +25,116 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+export const billingCustomers = mysqlTable("billingCustomers", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId"),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  stripeCustomerId: varchar("stripeCustomerId", { length: 128 }).notNull().unique(),
+  email: varchar("email", { length: 320 }),
+  name: text("name"),
+  status: varchar("status", { length: 32 }).default("active").notNull(),
+  metadata: longtext("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userOpenIdIndex: index("billingCustomers_user_open_id_idx").on(table.userOpenId),
+}));
+
+export type BillingCustomer = typeof billingCustomers.$inferSelect;
+export type InsertBillingCustomer = typeof billingCustomers.$inferInsert;
+
+export const subscriptions = mysqlTable("subscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId"),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  stripeCustomerId: varchar("stripeCustomerId", { length: 128 }).notNull(),
+  stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 128 }).notNull().unique(),
+  plan: varchar("plan", { length: 32 }).notNull(),
+  status: varchar("status", { length: 32 }).notNull(),
+  priceId: varchar("priceId", { length: 128 }),
+  productId: varchar("productId", { length: 128 }),
+  currentPeriodStart: timestamp("currentPeriodStart"),
+  currentPeriodEnd: timestamp("currentPeriodEnd"),
+  cancelAtPeriodEnd: int("cancelAtPeriodEnd").default(0).notNull(),
+  metadata: longtext("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userStatusIndex: index("subscriptions_user_status_idx").on(table.userOpenId, table.status),
+  stripeCustomerIndex: index("subscriptions_stripe_customer_idx").on(table.stripeCustomerId),
+}));
+
+export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = typeof subscriptions.$inferInsert;
+
+export const leaguePasses = mysqlTable("leaguePasses", {
+  id: int("id").autoincrement().primaryKey(),
+  leagueId: varchar("leagueId", { length: 64 }).notNull(),
+  purchaserUserId: int("purchaserUserId"),
+  purchaserOpenId: varchar("purchaserOpenId", { length: 64 }).notNull(),
+  stripeCustomerId: varchar("stripeCustomerId", { length: 128 }),
+  stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 128 }),
+  stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 128 }),
+  status: varchar("status", { length: 32 }).notNull(),
+  startsAt: timestamp("startsAt"),
+  expiresAt: timestamp("expiresAt"),
+  maxManagers: int("maxManagers"),
+  metadata: longtext("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  leagueStatusIndex: index("leaguePasses_league_status_idx").on(table.leagueId, table.status),
+  purchaserIndex: index("leaguePasses_purchaser_idx").on(table.purchaserOpenId),
+  stripeCheckoutIndex: index("leaguePasses_stripe_checkout_idx").on(table.stripeCheckoutSessionId),
+}));
+
+export type LeaguePass = typeof leaguePasses.$inferSelect;
+export type InsertLeaguePass = typeof leaguePasses.$inferInsert;
+
+export const featureEntitlements = mysqlTable("featureEntitlements", {
+  id: int("id").autoincrement().primaryKey(),
+  subjectType: varchar("subjectType", { length: 16 }).notNull(),
+  userOpenId: varchar("userOpenId", { length: 64 }),
+  leagueId: varchar("leagueId", { length: 64 }),
+  featureKey: varchar("featureKey", { length: 64 }).notNull(),
+  plan: varchar("plan", { length: 32 }),
+  source: varchar("source", { length: 32 }).notNull(),
+  sourceId: varchar("sourceId", { length: 128 }),
+  status: varchar("status", { length: 32 }).notNull(),
+  startsAt: timestamp("startsAt"),
+  expiresAt: timestamp("expiresAt"),
+  metadata: longtext("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userFeatureIndex: index("featureEntitlements_user_feature_idx").on(table.userOpenId, table.featureKey, table.status),
+  leagueFeatureIndex: index("featureEntitlements_league_feature_idx").on(table.leagueId, table.featureKey, table.status),
+  sourceIndex: index("featureEntitlements_source_idx").on(table.source, table.sourceId),
+}));
+
+export type FeatureEntitlement = typeof featureEntitlements.$inferSelect;
+export type InsertFeatureEntitlement = typeof featureEntitlements.$inferInsert;
+
+export const usageEvents = mysqlTable("usageEvents", {
+  id: int("id").autoincrement().primaryKey(),
+  eventId: varchar("eventId", { length: 128 }).notNull().unique(),
+  userOpenId: varchar("userOpenId", { length: 64 }),
+  leagueId: varchar("leagueId", { length: 64 }),
+  featureKey: varchar("featureKey", { length: 64 }).notNull(),
+  usageKey: varchar("usageKey", { length: 64 }).notNull(),
+  quantity: int("quantity").default(1).notNull(),
+  source: varchar("source", { length: 32 }).notNull(),
+  metadata: longtext("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  userFeatureIndex: index("usageEvents_user_feature_createdAt_idx").on(table.userOpenId, table.featureKey, table.createdAt),
+  leagueFeatureIndex: index("usageEvents_league_feature_createdAt_idx").on(table.leagueId, table.featureKey, table.createdAt),
+  usageKeyIndex: index("usageEvents_feature_usage_key_idx").on(table.featureKey, table.usageKey),
+}));
+
+export type UsageEvent = typeof usageEvents.$inferSelect;
+export type InsertUsageEvent = typeof usageEvents.$inferInsert;
+
 export const leagueAnalysis = mysqlTable("leagueAnalysis", {
   id: int("id").autoincrement().primaryKey(),
   leagueId: varchar("leagueId", { length: 64 }).notNull().unique(),

@@ -165,6 +165,154 @@ async function ensureSchema(sql: SqlClient) {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS "billingCustomers" (
+          id SERIAL PRIMARY KEY,
+          "userId" INTEGER,
+          "userOpenId" VARCHAR(64) NOT NULL,
+          "stripeCustomerId" VARCHAR(128) NOT NULL UNIQUE,
+          email VARCHAR(320),
+          name TEXT,
+          status VARCHAR(32) NOT NULL DEFAULT 'active',
+          metadata TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "billingCustomers_user_open_id_idx"
+        ON "billingCustomers" ("userOpenId")
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS subscriptions (
+          id SERIAL PRIMARY KEY,
+          "userId" INTEGER,
+          "userOpenId" VARCHAR(64) NOT NULL,
+          "stripeCustomerId" VARCHAR(128) NOT NULL,
+          "stripeSubscriptionId" VARCHAR(128) NOT NULL UNIQUE,
+          plan VARCHAR(32) NOT NULL,
+          status VARCHAR(32) NOT NULL,
+          "priceId" VARCHAR(128),
+          "productId" VARCHAR(128),
+          "currentPeriodStart" TIMESTAMPTZ,
+          "currentPeriodEnd" TIMESTAMPTZ,
+          "cancelAtPeriodEnd" INTEGER NOT NULL DEFAULT 0,
+          metadata TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "subscriptions_user_status_idx"
+        ON subscriptions ("userOpenId", status)
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "subscriptions_stripe_customer_idx"
+        ON subscriptions ("stripeCustomerId")
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "leaguePasses" (
+          id SERIAL PRIMARY KEY,
+          "leagueId" VARCHAR(64) NOT NULL,
+          "purchaserUserId" INTEGER,
+          "purchaserOpenId" VARCHAR(64) NOT NULL,
+          "stripeCustomerId" VARCHAR(128),
+          "stripeSubscriptionId" VARCHAR(128),
+          "stripeCheckoutSessionId" VARCHAR(128),
+          status VARCHAR(32) NOT NULL,
+          "startsAt" TIMESTAMPTZ,
+          "expiresAt" TIMESTAMPTZ,
+          "maxManagers" INTEGER,
+          metadata TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "leaguePasses_league_status_idx"
+        ON "leaguePasses" ("leagueId", status)
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "leaguePasses_purchaser_idx"
+        ON "leaguePasses" ("purchaserOpenId")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "leaguePasses_stripe_checkout_idx"
+        ON "leaguePasses" ("stripeCheckoutSessionId")
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "featureEntitlements" (
+          id SERIAL PRIMARY KEY,
+          "subjectType" VARCHAR(16) NOT NULL,
+          "userOpenId" VARCHAR(64),
+          "leagueId" VARCHAR(64),
+          "featureKey" VARCHAR(64) NOT NULL,
+          plan VARCHAR(32),
+          source VARCHAR(32) NOT NULL,
+          "sourceId" VARCHAR(128),
+          status VARCHAR(32) NOT NULL,
+          "startsAt" TIMESTAMPTZ,
+          "expiresAt" TIMESTAMPTZ,
+          metadata TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "featureEntitlements_user_feature_idx"
+        ON "featureEntitlements" ("userOpenId", "featureKey", status)
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "featureEntitlements_league_feature_idx"
+        ON "featureEntitlements" ("leagueId", "featureKey", status)
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "featureEntitlements_source_idx"
+        ON "featureEntitlements" (source, "sourceId")
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "usageEvents" (
+          id SERIAL PRIMARY KEY,
+          "eventId" VARCHAR(128) NOT NULL UNIQUE,
+          "userOpenId" VARCHAR(64),
+          "leagueId" VARCHAR(64),
+          "featureKey" VARCHAR(64) NOT NULL,
+          "usageKey" VARCHAR(64) NOT NULL,
+          quantity INTEGER NOT NULL DEFAULT 1,
+          source VARCHAR(32) NOT NULL,
+          metadata TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "usageEvents_user_feature_createdAt_idx"
+        ON "usageEvents" ("userOpenId", "featureKey", "createdAt" DESC)
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "usageEvents_league_feature_createdAt_idx"
+        ON "usageEvents" ("leagueId", "featureKey", "createdAt" DESC)
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "usageEvents_feature_usage_key_idx"
+        ON "usageEvents" ("featureKey", "usageKey")
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS "ktcSnapshots" (
           id SERIAL PRIMARY KEY,
           "snapshotDate" TIMESTAMPTZ NOT NULL,

@@ -61,6 +61,74 @@ describe("feature entitlements", () => {
     expect(result.requiredPlan).toBe("pro");
   });
 
+  it("derives the highest active billing plan from subscription records", () => {
+    const now = new Date("2026-06-02T12:00:00.000Z");
+
+    expect(getUserBillingPlan(baseUser, null, [
+      {
+        plan: "pro",
+        status: "active",
+        currentPeriodEnd: "2026-07-02T12:00:00.000Z",
+      },
+      {
+        plan: "elite",
+        status: "trialing",
+        currentPeriodEnd: "2026-06-15T12:00:00.000Z",
+      },
+    ], now)).toBe("elite");
+  });
+
+  it("ignores canceled or expired subscription records", () => {
+    const now = new Date("2026-06-02T12:00:00.000Z");
+
+    expect(getUserBillingPlan(baseUser, null, [
+      {
+        plan: "elite",
+        status: "canceled",
+        currentPeriodEnd: "2026-07-02T12:00:00.000Z",
+      },
+      {
+        plan: "pro",
+        status: "active",
+        currentPeriodEnd: "2026-06-01T12:00:00.000Z",
+      },
+    ], now)).toBe("free");
+  });
+
+  it("does not allow subscription records to grant admin-plan access", () => {
+    const now = new Date("2026-06-02T12:00:00.000Z");
+
+    expect(getUserBillingPlan(baseUser, null, [
+      {
+        plan: "admin",
+        status: "active",
+        currentPeriodEnd: "2026-07-02T12:00:00.000Z",
+      },
+    ], now)).toBe("free");
+  });
+
+  it("allows paid features from active subscriptions only after billing launch is enabled", () => {
+    const subscriptions = [{
+      plan: "pro" as const,
+      status: "active",
+      currentPeriodEnd: "2026-07-02T12:00:00.000Z",
+    }];
+
+    expect(canUseFeature({
+      user: baseUser,
+      feature: "source-trace-details",
+      subscriptions,
+      paidFeaturesEnabled: false,
+    }).allowed).toBe(false);
+
+    expect(canUseFeature({
+      user: baseUser,
+      feature: "source-trace-details",
+      subscriptions,
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(true);
+  });
+
   it("keeps paid feature access blocked below the required plan", () => {
     const result = canUseFeature({
       user: baseUser,
