@@ -18,6 +18,7 @@ import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeo
 import { useHomePortfolio } from "@/features/home/hooks/useHomePortfolio";
 import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
 import { useQueuedTimeouts } from "@/features/home/hooks/useQueuedTimeouts";
+import { useReportDeltaSnapshots } from "@/features/home/hooks/useReportDeltaSnapshots";
 import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
 import {
   type HomePortfolioExposureFilter,
@@ -54,12 +55,6 @@ import {
   getInitialReportTabFromUrl,
   updateReportTabUrl,
 } from "@/features/home/lib/reportRouteState";
-import {
-  buildReportDeltaSnapshot,
-  readReportDeltaSnapshot,
-  type ReportDeltaSnapshot,
-  writeReportDeltaSnapshot,
-} from "@/features/home/lib/reportDelta";
 import {
   type CachedReport,
   type LastLeague,
@@ -181,8 +176,6 @@ export default function Home() {
   const [reportScanCompletedAt, setReportScanCompletedAt] = useState<
     number | null
   >(null);
-  const [previousReportDeltaSnapshot, setPreviousReportDeltaSnapshot] =
-    useState<ReportDeltaSnapshot | null>(null);
   const [reportDataCacheVersion, setReportDataCacheVersion] = useState<
     string | null
   >(null);
@@ -1402,13 +1395,14 @@ export default function Home() {
     aiPredictionMutation,
     authQuery.data,
   ]);
-  const currentReportDeltaSnapshot = useMemo(
-    () =>
-      reportDataWithRankings
-        ? buildReportDeltaSnapshot(reportDataWithRankings, leagueId, leagueName)
-        : null,
-    [leagueId, leagueName, reportDataWithRankings]
-  );
+  const {
+    currentReportDeltaSnapshot,
+    previousReportDeltaSnapshot,
+  } = useReportDeltaSnapshots({
+    reportData: reportDataWithRankings,
+    leagueId,
+    leagueName,
+  });
   const showAutopilotAccessToast = () => {
     if (autopilotAccessToastShownRef.current) return;
     autopilotAccessToastShownRef.current = true;
@@ -1456,19 +1450,6 @@ export default function Home() {
   useEffect(() => {
     setReportScanCompletedAt(reportData ? Date.now() : null);
   }, [reportData]);
-
-  useEffect(() => {
-    if (!currentReportDeltaSnapshot) {
-      setPreviousReportDeltaSnapshot(null);
-      return;
-    }
-
-    const previousSnapshot = readReportDeltaSnapshot(
-      currentReportDeltaSnapshot.leagueId
-    );
-    setPreviousReportDeltaSnapshot(previousSnapshot);
-    writeReportDeltaSnapshot(currentReportDeltaSnapshot);
-  }, [currentReportDeltaSnapshot]);
 
   useEffect(() => {
     if (
