@@ -6801,9 +6801,17 @@ export const appRouter = router({
         outcome: aiPredictionOutcomeSchema,
       }))
       .mutation(async ({ input, ctx }) => {
+        const userKey = getActionPlanUserKey(ctx.user);
+        assertRateLimit(ctx.req as any, {
+          id: "aiPredictions.updateOutcome",
+          max: 30,
+          windowMs: 1000 * 60 * 10,
+          scope: userKey,
+          message: "Too many AI prediction outcome updates. Please wait a few minutes and try again.",
+        });
         const persisted = await updateAiPredictionOutcome({
           ...input,
-          userKey: getActionPlanUserKey(ctx.user),
+          userKey,
         });
         return { persisted };
       }),
