@@ -97,7 +97,7 @@ export type AIConfidenceLabel =
 
 export type AISourceTrace = {
   label: string;
-  status?: "loaded" | "stale" | "missing" | "error" | "limited";
+  status?: "loaded" | "stale" | "missing" | "error" | "limited" | "unavailable" | "unverified";
   detail?: string | null;
   ageHours?: number | null;
 };
@@ -313,7 +313,13 @@ function getSourceTraceHealth(trace: AISourceTrace): "loaded" | "missing" | "unh
   const status = String(trace.status || "").trim().toLowerCase();
   const detail = String(trace.detail || "").trim();
   if (status === "missing" || /\b(?:0|zero)\s+rows?\b|no source/i.test(detail)) return "missing";
-  if (status === "stale" || status === "error" || status === "limited") return "unhealthy";
+  if (
+    status === "stale" ||
+    status === "error" ||
+    status === "limited" ||
+    status === "unavailable" ||
+    status === "unverified"
+  ) return "unhealthy";
   if (!status || status === "loaded") return "loaded";
   return "unknown";
 }

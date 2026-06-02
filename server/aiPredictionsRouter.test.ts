@@ -109,6 +109,33 @@ describe("aiPredictions router", () => {
     });
   });
 
+  it("accepts unavailable source-trace statuses for prediction telemetry", async () => {
+    delete process.env.DATABASE_URL;
+    const caller = appRouter.createCaller(createContext());
+
+    const event = predictionEvent();
+    event.sourceTrace = [{
+      label: "FantasyPros waiver snapshot",
+      status: "unavailable",
+    }];
+    event.sourceAgreement.signals = [{
+      source: "FantasyPros waiver snapshot",
+      direction: "missing",
+      confidence: null,
+      status: "unavailable",
+      detail: "Provider disabled for this environment.",
+    }];
+
+    const result = await caller.aiPredictions.upsertMany({
+      events: [event],
+    });
+
+    expect(result).toEqual({
+      accepted: 1,
+      persisted: 0,
+    });
+  });
+
   it("rejects oversized prediction event payloads before persistence", async () => {
     delete process.env.DATABASE_URL;
     const caller = appRouter.createCaller(createContext());

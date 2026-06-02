@@ -651,9 +651,10 @@ const SLEEPER_HIDDEN_IMPORT_TRADE_SIGNAL_LIMIT = 80;
 const SLEEPER_HIDDEN_IMPORT_WAIVER_SIGNAL_LIMIT = 120;
 const valueTimelineWindowSchema = z.enum(['1m', '3m', '6m', '1y', 'all']);
 const MAX_AI_PREDICTION_EVENT_BYTES = 64 * 1024;
+const aiSourceTraceStatusSchema = z.enum(["loaded", "stale", "missing", "error", "limited", "unavailable", "unverified"]);
 const aiSourceTraceSchema = z.object({
   label: z.string().min(1).max(240),
-  status: z.enum(["loaded", "stale", "missing", "error", "limited"]).optional(),
+  status: aiSourceTraceStatusSchema.optional(),
   detail: z.string().max(500).nullable().optional(),
   ageHours: z.number().finite().nullable().optional(),
 });
@@ -714,7 +715,7 @@ const aiSourceAgreementSignalSchema = z.object({
   source: z.string().min(1).max(180),
   direction: z.enum(["for", "against", "neutral", "missing"]),
   confidence: z.number().int().min(0).max(100).nullable().optional(),
-  status: z.enum(["loaded", "stale", "missing", "error", "limited"]).nullable().optional(),
+  status: aiSourceTraceStatusSchema.nullable().optional(),
   detail: z.string().max(500).nullable().optional(),
 });
 const aiSourceAgreementReadSchema = z.object({
