@@ -2698,10 +2698,11 @@ function formatWaiverWeeklyEcrTraceRead(player: TrendingPlayer): string | null {
   return `${loadedWeeks || 'Rolling weeks'} backed by stored ${sourceLabel} snapshots.`;
 }
 
-function normalizeAutopilotSourceTraceStatus(status?: string | null): AISourceTrace['status'] {
+function normalizeAutopilotSourceTraceStatus(status?: string | null, rowCount?: number | null): AISourceTrace['status'] {
   const normalized = String(status || '').toLowerCase();
   if (/error|fail|invalid/.test(normalized)) return 'error';
   if (/stale|expired/.test(normalized)) return 'stale';
+  if (rowCount === 0) return 'missing';
   if (/missing|empty|unavailable|disabled/.test(normalized)) return 'missing';
   if (/partial|limited|blocked/.test(normalized)) return 'limited';
   return 'loaded';
@@ -2715,12 +2716,15 @@ function getAutopilotTraceAgeHours(trace: WaiverSourceTraceEntry): number | null
 
 function getWaiverWeeklyEcrSourceTrace(signal?: WaiverWeeklyEcrSignal | null): AISourceTrace[] {
   if (!signal?.sourceTrace?.length) return [];
-  return signal.sourceTrace.slice(0, 3).map((trace) => ({
-    label: trace.endpointLabel || trace.source || 'Weekly rank source',
-    status: normalizeAutopilotSourceTraceStatus(trace.status),
-    detail: trace.evidence || trace.sourceKey || signal.traceSummary || null,
-    ageHours: getAutopilotTraceAgeHours(trace),
-  }));
+  return signal.sourceTrace.slice(0, 3).map((trace) => {
+    const rowCopy = typeof trace.rowCount === 'number' ? `${trace.rowCount.toLocaleString()} rows` : null;
+    return {
+      label: trace.endpointLabel || trace.source || 'Weekly rank source',
+      status: normalizeAutopilotSourceTraceStatus(trace.status, trace.rowCount),
+      detail: [rowCopy, trace.evidence || trace.sourceKey || signal.traceSummary || null].filter(Boolean).join(' - ') || null,
+      ageHours: getAutopilotTraceAgeHours(trace),
+    };
+  });
 }
 
 function getAutopilotValueSourceCount(player: TrendingPlayer): number {

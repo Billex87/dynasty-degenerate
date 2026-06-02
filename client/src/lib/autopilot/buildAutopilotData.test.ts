@@ -2213,6 +2213,101 @@ describe('buildAutopilotData', () => {
     expect(waiverQueueItem?.changeTriggers.join(' ')).toContain('FantasyPros WR weekly ECR');
   });
 
+  it('treats zero-row weekly-source traces as missing source-health proof', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    const receiver = reportData.waiverIntelligence!.availableTrendingAdds[0]!;
+    const now = new Date().toISOString();
+    const weeks: WaiverWeeklyEcrWeek[] = [1].map((week) => ({
+      week,
+      season: '2026',
+      scoring: 'PPR',
+      sourceKey: `fantasypros-endpoint-v1:2026:PPR:wr-week-${week}`,
+      endpointKey: `wr-week-${week}`,
+      sourceStatus: 'loaded',
+      sourceRowCount: 0,
+      sourceFetchedAt: now,
+      sourceLastUpdated: now,
+      rankEcr: 31,
+      positionRank: 'WR31',
+      averageRank: 31,
+      rankStdDev: null,
+      lastUpdated: now,
+      opponent: 'CHI',
+      homeAway: 'home',
+      opponentRank: 14,
+      matchupStars: 3,
+      matchupTier: 'neutral',
+      isBye: false,
+    }));
+    const signal: WaiverWeeklyEcrSignal = {
+      signalType: 'weekly-rank',
+      playerId: receiver.player_id,
+      fantasyProsId: 'fp-waiver1',
+      name: receiver.name,
+      position: 'WR',
+      team: receiver.team,
+      source: 'FantasyPros',
+      updatedAt: now,
+      weeks,
+      bestWeek: 1,
+      bestRankEcr: 31,
+      bestPositionRank: 'WR31',
+      averageRankEcr: 31,
+      rankDelta: null,
+      matchupWindows: buildMatchupWindowSet(weeks, { currentWeek: 1 }),
+      confidence: 92,
+      note: 'Zero-row weekly rank fixture.',
+      sourceTrace: [{
+        source: 'FantasyPros',
+        sourceKey: 'fantasypros-endpoint-v1:2026:PPR:wr-week-1',
+        endpointKey: 'wr-week-1',
+        endpointLabel: 'FantasyPros WR weekly ECR',
+        status: 'loaded',
+        season: '2026',
+        scoring: 'PPR',
+        week: 1,
+        position: 'WR',
+        rowCount: 0,
+        fetchedAt: now,
+        lastUpdated: now,
+        evidence: 'Week 1 WR31 from empty source response.',
+      }],
+      traceSummary: 'FantasyPros weekly ECR source trace: empty source response.',
+    };
+    const zeroRowReceiver = { ...receiver, weeklyEcr: signal };
+    reportData.waiverIntelligence = {
+      ...reportData.waiverIntelligence!,
+      availableTrendingAdds: [zeroRowReceiver],
+      highestKtcAvailable: zeroRowReceiver,
+      bestAvailableByPosition: {
+        QB: null,
+        RB: null,
+        WR: zeroRowReceiver,
+        TE: null,
+        K: null,
+        DEF: null,
+      },
+      weeklyEcrTargets: [{ player: zeroRowReceiver, signal, score: 88 }],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'redraft',
+      fallback: AUTOPILOT_MOCK_DATA.redraft,
+    });
+
+    const waiverQueueItem = data.actionQueue.find((item) => item.target === 'Waiver Receiver');
+    expect(waiverQueueItem).toMatchObject({
+      decision: 'watch',
+      label: "Don't force it",
+    });
+    expect(waiverQueueItem?.missingEvidence.join(' ')).toContain('unhealthy source proof');
+    expect(waiverQueueItem?.sourceHealth.join(' ')).toContain('FantasyPros WR weekly ECR: missing');
+    expect(waiverQueueItem?.sourceHealth.join(' ')).toContain('0 rows');
+    expect(data.actionQueue.filter((item) => item.target === 'Waiver Receiver' && item.decision === 'do')).toHaveLength(0);
+  });
+
   it('does not turn dynasty-only waiver stash evidence into a redraft queue action', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];
