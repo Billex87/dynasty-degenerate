@@ -661,14 +661,21 @@ describe('AI prediction calibration', () => {
       finalScore: 55,
       outcome: { status: 'pending' },
     });
+    const unsafeLegacyDo = event({
+      entityId: 'legacy-gap',
+      decision: 'do',
+      confidenceCapReason: 'Missing live roster proof',
+      missingEvidence: ['Verify live roster state before acting.'],
+      outcome: { status: 'pending' },
+    });
 
-    const memory = buildAIOutcomeMemorySummary([hit, miss, pending]);
+    const memory = buildAIOutcomeMemorySummary([hit, miss, pending, unsafeLegacyDo]);
 
     expect(memory).toMatchObject({
       schemaVersion: 1,
-      eventCount: 3,
+      eventCount: 4,
       scoredCount: 2,
-      pendingCount: 1,
+      pendingCount: 2,
     });
     expect(memory.ledger[0]).toMatchObject({
       module: 'Waiver AI',
@@ -689,6 +696,10 @@ describe('AI prediction calibration', () => {
       expect.arrayContaining(['sharp', 'sleepy'])
     );
     expect(memory.moduleScorecards.some(bucket => bucket.group.surface === 'trade')).toBe(true);
+    expect(memory.ledger.find(row => row.eventId === unsafeLegacyDo.eventId)).toMatchObject({
+      decision: 'watch',
+      missingEvidence: ['Verify live roster state before acting.'],
+    });
   });
 
   it('applies the most specific calibration adjustment to future reads', () => {

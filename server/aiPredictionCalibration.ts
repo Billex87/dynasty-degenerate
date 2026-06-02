@@ -1256,7 +1256,7 @@ function buildOutcomeLedgerRow(event: AIPredictionEvent): AIOutcomeLedgerRow {
     surface: event.surface,
     action: event.action,
     module: getOutcomeModule(event),
-    decision: event.decision,
+    decision: getEffectivePredictionDecision(event),
     entityType: event.entityType,
     entityName: event.entityName || null,
     label: event.label,
