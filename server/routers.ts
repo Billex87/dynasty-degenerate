@@ -151,6 +151,19 @@ function assertBillingPersistenceConfigured() {
   }
 }
 
+function assertBillingRouteRateLimit(
+  ctx: TrpcContext & { user: NonNullable<TrpcContext["user"]> },
+  id: string
+) {
+  assertRateLimit(ctx.req as any, {
+    id,
+    max: 20,
+    windowMs: 1000 * 60 * 10,
+    scope: getActionPlanUserKey(ctx.user),
+    message: "Too many billing requests. Please wait a few minutes and try again.",
+  });
+}
+
 function assertAccountPersistenceConfigured() {
   if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL) {
     throw new TRPCError({
@@ -6863,6 +6876,7 @@ export const appRouter = router({
         returnPath: z.string().trim().max(512).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        assertBillingRouteRateLimit(ctx, "billing.createCheckoutSession");
         assertBillingPersistenceConfigured();
 
         const billingCustomer = await findBillingCustomerForUser(ctx.user.openId);
@@ -6881,6 +6895,7 @@ export const appRouter = router({
         returnPath: z.string().trim().max(512).optional(),
       }).optional())
       .mutation(async ({ input, ctx }) => {
+        assertBillingRouteRateLimit(ctx, "billing.createCustomerPortalSession");
         assertBillingPersistenceConfigured();
 
         const billingCustomer = await findBillingCustomerForUser(ctx.user.openId);

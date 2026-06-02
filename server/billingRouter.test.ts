@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { User } from "../drizzle/schema";
 import type { TrpcContext } from "./_core/context";
@@ -28,6 +30,15 @@ vi.mock("./stripeBilling", async () => {
 const mockedFindBillingCustomerForUser = vi.mocked(findBillingCustomerForUser);
 const mockedCreateStripeCheckoutSession = vi.mocked(createStripeCheckoutSession);
 const mockedCreateStripeCustomerPortalSession = vi.mocked(createStripeCustomerPortalSession);
+const routersSource = fs.readFileSync(path.resolve(__dirname, "routers.ts"), "utf8");
+
+function extractSource(startMarker: string, endMarker: string): string {
+  const start = routersSource.indexOf(startMarker);
+  const end = routersSource.indexOf(endMarker, start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  return routersSource.slice(start, end);
+}
 
 const user: User = {
   id: 42,
@@ -179,5 +190,36 @@ describe("billing router", () => {
       appBaseUrl: "https://dynastydegens.com",
       returnPath: "/account?tab=billing",
     });
+  });
+
+  it("keeps billing session routes behind the route limiter", () => {
+    const guardSource = extractSource("function assertBillingRouteRateLimit", "\n\nfunction assertAccountPersistenceConfigured");
+    const routeChecks = [
+      {
+        name: "createCheckoutSession",
+        source: extractSource("createCheckoutSession: protectedProcedure", "\n    createCustomerPortalSession: protectedProcedure"),
+        rateLimitId: "billing.createCheckoutSession",
+        workMarkers: ["assertBillingPersistenceConfigured()", "findBillingCustomerForUser(ctx.user.openId)", "createStripeCheckoutSession({"],
+      },
+      {
+        name: "createCustomerPortalSession",
+        source: extractSource("createCustomerPortalSession: protectedProcedure", "\n  }),\n\n  actionPlans: router"),
+        rateLimitId: "billing.createCustomerPortalSession",
+        workMarkers: ["assertBillingPersistenceConfigured()", "findBillingCustomerForUser(ctx.user.openId)", "createStripeCustomerPortalSession({"],
+      },
+    ];
+
+    expect(guardSource).toContain("assertRateLimit(ctx.req as any");
+    expect(guardSource).toContain("max: 20");
+    expect(guardSource).toContain("windowMs: 1000 * 60 * 10");
+    expect(guardSource).toContain("scope: getActionPlanUserKey(ctx.user)");
+
+    for (const route of routeChecks) {
+      const rateLimitIndex = route.source.indexOf(`assertBillingRouteRateLimit(ctx, "${route.rateLimitId}")`);
+      expect(rateLimitIndex, route.name).toBeGreaterThan(0);
+      for (const marker of route.workMarkers) {
+        expect(route.source.indexOf(marker), `${route.name}:${marker}`).toBeGreaterThan(rateLimitIndex);
+      }
+    }
   });
 });
