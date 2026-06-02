@@ -333,7 +333,7 @@ export default function RecentTransactionsPanel({
       >
         <div className="recent-transaction-insight-head">
           <span className="recent-transaction-insight-title">
-            Why Better Cut
+            Why
           </span>
           <span className="recent-transaction-insight-lens">
             {insight.lensLabel}

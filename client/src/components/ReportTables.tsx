@@ -2791,7 +2791,7 @@ export function LeagueCommandCenter({
                                 </div>
                                 {topOption?.reasonBullets.length ? (
                                   <details className="manager-command-swap-details">
-                                    <summary>Why this swap</summary>
+                                    <summary>Why</summary>
                                     <ul>
                                       {topOption.reasonBullets.map(reason => (
                                         <li key={reason}>{reason}</li>

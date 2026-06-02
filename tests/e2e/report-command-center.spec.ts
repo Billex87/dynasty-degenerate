@@ -588,8 +588,8 @@ test.describe("command center feature surfaces", () => {
         .locator(".manager-command-swap-player .interactive-identity-name")
         .filter({ hasText: "Sample Tight End" })
     ).toBeVisible();
-    await expect(swapRead.getByText("Why this swap").first()).toBeVisible();
-    await swapRead.getByText("Why this swap").first().click();
+    await expect(swapRead.getByText("Why", { exact: true }).first()).toBeVisible();
+    await swapRead.getByText("Why", { exact: true }).first().click();
     await expect(swapRead.getByText(/Stored weekly projection edge/i).first()).toBeVisible();
     await expect(
       swapRead.getByRole("button", { name: /Copy swap/i })
