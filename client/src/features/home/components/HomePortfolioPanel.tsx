@@ -91,7 +91,7 @@ export function HomePortfolioPanel({
             type="search"
             value={query}
             onChange={event => onQueryChange(event.target.value)}
-            placeholder="Search player, team, position, or league"
+            placeholder="Search players"
           />
         </label>
 

@@ -330,20 +330,42 @@ export function ReportOverviewTab({
         </>
       )}
       {orderedUserLeagues.length > 0 ? (
-        <HomePortfolioPanel
-          rows={homePortfolioRows}
-          filteredRows={filteredHomePortfolioRows}
-          leagues={orderedUserLeagues}
-          isLoading={isHomePortfolioLoading}
-          query={portfolioSearch}
-          exposureFilter={portfolioExposureFilter}
-          selectedLeagueId={portfolioLeagueFilter}
-          onQueryChange={onPortfolioSearchChange}
-          onExposureFilterChange={onPortfolioExposureFilterChange}
-          onLeagueFilterChange={onPortfolioLeagueFilterChange}
-          showLeagueChooser={false}
-          className="home-portfolio-shell-report"
-        />
+        <CollapsibleReportSection
+          title="Player Hoard"
+          kicker="Every rostered player tied to this Sleeper username"
+          previewMetrics={[
+            {
+              label: "Players",
+              value: homePortfolioRows.length || 0,
+              tone: homePortfolioRows.length ? "info" : "neutral",
+            },
+            {
+              label: "Overlap",
+              value: homePortfolioRows.filter(row => row.leagueCount > 1).length,
+              tone: "warn",
+            },
+            {
+              label: "Leagues",
+              value: orderedUserLeagues.length,
+              tone: orderedUserLeagues.length > 1 ? "good" : "neutral",
+            },
+          ]}
+        >
+          <HomePortfolioPanel
+            rows={homePortfolioRows}
+            filteredRows={filteredHomePortfolioRows}
+            leagues={orderedUserLeagues}
+            isLoading={isHomePortfolioLoading}
+            query={portfolioSearch}
+            exposureFilter={portfolioExposureFilter}
+            selectedLeagueId={portfolioLeagueFilter}
+            onQueryChange={onPortfolioSearchChange}
+            onExposureFilterChange={onPortfolioExposureFilterChange}
+            onLeagueFilterChange={onPortfolioLeagueFilterChange}
+            showLeagueChooser={false}
+            className="home-portfolio-shell-report"
+          />
+        </CollapsibleReportSection>
       ) : null}
       <CollapsibleReportSection
         title="League Settings"

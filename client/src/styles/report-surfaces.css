@@ -10459,6 +10459,10 @@ body {
   width: 100%;
 }
 
+.home-portfolio-shell-report .home-portfolio-header {
+  display: none;
+}
+
 .home-portfolio-panel,
 .home-league-chooser {
   position: relative;
@@ -10848,9 +10852,11 @@ body {
       "player player"
       "exposure value"
       "leagues leagues";
-    min-height: 0;
+    min-height: 8.6rem;
     align-items: stretch;
+    align-content: start;
     gap: 0.68rem;
+    overflow: hidden;
     padding: 0.92rem;
     border-color: rgba(0, 200, 232, 0.26);
     background:
@@ -10862,23 +10868,59 @@ body {
   }
 
   .home-portfolio-list {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
     gap: 0.9rem;
   }
 
   .home-portfolio-player {
     grid-area: player;
+    overflow: hidden;
+  }
+
+  .home-portfolio-player .report-player-identity-row {
+    display: block;
+    min-width: 0;
+  }
+
+  .home-portfolio-player .player-chip {
+    width: 100%;
+    max-width: 100%;
+    min-height: 2.45rem;
+  }
+
+  .home-portfolio-player
+    .player-chip
+    > :is(img, span[aria-hidden="true"], .interactive-identity-avatar) {
+    width: 2.35rem !important;
+    height: 2.35rem !important;
+    flex: 0 0 2.35rem;
+  }
+
+  .home-portfolio-player .interactive-identity-name,
+  .home-portfolio-meta {
+    max-width: 100%;
+    overflow: hidden;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .home-portfolio-exposure {
     grid-area: exposure;
+    min-width: 0;
   }
 
   .home-portfolio-league-stack {
     grid-area: leagues;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .home-portfolio-value {
     grid-area: value;
+    min-width: 0;
     justify-self: end;
   }
 
@@ -10899,6 +10941,12 @@ body {
   .home-portfolio-league-stack {
     min-height: 2rem;
     padding-left: 0.24rem;
+  }
+
+  .home-portfolio-league-avatar,
+  .home-portfolio-league-more {
+    width: 1.85rem;
+    height: 1.85rem;
   }
 
   .home-league-picker-portfolio {
