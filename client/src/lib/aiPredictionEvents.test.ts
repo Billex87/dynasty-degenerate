@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createCachedCommandCenterReport } from "../../../tests/e2e/fixtures/cachedReports";
 import {
   buildAIPredictionEventsForReport,
+  buildClientSourceAgreementRead,
   getAIPredictionEventBatchSignature,
 } from "./aiPredictionEvents";
 
@@ -248,6 +249,30 @@ describe("AI prediction event builder", () => {
       },
     });
     expect(scheduleEvent?.decision).toBe("do");
+  });
+
+  it("classifies unavailable source traces as missing source-agreement proof", () => {
+    const agreement = buildClientSourceAgreementRead({
+      sourceTrace: [{
+        label: "FantasyPros waiver source",
+        status: "unavailable",
+        detail: "Provider disabled for this environment.",
+      }],
+      hardBlockers: [],
+      missingEvidence: [],
+    });
+
+    expect(agreement).toMatchObject({
+      state: "missing",
+      missingCount: 1,
+      confidenceCap: 48,
+      reason: "No source signal was available for this read.",
+      signals: [{
+        direction: "missing",
+        confidence: 0,
+        status: "unavailable",
+      }],
+    });
   });
 
   it("does not emit fake calibration events when report data is missing", () => {

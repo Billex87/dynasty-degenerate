@@ -403,7 +403,12 @@ function sourceSignalDirectionFromTrace(
   missingEvidence: string[],
 ): ClientAISourceSignalDirection {
   const text = `${trace.label} ${trace.detail || ""}`.toLowerCase();
-  if (trace.status === "missing" || /missing|no source|not attached/i.test(text)) return "missing";
+  if (
+    trace.status === "missing" ||
+    trace.status === "unavailable" ||
+    trace.status === "unverified" ||
+    /missing|no source|not attached|unavailable|unverified/i.test(text)
+  ) return "missing";
   if (trace.status === "error" || hardBlockers.some(blocker => text.includes(blocker.toLowerCase()))) return "against";
   if (trace.status === "stale" || trace.status === "limited") return missingEvidence.length ? "neutral" : "against";
   if (/rough|avoid|blocked|conflict|drop confidence|penalty/i.test(text)) return "against";
@@ -412,13 +417,13 @@ function sourceSignalDirectionFromTrace(
 }
 
 function sourceSignalWeight(trace: AISourceTrace): number {
-  if (trace.status === "missing") return 0;
+  if (trace.status === "missing" || trace.status === "unavailable" || trace.status === "unverified") return 0;
   if (trace.status === "error") return 35;
   if (trace.status === "stale" || trace.status === "limited") return 45;
   return 70;
 }
 
-function buildClientSourceAgreementRead(input: {
+export function buildClientSourceAgreementRead(input: {
   sourceTrace: AISourceTrace[];
   hardBlockers: string[];
   missingEvidence: string[];
