@@ -38,6 +38,46 @@ describe("buildAIReadDecision", () => {
     expect(decision.status).toBe("priority · 82%");
   });
 
+  it("keeps capped actionable evidence from rendering as do-this copy", () => {
+    const decision = buildAIReadDecision({
+      hasEnabledAction: true,
+      evidenceRead: {
+        label: "priority",
+        finalScore: 72,
+        canAct: true,
+        whyThisFired: "Multiple returned sources agree.",
+        missingEvidence: [],
+        hardBlockers: [],
+        confidenceCapReason: "Missing source-health proof",
+      },
+    });
+
+    expect(decision.label).toBe("Don't force it");
+    expect(decision.tone).toBe("watch");
+    expect(decision.detail).toContain("Confidence limited by Missing source-health proof");
+    expect(decision.status).toBe("Limited · 72%");
+  });
+
+  it("keeps actionable evidence with unresolved evidence gaps from rendering as do-this copy", () => {
+    const decision = buildAIReadDecision({
+      hasEnabledAction: true,
+      evidenceRead: {
+        label: "priority",
+        finalScore: 74,
+        canAct: true,
+        whyThisFired: "Multiple returned sources agree.",
+        missingEvidence: ["No live roster proof returned for this action read."],
+        hardBlockers: [],
+        confidenceCapReason: null,
+      },
+    });
+
+    expect(decision.label).toBe("Don't force it");
+    expect(decision.tone).toBe("watch");
+    expect(decision.detail).toContain("No live roster proof");
+    expect(decision.status).toBe("Limited · 74%");
+  });
+
   it("turns blocked evidence reads into a do-not decision", () => {
     const decision = buildAIReadDecision({
       evidenceRead: {

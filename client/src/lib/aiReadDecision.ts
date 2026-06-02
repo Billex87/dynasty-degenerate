@@ -17,6 +17,7 @@ export type AIReadDecisionInput = {
     | "finalScore"
     | "canAct"
     | "whyThisFired"
+    | "missingEvidence"
     | "hardBlockers"
     | "confidenceCapReason"
   > | null;
@@ -66,10 +67,11 @@ function getEvidenceDecision(
   hasEnabledAction: boolean
 ): AIReadDecision {
   const blocker = read.hardBlockers?.[0] || null;
+  const evidenceGap = read.confidenceCapReason || read.missingEvidence?.[0] || null;
   const detail =
     read.confidenceCapReason
       ? `Confidence limited by ${read.confidenceCapReason}.`
-      : blocker || read.whyThisFired;
+      : blocker || read.missingEvidence?.[0] || read.whyThisFired;
 
   if (read.label === "blocked") {
     return {
@@ -96,6 +98,15 @@ function getEvidenceDecision(
         detail: `Evidence cleared, but no concrete action is attached to this read. ${detail || ""}`.trim(),
         tone: "watch",
         status: `${read.label} · ${read.finalScore}%`,
+      };
+    }
+
+    if (evidenceGap) {
+      return {
+        label: "Don't force it",
+        detail,
+        tone: "watch",
+        status: `Limited · ${read.finalScore}%`,
       };
     }
 
