@@ -6753,8 +6753,16 @@ export const appRouter = router({
         limit: z.number().int().min(1).max(100).optional(),
       }).optional())
       .query(async ({ input, ctx }) => {
+        const userKey = getActionPlanUserKey(ctx.user);
+        assertRateLimit(ctx.req as any, {
+          id: "actionPlans.list",
+          max: 60,
+          windowMs: 1000 * 60 * 10,
+          scope: userKey,
+          message: "Too many action-plan requests. Please wait a few minutes and try again.",
+        });
         const plans = await listActionPlans({
-          userKey: getActionPlanUserKey(ctx.user),
+          userKey,
           leagueId: input?.leagueId || null,
           limit: input?.limit,
         });
@@ -6767,8 +6775,16 @@ export const appRouter = router({
         limit: z.number().int().min(1).max(150).optional(),
       }).optional())
       .query(async ({ input, ctx }) => {
+        const userKey = getActionPlanUserKey(ctx.user);
+        assertRateLimit(ctx.req as any, {
+          id: "actionPlans.listWaiverBidHistory",
+          max: 60,
+          windowMs: 1000 * 60 * 10,
+          scope: userKey,
+          message: "Too many waiver bid history requests. Please wait a few minutes and try again.",
+        });
         const bidHistory = await listWaiverBidHistory({
-          userKey: getActionPlanUserKey(ctx.user),
+          userKey,
           leagueId: input?.leagueId || null,
           limit: input?.limit,
         });

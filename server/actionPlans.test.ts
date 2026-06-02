@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
+import fs from "fs";
+import path from "path";
 import type { TrpcContext } from "./_core/context";
 import { appRouter } from "./routers";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
 const originalDatabaseUrl = process.env.DATABASE_URL;
+const routersSource = fs.readFileSync(path.resolve(__dirname, "routers.ts"), "utf8");
 
 function createContext(user: Partial<AuthenticatedUser> | null = {}): TrpcContext {
   return {
@@ -65,5 +68,24 @@ describe("actionPlans router", () => {
     });
 
     expect(result.bidHistory).toEqual([]);
+  });
+
+  it("keeps action-plan DB reads behind route-level rate limits", () => {
+    const start = routersSource.indexOf("actionPlans: router({");
+    const end = routersSource.indexOf("\n\n  aiPredictions: router({", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const routeSource = routersSource.slice(start, end);
+    const plansRateLimitIndex = routeSource.indexOf('id: "actionPlans.list"');
+    const plansReadIndex = routeSource.indexOf("listActionPlans({");
+    const bidHistoryRateLimitIndex = routeSource.indexOf('id: "actionPlans.listWaiverBidHistory"');
+    const bidHistoryReadIndex = routeSource.indexOf("listWaiverBidHistory({");
+
+    expect(plansRateLimitIndex).toBeGreaterThan(0);
+    expect(plansReadIndex).toBeGreaterThan(plansRateLimitIndex);
+    expect(bidHistoryRateLimitIndex).toBeGreaterThan(0);
+    expect(bidHistoryReadIndex).toBeGreaterThan(bidHistoryRateLimitIndex);
+    expect(routeSource).toContain("assertRateLimit(ctx.req as any");
+    expect(routeSource).toContain("scope: userKey");
   });
 });
