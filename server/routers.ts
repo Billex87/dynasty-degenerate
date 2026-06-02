@@ -7971,6 +7971,14 @@ export const appRouter = router({
             message: 'Fresh report generation is temporarily throttled for this league.',
           });
           if (ctx.user) {
+            assertRateLimit(ctx.req as any, {
+              id: 'league.analyze.generate.user',
+              max: 4,
+              windowMs: 1000 * 60 * 60,
+              scope: getActionPlanUserKey(ctx.user),
+              clientKey: 'authenticated-user',
+              message: 'Too many fresh report generations for this account. Please wait before running another uncached analysis.',
+            });
             await assertPersistedUsageLimit({
               user: ctx.user,
               featureKey: "report-generation",
