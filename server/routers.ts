@@ -1496,10 +1496,23 @@ function toSleeperLeagueOption(
 }
 
 type SleeperLeagueOption = NonNullable<ReturnType<typeof toSleeperLeagueOption>>;
+type SleeperLeaguePreview = SleeperLeagueOption & {
+  managerAnchors: Array<{ id: string; avatarUrl: string | null }>;
+};
 
 const INVALID_LEAGUE_ID_TTL_MS = 10 * 60 * 1000;
 const INVALID_LEAGUE_ID_CACHE_MAX_ENTRIES = 1000;
 const invalidLeagueIdCache = new Map<string, { fetchedAt: number }>();
+const LEAGUE_PREVIEW_CACHE_TTL_MS = 2 * 60 * 1000;
+const LEAGUE_PREVIEW_CACHE_MAX_ENTRIES = 100;
+const leaguePreviewCache = new Map<string, { loadedAt: number; preview: SleeperLeaguePreview }>();
+
+function cloneLeaguePreview(preview: SleeperLeaguePreview): SleeperLeaguePreview {
+  return {
+    ...preview,
+    managerAnchors: preview.managerAnchors.map(anchor => ({ ...anchor })),
+  };
+}
 
 function isInvalidLeagueIdCached(leagueId: string): boolean {
   const validLeagueId = getValidSleeperEntityId(leagueId);
@@ -1537,6 +1550,52 @@ function markInvalidLeagueId(leagueId: string): void {
 
   pruneInvalidLeagueIdCache();
   invalidLeagueIdCache.set(validLeagueId, { fetchedAt: Date.now() });
+}
+
+function pruneLeaguePreviewCache(now = Date.now()) {
+  for (const [leagueId, cached] of Array.from(leaguePreviewCache.entries())) {
+    if (now - cached.loadedAt > LEAGUE_PREVIEW_CACHE_TTL_MS) {
+      leaguePreviewCache.delete(leagueId);
+    }
+  }
+
+  while (leaguePreviewCache.size >= LEAGUE_PREVIEW_CACHE_MAX_ENTRIES) {
+    const oldestLeagueId = Array.from(leaguePreviewCache.entries())
+      .sort((a, b) => a[1].loadedAt - b[1].loadedAt)[0]?.[0];
+    if (!oldestLeagueId) break;
+    leaguePreviewCache.delete(oldestLeagueId);
+  }
+}
+
+function getCachedLeaguePreview(leagueId: string): SleeperLeaguePreview | null {
+  const validLeagueId = getValidSleeperEntityId(leagueId);
+  if (!validLeagueId) return null;
+
+  const cached = leaguePreviewCache.get(validLeagueId);
+  if (!cached) return null;
+
+  if (Date.now() - cached.loadedAt > LEAGUE_PREVIEW_CACHE_TTL_MS) {
+    leaguePreviewCache.delete(validLeagueId);
+    return null;
+  }
+
+  return cloneLeaguePreview(cached.preview);
+}
+
+function setCachedLeaguePreview(leagueId: string, preview: SleeperLeaguePreview): SleeperLeaguePreview {
+  const validLeagueId = getValidSleeperEntityId(leagueId);
+  if (!validLeagueId) return preview;
+
+  pruneLeaguePreviewCache();
+  leaguePreviewCache.set(validLeagueId, {
+    loadedAt: Date.now(),
+    preview: cloneLeaguePreview(preview),
+  });
+  return preview;
+}
+
+export function clearLeaguePreviewCacheForTests() {
+  leaguePreviewCache.clear();
 }
 type KtcValueProfileCandidate = { key: string; data: KTCValues[string]; score: number };
 
@@ -7169,6 +7228,11 @@ export const appRouter = router({
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
         }
 
+        const cachedPreview = getCachedLeaguePreview(normalizedLeagueId);
+        if (cachedPreview) {
+          return cachedPreview;
+        }
+
         const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`);
         if (!leagueInfo?.league_id) {
           markInvalidLeagueId(normalizedLeagueId);
@@ -7183,10 +7247,10 @@ export const appRouter = router({
         }
         const managerAnchors = buildManagerAnchorsFromSleeperUsers(users);
 
-        return {
+        return setCachedLeaguePreview(normalizedLeagueId, {
           ...leagueOption,
           managerAnchors,
-        };
+        });
       }),
 
     reportCacheStatus: publicProcedure

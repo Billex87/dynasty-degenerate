@@ -243,6 +243,28 @@ describe("user-load provider boundary", () => {
     expect(getUserLeaguesSource).toContain("message: 'Too many league lookup attempts. Please wait a few minutes and try again.'");
   });
 
+  it("keeps direct league previews cache-first after route access checks", () => {
+    const previewSource = extractSource("getLeaguePreview: publicProcedure", "\n    reportCacheStatus: publicProcedure");
+    const cacheHelperSource = extractSource("function setCachedLeaguePreview", "\n\nexport function clearLeaguePreviewCacheForTests");
+    const accessIndex = previewSource.indexOf("assertReportAccess(ctx)");
+    const rateLimitIndex = previewSource.indexOf("assertRateLimit(ctx.req as any");
+    const cacheReadIndex = previewSource.indexOf("const cachedPreview = getCachedLeaguePreview(normalizedLeagueId)");
+    const leagueFetchIndex = previewSource.indexOf("fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`)");
+    const usersFetchIndex = previewSource.indexOf("fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/users`)");
+    const cacheWriteIndex = previewSource.indexOf("return setCachedLeaguePreview(normalizedLeagueId");
+
+    expect(routersSource).toContain("const LEAGUE_PREVIEW_CACHE_MAX_ENTRIES = 100");
+    expect(cacheHelperSource).toContain("pruneLeaguePreviewCache()");
+    expect(cacheHelperSource).toContain("leaguePreviewCache.set(validLeagueId");
+    expect(accessIndex).toBeGreaterThan(0);
+    expect(rateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(cacheReadIndex).toBeGreaterThan(rateLimitIndex);
+    expect(leagueFetchIndex).toBeGreaterThan(cacheReadIndex);
+    expect(usersFetchIndex).toBeGreaterThan(leagueFetchIndex);
+    expect(cacheWriteIndex).toBeGreaterThan(usersFetchIndex);
+    expect(previewSource).toContain("id: 'league.getLeaguePreview'");
+  });
+
   it("records source-trace view usage before returning paid trace details", () => {
     const sanitizeSource = extractSource("async function sanitizeAnalyzePayloadForPaidAccess", "\nfunction assertSessionJwtSecretConfigured");
     const accessIndex = sanitizeSource.indexOf('feature: "source-trace-details"');
