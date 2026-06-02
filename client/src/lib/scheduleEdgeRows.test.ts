@@ -159,6 +159,12 @@ describe("schedule edge rows", () => {
           averageRank: null,
           rankStdDev: null,
           lastUpdated: "2026-09-08T18:00:00.000Z",
+          opponent: "NYJ",
+          homeAway: "home",
+          opponentRank: 4,
+          matchupStars: 5,
+          matchupTier: "easy",
+          isBye: false,
         },
       ],
       sourceTrace: [makeTrace({ position: "DST" })],
@@ -177,6 +183,34 @@ describe("schedule edge rows", () => {
         },
       ],
     });
+    report.managerPositionCounts = [
+      {
+        manager: "Roster Manager",
+        QB: 0,
+        QB_starters: 0,
+        RB: 0,
+        RB_starters: 0,
+        WR: 0,
+        WR_starters: 0,
+        TE: 0,
+        TE_starters: 0,
+        K: 0,
+        K_starters: 0,
+        DEF: 1,
+        DEF_starters: 1,
+        rosterPlayers: [
+          {
+            player_id: "other-defense",
+            name: "Other Defense",
+            pos: "DEF",
+            value: 0,
+            playerDetails: { team: "NYG" },
+          },
+        ],
+        lineupPlayers: [],
+        starterPlayers: [],
+      },
+    ];
 
     const [row] = buildScheduleEdgeRows(report, { now: NOW });
 
@@ -184,10 +218,12 @@ describe("schedule edge rows", () => {
     expect(row.bestRank).toBe("Rank 3");
     expect(row.seasonRank).toBeNull();
     expect(row.seasonRankNumber).toBe(3);
-    expect(row.window).toContain("W2 Rank 3");
+    expect(row.window).toContain("W2 vs. NYJ 5-star");
     expect(row.window).not.toContain("ECR");
     expect(row.action).toBe("Streamer target");
     expect(row.sourceTone).toBe("good");
+    expect(row.evidenceRead.canAct).toBe(true);
+    expect(row.decisionLabel).toBe("Review this");
   });
 
   it("uses current-season redraft rank for matchup calendar rows in dynasty reports", () => {

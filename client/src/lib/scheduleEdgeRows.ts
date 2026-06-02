@@ -1009,7 +1009,7 @@ function buildScheduleEvidenceRead(input: {
 }
 
 function getScheduleDecisionLabel(read: AIEvidenceResult): string {
-  if (read.canAct) return "Do this";
+  if (read.canAct) return "Review this";
   if (read.label === "blocked") return "Don't add";
   return "Don't force it";
 }
