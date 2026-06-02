@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { hasAdminPermissionIdentifier, hasAdminPermissionsForUser } from "./_core/adminAccess";
 import type { TrpcContext } from "./_core/context";
 import { getSessionCookieOptions } from "./_core/cookies";
-import { LOCAL_ADMIN_OPEN_ID, sdk } from "./_core/sdk";
+import { LOCAL_ADMIN_OPEN_ID, LOCAL_AUTH_APP_ID, sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import crypto from "crypto";
@@ -82,7 +82,8 @@ import {
   loadStoredSleeperProjectionSnapshot,
   type SleeperProjectionScoringProfile,
 } from "./sleeperProjectionSnapshots";
-import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, insertLoginAttempt, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser } from "./db";
+import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, findMagicLinkTokenByHash, getUserByOpenId, insertLoginAttempt, insertMagicLinkToken, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, markMagicLinkTokenConsumed, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser } from "./db";
+import { consumeMagicLinkToken, createMagicLinkToken, getMagicLinkUserOpenId, hashMagicLinkToken, normalizeMagicLinkRedirectPath } from "./magicLinkTokens";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { LeagueDraftStatus, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
 import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
@@ -92,6 +93,31 @@ import type { RecommendationObservedOutcome } from "../shared/recommendationOutc
 function normalizeManagerName(name: string | undefined): string {
   const fallback = name || 'Unknown';
   return fallback.replace(/\d+$/, '') || fallback;
+}
+
+function getRequestIpAddress(ctx: TrpcContext): string | null {
+  const forwardedFor = ctx.req.headers["x-forwarded-for"];
+  const forwardedValue = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
+  const forwardedIp = forwardedValue?.split(",")[0]?.trim();
+  return forwardedIp || ctx.req.ip || null;
+}
+
+function getRequestUserAgent(ctx: TrpcContext): string | null {
+  const userAgent = ctx.req.headers["user-agent"];
+  return Array.isArray(userAgent) ? userAgent[0] ?? null : userAgent ?? null;
+}
+
+function assertSessionJwtSecretConfigured() {
+  if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Passwordless auth requires JWT_SECRET to be configured in production.",
+    });
+  }
+}
+
+function shouldExposeMagicLinkDevToken(): boolean {
+  return process.env.NODE_ENV !== "production" || process.env.EXPOSE_MAGIC_LINK_DEV_TOKEN === "true";
 }
 
 const SLEEPER_ENTITY_ID_PATTERN = /^\d{8,24}$/;
@@ -6109,6 +6135,116 @@ export const appRouter = router({
     me: publicProcedure.query(opts => opts.ctx.user
       ? { ...opts.ctx.user, isPrivilegedAdmin: hasAdminPermissionsForUser(opts.ctx.user) }
       : null),
+    requestMagicLink: publicProcedure
+      .input(z.object({
+        email: z.string().trim().min(3).max(320).email(),
+        redirectPath: z.string().trim().max(512).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const created = createMagicLinkToken({
+          email: input.email,
+          redirectPath: input.redirectPath,
+          ipAddress: getRequestIpAddress(ctx),
+          userAgent: getRequestUserAgent(ctx),
+        });
+
+        const inserted = await insertMagicLinkToken(created.record);
+        if (!inserted) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Magic-link auth requires database availability.",
+          });
+        }
+
+        const baseResponse = {
+          success: true,
+          expiresAt: created.record.expiresAt,
+          redirectPath: created.record.redirectPath ?? "/",
+          delivery: "pending-email-provider",
+        } as const;
+
+        if (!shouldExposeMagicLinkDevToken()) return baseResponse;
+
+        return {
+          ...baseResponse,
+          devToken: created.token,
+        } as const;
+      }),
+    consumeMagicLink: publicProcedure
+      .input(z.object({
+        email: z.string().trim().min(3).max(320).email(),
+        token: z.string().trim().min(16).max(512),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        assertSessionJwtSecretConfigured();
+
+        const record = await findMagicLinkTokenByHash(hashMagicLinkToken(input.token));
+        if (!record) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Invalid or expired magic link.",
+          });
+        }
+
+        const now = new Date();
+        const consumed = consumeMagicLinkToken({
+          record,
+          token: input.token,
+          email: input.email,
+          now,
+        });
+
+        if (!consumed.ok) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Invalid or expired magic link.",
+          });
+        }
+
+        const consumedRecord = await markMagicLinkTokenConsumed({
+          tokenId: consumed.record.tokenId,
+          consumedAt: consumed.record.consumedAt ?? now,
+        });
+
+        if (!consumedRecord) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Invalid or expired magic link.",
+          });
+        }
+
+        const openId = getMagicLinkUserOpenId(consumedRecord.email);
+        const signedInAt = new Date();
+        await upsertUser({
+          openId,
+          name: consumedRecord.email,
+          email: consumedRecord.email,
+          loginMethod: "magic-link",
+          role: "user",
+          lastSignedIn: signedInAt,
+        });
+
+        const user = await getUserByOpenId(openId);
+        if (!user) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Magic-link auth could not create a user session.",
+          });
+        }
+
+        const sessionToken = await sdk.signSession({
+          openId,
+          appId: LOCAL_AUTH_APP_ID,
+          name: user.name || user.email || "User",
+        });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, cookieOptions);
+
+        return {
+          success: true,
+          redirectPath: normalizeMagicLinkRedirectPath(consumedRecord.redirectPath),
+        } as const;
+      }),
     adminLogin: publicProcedure
       .input(z.object({ passphrase: z.string().min(1).max(256) }))
       .mutation(async ({ input, ctx }) => {

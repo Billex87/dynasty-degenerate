@@ -25,6 +25,27 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+export const magicLinkTokens = mysqlTable("magicLinkTokens", {
+  id: int("id").autoincrement().primaryKey(),
+  tokenId: varchar("tokenId", { length: 128 }).notNull().unique(),
+  email: varchar("email", { length: 320 }).notNull(),
+  tokenHash: varchar("tokenHash", { length: 64 }).notNull().unique(),
+  purpose: varchar("purpose", { length: 32 }).default("login").notNull(),
+  redirectPath: text("redirectPath"),
+  ipAddress: text("ipAddress"),
+  userAgent: text("userAgent"),
+  expiresAt: timestamp("expiresAt").notNull(),
+  consumedAt: timestamp("consumedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  emailCreatedAtIndex: index("magicLinkTokens_email_createdAt_idx").on(table.email, table.createdAt),
+  expiresAtIndex: index("magicLinkTokens_expiresAt_idx").on(table.expiresAt),
+  tokenHashIndex: index("magicLinkTokens_token_hash_idx").on(table.tokenHash),
+}));
+
+export type MagicLinkToken = typeof magicLinkTokens.$inferSelect;
+export type InsertMagicLinkToken = typeof magicLinkTokens.$inferInsert;
+
 export const billingCustomers = mysqlTable("billingCustomers", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId"),

@@ -3,6 +3,7 @@ import { gzipSync, gunzipSync } from "node:zlib";
 import type { InsertUser, User } from "../drizzle/schema";
 import type { ActionPlanRecord, ActionPlanStatus, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TradeProposalSignal, WaiverBidHistoryRecord } from "../shared/types";
 import type { AIPredictionEvent, AIPredictionOutcome } from "./aiPredictionCalibration";
+import type { MagicLinkTokenRecord } from "./magicLinkTokens";
 
 type SqlClient = ReturnType<typeof neon>;
 
@@ -162,6 +163,37 @@ async function ensureSchema(sql: SqlClient) {
           "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           "lastSignedIn" TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "magicLinkTokens" (
+          id SERIAL PRIMARY KEY,
+          "tokenId" VARCHAR(128) NOT NULL UNIQUE,
+          email VARCHAR(320) NOT NULL,
+          "tokenHash" VARCHAR(64) NOT NULL UNIQUE,
+          purpose VARCHAR(32) NOT NULL DEFAULT 'login',
+          "redirectPath" TEXT,
+          "ipAddress" TEXT,
+          "userAgent" TEXT,
+          "expiresAt" TIMESTAMPTZ NOT NULL,
+          "consumedAt" TIMESTAMPTZ,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "magicLinkTokens_email_createdAt_idx"
+        ON "magicLinkTokens" (email, "createdAt" DESC)
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "magicLinkTokens_expiresAt_idx"
+        ON "magicLinkTokens" ("expiresAt")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "magicLinkTokens_token_hash_idx"
+        ON "magicLinkTokens" ("tokenHash")
       `;
 
       await sql`
@@ -715,6 +747,21 @@ function normalizeUser(row: any): User {
   };
 }
 
+function normalizeMagicLinkTokenRow(row: any): MagicLinkTokenRecord {
+  return {
+    tokenId: String(row.tokenId),
+    email: String(row.email),
+    tokenHash: String(row.tokenHash),
+    purpose: "login",
+    redirectPath: row.redirectPath ?? null,
+    ipAddress: row.ipAddress ?? null,
+    userAgent: row.userAgent ?? null,
+    expiresAt: row.expiresAt instanceof Date ? row.expiresAt : new Date(row.expiresAt),
+    consumedAt: row.consumedAt ? row.consumedAt instanceof Date ? row.consumedAt : new Date(row.consumedAt) : null,
+    createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
+  };
+}
+
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) {
     throw new Error("User openId is required for upsert");
@@ -782,6 +829,103 @@ export async function getUserByOpenId(openId: string): Promise<User | undefined>
   ` as Record<string, any>[];
 
   return result.length > 0 ? normalizeUser(result[0]) : undefined;
+}
+
+export async function insertMagicLinkToken(record: MagicLinkTokenRecord): Promise<boolean> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot insert magic link token: database not available");
+    return false;
+  }
+
+  await sql`
+    INSERT INTO "magicLinkTokens" (
+      "tokenId",
+      email,
+      "tokenHash",
+      purpose,
+      "redirectPath",
+      "ipAddress",
+      "userAgent",
+      "expiresAt",
+      "consumedAt",
+      "createdAt"
+    )
+    VALUES (
+      ${record.tokenId},
+      ${record.email},
+      ${record.tokenHash},
+      ${record.purpose},
+      ${record.redirectPath ?? null},
+      ${record.ipAddress ?? null},
+      ${record.userAgent ?? null},
+      ${record.expiresAt},
+      ${record.consumedAt ?? null},
+      ${record.createdAt}
+    )
+    ON CONFLICT ("tokenId") DO NOTHING
+  `;
+
+  return true;
+}
+
+export async function findMagicLinkTokenByHash(tokenHash: string): Promise<MagicLinkTokenRecord | null> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot find magic link token: database not available");
+    return null;
+  }
+
+  const result = await sql`
+    SELECT
+      "tokenId",
+      email,
+      "tokenHash",
+      purpose,
+      "redirectPath",
+      "ipAddress",
+      "userAgent",
+      "expiresAt",
+      "consumedAt",
+      "createdAt"
+    FROM "magicLinkTokens"
+    WHERE "tokenHash" = ${tokenHash}
+    LIMIT 1
+  ` as Record<string, any>[];
+
+  return result.length > 0 ? normalizeMagicLinkTokenRow(result[0]) : null;
+}
+
+export async function markMagicLinkTokenConsumed(input: {
+  tokenId: string;
+  consumedAt: Date;
+}): Promise<MagicLinkTokenRecord | null> {
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot consume magic link token: database not available");
+    return null;
+  }
+
+  const result = await sql`
+    UPDATE "magicLinkTokens"
+    SET "consumedAt" = ${input.consumedAt}
+    WHERE "tokenId" = ${input.tokenId}
+      AND "consumedAt" IS NULL
+      AND "expiresAt" > ${input.consumedAt}
+    RETURNING
+      "tokenId",
+      email,
+      "tokenHash",
+      purpose,
+      "redirectPath",
+      "ipAddress",
+      "userAgent",
+      "expiresAt",
+      "consumedAt",
+      "createdAt"
+  ` as Record<string, any>[];
+
+  return result.length > 0 ? normalizeMagicLinkTokenRow(result[0]) : null;
 }
 
 export async function insertKtcSnapshot(snapshotDate: Date, ktcData: string) {
