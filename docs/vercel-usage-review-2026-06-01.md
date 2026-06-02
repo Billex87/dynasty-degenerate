@@ -25,6 +25,7 @@
 - `npx --yes vercel@latest logs --environment production --since 24h --query cron --json --limit 100`
 - `npx --yes vercel@latest metrics vercel.function_invocation.peak_memory_mb -a max --group-by route --since 24h --format json`
 - Production Playwright traffic session across the four representative leagues.
+- Responsive production Playwright smoke across mobile and tablet projects.
 
 ## Production Traffic Session
 - Generated: `2026-06-01T20:45:02.318Z`
@@ -51,6 +52,7 @@ Traffic-session result:
 - Build completed from commit `bf011cd`.
 - Build warnings remain the known Vite/Three.js dynamic import chunk warning and large bundle warnings.
 - Follow-up refresh: latest production URL from `vercel ls` was `https://dynasty-degenerate-c29tx2e53-billex87s-projects.vercel.app`; Vercel connector confirmed deployment `dpl_5PqHENRxord7mYP4sje6NH8ZJw7w` is `READY` for commit `5fb087f`.
+- Final deployment refresh after Home refactor and AI-read docs follow-up: `https://dynasty-degenerate-fggoi6z1c-billex87s-projects.vercel.app` inspected as deployment `dpl_AFqMDXkufYkeg2yXuUyUQVx4hMdP`, status `Ready`, aliased to `https://dynastydegens.com`, `https://dynasty-degenerate.vercel.app`, and the main project aliases.
 
 ## Cron State
 - `vercel crons list` returned `12` cron jobs for production:
@@ -68,6 +70,7 @@ Traffic-session result:
   - `/api/cron/prospect-snapshot` at `0 15 1 * *`
 - The CLI reported `6 local changes pending deploy` for cron schedule comparisons even though `vercel.json` contains the expected 12 cron entries and the latest deployment is Ready. Treat this as a Vercel CLI/project-state warning until verified in the dashboard.
 - The pulled local `.vercel/.env.production.local` file contains the `CRON_SECRET` name but an empty value, so authorized production cron route calls were not run from this machine.
+- Follow-up refresh still reports the same `6 local changes pending deploy` warning, but production lists the same 12 cron entries as `vercel.json`. Local `.vercel/output/config.json` is stale and shows older generated cron entries, so the current evidence points to a CLI/generated-output comparison artifact rather than missing production schedules. Dashboard confirmation is still required before removing this warning entirely.
 
 ## Runtime Logs
 - Last-hour production error-level log query returned no entries.
@@ -83,6 +86,9 @@ Traffic-session result:
 - Post-smoke logs did show expected `[Auth] Missing session cookie` warnings for public report requests. Follow-up local fix now treats absent cookies as anonymous public requests without warning while preserving warnings for malformed/invalid session cookies. Focused verification passed with `pnpm exec vitest run server/auth.logout.test.ts server/leagueReportCachePolicy.test.ts server/localDiagnostics.test.ts` and `pnpm run check`.
 - Final deployed refresh for commit `d3b1416` passed production smoke across all four representative leagues after removing stale smoke selectors for the current home-page heading, username `Find Leagues` flow, and global lazy-section loading text.
 - Final post-smoke log checks for the current production deployment found no `/var/task`, `Failed to write file league report cache`, `Missing session cookie`, or `500` entries in the checked post-traffic window.
+- Production env-name check confirmed `CRON_SECRET`, `JWT_SECRET`, `ADMIN_LOGIN_PASSWORD`, provider database names, FantasyPros API key, and projection feature flags are present and encrypted in Vercel production. `SOURCE_HEALTH_ALERT_WEBHOOK_URL` and `SOURCE_HEALTH_ALERT_WEBHOOK_MIN_LEVEL` are not configured in production yet.
+- Responsive production smoke passed on `mobile-chrome` and `tablet-chrome` for `Skids Get Beat`, `The Fantasy Degenerates`, `test league`, and `Gov Tech Grid Iron`: `env -u NO_COLOR PRODUCTION_SMOKE=true PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm exec playwright test tests/e2e/production-smoke.spec.ts --project=mobile-chrome --project=tablet-chrome` -> `8 passed`.
+- Post-responsive-smoke log checks on deployment `dpl_AFqMDXkufYkeg2yXuUyUQVx4hMdP` found no `/var/task`, `Failed to write file league report cache`, `Missing session cookie`, or `500` entries in the checked window.
 
 ## Usage And Metrics Availability
 - `vercel metrics schema vercel.function --format json` confirmed the required metric IDs exist, including:
@@ -102,6 +108,7 @@ Traffic-session result:
 - This pass proves production deployment health, production report traffic health, cron configuration visibility, and absence of recent visible runtime errors through the available CLI/log surfaces.
 - This pass does not fully close the Vercel usage gate because Fluid Active CPU, function invocation totals, transfer, provisioned memory, and route-level CPU attribution are not accessible through the current CLI/API plan.
 - The follow-up local-write fixes are deployed and clean for report traffic in the checked post-deploy window. The next remaining production-log confirmation is the next scheduled cron window.
+- Critical auth/cron env names are present in production; source-health webhook delivery remains unconfigured.
 - Do not mark the Vercel usage checklist item complete until one of these happens:
   - a Vercel dashboard/manual pass records Fluid Active CPU, memory, invocations, transfer, and route hotspots; or
   - Observability Plus/API metric access is enabled and the CLI metric commands above return usable data.
