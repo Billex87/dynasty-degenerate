@@ -428,22 +428,33 @@ describe("user-load provider boundary", () => {
 
   it("keeps user league-rank fanout behind report access, bounded, and rate-limited", () => {
     const leagueRanksSource = extractSource("getUserLeagueRanks: publicProcedure", "\n    importSleeperTradeCenter: publicProcedure");
+    const rankCacheSetSource = extractSource("function setCachedUserLeagueRank", "\n\nexport function clearLeaguePreviewCacheForTests");
     const accessIndex = leagueRanksSource.indexOf("assertReportAccess(ctx)");
     const rateLimitIndex = leagueRanksSource.indexOf("assertRateLimit(ctx.req as any");
+    const cacheReadIndex = leagueRanksSource.indexOf("cachedRank: getCachedUserLeagueRank(cacheKey)");
+    const missingFilterIndex = leagueRanksSource.indexOf("const missingRankInputs = rankInputs.filter");
     const playerIndexFetch = leagueRanksSource.indexOf("fetchSleeperPlayersIndex()");
     const leagueFetchIndex = leagueRanksSource.indexOf("fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`)");
     const rostersFetchIndex = leagueRanksSource.indexOf("fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/rosters`)");
+    const cacheWriteIndex = leagueRanksSource.indexOf("return setCachedUserLeagueRank(cacheKey");
 
     expect(leagueRanksSource).toContain("leagueIds: z.array(sleeperLeagueIdSchema).max(10)");
     expect(routersSource).toContain("const LEAGUE_RANK_FANOUT_CONCURRENCY = 3");
-    expect(leagueRanksSource).toContain("mapWithConcurrencyLimit(leagueIds, LEAGUE_RANK_FANOUT_CONCURRENCY");
+    expect(leagueRanksSource).toContain("mapWithConcurrencyLimit(missingRankInputs, LEAGUE_RANK_FANOUT_CONCURRENCY");
     expect(leagueRanksSource).not.toContain("Promise.all(leagueIds.map");
     expect(accessIndex).toBeGreaterThan(0);
     expect(rateLimitIndex).toBeGreaterThan(accessIndex);
-    expect(playerIndexFetch).toBeGreaterThan(rateLimitIndex);
-    expect(leagueFetchIndex).toBeGreaterThan(rateLimitIndex);
-    expect(rostersFetchIndex).toBeGreaterThan(rateLimitIndex);
+    expect(cacheReadIndex).toBeGreaterThan(rateLimitIndex);
+    expect(missingFilterIndex).toBeGreaterThan(cacheReadIndex);
+    expect(playerIndexFetch).toBeGreaterThan(missingFilterIndex);
+    expect(leagueFetchIndex).toBeGreaterThan(playerIndexFetch);
+    expect(rostersFetchIndex).toBeGreaterThan(playerIndexFetch);
+    expect(cacheWriteIndex).toBeGreaterThan(rostersFetchIndex);
     expect(leagueRanksSource).toContain("id: 'league.getUserLeagueRanks'");
+    expect(routersSource).toContain("const USER_LEAGUE_RANK_CACHE_MAX_ENTRIES = 500");
+    expect(rankCacheSetSource).toContain("pruneUserLeagueRankCache()");
+    expect(rankCacheSetSource).toContain("userLeagueRankCache.set(cacheKey");
+    expect(routersSource).toContain("while (userLeagueRankCache.size >= USER_LEAGUE_RANK_CACHE_MAX_ENTRIES)");
   });
 
   it("keeps hidden Sleeper trade imports behind report access and rate limits", () => {

@@ -1500,6 +1500,21 @@ type SleeperLeagueOption = NonNullable<ReturnType<typeof toSleeperLeagueOption>>
 type SleeperLeaguePreview = SleeperLeagueOption & {
   managerAnchors: Array<{ id: string; avatarUrl: string | null }>;
 };
+type UserLeagueRankResult = {
+  leagueId: string;
+  standingsRank: number | null;
+  powerRank: number | null;
+  rosterPlayers?: Array<{
+    playerId: string;
+    name: string;
+    position: string | null;
+    team: string | null;
+    value: number;
+    positionRank: string | null;
+    rosterSpot: 'active' | 'taxi' | 'reserve';
+  }>;
+  managerAnchors?: Array<{ id: string; avatarUrl: string | null }>;
+};
 
 const INVALID_LEAGUE_ID_TTL_MS = 10 * 60 * 1000;
 const INVALID_LEAGUE_ID_CACHE_MAX_ENTRIES = 1000;
@@ -1510,6 +1525,9 @@ const leaguePreviewCache = new Map<string, { loadedAt: number; preview: SleeperL
 const LEAGUE_SCORING_SETTINGS_CACHE_TTL_MS = 10 * 60 * 1000;
 const LEAGUE_SCORING_SETTINGS_CACHE_MAX_ENTRIES = 200;
 const leagueScoringSettingsCache = new Map<string, { loadedAt: number; scoringSettings: Record<string, any> }>();
+const USER_LEAGUE_RANK_CACHE_TTL_MS = 2 * 60 * 1000;
+const USER_LEAGUE_RANK_CACHE_MAX_ENTRIES = 500;
+const userLeagueRankCache = new Map<string, { loadedAt: number; rank: UserLeagueRankResult }>();
 
 function cloneLeaguePreview(preview: SleeperLeaguePreview): SleeperLeaguePreview {
   return {
@@ -1649,6 +1667,62 @@ function setCachedLeagueScoringSettings(
   });
 
   return clonedSettings;
+}
+
+function getUserLeagueRankCacheKey(leagueId: string, userId: string, fallbackManagerName: string): string | null {
+  const validLeagueId = getValidSleeperEntityId(leagueId);
+  const validUserId = String(userId || '').trim();
+  if (!validLeagueId || !validUserId) return null;
+  return `${validLeagueId}:${validUserId}:${fallbackManagerName}`;
+}
+
+function cloneUserLeagueRank(rank: UserLeagueRankResult): UserLeagueRankResult {
+  return {
+    ...rank,
+    rosterPlayers: rank.rosterPlayers?.map(player => ({ ...player })),
+    managerAnchors: rank.managerAnchors?.map(anchor => ({ ...anchor })),
+  };
+}
+
+function pruneUserLeagueRankCache(now = Date.now()) {
+  for (const [cacheKey, cached] of Array.from(userLeagueRankCache.entries())) {
+    if (now - cached.loadedAt > USER_LEAGUE_RANK_CACHE_TTL_MS) {
+      userLeagueRankCache.delete(cacheKey);
+    }
+  }
+
+  while (userLeagueRankCache.size >= USER_LEAGUE_RANK_CACHE_MAX_ENTRIES) {
+    const oldestCacheKey = Array.from(userLeagueRankCache.entries())
+      .sort((a, b) => a[1].loadedAt - b[1].loadedAt)[0]?.[0];
+    if (!oldestCacheKey) break;
+    userLeagueRankCache.delete(oldestCacheKey);
+  }
+}
+
+function getCachedUserLeagueRank(cacheKey: string | null): UserLeagueRankResult | null {
+  if (!cacheKey) return null;
+
+  const cached = userLeagueRankCache.get(cacheKey);
+  if (!cached) return null;
+
+  if (Date.now() - cached.loadedAt > USER_LEAGUE_RANK_CACHE_TTL_MS) {
+    userLeagueRankCache.delete(cacheKey);
+    return null;
+  }
+
+  return cloneUserLeagueRank(cached.rank);
+}
+
+function setCachedUserLeagueRank(cacheKey: string | null, rank: UserLeagueRankResult): UserLeagueRankResult {
+  if (!cacheKey) return rank;
+
+  pruneUserLeagueRankCache();
+  userLeagueRankCache.set(cacheKey, {
+    loadedAt: Date.now(),
+    rank: cloneUserLeagueRank(rank),
+  });
+
+  return rank;
 }
 
 export function clearLeaguePreviewCacheForTests() {
@@ -7373,6 +7447,23 @@ export const appRouter = router({
         const username = input.username.trim();
         const leagueIds = Array.from(new Set(input.leagueIds.map((leagueId) => leagueId.trim()).filter(Boolean)));
         if (!leagueIds.length) return { ranks: [] };
+        const fallbackManagerName = normalizeManagerName(input.displayName || username);
+        const rankInputs = leagueIds.map((leagueId) => {
+          const normalizedLeagueId = getValidSleeperEntityId(leagueId);
+          const cacheKey = normalizedLeagueId
+            ? getUserLeagueRankCacheKey(normalizedLeagueId, input.userId, fallbackManagerName)
+            : null;
+          return {
+            leagueId,
+            normalizedLeagueId,
+            cacheKey,
+            cachedRank: getCachedUserLeagueRank(cacheKey),
+          };
+        });
+        const missingRankInputs = rankInputs.filter((rankInput) => !rankInput.cachedRank);
+        if (!missingRankInputs.length) {
+          return { ranks: rankInputs.map((rankInput) => rankInput.cachedRank!) };
+        }
 
         const players = await fetchSleeperPlayersIndex();
         const leagueValueCache = new Map<string, Promise<KTCValues>>();
@@ -7385,8 +7476,8 @@ export const appRouter = router({
           return leagueValueCache.get(key)!;
         };
 
-        const ranks = await mapWithConcurrencyLimit(leagueIds, LEAGUE_RANK_FANOUT_CONCURRENCY, async (leagueId) => {
-          const normalizedLeagueId = getValidSleeperEntityId(leagueId);
+        const missingRanks = await mapWithConcurrencyLimit(missingRankInputs, LEAGUE_RANK_FANOUT_CONCURRENCY, async (rankInput) => {
+          const { leagueId, normalizedLeagueId, cacheKey } = rankInput;
           if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
             return { leagueId, standingsRank: null, powerRank: null };
           }
@@ -7426,15 +7517,25 @@ export const appRouter = router({
           const rosterPlayers = viewerRoster
             ? buildUserRosterPortfolioPlayers(viewerRoster, players, ktcValues, leagueValueMode)
             : [];
-          const fallbackManagerName = normalizeManagerName(input.displayName || username);
           const standingsRank = currentStandings.find((row) => row.rosterId === viewerRosterId)?.rank
             ?? currentStandings.find((row) => row.manager === fallbackManagerName)?.rank
             ?? null;
           const powerRank = powerRankings.find((row) => row.rosterId === viewerRosterId)?.rank ?? null;
           const managerAnchors = buildManagerAnchorsFromSleeperUsers(safeUsers);
 
-          return { leagueId, standingsRank, powerRank, rosterPlayers, managerAnchors };
+          return setCachedUserLeagueRank(cacheKey, { leagueId, standingsRank, powerRank, rosterPlayers, managerAnchors });
         });
+        const missingRankByLeagueId = new Map(missingRankInputs.map((rankInput, index) => [
+          rankInput.leagueId,
+          missingRanks[index],
+        ]));
+        const ranks = rankInputs.map((rankInput) =>
+          rankInput.cachedRank || missingRankByLeagueId.get(rankInput.leagueId) || {
+            leagueId: rankInput.leagueId,
+            standingsRank: null,
+            powerRank: null,
+          }
+        );
 
         return { ranks };
       }),
