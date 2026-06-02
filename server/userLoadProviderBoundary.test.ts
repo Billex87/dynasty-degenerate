@@ -60,6 +60,19 @@ describe("user-load provider boundary", () => {
     expect(usageRecordIndex).toBeGreaterThan(leagueFetchIndex);
   });
 
+  it("caches live Sleeper activity patches for cached report opens", () => {
+    const attachSource = extractSource("async function attachLiveSleeperActivity", "\nfunction ordinalRound");
+    const cacheReadIndex = attachSource.indexOf("const cachedLiveActivity = getCachedLiveSleeperActivityPatch(leagueId)");
+    const buildIndex = attachSource.indexOf("buildLiveSleeperActivityPatch(leagueId, payload.reportData)");
+    const cacheWriteIndex = attachSource.indexOf("setCachedLiveSleeperActivityPatch(leagueId, liveActivity)");
+
+    expect(routersSource).toContain("const LIVE_SLEEPER_ACTIVITY_CACHE_TTL_MS = 90 * 1000");
+    expect(routersSource).toContain("const liveSleeperActivityPatchCache = new Map");
+    expect(cacheReadIndex).toBeGreaterThan(0);
+    expect(buildIndex).toBeGreaterThan(cacheReadIndex);
+    expect(cacheWriteIndex).toBeGreaterThan(buildIndex);
+  });
+
   it("keeps Sleeper username lookup provider calls behind the route limiter", () => {
     const getUserLeaguesSource = extractSource("getUserLeagues: publicProcedure", "\n    getUserLeagueRanks: publicProcedure");
     const rateLimitIndex = getUserLeaguesSource.indexOf("assertRateLimit(ctx.req as any");

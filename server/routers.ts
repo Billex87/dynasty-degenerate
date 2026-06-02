@@ -1497,6 +1497,9 @@ const LEAGUE_REPORT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'league-
 const MONTHLY_BLUEPRINT_FILE_CACHE_DIR = path.join(process.cwd(), '.cache', 'monthly-blueprints');
 const leagueReportMemoryCache = new Map<string, { loadedAt: number; payload: unknown }>();
 const ktcValueProfileLookupCache = new WeakMap<KTCValues, Map<string, KtcValueProfileCandidate>>();
+const LIVE_SLEEPER_ACTIVITY_CACHE_TTL_MS = 90 * 1000;
+type LiveSleeperActivityPatch = Pick<ReportData, 'recentTransactions' | 'trendingAdds' | 'trendingDrops' | 'waiverIntelligence'> & Partial<Pick<ReportData, 'scheduleEdgeTargets'>>;
+const liveSleeperActivityPatchCache = new Map<string, { loadedAt: number; patch: LiveSleeperActivityPatch }>();
 
 function getLeagueReportCacheKey(leagueId: string, viewerUserId?: string | null): string {
   return [
@@ -5547,7 +5550,7 @@ function buildRecentTransactions(
 async function buildLiveSleeperActivityPatch(
   leagueId: string,
   cachedReportData?: ReportData
-): Promise<(Pick<ReportData, 'recentTransactions' | 'trendingAdds' | 'trendingDrops' | 'waiverIntelligence'> & Partial<Pick<ReportData, 'scheduleEdgeTargets'>>) | null> {
+): Promise<LiveSleeperActivityPatch | null> {
   const normalizedLeagueId = getValidSleeperEntityId(leagueId);
   if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
     return null;
@@ -5711,11 +5714,31 @@ async function buildLiveSleeperActivityPatch(
   }
 }
 
+function getCachedLiveSleeperActivityPatch(leagueId: string): LiveSleeperActivityPatch | null {
+  const normalizedLeagueId = getValidSleeperEntityId(leagueId);
+  if (!normalizedLeagueId) return null;
+  const cached = liveSleeperActivityPatchCache.get(normalizedLeagueId);
+  if (!cached) return null;
+  if (Date.now() - cached.loadedAt > LIVE_SLEEPER_ACTIVITY_CACHE_TTL_MS) {
+    liveSleeperActivityPatchCache.delete(normalizedLeagueId);
+    return null;
+  }
+  return cached.patch;
+}
+
+function setCachedLiveSleeperActivityPatch(leagueId: string, patch: LiveSleeperActivityPatch) {
+  const normalizedLeagueId = getValidSleeperEntityId(leagueId);
+  if (!normalizedLeagueId) return;
+  liveSleeperActivityPatchCache.set(normalizedLeagueId, { loadedAt: Date.now(), patch });
+}
+
 async function attachLiveSleeperActivity(payload: any, leagueId: string): Promise<any> {
   if (!payload?.reportData) return payload;
 
-  const liveActivity = await buildLiveSleeperActivityPatch(leagueId, payload.reportData);
+  const cachedLiveActivity = getCachedLiveSleeperActivityPatch(leagueId);
+  const liveActivity = cachedLiveActivity || await buildLiveSleeperActivityPatch(leagueId, payload.reportData);
   if (!liveActivity) return payload;
+  if (!cachedLiveActivity) setCachedLiveSleeperActivityPatch(leagueId, liveActivity);
 
   return {
     ...payload,
