@@ -85,7 +85,12 @@ import {
 import { deleteUserFavoriteLeague, deleteUserSleeperAccount, findBillingCustomerForUser, findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, findMagicLinkTokenByHash, getUserByOpenId, getUserNotificationPreferences, insertLoginAttempt, insertMagicLinkToken, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listUserFavoriteLeagues, listUserRecentReports, listUserSleeperAccounts, listWaiverBidHistory, markMagicLinkTokenConsumed, parseLeagueReportCachePayloadFromStorage, recordUsageEvent, recordUserRecentReport, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertUserFavoriteLeague, upsertUserNotificationPreferences, upsertUserSleeperAccount } from "./db";
 import { consumeMagicLinkToken, createMagicLinkToken, getMagicLinkUserOpenId, hashMagicLinkToken, normalizeMagicLinkRedirectPath } from "./magicLinkTokens";
 import { buildUsageEvent } from "./usageEvents";
-import { getPlanUsageLimit, type UsageLimitedFeatureKey } from "./usageLimits";
+import {
+  assertPersistedUsageLimit,
+  getPlanUsageLimit,
+  recordLimitedUsageEvent,
+  type UsageLimitedFeatureKey,
+} from "./usageLimits";
 import { sanitizeLeagueReportPayloadForPaidAccess } from "./reportAccessSanitizer";
 import { createStripeCheckoutSession, createStripeCustomerPortalSession, resolveStripeBillingAppBaseUrl, STRIPE_BILLING_PRODUCT_KEYS } from "./stripeBilling";
 import {
@@ -7168,6 +7173,13 @@ export const appRouter = router({
             scope: input.leagueId,
             message: 'Fresh report generation is temporarily throttled for this league.',
           });
+          if (ctx.user) {
+            await assertPersistedUsageLimit({
+              user: ctx.user,
+              featureKey: "report-generation",
+              leagueId: input.leagueId,
+            });
+          }
 
           let leagueInfo: any;
           try {
@@ -8200,6 +8212,20 @@ export const appRouter = router({
             leagueId: input.leagueId,
             payload: analyzePayload,
           });
+          if (ctx.user) {
+            await recordLimitedUsageEvent({
+              user: ctx.user,
+              featureKey: "report-generation",
+              leagueId: input.leagueId,
+              source: "league.analyze",
+              idempotencyKey: `league:${input.leagueId}:viewer:${input.viewerUserId || "all"}:generated:${Date.now()}`,
+              metadata: {
+                leagueId: input.leagueId,
+                viewerUserId: input.viewerUserId || null,
+                reportCacheStatus: "miss",
+              },
+            });
+          }
           return {
             ...analyzeResponsePayload,
             reportCacheStatus: 'miss' as const,

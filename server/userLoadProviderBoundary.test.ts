@@ -45,6 +45,21 @@ describe("user-load provider boundary", () => {
     expect(reportPlayerEnrichmentSource).not.toContain("injuryStatus");
   });
 
+  it("checks signed-in report-generation usage before fresh user-load work", () => {
+    const analyzeSource = extractSource("analyze: publicProcedure", "\n  }),\n\n  players: router");
+    const usageLimitIndex = analyzeSource.indexOf('assertPersistedUsageLimit({');
+    const leagueFetchIndex = analyzeSource.indexOf('fetchUserLoadJson<any>(\n              `https://api.sleeper.app/v1/league/${normalizedLeagueId}`');
+    const usageRecordIndex = analyzeSource.indexOf('recordLimitedUsageEvent({');
+    const cacheHitIndex = analyzeSource.indexOf("reportCacheStatus: 'hit' as const");
+
+    expect(usageLimitIndex).toBeGreaterThan(0);
+    expect(leagueFetchIndex).toBeGreaterThan(usageLimitIndex);
+    expect(cacheHitIndex).toBeLessThan(usageLimitIndex);
+    expect(analyzeSource).toContain('featureKey: "report-generation"');
+    expect(analyzeSource).toContain('source: "league.analyze"');
+    expect(usageRecordIndex).toBeGreaterThan(leagueFetchIndex);
+  });
+
   it("keeps ranking and player-detail non-Sleeper enrichments snapshot-only", () => {
     expect(routersSource).toContain("loadBlendedKTCValues(leagueValueOptions, getUserLoadSnapshotOptions())");
     expect(routersSource).toContain("leagueValueCache.set(key, loadBlendedKTCValues(options, getUserLoadSnapshotOptions()))");
