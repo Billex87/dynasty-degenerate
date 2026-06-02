@@ -76,6 +76,91 @@ describe("ai evidence engine", () => {
     expect(read.hardBlockers.join(" ")).toContain("already show Waiver Receiver added by Tester");
   });
 
+  it("caps pickup reads when roster ownership proof is missing", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 96,
+      evidence: ["WR22 current-season rank is attached.", "Roster need is attached."],
+      sourceTrace: [{
+        label: "FantasyPros waiver snapshot",
+        status: "loaded",
+      }, {
+        label: "Sleeper roster snapshot",
+        status: "loaded",
+      }],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Unverified Free Agent",
+        position: "WR",
+        team: "LAC",
+        value: 6900,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+      },
+    });
+
+    expect(read.canAct).toBe(false);
+    expect(read.finalScore).toBeLessThanOrEqual(55);
+    expect(read.confidenceCapReason).toBe("Missing roster ownership proof");
+    expect(read.missingEvidence).toContain("No current roster ownership or availability proof returned for this action read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing roster ownership proof limits available-player confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 55% because Missing roster ownership proof");
+
+    const undefinedOwnerRead = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 96,
+      evidence: ["WR22 current-season rank is attached.", "Roster need is attached."],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Undefined Owner Receiver",
+        position: "WR",
+        team: "LAC",
+        owner: undefined,
+        value: 6900,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+      },
+    });
+
+    expect(undefinedOwnerRead.canAct).toBe(false);
+    expect(undefinedOwnerRead.confidenceCapReason).toBe("Missing roster ownership proof");
+  });
+
+  it("keeps fully sourced available pickup reads actionable when owner is explicitly clear", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 82,
+      evidence: ["WR22 current-season rank is attached.", "Roster need is attached."],
+      sourceTrace: [{
+        label: "FantasyPros waiver snapshot",
+        status: "loaded",
+      }, {
+        label: "Sleeper roster snapshot",
+        status: "loaded",
+      }],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Verified Free Agent",
+        position: "WR",
+        team: "LAC",
+        owner: null,
+        value: 6900,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+      },
+    });
+
+    expect(read.canAct).toBe(true);
+    expect(read.confidenceCapReason).toBeNull();
+    expect(read.missingEvidence).not.toContain("No current roster ownership or availability proof returned for this action read.");
+  });
+
   it("blocks start advice when the player is already starting", () => {
     const read = evaluateAIEvidence({
       surface: "player-detail",
@@ -268,6 +353,7 @@ describe("ai evidence engine", () => {
         name: "Redraft Only Receiver",
         position: "WR",
         team: "SEA",
+        owner: null,
         value: 4200,
         sourceCount: 2,
         hasCurrentSeasonValue: true,
@@ -322,6 +408,7 @@ describe("ai evidence engine", () => {
         name: "Stale Source Receiver",
         position: "WR",
         team: "HOU",
+        owner: null,
         value: 5200,
         sourceCount: 2,
         hasCurrentSeasonValue: true,
@@ -469,6 +556,7 @@ describe("ai evidence engine", () => {
         name: "Single Source Receiver",
         position: "WR",
         team: "LAC",
+        owner: null,
         value: 6900,
         sourceCount: 1,
         hasCurrentSeasonValue: true,
@@ -757,6 +845,7 @@ describe("ai evidence engine", () => {
         name: "Low Sample Receiver",
         position: "WR",
         team: "LV",
+        owner: null,
         value: 4300,
         sourceCount: 2,
         hasCurrentSeasonValue: true,
@@ -808,6 +897,7 @@ describe("ai evidence engine", () => {
         name: "Missing Calibration Receiver",
         position: "WR",
         team: "LV",
+        owner: null,
         value: 4300,
         sourceCount: 2,
         hasCurrentSeasonValue: true,
@@ -967,6 +1057,7 @@ describe("ai evidence engine", () => {
         name: "Fallback Receiver",
         position: "WR",
         team: "JAC",
+        owner: null,
         value: 3200,
         sourceCount: 2,
         hasCurrentSeasonValue: true,

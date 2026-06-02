@@ -250,6 +250,14 @@ function isImmediateAvailabilityAction(action: AIEvidenceAction): boolean {
   return action === "pickup" || isStartLikeAction(action);
 }
 
+function hasRosterAvailabilityProof(player: AIEvidencePlayerContext): boolean {
+  return (
+    (Object.prototype.hasOwnProperty.call(player, "owner") &&
+      player.owner !== undefined) ||
+    Boolean(cleanText(player.rosterStatus))
+  );
+}
+
 function isHardUnavailableStatus(value?: string | null): boolean {
   const normalized = normalizeStatus(value);
   if (!normalized) return false;
@@ -869,6 +877,22 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
 
   if (needsLiveAvailability && player.owner) {
     hardBlockers.push(`Roster ownership says ${player.name || "this player"} is already on ${player.owner}.`);
+  }
+
+  if (isPickupLike && needsLiveAvailability && input.player && !hasRosterAvailabilityProof(player)) {
+    missingEvidence.push("No current roster ownership or availability proof returned for this action read.");
+    softPenalties.push({
+      label: "Missing roster ownership proof limits available-player confidence",
+      points: 8,
+    });
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      55,
+      "Missing roster ownership proof"
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
   }
 
   if (needsLiveAvailability && player.recentlyAddedBy) {
