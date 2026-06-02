@@ -15,12 +15,11 @@ import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsCont
 import { HomeReportExperience } from "@/features/home/components/HomeReportExperience";
 import { useHomeAIVoiceMode } from "@/features/home/hooks/useHomeAIVoiceMode";
 import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeout";
+import { useHomePortfolio } from "@/features/home/hooks/useHomePortfolio";
 import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
 import { useQueuedTimeouts } from "@/features/home/hooks/useQueuedTimeouts";
 import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
 import {
-  buildHomePortfolioRows,
-  filterHomePortfolioRows,
   type HomePortfolioExposureFilter,
 } from "@/features/home/lib/portfolioRows";
 import { getLeagueFallbackInitials } from "@/features/home/lib/leagueIdentity";
@@ -1258,36 +1257,20 @@ export default function Home() {
   );
   const isLeaguePickerIntelBusy =
     isLeagueIntelLoading || userLeagueRanksMutation.isPending;
-  const homePortfolioRows = useMemo(
-    () => buildHomePortfolioRows(orderedUserLeagues),
-    [orderedUserLeagues]
-  );
-  const filteredHomePortfolioRows = useMemo(
-    () =>
-      filterHomePortfolioRows(homePortfolioRows, {
-        query: portfolioSearch,
-        exposure: portfolioExposureFilter,
-        leagueId:
-          portfolioLeagueFilter === "all" ? undefined : portfolioLeagueFilter,
-      }),
-    [homePortfolioRows, portfolioExposureFilter, portfolioLeagueFilter, portfolioSearch]
-  );
-  const isHomePortfolioLoading =
-    Boolean(orderedUserLeagues.length) &&
-    Boolean(viewerUserId) &&
-    userLeagueRanksMutation.isPending &&
-    !homePortfolioRows.length;
+  const {
+    homePortfolioRows,
+    filteredHomePortfolioRows,
+    isHomePortfolioLoading,
+  } = useHomePortfolio({
+    orderedUserLeagues,
+    viewerUserId,
+    isLeagueRanksPending: userLeagueRanksMutation.isPending,
+    portfolioSearch,
+    portfolioExposureFilter,
+    portfolioLeagueFilter,
+    setPortfolioLeagueFilter,
+  });
   const showHomePortfolioPanel = false;
-
-  useEffect(() => {
-    if (
-      portfolioLeagueFilter === "all" ||
-      orderedUserLeagues.some(league => league.leagueId === portfolioLeagueFilter)
-    ) {
-      return;
-    }
-    setPortfolioLeagueFilter("all");
-  }, [orderedUserLeagues, portfolioLeagueFilter]);
   const hasAuthenticatedAdminPermissions = canViewAdminTelemetryForUser(
     authQuery.data
   );
