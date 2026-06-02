@@ -244,6 +244,32 @@ describe("ai evidence engine", () => {
     expect(read.confidenceCapReason).toContain("FantasyPros weekly snapshot");
   });
 
+  it("caps player action reads without source count or source trace", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 96,
+      evidence: ["WR18 rank is attached.", "Roster need is attached."],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Untraced Receiver",
+        position: "WR",
+        team: "DET",
+        value: 6800,
+        sourceCount: 0,
+        hasCurrentSeasonValue: true,
+      },
+    });
+
+    expect(read.canAct).toBe(false);
+    expect(read.finalScore).toBeLessThanOrEqual(54);
+    expect(read.confidenceCapReason).toBe("Missing player source trace");
+    expect(read.missingEvidence).toContain("No player source trace returned for this read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing player source trace caps action confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 54% from Missing player source trace");
+  });
+
   it("marks empty readouts insufficient instead of confident", () => {
     const read = evaluateAIEvidence({
       surface: "overview",

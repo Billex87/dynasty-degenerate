@@ -785,10 +785,11 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
   const leagueContext = normalizeLeagueContext(input);
   const leagueContextTrace = getLeagueContextTrace(leagueContext);
   const leagueActivityTrace = getLeagueActivityTrace(input.leagueActivity);
+  const explicitSourceTrace = normalizeSourceTrace(input.sourceTrace || []);
   const sourceTrace = normalizeSourceTrace([
     ...(leagueContextTrace ? [leagueContextTrace] : []),
     ...(leagueActivityTrace ? [leagueActivityTrace] : []),
-    ...(input.sourceTrace || []),
+    ...explicitSourceTrace,
   ]);
   const player = input.player || {};
   const schedule = input.schedule || {};
@@ -894,6 +895,22 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
   const hasScheduleEvidence = Boolean(schedule.hasScheduleData || signalModes.has("schedule"));
   if (isPickupLike && sourceCount <= 1 && value > 0 && value < lowValueThreshold && !hasScheduleEvidence) {
     hardBlockers.push("Low source count plus low value cannot become a best-available recommendation.");
+  }
+
+  if (input.player && sourceCount <= 0 && !explicitSourceTrace.length && input.action !== "hold") {
+    missingEvidence.push("No player source trace returned for this read.");
+    softPenalties.push({
+      label: "Missing player source trace caps action confidence",
+      points: 10,
+    });
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      54,
+      "Missing player source trace"
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
   }
 
   if (!evidence.length) {
