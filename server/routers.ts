@@ -1543,6 +1543,9 @@ const leagueScoringSettingsCache = new Map<string, { loadedAt: number; scoringSe
 const SLEEPER_USER_LEAGUES_CACHE_TTL_MS = 2 * 60 * 1000;
 const SLEEPER_USER_LEAGUES_CACHE_MAX_ENTRIES = 500;
 const sleeperUserLeaguesCache = new Map<string, { loadedAt: number; result: SleeperUserLeagueLookupResult }>();
+const SLEEPER_USER_NOT_FOUND_CACHE_TTL_MS = 2 * 60 * 1000;
+const SLEEPER_USER_NOT_FOUND_CACHE_MAX_ENTRIES = 1000;
+const sleeperUserNotFoundCache = new Map<string, { fetchedAt: number }>();
 const USER_LEAGUE_RANK_CACHE_TTL_MS = 2 * 60 * 1000;
 const USER_LEAGUE_RANK_CACHE_MAX_ENTRIES = 500;
 const userLeagueRankCache = new Map<string, { loadedAt: number; rank: UserLeagueRankResult }>();
@@ -1727,11 +1730,44 @@ function getCachedSleeperUserLeagues(cacheKey: string): SleeperUserLeagueLookupR
   return cloneSleeperUserLeagueLookupResult(cached.result);
 }
 
+function pruneSleeperUserNotFoundCache(now = Date.now()) {
+  for (const [cacheKey, cached] of Array.from(sleeperUserNotFoundCache.entries())) {
+    if (now - cached.fetchedAt > SLEEPER_USER_NOT_FOUND_CACHE_TTL_MS) {
+      sleeperUserNotFoundCache.delete(cacheKey);
+    }
+  }
+
+  while (sleeperUserNotFoundCache.size >= SLEEPER_USER_NOT_FOUND_CACHE_MAX_ENTRIES) {
+    const oldestCacheKey = Array.from(sleeperUserNotFoundCache.entries())
+      .sort((a, b) => a[1].fetchedAt - b[1].fetchedAt)[0]?.[0];
+    if (!oldestCacheKey) break;
+    sleeperUserNotFoundCache.delete(oldestCacheKey);
+  }
+}
+
+function isSleeperUserNotFoundCached(cacheKey: string): boolean {
+  const cached = sleeperUserNotFoundCache.get(cacheKey);
+  if (!cached) return false;
+
+  if (Date.now() - cached.fetchedAt > SLEEPER_USER_NOT_FOUND_CACHE_TTL_MS) {
+    sleeperUserNotFoundCache.delete(cacheKey);
+    return false;
+  }
+
+  return true;
+}
+
+function markSleeperUserNotFound(cacheKey: string): void {
+  pruneSleeperUserNotFoundCache();
+  sleeperUserNotFoundCache.set(cacheKey, { fetchedAt: Date.now() });
+}
+
 function setCachedSleeperUserLeagues(
   cacheKey: string,
   result: SleeperUserLeagueLookupResult
 ): SleeperUserLeagueLookupResult {
   pruneSleeperUserLeaguesCache();
+  sleeperUserNotFoundCache.delete(cacheKey);
   sleeperUserLeaguesCache.set(cacheKey, {
     loadedAt: Date.now(),
     result: cloneSleeperUserLeagueLookupResult(result),
@@ -7366,6 +7402,7 @@ export const appRouter = router({
         const cacheKey = getSleeperUserLeaguesCacheKey(username, currentSeason);
         const cachedLookup = getCachedSleeperUserLeagues(cacheKey);
         if (cachedLookup) return cachedLookup;
+        if (isSleeperUserNotFoundCached(cacheKey)) throw new Error('Sleeper user not found');
 
         const ipAddress = getClientIp(ctx.req as any);
         const userAgent = typeof ctx.req.headers["user-agent"] === "string" ? ctx.req.headers["user-agent"] : null;
@@ -7383,6 +7420,7 @@ export const appRouter = router({
               userAgent,
               note: "Sleeper user not found",
             });
+            markSleeperUserNotFound(cacheKey);
             throw new Error('Sleeper user not found');
           }
 
@@ -7396,6 +7434,7 @@ export const appRouter = router({
               userAgent,
               note: "Sleeper response missing user_id",
             });
+            markSleeperUserNotFound(cacheKey);
             throw new Error('Sleeper user not found');
           }
 
