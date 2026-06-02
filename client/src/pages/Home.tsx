@@ -18,6 +18,7 @@ import { useHomeAnalysisLoading } from "@/features/home/hooks/useHomeAnalysisLoa
 import { useHomeAIVoiceMode } from "@/features/home/hooks/useHomeAIVoiceMode";
 import { useHomeAIPredictionTelemetry } from "@/features/home/hooks/useHomeAIPredictionTelemetry";
 import { useHomeCachedReportActions } from "@/features/home/hooks/useHomeCachedReportActions";
+import { useHomeCachedSessionRestore } from "@/features/home/hooks/useHomeCachedSessionRestore";
 import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeout";
 import { useHomeLeagueHistoryActions } from "@/features/home/hooks/useHomeLeagueHistoryActions";
 import { useHomeLeagueIntelRanks } from "@/features/home/hooks/useHomeLeagueIntelRanks";
@@ -39,18 +40,13 @@ import {
   type HomePortfolioExposureFilter,
 } from "@/features/home/lib/portfolioRows";
 import { getLeagueFallbackInitials } from "@/features/home/lib/leagueIdentity";
-import {
-  getKtcAdminIdentity,
-  type AdminViewMode,
-  normalizeAdminViewMode,
-} from "@/features/home/lib/adminMode";
+import { type AdminViewMode } from "@/features/home/lib/adminMode";
 import {
   getValidSleeperUserId,
 } from "@/features/home/lib/sleeperIdentity";
 import {
   getFilteredAutocompleteOptions,
   readAutocompleteHistory,
-  rememberAutocompleteValue,
 } from "@/features/home/lib/inputHelpers";
 import {
   readAdminPassphraseVerifiedForSession,
@@ -58,24 +54,16 @@ import {
 } from "@/features/home/lib/adminSessionState";
 import {
   buildHomeReportTabState,
-  getInitialReportLeagueIdFromUrl,
   getInitialReportTabFromUrl,
   updateReportTabUrl,
 } from "@/features/home/lib/reportRouteState";
 import {
-  type CachedReport,
-  type LastLeague,
-  type SleeperSession,
   REPORT_CACHE_DATA_VERSION,
   REPORT_CACHE_KEY,
   REPORT_CACHE_MAX_AGE_MS,
   STALE_REPORT_CACHE_KEYS,
   clearBrowserReportCache,
   hasDraftReportData,
-  isFreshTimestamp,
-  isUsableCachedReport,
-  readBrowserReportCache,
-  shouldBackgroundRefreshCachedReport,
   formatMutationErrorMessage,
   showMutationErrorToast,
 } from "@/features/home/lib/reportCache";
@@ -83,13 +71,11 @@ import {
   type AnalysisLeaguePreview,
   type CachedSleeperUser,
   type SleeperLeagueOption,
-  buildCachedSleeperUser,
   buildLoadingManagerAnchors,
   findCachedSleeperUser,
   findKnownSleeperLeague,
   getOrderedLeagueOptions,
   readCachedSleeperUsers,
-  rememberCachedSleeperUser,
 } from "@/features/home/lib/leagueHistory";
 import {
   type AnalysisLoadingLeague,
@@ -508,159 +494,32 @@ export default function Home() {
     setUserLeagues,
   });
 
-  useEffect(() => {
-    let isCancelled = false;
-
-    const restoreCachedSession = async () => {
-      let restoredViewerUserId: string | null = null;
-      let restoredLeagues: SleeperLeagueOption[] = [];
-      const urlLeagueId = getInitialReportLeagueIdFromUrl();
-      const urlTab = getInitialReportTabFromUrl();
-      try {
-        const sleeperSession = localStorage.getItem(SLEEPER_SESSION_KEY);
-        if (sleeperSession) {
-          const parsed = JSON.parse(sleeperSession) as SleeperSession;
-          const parsedLeagues = Array.isArray(parsed.leagues)
-            ? parsed.leagues
-            : [];
-          restoredLeagues = parsedLeagues;
-          const restoredViewerIdentity = getKtcAdminIdentity(
-            parsed.user,
-            parsed.username
-          );
-          const restoredAdminViewMode = normalizeAdminViewMode(
-            parsed.adminViewMode
-          );
-          const restoredHasAdminPermissions =
-            parsed.user?.hasAdminPermissions === true ||
-            parsed.user?.isPrivilegedReportViewer === true;
-          setSleeperUsername(parsed.username || "");
-          restoredViewerUserId = parsed.user?.userId || null;
-          setViewerUserId(restoredViewerUserId);
-          setViewerUsername(restoredViewerIdentity);
-          setAdminViewMode(
-            restoredHasAdminPermissions
-              ? restoredAdminViewMode || "regular"
-              : null
-          );
-          setAdminViewerManager(null);
-          if (parsed.username) {
-            setSleeperUsernameHistory(
-              rememberAutocompleteValue(
-                SLEEPER_USERNAME_HISTORY_KEY,
-                parsed.username
-              )
-            );
-          }
-          if (parsed.username && parsedLeagues.length) {
-            setCachedSleeperUsers(
-              rememberCachedSleeperUser(
-                buildCachedSleeperUser(
-                  parsed.username,
-                  parsed.user,
-                  parsedLeagues
-                )
-              )
-            );
-          }
-          setUserLeagues(parsedLeagues);
-        }
-      } catch {
-        localStorage.removeItem(SLEEPER_SESSION_KEY);
-      }
-
-      try {
-        STALE_REPORT_CACHE_KEYS.forEach(key => localStorage.removeItem(key));
-        const restoreReportFromCache = (cachedReport: CachedReport) => {
-          const tab = urlTab || cachedReport.activeTab || "overview";
-          applyCachedReport(cachedReport, tab);
-          queueReportVisibleTelemetry({
-            leagueId: cachedReport.leagueId,
-            leagueName: cachedReport.leagueName,
-            activeTab: tab,
-            source: "browser-cache",
-            cacheStatus: "browser",
-            requestMs: null,
-            payloadVersion:
-              cachedReport.cacheVersion || REPORT_CACHE_DATA_VERSION,
-          });
-          if (shouldBackgroundRefreshCachedReport(cachedReport)) {
-            refreshReportInBackground(
-              cachedReport.leagueId,
-              restoredViewerUserId
-            );
-          }
-        };
-
-        if (urlLeagueId) {
-          const parsed = await readBrowserReportCache(urlLeagueId);
-          if (isCancelled) return;
-          if (parsed && isUsableCachedReport(parsed, urlLeagueId)) {
-            restoreReportFromCache(parsed);
-            return;
-          }
-          if (parsed) clearBrowserReportCache(parsed.leagueId);
-          setLeagueId(urlLeagueId);
-          setAnalysisErrorMessage(null);
-          setActiveTab(urlTab || "overview");
-          setLeagueIdHistory(
-            rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, urlLeagueId)
-          );
-          void beginAnalysisLoading(urlLeagueId, restoredLeagues).finally(() => {
-            if (activeAnalysisLeagueIdRef.current !== urlLeagueId) return;
-            analyzeMutation.mutate({
-              leagueId: urlLeagueId,
-              viewerUserId:
-                getValidSleeperUserId(restoredViewerUserId) || undefined,
-            });
-          });
-          return;
-        }
-
-        const lastLeague = localStorage.getItem(LAST_LEAGUE_KEY);
-        if (lastLeague) {
-          const parsed = JSON.parse(lastLeague) as LastLeague;
-          const lastLeagueIsFresh = isFreshTimestamp(
-            parsed.savedAt,
-            REPORT_CACHE_MAX_AGE_MS
-          );
-          if (!lastLeagueIsFresh) {
-            localStorage.removeItem(LAST_LEAGUE_KEY);
-            return;
-          }
-          const cachedLastLeagueReport = await readBrowserReportCache(parsed.leagueId);
-          if (isCancelled) return;
-          if (
-            cachedLastLeagueReport &&
-            isUsableCachedReport(cachedLastLeagueReport, parsed.leagueId)
-          ) {
-            restoreReportFromCache(cachedLastLeagueReport);
-            return;
-          }
-          localStorage.removeItem(LAST_LEAGUE_KEY);
-          setLeagueIdHistory(
-            rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, parsed.leagueId)
-          );
-        }
-
-        const parsed = await readBrowserReportCache();
-        if (isCancelled) return;
-        if (parsed && isUsableCachedReport(parsed)) {
-          restoreReportFromCache(parsed);
-        }
-      } catch {
-        clearBrowserReportCache();
-        localStorage.removeItem(LAST_LEAGUE_KEY);
-      }
-    };
-
-    void restoreCachedSession();
-    return () => {
-      isCancelled = true;
-    };
-    // Run once on boot so phone refreshes land back in the last league.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useHomeCachedSessionRestore({
+    activeAnalysisLeagueIdRef,
+    beginAnalysisLoading,
+    lastLeagueKey: LAST_LEAGUE_KEY,
+    leagueIdHistoryKey: LEAGUE_ID_HISTORY_KEY,
+    reportCacheMaxAgeMs: REPORT_CACHE_MAX_AGE_MS,
+    sleeperSessionKey: SLEEPER_SESSION_KEY,
+    sleeperUsernameHistoryKey: SLEEPER_USERNAME_HISTORY_KEY,
+    staleReportCacheKeys: STALE_REPORT_CACHE_KEYS,
+    applyCachedReport,
+    refreshReportInBackground,
+    queueReportVisibleTelemetry,
+    onAnalyzeReport: variables => analyzeMutation.mutate(variables),
+    setActiveTab,
+    setAdminViewMode,
+    setAdminViewerManager,
+    setAnalysisErrorMessage,
+    setCachedSleeperUsers,
+    setLeagueId,
+    setLeagueIdHistory,
+    setSleeperUsername,
+    setSleeperUsernameHistory,
+    setUserLeagues,
+    setViewerUserId,
+    setViewerUsername,
+  });
 
   usePersistHomeReportCache({
     activeTab,
