@@ -60,6 +60,29 @@ describe("user-load provider boundary", () => {
     expect(usageRecordIndex).toBeGreaterThan(leagueFetchIndex);
   });
 
+  it("keeps Sleeper username lookup provider calls behind the route limiter", () => {
+    const getUserLeaguesSource = extractSource("getUserLeagues: publicProcedure", "\n    getUserLeagueRanks: publicProcedure");
+    const rateLimitIndex = getUserLeaguesSource.indexOf("assertRateLimit(ctx.req as any");
+    const usernameIndex = getUserLeaguesSource.indexOf("const username = input.username.trim()");
+    const userUrlIndex = getUserLeaguesSource.indexOf("const userUrl = `https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`");
+    const userAllowedUrlIndex = getUserLeaguesSource.indexOf("assertUserLoadAllowedLiveProviderUrl(userUrl, \"Sleeper username lookup\")");
+    const userFetchIndex = getUserLeaguesSource.indexOf("fetchUserLoadResponse(userUrl, \"Sleeper username lookup\")");
+    const leaguesUrlIndex = getUserLeaguesSource.indexOf("const leaguesUrl = `https://api.sleeper.app/v1/user/${user.user_id}/leagues/nfl/${currentSeason}`");
+    const leaguesAllowedUrlIndex = getUserLeaguesSource.indexOf("assertUserLoadAllowedLiveProviderUrl(leaguesUrl, \"Sleeper user league lookup\")");
+    const leaguesFetchIndex = getUserLeaguesSource.indexOf("fetchUserLoadResponse(leaguesUrl, \"Sleeper user league lookup\")");
+
+    expect(rateLimitIndex).toBeGreaterThan(0);
+    expect(usernameIndex).toBeGreaterThan(rateLimitIndex);
+    expect(userUrlIndex).toBeGreaterThan(rateLimitIndex);
+    expect(userAllowedUrlIndex).toBeGreaterThan(rateLimitIndex);
+    expect(userFetchIndex).toBeGreaterThan(rateLimitIndex);
+    expect(leaguesUrlIndex).toBeGreaterThan(rateLimitIndex);
+    expect(leaguesAllowedUrlIndex).toBeGreaterThan(rateLimitIndex);
+    expect(leaguesFetchIndex).toBeGreaterThan(rateLimitIndex);
+    expect(getUserLeaguesSource).toContain("id: 'league.getUserLeagues'");
+    expect(getUserLeaguesSource).toContain("message: 'Too many league lookup attempts. Please wait a few minutes and try again.'");
+  });
+
   it("records source-trace view usage before returning paid trace details", () => {
     const sanitizeSource = extractSource("async function sanitizeAnalyzePayloadForPaidAccess", "\nfunction assertSessionJwtSecretConfigured");
     const accessIndex = sanitizeSource.indexOf('feature: "source-trace-details"');
