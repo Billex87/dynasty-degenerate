@@ -90,6 +90,53 @@ describe('buildAutopilotData', () => {
     );
   });
 
+  it('only renders do-this queue rows when a concrete expected action is attached', () => {
+    const dynastyReport = createCachedCommandCenterReport().reportData;
+    dynastyReport.recentTransactions = [];
+    const staleTransactionReport = createCachedCommandCenterReport().reportData;
+    const redraftReport = createCachedRedraftReport().reportData;
+    const scenarios = [
+      buildAutopilotData({
+        reportData: dynastyReport,
+        mode: 'dynasty',
+        fallback: AUTOPILOT_MOCK_DATA.dynasty,
+      }),
+      buildAutopilotData({
+        reportData: staleTransactionReport,
+        mode: 'dynasty',
+        fallback: AUTOPILOT_MOCK_DATA.dynasty,
+      }),
+      buildAutopilotData({
+        reportData: redraftReport,
+        mode: 'redraft',
+        fallback: AUTOPILOT_MOCK_DATA.redraft,
+      }),
+      buildAutopilotData({
+        mode: 'dynasty',
+        fallback: AUTOPILOT_MOCK_DATA.dynasty,
+      }),
+      buildAutopilotData({
+        mode: 'redraft',
+        fallback: AUTOPILOT_MOCK_DATA.redraft,
+      }),
+    ];
+
+    const doThisRows = scenarios.flatMap((data) => data.actionQueue.filter((item) => item.decision === 'do'));
+    expect(doThisRows.length).toBeGreaterThan(0);
+    doThisRows.forEach((item) => {
+      expect(item.label).toBe('Do this now');
+      expect(item.expectedAction?.type).toBeTruthy();
+      expect(item.expectedAction?.type).not.toBe('hold');
+      expect(item.expectedAction?.type).not.toBe('unknown');
+      expect(item.missingEvidence.join(' ')).not.toMatch(/precondition|concrete expected action/i);
+    });
+
+    const mockRows = scenarios
+      .filter((data) => !data.dataStatus)
+      .flatMap((data) => data.actionQueue);
+    expect(mockRows.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('surfaces legal stored-projection start/sit swaps without changing dynasty value copy', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];
