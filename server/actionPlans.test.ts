@@ -103,6 +103,7 @@ describe("actionPlans router", () => {
     expect(bidHistoryReadIndex).toBeGreaterThan(bidHistoryRateLimitIndex);
     expect(routeSource).toContain("assertRateLimit(ctx.req as any");
     expect(routeSource).toContain("scope: userKey");
+    expect(routeSource).toContain('clientKey: "authenticated-user"');
     expect(routeSource).toContain("leagueId: sleeperLeagueIdSchema.optional()");
   });
 });

@@ -7286,6 +7286,7 @@ export const appRouter = router({
           max: 60,
           windowMs: 1000 * 60 * 10,
           scope: userKey,
+          clientKey: "authenticated-user",
           message: "Too many action-plan requests. Please wait a few minutes and try again.",
         });
         const plans = await listActionPlans({
@@ -7308,6 +7309,7 @@ export const appRouter = router({
           max: 60,
           windowMs: 1000 * 60 * 10,
           scope: userKey,
+          clientKey: "authenticated-user",
           message: "Too many waiver bid history requests. Please wait a few minutes and try again.",
         });
         const bidHistory = await listWaiverBidHistory({
