@@ -559,7 +559,7 @@ export function buildSourceAgreementRead(signals: AISourceAgreementSignal[]): AI
       confidenceCap: state === 'conflicted' ? 52 : diff / totalDirectionalWeight < 0.35 ? 62 : 68,
       reason: state === 'conflicted'
         ? 'Strong approved sources point in opposite directions'
-        : 'Approved sources are split, so confidence stays capped',
+        : 'Approved sources are split, so confidence stays limited',
       signals: normalized,
     };
   }

@@ -240,7 +240,7 @@ function injuryHeavyWeekFixture(): ProjectionRolloutFixture {
     backupPressure: 'medium',
     snapShareTrend: 'rising',
     recentSnapShare: 0.62,
-    note: 'Starter injury opens a short-term role, but confidence should stay capped.',
+    note: 'Starter injury opens a short-term role, but confidence should stay limited.',
   });
   return {
     scenario,

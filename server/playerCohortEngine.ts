@@ -848,7 +848,7 @@ function buildCalibration(input: {
     : evidenceGrade === 'thin'
     ? `Thin read: keep language cautious until ${missingSignals.slice(0, 3).join(', ') || 'more evidence'} improves.`
     : cautionFlags.length
-    ? `Usable read, but confidence is capped by ${cautionFlags.slice(0, 2).join(' and ')}.`
+    ? `Usable read, but confidence is limited by ${cautionFlags.slice(0, 2).join(' and ')}.`
     : 'Usable read: enough evidence for direction, but not enough for max-confidence language.';
 
   return {
@@ -892,7 +892,7 @@ function buildTrace(input: {
       ? `Anomaly rules: ${input.anomalyFlags.map(flag => `${flag.label} (${flag.score})`).join('; ')}.`
       : 'No anomaly rules fired.',
     `Outcome bucket: ${input.outcomeBucket}.`,
-    `Evidence grade: ${input.calibration.evidenceGrade}; evidence score ${input.calibration.evidenceScore}; confidence cap ${input.calibration.confidenceCap}.`,
+    `Evidence grade: ${input.calibration.evidenceGrade}; evidence score ${input.calibration.evidenceScore}; confidence limit ${input.calibration.confidenceCap}.`,
     input.calibration.missingSignals.length ? `Missing signals: ${input.calibration.missingSignals.join(', ')}.` : 'No major calibration gaps detected.',
     input.calibration.cautionFlags.length ? `Caution flags: ${input.calibration.cautionFlags.join(', ')}.` : 'No major caution flags detected.',
     `${sourceCount(input.details)} value source signal${sourceCount(input.details) === 1 ? '' : 's'} attached.`,

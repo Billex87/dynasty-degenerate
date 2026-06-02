@@ -304,7 +304,7 @@ function buildFreshnessProfile(
       : grade === 'usable'
       ? 'Situation read is usable, but at least one role, news, injury, or source input is thinner than ideal.'
       : grade === 'stale'
-      ? 'Situation read is stale or incomplete enough that confidence should stay capped.'
+      ? 'Situation read is stale or incomplete enough that confidence should stay limited.'
       : 'Situation read is missing too many football-context inputs for a strong recommendation.',
   };
 }
