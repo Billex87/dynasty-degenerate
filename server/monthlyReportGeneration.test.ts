@@ -2,11 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "./_core/context";
 
 const reserveMonthlyReportGeneration = vi.fn();
+const recordUsageEvent = vi.fn();
 
 vi.mock("./db", () => ({
   findLeagueReportCache: vi.fn(),
   getLoginAttemptsSince: vi.fn(),
   insertLoginAttempt: vi.fn(),
+  recordUsageEvent,
   listLeagueAiConfidenceSnapshots: vi.fn(() => Promise.resolve([])),
   listLatestSnapshotMetadata: vi.fn(() => Promise.resolve([])),
   listSourceHealthEventsSince: vi.fn(() => Promise.resolve([])),
@@ -48,6 +50,7 @@ function createContext(user: Partial<AuthenticatedUser> | null = {}): TrpcContex
 describe("monthly report generation quota", () => {
   beforeEach(() => {
     reserveMonthlyReportGeneration.mockReset();
+    recordUsageEvent.mockReset();
   });
 
   afterEach(() => {
@@ -73,6 +76,19 @@ describe("monthly report generation quota", () => {
     expect(reserveMonthlyReportGeneration).toHaveBeenCalledWith(expect.objectContaining({
       leagueId: "123456789012345678",
       userKey: "auth:sample-user",
+    }));
+    expect(recordUsageEvent).toHaveBeenCalledTimes(1);
+    expect(recordUsageEvent).toHaveBeenCalledWith(expect.objectContaining({
+      userOpenId: "sample-user",
+      leagueId: "123456789012345678",
+      featureKey: "monthly-roster-blueprint",
+      usageKey: expect.stringMatching(/^monthly-roster-blueprint:month:\d{4}-\d{2}-01$/),
+      quantity: 1,
+      source: "monthly-report-generation",
+      metadata: expect.objectContaining({
+        userKey: "auth:sample-user",
+        viewerUserId: "222222222222222222",
+      }),
     }));
   });
 
@@ -114,6 +130,7 @@ describe("monthly report generation quota", () => {
       viewerUserId: "222222222222222222",
       ipAddress: "203.0.113.10",
     })).resolves.toBeUndefined();
+    expect(recordUsageEvent).not.toHaveBeenCalled();
   });
 
   it("applies the monthly blueprint quota to ADMIN_PERMISSIONS users too", async () => {

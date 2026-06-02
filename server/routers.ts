@@ -82,8 +82,9 @@ import {
   loadStoredSleeperProjectionSnapshot,
   type SleeperProjectionScoringProfile,
 } from "./sleeperProjectionSnapshots";
-import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, findMagicLinkTokenByHash, getUserByOpenId, insertLoginAttempt, insertMagicLinkToken, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, markMagicLinkTokenConsumed, parseLeagueReportCachePayloadFromStorage, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser } from "./db";
+import { findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, findMagicLinkTokenByHash, getUserByOpenId, insertLoginAttempt, insertMagicLinkToken, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, markMagicLinkTokenConsumed, parseLeagueReportCachePayloadFromStorage, recordUsageEvent, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser } from "./db";
 import { consumeMagicLinkToken, createMagicLinkToken, getMagicLinkUserOpenId, hashMagicLinkToken, normalizeMagicLinkRedirectPath } from "./magicLinkTokens";
+import { buildUsageEvent } from "./usageEvents";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
 import type { LeagueDraftStatus, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
 import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
@@ -1834,7 +1835,28 @@ export async function assertMonthlyReportGenerationAllowed(input: {
     return;
   }
 
-  if (reservation.allowed || reservation.existing?.leagueId === input.leagueId) return;
+  if (reservation.allowed) {
+    await Promise.resolve(recordUsageEvent(buildUsageEvent({
+      userOpenId: input.ctx.user?.openId ?? null,
+      leagueId: input.leagueId,
+      featureKey: "monthly-roster-blueprint",
+      period: "month",
+      quantity: 1,
+      source: "monthly-report-generation",
+      idempotencyKey: `${identity.userKey}|${snapshotMonth}|${input.leagueId}`,
+      metadata: {
+        snapshotMonth,
+        userKey: identity.userKey,
+        userLabel: identity.userLabel,
+        viewerUserId: input.viewerUserId ?? null,
+      },
+    }))).catch((error) => {
+      console.warn("[Usage] Failed to record monthly blueprint usage event:", error);
+    });
+    return;
+  }
+
+  if (reservation.existing?.leagueId === input.leagueId) return;
 
   throw new TRPCError({
     code: 'TOO_MANY_REQUESTS',

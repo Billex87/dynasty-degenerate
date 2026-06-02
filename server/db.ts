@@ -131,6 +131,58 @@ export type AiPredictionEventRecord = AIPredictionEvent & {
   updatedAt?: string | null;
 };
 
+export type UsageEventInput = {
+  eventId: string;
+  userOpenId?: string | null;
+  leagueId?: string | null;
+  featureKey: string;
+  usageKey: string;
+  quantity?: number | null;
+  source: string;
+  metadata?: unknown;
+  createdAt?: Date | string | null;
+};
+
+export type BillingCustomerUpsertInput = {
+  userId?: number | null;
+  userOpenId: string;
+  stripeCustomerId: string;
+  email?: string | null;
+  name?: string | null;
+  status?: string | null;
+  metadata?: unknown;
+};
+
+export type BillingSubscriptionUpsertInput = {
+  userId?: number | null;
+  userOpenId: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  plan: string;
+  status: string;
+  priceId?: string | null;
+  productId?: string | null;
+  currentPeriodStart?: Date | string | null;
+  currentPeriodEnd?: Date | string | null;
+  cancelAtPeriodEnd?: boolean | number | null;
+  metadata?: unknown;
+};
+
+export type BillingSubscriptionAccessRecord = {
+  plan: string | null;
+  status: string;
+  currentPeriodEnd: Date | null;
+};
+
+export type CountUsageEventsInput = {
+  userOpenId?: string | null;
+  leagueId?: string | null;
+  featureKey?: string | null;
+  usageKey?: string | null;
+  createdAtFrom?: Date | string | null;
+  createdAtTo?: Date | string | null;
+};
+
 function getSql() {
   if (!process.env.DATABASE_URL) return null;
   if (!sqlClient) {
@@ -762,6 +814,30 @@ function normalizeMagicLinkTokenRow(row: any): MagicLinkTokenRecord {
   };
 }
 
+function requiredTrimmed(value: string | null | undefined, label: string): string {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    throw new Error(`${label} is required`);
+  }
+  return trimmed;
+}
+
+function optionalTrimmed(value: string | null | undefined): string | null {
+  const trimmed = String(value || "").trim();
+  return trimmed || null;
+}
+
+function normalizeDateForDb(value: Date | string | null | undefined): Date | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function serializeMetadataForDb(metadata: unknown): string | null {
+  if (metadata === undefined || metadata === null) return null;
+  return JSON.stringify(metadata);
+}
+
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) {
     throw new Error("User openId is required for upsert");
@@ -926,6 +1002,204 @@ export async function markMagicLinkTokenConsumed(input: {
   ` as Record<string, any>[];
 
   return result.length > 0 ? normalizeMagicLinkTokenRow(result[0]) : null;
+}
+
+export async function upsertBillingCustomer(input: BillingCustomerUpsertInput): Promise<boolean> {
+  const userOpenId = requiredTrimmed(input.userOpenId, "userOpenId");
+  const stripeCustomerId = requiredTrimmed(input.stripeCustomerId, "stripeCustomerId");
+  const status = optionalTrimmed(input.status) ?? "active";
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot upsert billing customer: database not available");
+    return false;
+  }
+
+  await sql`
+    INSERT INTO "billingCustomers" (
+      "userId",
+      "userOpenId",
+      "stripeCustomerId",
+      email,
+      name,
+      status,
+      metadata,
+      "updatedAt"
+    )
+    VALUES (
+      ${input.userId ?? null},
+      ${userOpenId},
+      ${stripeCustomerId},
+      ${optionalTrimmed(input.email)},
+      ${optionalTrimmed(input.name)},
+      ${status},
+      ${serializeMetadataForDb(input.metadata)},
+      NOW()
+    )
+    ON CONFLICT ("stripeCustomerId") DO UPDATE SET
+      "userId" = COALESCE(EXCLUDED."userId", "billingCustomers"."userId"),
+      "userOpenId" = EXCLUDED."userOpenId",
+      email = COALESCE(EXCLUDED.email, "billingCustomers".email),
+      name = COALESCE(EXCLUDED.name, "billingCustomers".name),
+      status = EXCLUDED.status,
+      metadata = COALESCE(EXCLUDED.metadata, "billingCustomers".metadata),
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function upsertBillingSubscription(input: BillingSubscriptionUpsertInput): Promise<boolean> {
+  const userOpenId = requiredTrimmed(input.userOpenId, "userOpenId");
+  const stripeCustomerId = requiredTrimmed(input.stripeCustomerId, "stripeCustomerId");
+  const stripeSubscriptionId = requiredTrimmed(input.stripeSubscriptionId, "stripeSubscriptionId");
+  const plan = requiredTrimmed(input.plan, "plan").toLowerCase();
+  const status = requiredTrimmed(input.status, "status").toLowerCase();
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot upsert billing subscription: database not available");
+    return false;
+  }
+
+  await sql`
+    INSERT INTO subscriptions (
+      "userId",
+      "userOpenId",
+      "stripeCustomerId",
+      "stripeSubscriptionId",
+      plan,
+      status,
+      "priceId",
+      "productId",
+      "currentPeriodStart",
+      "currentPeriodEnd",
+      "cancelAtPeriodEnd",
+      metadata,
+      "updatedAt"
+    )
+    VALUES (
+      ${input.userId ?? null},
+      ${userOpenId},
+      ${stripeCustomerId},
+      ${stripeSubscriptionId},
+      ${plan},
+      ${status},
+      ${optionalTrimmed(input.priceId)},
+      ${optionalTrimmed(input.productId)},
+      ${normalizeDateForDb(input.currentPeriodStart)},
+      ${normalizeDateForDb(input.currentPeriodEnd)},
+      ${input.cancelAtPeriodEnd ? 1 : 0},
+      ${serializeMetadataForDb(input.metadata)},
+      NOW()
+    )
+    ON CONFLICT ("stripeSubscriptionId") DO UPDATE SET
+      "userId" = COALESCE(EXCLUDED."userId", subscriptions."userId"),
+      "userOpenId" = EXCLUDED."userOpenId",
+      "stripeCustomerId" = EXCLUDED."stripeCustomerId",
+      plan = EXCLUDED.plan,
+      status = EXCLUDED.status,
+      "priceId" = COALESCE(EXCLUDED."priceId", subscriptions."priceId"),
+      "productId" = COALESCE(EXCLUDED."productId", subscriptions."productId"),
+      "currentPeriodStart" = EXCLUDED."currentPeriodStart",
+      "currentPeriodEnd" = EXCLUDED."currentPeriodEnd",
+      "cancelAtPeriodEnd" = EXCLUDED."cancelAtPeriodEnd",
+      metadata = COALESCE(EXCLUDED.metadata, subscriptions.metadata),
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function listBillingSubscriptionsForUser(userOpenId: string): Promise<BillingSubscriptionAccessRecord[]> {
+  const normalizedUserOpenId = requiredTrimmed(userOpenId, "userOpenId");
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot list billing subscriptions: database not available");
+    return [];
+  }
+
+  const result = await sql`
+    SELECT
+      plan,
+      status,
+      "currentPeriodEnd"
+    FROM subscriptions
+    WHERE "userOpenId" = ${normalizedUserOpenId}
+    ORDER BY "updatedAt" DESC
+  ` as Record<string, any>[];
+
+  return result.map((row) => ({
+    plan: row.plan ?? null,
+    status: String(row.status || ""),
+    currentPeriodEnd: normalizeDateForDb(row.currentPeriodEnd),
+  }));
+}
+
+export async function recordUsageEvent(input: UsageEventInput): Promise<boolean> {
+  const eventId = requiredTrimmed(input.eventId, "eventId");
+  const featureKey = requiredTrimmed(input.featureKey, "featureKey");
+  const usageKey = requiredTrimmed(input.usageKey, "usageKey");
+  const source = requiredTrimmed(input.source, "source");
+  const quantity = Math.max(1, Math.floor(Number(input.quantity ?? 1)));
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot record usage event: database not available");
+    return false;
+  }
+
+  await sql`
+    INSERT INTO "usageEvents" (
+      "eventId",
+      "userOpenId",
+      "leagueId",
+      "featureKey",
+      "usageKey",
+      quantity,
+      source,
+      metadata,
+      "createdAt"
+    )
+    VALUES (
+      ${eventId},
+      ${optionalTrimmed(input.userOpenId)},
+      ${optionalTrimmed(input.leagueId)},
+      ${featureKey},
+      ${usageKey},
+      ${quantity},
+      ${source},
+      ${serializeMetadataForDb(input.metadata)},
+      ${normalizeDateForDb(input.createdAt) ?? new Date()}
+    )
+    ON CONFLICT ("eventId") DO NOTHING
+  `;
+
+  return true;
+}
+
+export async function countUsageEvents(input: CountUsageEventsInput): Promise<number> {
+  const userOpenId = optionalTrimmed(input.userOpenId);
+  const leagueId = optionalTrimmed(input.leagueId);
+  const featureKey = optionalTrimmed(input.featureKey);
+  const usageKey = optionalTrimmed(input.usageKey);
+  const createdAtFrom = normalizeDateForDb(input.createdAtFrom);
+  const createdAtTo = normalizeDateForDb(input.createdAtTo);
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot count usage events: database not available");
+    return 0;
+  }
+
+  const result = await sql`
+    SELECT COALESCE(SUM(quantity), 0)::int AS "usageCount"
+    FROM "usageEvents"
+    WHERE (${userOpenId}::text IS NULL OR "userOpenId" = ${userOpenId})
+      AND (${leagueId}::text IS NULL OR "leagueId" = ${leagueId})
+      AND (${featureKey}::text IS NULL OR "featureKey" = ${featureKey})
+      AND (${usageKey}::text IS NULL OR "usageKey" = ${usageKey})
+      AND (${createdAtFrom}::timestamptz IS NULL OR "createdAt" >= ${createdAtFrom})
+      AND (${createdAtTo}::timestamptz IS NULL OR "createdAt" < ${createdAtTo})
+  ` as Array<{ usageCount?: number | string | null }>;
+
+  return Number(result[0]?.usageCount || 0);
 }
 
 export async function insertKtcSnapshot(snapshotDate: Date, ktcData: string) {
