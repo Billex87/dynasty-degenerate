@@ -3,6 +3,7 @@ import { appRouter } from "./routers";
 import { createContext } from "./_core/context";
 import { COOKIE_NAME } from "../shared/const";
 import type { TrpcContext } from "./_core/context";
+import { sdk } from "./_core/sdk";
 
 type CookieCall = {
   name: string;
@@ -81,6 +82,30 @@ describe("auth context", () => {
 
       expect(ctx.user).toBeNull();
       expect(warnSpy).not.toHaveBeenCalledWith("[Auth] Missing session cookie");
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("treats expired session cookies as anonymous", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const expiredToken = await sdk.createAdminSessionToken({
+      expiresInMs: -60_000,
+    });
+
+    try {
+      const ctx = await createContext({
+        req: {
+          headers: {
+            cookie: `${COOKIE_NAME}=${expiredToken}`,
+          },
+          protocol: "https",
+        },
+        res: {},
+      } as Parameters<typeof createContext>[0]);
+
+      expect(ctx.user).toBeNull();
+      expect(warnSpy.mock.calls.some(([message]) => message === "[Auth] Session verification failed")).toBe(true);
     } finally {
       warnSpy.mockRestore();
     }

@@ -176,6 +176,7 @@
 - [x] Do not use personal/non-commercial API keys inside paid/public feature outputs unless we have provider approval or a commercial license for that source.
 - [ ] Add tests for auth token expiry, magic-link replay protection, webhook signature verification, entitlement checks, usage limits, and paid/free report boundaries.
   - 2026-06-02 entitlement test slice: added unit coverage for anonymous free report access, monthly blueprint limit metadata, paid-feature fail-closed behavior before billing launch, pro/elite plan checks when billing is enabled, and admin diagnostics access. Remaining tests: auth token expiry, magic-link replay protection, Stripe webhook signature verification, persisted usage events, and real paid/free report boundaries.
+  - 2026-06-02 auth expiry test slice: added coverage proving an expired session JWT is treated as an anonymous public request instead of authenticating the user. Remaining tests: magic-link replay protection, Stripe webhook signature verification, persisted usage events, and real paid/free report boundaries.
 
 ## Source Audit / Feature Roadmap
 
