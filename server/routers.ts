@@ -7556,6 +7556,12 @@ export const appRouter = router({
         const ipAddress = getClientIp(ctx.req as any);
         const userAgent = typeof ctx.req.headers["user-agent"] === "string" ? ctx.req.headers["user-agent"] : null;
         assertRateLimit(ctx.req as any, {
+          id: 'league.analyze.view.ip',
+          max: 80,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many report requests. Please wait a few minutes and try again.',
+        });
+        assertRateLimit(ctx.req as any, {
           id: 'league.analyze.view',
           max: 18,
           windowMs: 1000 * 60 * 10,

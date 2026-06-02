@@ -53,14 +53,31 @@ describe("user-load provider boundary", () => {
 
   it("checks signed-in report-generation usage before fresh user-load work", () => {
     const analyzeSource = extractSource("analyze: publicProcedure", "\n  }),\n\n  players: router");
+    const accessIndex = analyzeSource.indexOf("assertReportAccess(ctx)");
+    const viewIpRateLimitIndex = analyzeSource.indexOf("id: 'league.analyze.view.ip'");
+    const viewRateLimitIndex = analyzeSource.indexOf("id: 'league.analyze.view',", viewIpRateLimitIndex);
+    const cacheReadIndex = analyzeSource.indexOf("const cachedReport = await readCachedLeagueReport(reportCacheKey)");
+    const generateIpRateLimitIndex = analyzeSource.indexOf("id: 'league.analyze.generate.ip'");
+    const generateLeagueRateLimitIndex = analyzeSource.indexOf("id: 'league.analyze.generate.league'");
     const usageLimitIndex = analyzeSource.indexOf('assertPersistedUsageLimit({');
     const leagueFetchIndex = analyzeSource.indexOf('fetchUserLoadJson<any>(\n              `https://api.sleeper.app/v1/league/${normalizedLeagueId}`');
     const usageRecordIndex = analyzeSource.indexOf('recordLimitedUsageEvent({');
     const cacheHitIndex = analyzeSource.indexOf("reportCacheStatus: 'hit' as const");
 
+    expect(accessIndex).toBeGreaterThan(0);
+    expect(viewIpRateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(viewRateLimitIndex).toBeGreaterThan(viewIpRateLimitIndex);
+    expect(cacheReadIndex).toBeGreaterThan(viewRateLimitIndex);
+    expect(generateIpRateLimitIndex).toBeGreaterThan(cacheReadIndex);
+    expect(generateLeagueRateLimitIndex).toBeGreaterThan(generateIpRateLimitIndex);
     expect(usageLimitIndex).toBeGreaterThan(0);
+    expect(usageLimitIndex).toBeGreaterThan(generateLeagueRateLimitIndex);
     expect(leagueFetchIndex).toBeGreaterThan(usageLimitIndex);
     expect(cacheHitIndex).toBeLessThan(usageLimitIndex);
+    expect(analyzeSource).toContain("id: 'league.analyze.view.ip'");
+    expect(analyzeSource).toContain("id: 'league.analyze.view'");
+    expect(analyzeSource).toContain("id: 'league.analyze.generate.ip'");
+    expect(analyzeSource).toContain("id: 'league.analyze.generate.league'");
     expect(analyzeSource).toContain('featureKey: "report-generation"');
     expect(analyzeSource).toContain('source: "league.analyze"');
     expect(usageRecordIndex).toBeGreaterThan(leagueFetchIndex);
