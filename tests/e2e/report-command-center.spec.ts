@@ -1805,10 +1805,13 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Depth Receiver").first()).toBeVisible();
     await expect(page.getByText("Sample Runner").first()).toBeVisible();
     await expect(page.getByText("Weekly Action Plan")).toBeVisible();
-    await expect(page.getByText("Take me out")).toBeVisible();
+    await expect(page.getByText("Review starter slot")).toBeVisible();
     await expect(page.getByText("Sample Tight End").first()).toBeVisible();
-    await expect(page.getByText("Best weekly correction")).toBeVisible();
-    await expect(page.getByText(/Start Replacement Tight End over Sample Tight End/).first()).toBeVisible();
+    await expect(page.getByText("Best weekly pressure test")).toBeVisible();
+    await expect(page.getByText("Review against")).toBeVisible();
+    await expect(page.getByText(/Pressure-test Sample Tight End with Replacement Tight End/).first()).toBeVisible();
+    await expect(page.getByText("Take me out")).toHaveCount(0);
+    await expect(page.getByText(/Start Replacement Tight End over Sample Tight End/)).toHaveCount(0);
     await expect(page.getByText("AI Edge Review")).toBeVisible();
     await expect(page.getByText("Weekly AI report card")).toBeVisible();
     await expect(page.getByText("Bad idea alert")).toBeVisible();

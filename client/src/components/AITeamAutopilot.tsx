@@ -288,7 +288,7 @@ function WeeklyActionPlanCard({ plan }: { plan?: WeeklyActionPlan }) {
       <div className={cn('autopilot-pull-card', starter && `autopilot-tone-${starter.tone}`)}>
         <span className="autopilot-pull-label">
           <CircleOff className="h-4 w-4" aria-hidden="true" />
-          {starter ? 'Take me out' : 'No forced pull'}
+          {starter ? 'Review starter slot' : 'No forced pull'}
         </span>
         <strong>{starter?.player || 'No starter flagged'}</strong>
         <p>{starter?.note || 'The current data does not force a lineup swap yet.'}</p>
@@ -296,7 +296,7 @@ function WeeklyActionPlanCard({ plan }: { plan?: WeeklyActionPlan }) {
       </div>
 
       <div className="autopilot-start-options">
-        <span>Start-over options</span>
+        <span>Pressure-test options</span>
         <div>
           {plan.options.map((option) => (
             <article key={`${option.player}-${option.confidence}`} className={cn('autopilot-start-option', `autopilot-tone-${option.tone}`)}>
@@ -326,7 +326,7 @@ function WeeklyRecapCard({ recap }: { recap?: WeeklyRecapRead }) {
   return (
     <div className="autopilot-weekly-recap">
       <div className="autopilot-weekly-recap-lead">
-        <span>Best weekly correction</span>
+        <span>Best weekly pressure test</span>
         <strong>{recap.headline}</strong>
         <p>{recap.summary}</p>
       </div>
@@ -334,7 +334,7 @@ function WeeklyRecapCard({ recap }: { recap?: WeeklyRecapRead }) {
         <div className="autopilot-recap-call-grid">
           {recap.startSitCalls.map((call) => (
             <article key={`${call.start}-${call.sit}`} className={cn('autopilot-recap-call', `autopilot-tone-${call.tone}`)}>
-              <span>Start over</span>
+              <span>Review against</span>
               <div>
                 <strong>{call.start}</strong>
                 <MoveRight className="h-4 w-4" aria-hidden="true" />
@@ -698,7 +698,7 @@ export default function AITeamAutopilot({
       <div className="autopilot-command-strip">
         <div>
           <span>Weekly plan</span>
-          <strong>{data.weeklyPlan?.options?.length ? `${data.weeklyPlan.options.length} start-over options` : 'No forced swap'}</strong>
+          <strong>{data.weeklyPlan?.options?.length ? `${data.weeklyPlan.options.length} pressure-test options` : 'No forced swap'}</strong>
         </div>
         <div>
           <span>Action queue</span>
@@ -715,7 +715,7 @@ export default function AITeamAutopilot({
       </div>
 
       <div className="autopilot-main-grid">
-        <SectionShell eyebrow="Weekly Action Plan" title="Start-over calls" icon={ListChecks}>
+        <SectionShell eyebrow="Weekly Action Plan" title="Pressure-test calls" icon={ListChecks}>
           <WeeklyActionPlanCard plan={data.weeklyPlan} />
           <WeeklyRecapCard recap={data.weeklyRecap} />
           <div className="autopilot-card-grid">
