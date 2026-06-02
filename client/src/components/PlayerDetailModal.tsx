@@ -3530,7 +3530,7 @@ function getPlayerAiSignalModes(input: {
   isCollegeProspect?: boolean;
 }): AIEvidenceMode[] {
   const modes: AIEvidenceMode[] = [];
-  if (input.valueMode === 'redraft' || input.hasCurrentSeasonEvidence) {
+  if (input.hasCurrentSeasonEvidence) {
     modes.push('redraft', 'current');
   }
   if (input.valueMode !== 'redraft' || input.hasDynastyEvidence) {
@@ -3691,7 +3691,7 @@ function buildPlayerAiTraceItems(read: AIEvidenceResult, trace: string[]): strin
   ];
 }
 
-function buildPlayerAiRead({
+export function buildPlayerAiRead({
   playerName,
   position,
   currentRank,
