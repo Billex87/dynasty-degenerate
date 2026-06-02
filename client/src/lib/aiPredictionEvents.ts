@@ -1059,7 +1059,7 @@ function eventFromScheduleRow(input: {
   const action: AIEvidenceAction =
     input.row.position === "K" || input.row.position === "DEF"
       ? "stream"
-      : input.row.decisionLabel === "Do this"
+      : input.row.evidenceRead.canAct
         ? "pickup"
         : "watch";
   const counterfactual = buildCounterfactual({

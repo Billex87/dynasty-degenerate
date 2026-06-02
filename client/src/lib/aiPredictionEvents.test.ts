@@ -130,6 +130,126 @@ describe("AI prediction event builder", () => {
     });
   });
 
+  it("classifies actionable schedule support reads from evidence instead of display copy", () => {
+    const events = buildAIPredictionEventsForReport({
+      leagueId: "13000000000000",
+      createdAt: "2026-09-01T00:00:00.000Z",
+      reportData: {
+        leagueDiagnostics: {
+          currentSeason: "2026",
+          currentWeek: 2,
+          valueMode: "dynasty",
+        },
+        leagueValueMode: "dynasty",
+        managerPositionCounts: [
+          {
+            manager: "Roster Manager",
+            QB: 0,
+            QB_starters: 0,
+            RB: 0,
+            RB_starters: 0,
+            WR: 1,
+            WR_starters: 1,
+            TE: 0,
+            TE_starters: 0,
+            K: 0,
+            K_starters: 0,
+            DEF: 0,
+            DEF_starters: 0,
+            rosterPlayers: [
+              {
+                player_id: "other-wr",
+                name: "Other Receiver",
+                pos: "WR",
+                playerDetails: { team: "NYG" },
+              },
+            ],
+            lineupPlayers: [],
+            starterPlayers: [],
+          },
+        ],
+        scheduleEdgeTargets: [
+          {
+            score: 96,
+            player: {
+              player_id: "schedule-wr",
+              name: "Schedule Receiver",
+              pos: "WR",
+              team: "BUF",
+              ktcValue: 5200,
+              currentPositionRank: "WR18",
+            },
+            signal: {
+              signalType: "draftsharks-sos",
+              playerId: "schedule-wr",
+              name: "Schedule Receiver",
+              position: "WR",
+              team: "BUF",
+              source: "DraftSharks",
+              updatedAt: "2026-09-01T00:00:00.000Z",
+              bestWeek: 2,
+              bestRankEcr: 18,
+              bestPositionRank: "WR18",
+              averageRankEcr: 18,
+              rankDelta: null,
+              bestMatchupStars: 5,
+              bestOpponentRank: 4,
+              confidence: 96,
+              note: "Strong schedule window.",
+              weeks: [
+                {
+                  week: 2,
+                  rankEcr: 18,
+                  positionRank: "WR18",
+                  bestRank: null,
+                  worstRank: null,
+                  averageRank: 18,
+                  rankStdDev: null,
+                  lastUpdated: "2026-09-01T00:00:00.000Z",
+                  fetchedAt: "2026-09-01T00:00:00.000Z",
+                  sourceStatus: "loaded",
+                  opponent: "NYJ",
+                  homeAway: "home",
+                  opponentRank: 4,
+                  matchupStars: 5,
+                  matchupTier: "easy",
+                  isBye: false,
+                },
+              ],
+              sourceTrace: [
+                {
+                  source: "DraftSharks",
+                  sourceKey: "draftsharks-sos-v1",
+                  endpointKey: "draftsharks-sos-wr-week-2",
+                  endpointLabel: "DraftSharks WR SOS Week 2",
+                  status: "loaded",
+                  season: "2026",
+                  scoring: "PPR",
+                  week: 2,
+                  position: "WR",
+                  rowCount: 120,
+                  fetchedAt: "2026-09-01T00:00:00.000Z",
+                  lastUpdated: "2026-09-01T00:00:00.000Z",
+                  evidence: "test",
+                },
+              ],
+              traceSummary: "W2",
+            },
+          },
+        ],
+      } as any,
+    });
+
+    const scheduleEvent = events.find(event => event.surface === "schedule" && event.entityId === "schedule-wr");
+    expect(scheduleEvent).toMatchObject({
+      action: "pickup",
+      metadata: {
+        decisionLabel: "Review this",
+      },
+    });
+    expect(scheduleEvent?.decision).toBe("do");
+  });
+
   it("does not emit fake calibration events when report data is missing", () => {
     expect(buildAIPredictionEventsForReport({ reportData: null })).toEqual([]);
   });
