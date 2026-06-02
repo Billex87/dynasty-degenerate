@@ -298,6 +298,36 @@ describe("ai evidence engine", () => {
     expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 54% from Missing player source trace");
   });
 
+  it("caps non-schedule player action reads with only one source", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 96,
+      evidence: ["WR22 current-season rank is attached.", "Roster need is attached."],
+      sourceTrace: [{
+        label: "FantasyPros waiver snapshot",
+        status: "loaded",
+      }],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Single Source Receiver",
+        position: "WR",
+        team: "LAC",
+        value: 6900,
+        sourceCount: 1,
+        hasCurrentSeasonValue: true,
+      },
+    });
+
+    expect(read.canAct).toBe(false);
+    expect(read.finalScore).toBeLessThanOrEqual(57);
+    expect(read.confidenceCapReason).toBe("Thin player source count");
+    expect(read.missingEvidence).toContain("Only one player source returned for this action read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Thin player source count caps action confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 57% from Thin player source count");
+  });
+
   it("marks empty readouts insufficient instead of confident", () => {
     const read = evaluateAIEvidence({
       surface: "overview",

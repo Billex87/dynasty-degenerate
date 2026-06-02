@@ -600,7 +600,7 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
         ],
       },
     },
-    waiver1: { playerId: 'waiver1', fullName: 'Waiver Receiver', position: 'WR', team: 'NYJ', age: 24, valueProfile: { dynastyValue: 2800, seasonValue: 3400, dynastyPositionRank: 'WR42', seasonPositionRank: 'WR31', sources: ['KTC'] } },
+    waiver1: { playerId: 'waiver1', fullName: 'Waiver Receiver', position: 'WR', team: 'NYJ', age: 24, valueProfile: { dynastyValue: 2800, seasonValue: 3400, dynastyPositionRank: 'WR42', seasonPositionRank: 'WR31', sources: ['KTC', 'FantasyCalc'] } },
     drop1: { playerId: 'drop1', fullName: 'Last Bench Spot', position: 'WR', team: 'CAR', age: 29, valueProfile: { dynastyValue: 500, seasonValue: 300, dynastyPositionRank: 'WR96', seasonPositionRank: 'WR104', sources: ['KTC'] } },
   };
 

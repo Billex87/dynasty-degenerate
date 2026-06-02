@@ -940,6 +940,34 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
 
   const lowValueThreshold = input.lowValueThreshold ?? getLeagueContextLowValueThreshold(input, leagueContext, position);
   const hasScheduleEvidence = Boolean(schedule.hasScheduleData || signalModes.has("schedule"));
+  const isDirectPlayerAction =
+    input.action === "pickup" ||
+    input.action === "stash" ||
+    input.action === "start" ||
+    input.action === "sit" ||
+    input.action === "trade" ||
+    input.action === "avoid";
+  if (
+    input.player &&
+    isDirectPlayerAction &&
+    !hasScheduleEvidence &&
+    sourceCount === 1 &&
+    explicitSourceTrace.length <= 1
+  ) {
+    missingEvidence.push("Only one player source returned for this action read.");
+    softPenalties.push({
+      label: "Thin player source count caps action confidence",
+      points: 8,
+    });
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      57,
+      "Thin player source count"
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
+  }
   if (isPickupLike && sourceCount <= 1 && value > 0 && value < lowValueThreshold && !hasScheduleEvidence) {
     hardBlockers.push("Low source count plus low value cannot become a best-available recommendation.");
   }
