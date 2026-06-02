@@ -480,12 +480,17 @@ function normalizeDirection(value: unknown): AISourceSignalDirection {
   const clean = String(value || '').trim().toLowerCase();
   if (clean === 'for' || clean === 'support' || clean === 'positive' || clean === 'boost') return 'for';
   if (clean === 'against' || clean === 'negative' || clean === 'avoid' || clean === 'fade') return 'against';
-  if (clean === 'missing') return 'missing';
+  if (clean === 'missing' || clean === 'unavailable' || clean === 'unverified') return 'missing';
   return 'neutral';
 }
 
 function signalWeight(signal: AISourceAgreementSignal): number {
-  if (signal.status === 'missing' || signal.direction === 'missing') return 0;
+  if (
+    signal.status === 'missing' ||
+    signal.status === 'unavailable' ||
+    signal.status === 'unverified' ||
+    signal.direction === 'missing'
+  ) return 0;
   return Math.max(1, Math.min(100, clampPercent(signal.confidence ?? 60)));
 }
 
@@ -493,13 +498,20 @@ export function buildSourceAgreementRead(signals: AISourceAgreementSignal[]): AI
   const normalized = signals
     .map(signal => ({
       source: cleanText(signal.source) || 'unknown-source',
-      direction: normalizeDirection(signal.direction),
+      direction: signal.status === 'unavailable' || signal.status === 'unverified'
+        ? 'missing'
+        : normalizeDirection(signal.direction),
       confidence: signal.confidence === null || signal.confidence === undefined ? null : clampPercent(signal.confidence),
       status: signal.status || undefined,
       detail: cleanText(signal.detail),
     }))
     .filter(signal => signal.source);
-  const missingCount = normalized.filter(signal => signal.status === 'missing' || signal.direction === 'missing').length;
+  const missingCount = normalized.filter(signal =>
+    signal.status === 'missing' ||
+    signal.status === 'unavailable' ||
+    signal.status === 'unverified' ||
+    signal.direction === 'missing'
+  ).length;
   const directional = normalized.filter(signal => signal.direction === 'for' || signal.direction === 'against');
   const forWeight = directional
     .filter(signal => signal.direction === 'for')

@@ -144,6 +144,35 @@ describe('AI prediction calibration', () => {
     });
   });
 
+  it('treats unavailable source agreement signals as missing proof', () => {
+    const read = buildSourceAgreementRead([
+      {
+        source: 'FantasyPros waiver snapshot',
+        direction: 'for',
+        confidence: 90,
+        status: 'unavailable',
+        detail: 'Provider disabled for this environment.',
+      },
+    ]);
+
+    expect(read).toMatchObject({
+      state: 'unknown',
+      directionalSourceCount: 0,
+      sourceCount: 1,
+      forWeight: 0,
+      againstWeight: 0,
+      neutralWeight: 0,
+      missingCount: 1,
+      confidenceCap: 48,
+      reason: 'No directional source signal was available',
+      signals: [{
+        direction: 'missing',
+        confidence: 90,
+        status: 'unavailable',
+      }],
+    });
+  });
+
   it('summarizes whether AI reads beat decision-time baselines', () => {
     const beats = buildAICounterfactualRead({
       aiScore: 84,
