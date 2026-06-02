@@ -521,7 +521,7 @@ test.describe("command center feature surfaces", () => {
     await expect(
       page
         .locator(".team-breakdown-recon .ai-read-panel-desktop")
-        .getByText("Why this fired")
+        .locator(".ai-read-trace-kicker", { hasText: "Why" })
     ).toBeVisible();
     const ownerIntelSection = await openReportSection(page, "Owner Intel Lab");
     await ownerIntelSection.locator(".command-depth-tile").filter({ hasText: "Tester" }).click();
@@ -541,7 +541,7 @@ test.describe("command center feature surfaces", () => {
       page
         .locator(".owner-intel-read-grid .ai-read-panel-desktop")
         .first()
-        .getByText("Why this fired")
+        .locator(".ai-read-trace-kicker", { hasText: "Why" })
     ).toBeVisible();
     const ownerSuggestionCards = ownerPcbSystem.locator(".owner-intel-ai-card.ai-read-panel-desktop");
     await expect(ownerSuggestionCards.first().getByText("Don't get cute yet")).toBeVisible();

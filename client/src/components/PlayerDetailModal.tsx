@@ -4390,7 +4390,7 @@ function renderPlayerAiReadBody(body: string, trace: string[]) {
     <>
       <p>{body}</p>
       <div className="ai-read-trace">
-        <strong className="ai-read-trace-kicker">Why this fired</strong>
+        <strong className="ai-read-trace-kicker">Why</strong>
         <ul className="ai-read-trace-list">
           {cleanedTrace.map((item) => (
             <li key={item}>{item}</li>

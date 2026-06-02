@@ -368,7 +368,7 @@ function AIReadPanelContent({
   decision,
   evidenceRead,
   hideDecision = false,
-  traceLabel = 'Why this fired',
+  traceLabel = 'Why',
   traceItems,
   severity = 'info',
   chips,

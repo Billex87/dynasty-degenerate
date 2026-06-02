@@ -3400,7 +3400,7 @@ export function OwnerIntelMatrix({
                         tone: "watch",
                         status: "Context read",
                       }}
-                      traceLabel="Why this fired"
+                      traceLabel="Why"
                       traceItems={selectedRosterTraceItems}
                       backgroundVariant="roster"
                       severity="info"
@@ -3433,7 +3433,7 @@ export function OwnerIntelMatrix({
                         tone: "watch",
                         status: "Context read",
                       }}
-                      traceLabel="Why this fired"
+                      traceLabel="Why"
                       traceItems={selectedMarketTraceItems}
                       backgroundVariant="market"
                       severity="warn"
@@ -3497,7 +3497,7 @@ export function OwnerIntelMatrix({
                           title={card.title}
                           body={card.copy}
                           decision={cardDecision}
-                          traceLabel="Why this fired"
+                          traceLabel="Why"
                           traceItems={[
                             `Owner profile: ${selectedRow.identity || 'returned owner identity'}.`,
                             `Timeline: ${selectedRow.timeline || selectedTeamType || 'unknown'}.`,

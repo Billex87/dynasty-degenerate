@@ -395,7 +395,7 @@ test.describe('player detail modal', () => {
     await expect(projectionReceipt).toContainText('Week 1');
     await expect(projectionReceipt).toContainText('Half PPR');
     await expect(projectionReceipt).toContainText('4 rec, 61 rec yds, 0.5 rec TD');
-    await expect(dialog.locator('.ai-read-trace-kicker:visible', { hasText: 'Why this fired' }).first()).toBeVisible();
+    await expect(dialog.locator('.ai-read-trace-kicker:visible', { hasText: 'Why' }).first()).toBeVisible();
     await expect(dialog.locator('.ai-read-chip:visible', { hasText: 'Round 1, pick 18' }).first()).toBeVisible();
     await expect(dialog.locator('.ai-read-chip:visible', { hasText: 'Runway 90%' }).first()).toBeVisible();
     await expect(dialog.locator('p').filter({ hasText: 'Availability: 2025: 14 GP' }).first()).toBeVisible();
