@@ -741,6 +741,48 @@ function findManagerPlayerByName(
   ].find((player) => normalizeManagerName(player.name) === target) || null;
 }
 
+function findCurrentRosterPlayerByIdentity(
+  managerRow: ReportData['managerPositionCounts'][number] | null | undefined,
+  player?: AutopilotPlayerLike | null,
+): AutopilotPlayerLike | null {
+  if (!managerRow || !player) return null;
+  const targetKey = getPlayerIdentityKey(player);
+  if (!targetKey) return null;
+  return [
+    ...(managerRow.rosterPlayers || []),
+    ...(managerRow.lineupPlayers || []),
+  ].find((candidate) => getPlayerIdentityKey(candidate) === targetKey) || null;
+}
+
+function getWaiverDropCandidateProof(input: {
+  candidates?: AutopilotPlayerLike[] | null;
+  managerRow?: ReportData['managerPositionCounts'][number] | null;
+}): { candidate: AutopilotPlayerLike | null; gap: string | null } {
+  const candidates = input.candidates || [];
+  if (!candidates.length) return { candidate: null, gap: null };
+  if (!input.managerRow) {
+    return { candidate: null, gap: 'Drop candidate proof is missing current roster data.' };
+  }
+
+  let starterBlocked = false;
+  for (const candidate of candidates) {
+    const currentRosterPlayer = findCurrentRosterPlayerByIdentity(input.managerRow, candidate);
+    if (!currentRosterPlayer) continue;
+    if (isCurrentStarter(input.managerRow, currentRosterPlayer)) {
+      starterBlocked = true;
+      continue;
+    }
+    return { candidate: currentRosterPlayer, gap: null };
+  }
+
+  return {
+    candidate: null,
+    gap: starterBlocked
+      ? 'Drop candidate proof points at a current starter.'
+      : 'Drop candidate proof is stale; the suggested drop is not on the current roster.',
+  };
+}
+
 function collectStartOverCandidates(
   managerRow: ReportData['managerPositionCounts'][number] | null | undefined,
   intel?: ManagerRosterIntelligence | null,
@@ -2494,7 +2536,12 @@ function getFaabSuggestion(confidence: number, mode: AutopilotMode) {
 
 function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manager: string, fallback: AutopilotRecommendation[], leagueId?: string | null): AutopilotRecommendation[] {
   const intel = findManagerIntel(data, manager);
-  const dropCandidate = intel?.droppablePlayers?.[0] || null;
+  const managerRow = findManagerPositionRow(data, manager);
+  const dropCandidateProof = getWaiverDropCandidateProof({
+    candidates: intel?.droppablePlayers,
+    managerRow,
+  });
+  const dropCandidate = dropCandidateProof.candidate;
   const rawCandidates = collectWaiverCandidates(data, mode, intel);
   if (!rawCandidates.length) return fallback;
 
@@ -2604,7 +2651,9 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       clampPercent(56 + score * 0.35 + (dropCandidate ? 5 : 0))
     );
     const hasRosterMoveProof = Boolean(dropCandidate);
-    const rosterMoveGuard = hasRosterMoveProof ? null : 'No drop candidate or open roster spot proof is attached.';
+    const rosterMoveGuard = hasRosterMoveProof
+      ? null
+      : dropCandidateProof.gap || 'No drop candidate or open roster spot proof is attached.';
     const clearsWaiverActionThreshold = evidenceRead.canAct && confidence >= 68 && hasRosterMoveProof;
     const age = getPlayerAge(player);
     const matchupGuard = getWaiverMatchupGuard(player);
