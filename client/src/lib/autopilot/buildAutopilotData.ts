@@ -1723,7 +1723,7 @@ function buildQueueChangeTriggers(
     preconditionGap ? `Prove preconditions: ${preconditionGap}` : null,
     evidence?.hardBlockers?.[0] ? `Clear blocker: ${evidence.hardBlockers[0]}` : null,
     evidence?.confidenceCapReason ? `Resolve confidence cap: ${evidence.confidenceCapReason}.` : null,
-    evidence?.missingEvidence?.[0] ? `Add missing evidence: ${evidence.missingEvidence[0]}` : null,
+    evidence?.missingEvidence?.[0] ? `Verify evidence gap: ${evidence.missingEvidence[0]}` : null,
     unhealthyTrace ? `Refresh source: ${unhealthyTrace.label}.` : null,
     sharpness?.confidence === 'thin' ? 'Add more league behavior before letting sharpness change the recommendation.' : null,
     sharpness?.tier === 'sleepy' ? 'A spike in league activity would raise urgency.' : null,
@@ -1897,7 +1897,7 @@ function buildNoForcedMoveQueueItem({
     receipts: dedupeStrings(direction.actionPlan, 4),
     changeTriggers: dedupeStrings([
       'A waiver, lineup, or trade recommendation must clear the action threshold before this hold changes.',
-      missingEvidence[0] ? `Add missing evidence: ${missingEvidence[0]}` : null,
+      missingEvidence[0] ? `Verify evidence gap: ${missingEvidence[0]}` : null,
       'Fresh schedule, usage, injury, and transaction data could raise confidence enough to act.',
     ], 4),
     dominoEffects: dedupeStrings([

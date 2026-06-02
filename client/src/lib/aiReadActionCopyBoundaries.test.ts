@@ -84,5 +84,6 @@ describe("AI read action copy boundaries", () => {
     expect(source).not.toMatch(/Why this fired/i);
     expect(source).not.toMatch(/Why this swap/i);
     expect(source).not.toMatch(/Why Better Cut/i);
+    expect(source).not.toMatch(/Add missing evidence/i);
   });
 });
