@@ -1,11 +1,9 @@
 import {
-  useEffect,
   useRef,
   useState,
 } from "react";
 import "@/styles/home-backgrounds-v12.css";
 import { trpc } from "@/lib/trpc";
-import { toast } from "sonner";
 import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
 import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsContainer";
@@ -24,6 +22,7 @@ import { useHomeNavigationActions } from "@/features/home/hooks/useHomeNavigatio
 import { useHomePortfolio } from "@/features/home/hooks/useHomePortfolio";
 import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
 import { useHomeReportIdentityRecovery } from "@/features/home/hooks/useHomeReportIdentityRecovery";
+import { useHomeReportAnalysis } from "@/features/home/hooks/useHomeReportAnalysis";
 import { useHomeSleeperLeagueSearch } from "@/features/home/hooks/useHomeSleeperLeagueSearch";
 import { usePersistHomeReportCache } from "@/features/home/hooks/usePersistHomeReportCache";
 import { useHomeReportRankings } from "@/features/home/hooks/useHomeReportRankings";
@@ -39,9 +38,6 @@ import {
   type HomePortfolioExposureFilter,
 } from "@/features/home/lib/portfolioRows";
 import { type AdminViewMode } from "@/features/home/lib/adminMode";
-import {
-  getValidSleeperUserId,
-} from "@/features/home/lib/sleeperIdentity";
 import { readAutocompleteHistory } from "@/features/home/lib/inputHelpers";
 import {
   readAdminPassphraseVerifiedForSession,
@@ -49,24 +45,17 @@ import {
 } from "@/features/home/lib/adminSessionState";
 import {
   getInitialReportTabFromUrl,
-  updateReportTabUrl,
 } from "@/features/home/lib/reportRouteState";
 import {
-  REPORT_CACHE_DATA_VERSION,
   REPORT_CACHE_KEY,
   REPORT_CACHE_MAX_AGE_MS,
   STALE_REPORT_CACHE_KEYS,
-  clearBrowserReportCache,
-  formatMutationErrorMessage,
-  showMutationErrorToast,
 } from "@/features/home/lib/reportCache";
 import {
   type AnalysisLeaguePreview,
   type CachedSleeperUser,
   type SleeperLeagueOption,
-  buildLoadingManagerAnchors,
   findCachedSleeperUser,
-  findKnownSleeperLeague,
   getOrderedLeagueOptions,
   readCachedSleeperUsers,
 } from "@/features/home/lib/leagueHistory";
@@ -92,9 +81,6 @@ const SLEEPER_USERNAME_HISTORY_KEY =
 const ADMIN_UNLOCK_MODAL_DISMISSED_KEY =
   "dynasty-degenerates:admin-unlock-dismissed:v1";
 const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
-const REPORT_SUCCESS_REVEAL_DELAY_MS = 1150;
-const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 850;
-const REPORT_SUCCESS_KICK_MS = 900;
 const REPORT_LOADING_TIMEOUT_MS = 10_000;
 const SHOW_LEGACY_LEAGUE_ID_LOGIN = true;
 
@@ -252,181 +238,40 @@ export default function Home() {
     setLeagueIdHistory,
   });
 
-  const analyzeMutation = trpc.league.analyze.useMutation({
-    onMutate: variables => {
-      analyzeRequestStartedAtRef.current = {
-        leagueId: variables.leagueId,
-        startedAt: performance.now(),
-      };
-    },
-    onSuccess: data => {
-      if (
-        analysisModeRef.current !== "background" &&
-        activeAnalysisLeagueIdRef.current !== data.leagueId
-      ) {
-        return;
-      }
-      clearSuccessTransitionTimers();
-      setHasLoadingTimedOut(false);
-      setAnalysisErrorMessage(null);
-      const analysisMode = analysisModeRef.current;
-      const responseCompletedAt = performance.now();
-      const analyzeRequest = analyzeRequestStartedAtRef.current;
-      const analyzeStartedAt =
-        analyzeRequest && analyzeRequest.leagueId === data.leagueId
-          ? analyzeRequest.startedAt
-          : null;
-      const requestMs =
-        analyzeStartedAt === null
-          ? null
-          : Math.round(responseCompletedAt - analyzeStartedAt);
-      if (
-        analysisMode === "background" &&
-        backgroundRefreshLeagueIdRef.current === data.leagueId
-      ) {
-        activeAnalysisLeagueIdRef.current = data.leagueId;
-        setLeagueId(data.leagueId);
-        setLeagueName(data.leagueName);
-        setLeagueLogo(data.leagueLogo);
-        setLeagueFormat(data.leagueFormat);
-        rememberCurrentUserLeagueShortcut(data.leagueId);
-        setReportDataCacheVersion(REPORT_CACHE_DATA_VERSION);
-        setReportData(data.reportData);
-        setIsReportRefreshing(false);
-        setAnalysisCompleteMessage(null);
-        setPendingAnalysisLeague(null);
-        backgroundRefreshLeagueIdRef.current = null;
-        activeAnalysisLeagueIdRef.current = null;
-        analysisModeRef.current = "blocking";
-        queueReportVisibleTelemetry({
-          leagueId: data.leagueId,
-          leagueName: data.leagueName,
-          activeTab,
-          source: "server",
-          cacheStatus: data.reportCacheStatus || "unknown",
-          requestMs,
-          payloadVersion: REPORT_CACHE_DATA_VERSION,
-        });
-        return;
-      }
-      activeAnalysisLeagueIdRef.current = data.leagueId;
-      setLeagueId(data.leagueId);
-      setLeagueName(data.leagueName);
-      setLeagueLogo(data.leagueLogo);
-      setLeagueFormat(data.leagueFormat);
-      rememberCurrentUserLeagueShortcut(data.leagueId);
-      setPendingAnalysisLeague({
-        leagueName: data.leagueName,
-        leagueFormat: data.leagueFormat,
-        leagueLogo: data.leagueLogo,
-      });
-      setAnalysisCompleteMessage({
-        leagueName: data.leagueName,
-        leagueFormat: data.leagueFormat,
-        leagueLogo: data.leagueLogo,
-      });
-      setLoadingManagerAnchors(
-        buildLoadingManagerAnchors(
-          data.reportData,
-          data.reportData.viewerManager ?? null
-        )
-      );
-      updateReportTabUrl(activeTab, data.leagueId);
-      if (data.reportCacheStatus === "hit") {
-        setReportDataCacheVersion(REPORT_CACHE_DATA_VERSION);
-        setReportData(data.reportData);
-        setLoadingTransitionPhase("done");
-        setIsLoading(false);
-        setLoadingManagerAnchors([]);
-        setAnalysisCompleteMessage(null);
-        setPendingAnalysisLeague(null);
-        activeAnalysisLeagueIdRef.current = null;
-        queueReportVisibleTelemetry({
-          leagueId: data.leagueId,
-          leagueName: data.leagueName,
-          activeTab,
-          source: "server",
-          cacheStatus: "hit",
-          requestMs,
-          payloadVersion: REPORT_CACHE_DATA_VERSION,
-        });
-        return;
-      }
-      setLoadingTransitionPhase("success");
-      queueSuccessTransitionTimer(() => {
-        setReportDataCacheVersion(REPORT_CACHE_DATA_VERSION);
-        setReportData(data.reportData);
-        setLoadingTransitionPhase("reveal");
-        queueReportVisibleTelemetry({
-          leagueId: data.leagueId,
-          leagueName: data.leagueName,
-          activeTab,
-          source: "server",
-          cacheStatus: data.reportCacheStatus || "unknown",
-          requestMs,
-          payloadVersion: REPORT_CACHE_DATA_VERSION,
-        });
-      }, REPORT_SUCCESS_REVEAL_DELAY_MS);
-      queueSuccessTransitionTimer(() => {
-        setLoadingTransitionPhase("kick");
-      }, REPORT_SUCCESS_REVEAL_DELAY_MS + REPORT_SUCCESS_READ_AFTER_REVEAL_MS);
-      queueSuccessTransitionTimer(
-        () => {
-          setLoadingTransitionPhase("done");
-          setIsLoading(false);
-          setLoadingManagerAnchors([]);
-          setAnalysisCompleteMessage(null);
-          setPendingAnalysisLeague(null);
-          activeAnalysisLeagueIdRef.current = null;
-        },
-        REPORT_SUCCESS_REVEAL_DELAY_MS +
-          REPORT_SUCCESS_READ_AFTER_REVEAL_MS +
-          REPORT_SUCCESS_KICK_MS
-      );
-    },
-    onError: (error, variables) => {
-      if (
-        analysisModeRef.current !== "background" &&
-        activeAnalysisLeagueIdRef.current !== variables.leagueId
-      ) {
-        return;
-      }
-      clearSuccessTransitionTimers();
-      setHasLoadingTimedOut(false);
-      if (analysisModeRef.current === "background") {
-        setIsReportRefreshing(false);
-        backgroundRefreshLeagueIdRef.current = null;
-        activeAnalysisLeagueIdRef.current = null;
-        analyzeRequestStartedAtRef.current = null;
-        analysisModeRef.current = "blocking";
-        if (reportData) {
-          toast.warning("Could not refresh the report. Keeping the current view.");
-          return;
-        }
-      }
-      reportLoadStartedAtRef.current = null;
-      analyzeRequestStartedAtRef.current = null;
-      setAnalysisCompleteMessage(null);
-      setPendingAnalysisLeague(null);
-      activeAnalysisLeagueIdRef.current = null;
-      setLoadingTransitionPhase("loading");
-      setIsLoading(false);
-      setLoadingManagerAnchors([]);
-      if (!reportData) {
-        setAnalysisErrorMessage(
-          "We could not load that league. Check the Sleeper league ID, retry, or sign in with your Sleeper username to pick from your leagues."
-        );
-      }
-      showMutationErrorToast(error);
-    },
+  const { analyzeReport, handleAnalyze } = useHomeReportAnalysis({
+    activeTab,
+    cachedSleeperUsers,
+    leagueId,
+    reportData,
+    userLeagues,
+    viewerUserId,
+    activeAnalysisLeagueIdRef,
+    analysisModeRef,
+    analyzeRequestStartedAtRef,
+    backgroundRefreshLeagueIdRef,
+    reportLoadStartedAtRef,
+    beginAnalysisLoading,
+    clearSuccessTransitionTimers,
+    queueSuccessTransitionTimer,
+    queueReportVisibleTelemetry,
+    rememberCurrentUserLeagueShortcut,
+    rememberLeagueId,
+    setAdminViewerManager,
+    setAnalysisCompleteMessage,
+    setAnalysisErrorMessage,
+    setHasLoadingTimedOut,
+    setIsLoading,
+    setIsReportRefreshing,
+    setLeagueFormat,
+    setLeagueId,
+    setLeagueLogo,
+    setLeagueName,
+    setLoadingManagerAnchors,
+    setLoadingTransitionPhase,
+    setPendingAnalysisLeague,
+    setReportData,
+    setReportDataCacheVersion,
   });
-
-  useEffect(
-    () => () => {
-      clearSuccessTransitionTimers();
-    },
-    []
-  );
 
   const {
     applyCachedReport,
@@ -440,7 +285,7 @@ export default function Home() {
     leagueIdHistoryKey: LEAGUE_ID_HISTORY_KEY,
     prefetchDebounceMs: REPORT_CACHE_PREFETCH_DEBOUNCE_MS,
     queueReportVisibleTelemetry,
-    onAnalyzeReport: variables => analyzeMutation.mutate(variables),
+    onAnalyzeReport: analyzeReport,
     setActiveTab,
     setAnalysisCompleteMessage,
     setAnalysisErrorMessage,
@@ -467,7 +312,7 @@ export default function Home() {
     userLeagues,
     viewerUserId,
     rememberLeagueId,
-    onAnalyzeReport: variables => analyzeMutation.mutate(variables),
+    onAnalyzeReport: analyzeReport,
     setActiveTab,
     setAnalysisCompleteMessage,
     setLeagueId,
@@ -498,7 +343,7 @@ export default function Home() {
     applyCachedReport,
     refreshReportInBackground,
     queueReportVisibleTelemetry,
-    onAnalyzeReport: variables => analyzeMutation.mutate(variables),
+    onAnalyzeReport: analyzeReport,
     setActiveTab,
     setAdminViewMode,
     setAdminViewerManager,
@@ -533,46 +378,6 @@ export default function Home() {
     setAnalysisCompleteMessage,
     onRefreshReport: refreshReportInBackground,
   });
-
-  const handleAnalyze = async (targetLeagueId = leagueId) => {
-    const nextLeagueId = targetLeagueId.trim();
-    if (!nextLeagueId) {
-      toast.error("Please enter a league ID");
-      return;
-    }
-    setAnalysisErrorMessage(null);
-    const isSameLeague = nextLeagueId === leagueId.trim();
-    const knownLeague = findKnownSleeperLeague(
-      nextLeagueId,
-      userLeagues,
-      cachedSleeperUsers
-    );
-    const initialManagerAnchors = knownLeague?.managerAnchors?.length
-      ? knownLeague.managerAnchors
-      : isSameLeague
-      ? buildLoadingManagerAnchors(
-          reportData,
-          reportData?.viewerManager ?? null
-        )
-      : [];
-    if (!isSameLeague) {
-      setAdminViewerManager(null);
-    }
-    setLeagueId(nextLeagueId);
-    rememberLeagueId(nextLeagueId);
-    clearBrowserReportCache(nextLeagueId);
-    setReportData(null);
-    void beginAnalysisLoading(nextLeagueId, [], initialManagerAnchors).finally(
-      () => {
-        if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
-        analyzeMutation.mutate({
-          leagueId: nextLeagueId,
-          viewerUserId: getValidSleeperUserId(viewerUserId) || undefined,
-          liveRefresh: true,
-        });
-      }
-    );
-  };
 
   const {
     handleClownDismiss,
