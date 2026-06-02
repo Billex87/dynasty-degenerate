@@ -808,6 +808,58 @@ describe("ai evidence engine", () => {
     });
   });
 
+  it("matches waiver-mode calibration from provided league context", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 92,
+      evidence: ["WR33 current-season rank is attached.", "Roster need is attached."],
+      sourceTrace: [{
+        label: "FantasyPros waiver snapshot",
+        status: "loaded",
+      }, {
+        label: "Sleeper availability snapshot",
+        status: "loaded",
+      }],
+      signalModes: ["redraft", "current"],
+      leagueContext: {
+        waiverMode: "faab",
+      },
+      player: {
+        name: "FAAB Calibration Receiver",
+        position: "WR",
+        team: "LV",
+        value: 4300,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+      },
+      calibrationProfile: {
+        globalAdjustment: null,
+        adjustments: [{
+          key: "waiverMode:faab",
+          scope: "waiverMode",
+          group: { waiverMode: "faab" },
+          eventCount: 12,
+          scoredCount: 8,
+          pendingCount: 4,
+          hitRate: 25,
+          scoreAdjustment: -10,
+          confidenceCap: 50,
+          recommendation: "lower-confidence",
+          priority: "warn",
+          reason: "FAAB pickup reads have been too aggressive.",
+        }],
+      },
+    });
+
+    expect(read.finalScore).toBeLessThanOrEqual(50);
+    expect(read.calibrationAdjustment).toMatchObject({
+      scope: "waiverMode",
+      reason: "FAAB pickup reads have been too aggressive.",
+    });
+  });
+
   it("prefers exact manager calibration over exact league and cohort fallbacks", () => {
     const read = evaluateAIEvidence({
       surface: "trade",

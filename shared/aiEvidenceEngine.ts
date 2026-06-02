@@ -509,6 +509,7 @@ function normalizeLeagueContext(input: AIEvidenceInput): AIEvidenceLeagueContext
     rosterSlots,
     starterSlots,
     scoringSummary,
+    waiverMode: provided.waiverMode || null,
     formatLabel: cleanText(provided.formatLabel),
   };
 }
