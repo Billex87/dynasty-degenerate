@@ -1253,41 +1253,55 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
 
   const vulnerable = matchup?.vulnerableSpots?.[0] || matchup?.boomBustRisks?.[0] || intel?.weakestStarter;
   if (vulnerable) {
+    const vulnerableStarter = isCurrentStarter(managerPositionRow, vulnerable);
+    const replacementClearsSlot = intel?.injuryInsurance
+      ? canReplaceStarterInKnownSlot({
+        candidate: intel.injuryInsurance,
+        starter: vulnerable,
+        managerRow: managerPositionRow,
+      })
+      : false;
+    const replacement = replacementClearsSlot
+      ? findManagerPlayerByIdentity(managerPositionRow, intel?.injuryInsurance) || intel?.injuryInsurance || null
+      : null;
     cards.push({
       id: `lineup-risk-${vulnerable.player_id || vulnerable.name}`,
       type: 'Bench Risk',
       playerId: vulnerable.player_id || null,
       player: getPlayerName(vulnerable),
-      secondaryPlayerId: intel?.injuryInsurance?.player_id || null,
-      secondary: intel?.injuryInsurance ? `cover: ${intel.injuryInsurance.name}` : describePlayer(vulnerable, mode) || undefined,
+      secondaryPlayerId: replacement?.player_id || null,
+      secondary: replacement ? `cover: ${getPlayerName(replacement)}` : describePlayer(vulnerable, mode) || undefined,
       action: 'Review before lock',
       confidence: recommendationConfidence(matchup?.vulnerableSpots?.length ? 68 : 58, [matchup, intel?.weakestStarter, intel?.injuryInsurance]),
       risk: 'Medium',
       upside: 'Medium',
-      summary: `${getPlayerName(vulnerable)} is the first starter spot the AI would pressure-test before lineups lock.`,
+      summary: replacement
+        ? `${getPlayerName(vulnerable)} is the first starter spot the AI would pressure-test before lineups lock.`
+        : `${getPlayerName(vulnerable)} is the first starter spot to review, but no current roster replacement has cleared slot eligibility yet.`,
       reasons: dedupeStrings([
         matchup?.vulnerableSpots?.length ? 'Matchup preview flags this slot as vulnerable.' : 'Roster intelligence marks this as the weakest starter.',
-        intel?.injuryInsurance ? `${intel.injuryInsurance.name} is the best internal insurance read.` : null,
+        replacement ? `${getPlayerName(replacement)} is on this roster and can fit the flagged starter slot.` : null,
+        intel?.injuryInsurance && !replacement ? `${intel.injuryInsurance.name} is only an insurance note until roster and slot proof clears.` : null,
+        !vulnerableStarter ? 'The flagged player is not proven in a current starter slot, so this stays review-only.' : null,
         mode === 'redraft' ? 'Short-term role certainty matters more than player name value.' : 'Do not force a low-ceiling veteran if the roster has a better value-growth path.',
       ], 3),
       signals: dedupeStrings(['Weak starter', matchup ? 'Matchup risk' : null, intel?.starterAvailability?.riskLevel ? `${intel.starterAvailability.riskLevel} availability` : null], 4),
-      expectedAction: intel?.injuryInsurance
+      expectedAction: replacement
         ? {
           type: 'swap_starter',
-          playerIn: toRecommendationPlayerRef(intel.injuryInsurance),
+          playerIn: toRecommendationPlayerRef(replacement),
           playerOut: toRecommendationPlayerRef(vulnerable),
-          playersInvolved: [toRecommendationPlayerRef(intel.injuryInsurance), toRecommendationPlayerRef(vulnerable)].filter(Boolean) as RecommendationPlayerRef[],
-          expectedLineupChange: `${intel.injuryInsurance.name} should start over ${getPlayerName(vulnerable)} if the review clears.`,
+          playersInvolved: [toRecommendationPlayerRef(replacement), toRecommendationPlayerRef(vulnerable)].filter(Boolean) as RecommendationPlayerRef[],
+          expectedLineupChange: `${getPlayerName(replacement)} should start over ${getPlayerName(vulnerable)} if the review clears.`,
           source: 'autopilot',
           reason: `${getPlayerName(vulnerable)} is the first starter spot to pressure-test before lock.`,
         }
         : {
-          type: 'bench_player',
-          playerOut: toRecommendationPlayerRef(vulnerable),
+          type: 'hold',
           playersInvolved: [toRecommendationPlayerRef(vulnerable)].filter(Boolean) as RecommendationPlayerRef[],
-          expectedLineupChange: `${getPlayerName(vulnerable)} should move out of the starting lineup if a better option clears.`,
+          expectedLineupChange: `No lineup change: review ${getPlayerName(vulnerable)} again after current roster, slot, and news proof clears.`,
           source: 'autopilot',
-          reason: `${getPlayerName(vulnerable)} is the first starter spot to pressure-test before lock.`,
+          reason: 'No current roster replacement has cleared slot eligibility.',
         },
       tone: 'warn',
     });

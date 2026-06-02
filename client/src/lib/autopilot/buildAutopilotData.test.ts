@@ -221,6 +221,66 @@ describe('buildAutopilotData', () => {
     expect(JSON.stringify(data.weeklyPlan || {})).not.toContain('Stored weekly projection edge');
   });
 
+  it('keeps weak-starter reviews as hold reads until a rostered slot-eligible replacement clears', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    const testerIntel = reportData.managerRosterIntelligence?.find((row) => row.manager === 'Tester')!;
+    testerIntel.injuryInsurance = {
+      player_id: 'outside-te',
+      name: 'Outside Tight End',
+      pos: 'TE',
+      owner: 'Rival',
+      value: 5200,
+      seasonValue: 5200,
+      currentPositionRank: 'TE4',
+    } as any;
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    const weakStarterRead = data.lineup.find((recommendation) => recommendation.player === 'Sample Tight End');
+    expect(weakStarterRead).toMatchObject({
+      action: 'Review before lock',
+      expectedAction: {
+        type: 'hold',
+      },
+    });
+    expect(weakStarterRead?.summary).toContain('no current roster replacement has cleared slot eligibility');
+    expect(weakStarterRead?.reasons.join(' ')).toContain('only an insurance note');
+  });
+
+  it('allows weak-starter swap reads only when the replacement is rostered and slot-eligible', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    const testerIntel = reportData.managerRosterIntelligence?.find((row) => row.manager === 'Tester')!;
+    testerIntel.injuryInsurance = testerIntel.benchPlayers?.find((player) => player.player_id === 'te2') as any;
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    const weakStarterRead = data.lineup.find((recommendation) => recommendation.player === 'Sample Tight End');
+    expect(weakStarterRead).toMatchObject({
+      action: 'Review before lock',
+      secondary: 'cover: Replacement Tight End',
+      expectedAction: {
+        type: 'swap_starter',
+        playerIn: {
+          name: 'Replacement Tight End',
+        },
+        playerOut: {
+          name: 'Sample Tight End',
+        },
+      },
+    });
+    expect(weakStarterRead?.reasons.join(' ')).toContain('on this roster and can fit');
+  });
+
   it('does not promote omitted waiver candidates from stale cached waiver slots', () => {
     const reportData = createCachedCommandCenterReport().reportData;
     const omittedCandidate = reportData.waiverIntelligence?.omittedCandidates?.[0];
