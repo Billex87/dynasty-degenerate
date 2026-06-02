@@ -14,6 +14,7 @@ import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLa
 import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsContainer";
 import { HomeReportExperience } from "@/features/home/components/HomeReportExperience";
 import { useHomeAIVoiceMode } from "@/features/home/hooks/useHomeAIVoiceMode";
+import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeout";
 import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
 import { useQueuedTimeouts } from "@/features/home/hooks/useQueuedTimeouts";
 import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
@@ -225,6 +226,12 @@ export default function Home() {
   const [loadingTransitionPhase, setLoadingTransitionPhase] =
     useState<LoadingTransitionPhase>("loading");
   const [hasLoadingTimedOut, setHasLoadingTimedOut] = useState(false);
+  useHomeLoadingTimeout({
+    isLoading,
+    loadingTransitionPhase,
+    timeoutMs: REPORT_LOADING_TIMEOUT_MS,
+    setHasLoadingTimedOut,
+  });
   useHomePreviewMode({
     previewMode,
     setIsLoading,
@@ -558,19 +565,6 @@ export default function Home() {
     },
     []
   );
-
-  useEffect(() => {
-    if (!isLoading || loadingTransitionPhase !== "loading") {
-      setHasLoadingTimedOut(false);
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setHasLoadingTimedOut(true);
-    }, REPORT_LOADING_TIMEOUT_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [isLoading, loadingTransitionPhase]);
 
   const applyCachedReport = (
     cachedReport: CachedReport,
