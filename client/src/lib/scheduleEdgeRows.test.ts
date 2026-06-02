@@ -977,9 +977,13 @@ describe("schedule edge rows", () => {
     );
     expect(partialRows[0].sourceFreshness).toMatch(/^Partial - /);
     expect(partialRows[0].sourceTone).toBe("warn");
-    expect(partialRows[0].evidenceRead.confidenceCap).toBe(60);
-    expect(partialRows[0].evidenceRead.confidenceCapReason).toBe(
-      "Partial schedule source trace"
+    expect(partialRows[0].evidenceRead.canAct).toBe(false);
+    expect(partialRows[0].evidenceRead.confidenceCap).toBe(48);
+    expect(partialRows[0].evidenceRead.confidenceCapReason).toContain(
+      "source freshness"
+    );
+    expect(partialRows[0].evidenceRead.missingEvidence).toContain(
+      "Fresh source proof is stale or unhealthy for this action read."
     );
   });
 
