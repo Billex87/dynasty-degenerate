@@ -1588,6 +1588,14 @@ function getExpectedActionIdentityGap(action: RecommendationExpectedAction): str
   return null;
 }
 
+function hasWaiverRosterMoveProof(action: RecommendationExpectedAction): boolean {
+  if (hasRecommendationPlayerRef(action.playerOut)) return true;
+  const proofText = `${action.expectedRosterChange || ''} ${action.reason || ''}`.toLowerCase();
+  return /\b(?:open|empty|free|available)\s+(?:roster|bench)\s+(?:spot|slot)\b/.test(proofText) ||
+    /\b(?:roster|bench)\s+(?:spot|slot)\s+(?:is\s+)?(?:open|empty|free|available)\b/.test(proofText) ||
+    /\bno drop (?:is )?(?:needed|required)\b/.test(proofText);
+}
+
 function getActionPreconditionGap(
   recommendation: AutopilotRecommendation,
   source: AIActionQueueSource,
@@ -1602,6 +1610,14 @@ function getActionPreconditionGap(
 
   const identityGap = getExpectedActionIdentityGap(action);
   if (identityGap) return identityGap;
+
+  if (
+    source === 'waiver' &&
+    (action.type === 'add_player' || action.type === 'waiver_add' || action.type === 'stream_player') &&
+    !hasWaiverRosterMoveProof(action)
+  ) {
+    return 'Expected waiver action is missing a drop candidate or open roster spot proof.';
+  }
 
   if (!recommendation.evidenceRead?.canAct) {
     return `${sourceLabel} read has not cleared current roster, lineup, transaction, source-health, and league-format preconditions.`;
@@ -2567,7 +2583,9 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       evidenceRead.finalScore,
       clampPercent(56 + score * 0.35 + (dropCandidate ? 5 : 0))
     );
-    const clearsWaiverActionThreshold = evidenceRead.canAct && confidence >= 68;
+    const hasRosterMoveProof = Boolean(dropCandidate);
+    const rosterMoveGuard = hasRosterMoveProof ? null : 'No drop candidate or open roster spot proof is attached.';
+    const clearsWaiverActionThreshold = evidenceRead.canAct && confidence >= 68 && hasRosterMoveProof;
     const age = getPlayerAge(player);
     const matchupGuard = getWaiverMatchupGuard(player);
     const receiptItems = getAIEvidenceReceiptItems(evidenceRead);
@@ -2593,6 +2611,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         weeklyEcrRead,
         matchupGuard.reason,
         weeklyEcrTraceRead,
+        rosterMoveGuard,
         intel?.tradePlan?.needPosition === getPlayerPosition(player) ? `Matches ${manager}'s ${getPlayerPosition(player)} need.` : null,
         dropCandidate ? `${dropCandidate.name} is a usable drop candidate if a roster spot is needed.` : null,
       ], 4),
@@ -2615,7 +2634,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
             playersInvolved: [toRecommendationPlayerRef(player)].filter(Boolean) as RecommendationPlayerRef[],
             expectedRosterChange: `Do not add ${player.name} unless the capped waiver read clears the action threshold after fresh data.`,
             source: 'autopilot',
-            reason: evidenceRead.whyThisFired,
+            reason: rosterMoveGuard || evidenceRead.whyThisFired,
           },
       tone: index === 0 ? 'good' : 'info',
     };

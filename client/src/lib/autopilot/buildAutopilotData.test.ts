@@ -231,6 +231,42 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('does not promote waiver adds without a drop candidate or open roster spot proof', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    reportData.managerRosterIntelligence = (reportData.managerRosterIntelligence || []).map((row) => ({
+      ...row,
+      droppablePlayers: [],
+    }));
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    expect(data.waivers[0]).toMatchObject({
+      player: 'Waiver Receiver',
+      action: 'Monitor only',
+      expectedAction: {
+        type: 'hold',
+      },
+    });
+    expect(data.waivers[0]?.reasons.join(' ')).toContain('No drop candidate or open roster spot proof');
+
+    const waiverQueueItem = data.actionQueue.find((item) => item.target === 'Waiver Receiver');
+    expect(waiverQueueItem).toBeDefined();
+    expect(waiverQueueItem).toMatchObject({
+      source: 'waiver',
+      decision: 'hold',
+      label: 'No forced move',
+      expectedAction: {
+        type: 'hold',
+      },
+    });
+    expect(data.actionQueue.filter((item) => item.target === 'Waiver Receiver' && item.decision === 'do')).toHaveLength(0);
+  });
+
   it('surfaces legal stored-projection start/sit swaps without changing dynasty value copy', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];
