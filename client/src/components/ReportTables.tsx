@@ -3485,10 +3485,10 @@ export function OwnerIntelMatrix({
                                 status: "Caution",
                               }
                             : {
-                                label: "Do this",
+                                label: "Support read",
                                 detail: card.copy,
-                                tone: "go" as const,
-                                status: "Action lane",
+                                tone: "watch" as const,
+                                status: "Context read",
                               };
 
                       return (

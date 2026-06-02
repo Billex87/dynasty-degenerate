@@ -493,10 +493,10 @@ test.describe("command center feature surfaces", () => {
       leaguePowerMetrics.getByText("Power slot", { exact: true })
     ).toBeVisible();
     await leaguePowerCard
-      .locator("details.ai-read-panel-compact")
+      .locator("details.league-power-receipts")
       .evaluate(node => node.setAttribute("open", ""));
-    await expect(leaguePowerCard.getByText("ranking-only")).toBeVisible();
-    await expect(leaguePowerCard.getByText("Why this fired")).toBeVisible();
+    await expect(leaguePowerCard.getByText("Power receipts")).toBeVisible();
+    await expect(leaguePowerCard.getByText(/Use Team Breakdown for the roster cause/i)).toBeVisible();
     await expect(leaguePowerMetrics.getByText("QB", { exact: true })).toHaveCount(0);
     await expect(
       leaguePowerMetrics.getByText("Trade chip", { exact: true })
@@ -524,8 +524,8 @@ test.describe("command center feature surfaces", () => {
         .locator(".team-breakdown-recon .ai-read-panel-desktop")
         .getByText("Why this fired")
     ).toBeVisible();
-    await openReportSection(page, "Owner Intel Lab");
-    await page.locator(".command-depth-tile").filter({ hasText: "Tester" }).click();
+    const ownerIntelSection = await openReportSection(page, "Owner Intel Lab");
+    await ownerIntelSection.locator(".command-depth-tile").filter({ hasText: "Tester" }).click();
     const ownerPcbSystem = page.getByTestId("owner-intel-pcb-system");
     await expect(ownerPcbSystem).toBeVisible();
     await expect(ownerPcbSystem.locator(".owner-intel-pcb-routes")).toBeVisible();
@@ -544,6 +544,10 @@ test.describe("command center feature surfaces", () => {
         .first()
         .getByText("Why this fired")
     ).toBeVisible();
+    const ownerSuggestionCards = ownerPcbSystem.locator(".owner-intel-ai-card.ai-read-panel-desktop");
+    await expect(ownerSuggestionCards.first().getByText("Don't get cute yet")).toBeVisible();
+    await expect(ownerSuggestionCards.getByText("Action lane")).toHaveCount(0);
+    await expect(ownerSuggestionCards.getByText("Do this", { exact: true })).toHaveCount(0);
     const notesRail = ownerPcbSystem
       .locator(".owner-intel-wild-notes.ai-read-panel-desktop")
       .first();
@@ -587,7 +591,7 @@ test.describe("command center feature surfaces", () => {
     ).toBeVisible();
     await expect(swapRead.getByText("Why this swap").first()).toBeVisible();
     await swapRead.getByText("Why this swap").first().click();
-    await expect(swapRead.getByText(/Projected edge/i).first()).toBeVisible();
+    await expect(swapRead.getByText(/Stored weekly projection edge/i).first()).toBeVisible();
     await expect(
       swapRead.getByRole("button", { name: /Copy swap/i })
     ).toHaveCount(0);
@@ -649,10 +653,10 @@ test.describe("command center feature surfaces", () => {
     ).toBeVisible();
     await expect(page.locator(".trade-partner-card")).toHaveCount(1);
     const tradePartnerRead = page
-      .locator(".trade-partner-card details.ai-read-panel-compact")
+      .locator(".trade-partner-card details.trade-partner-receipts")
       .first();
     await tradePartnerRead.evaluate(node => node.setAttribute("open", ""));
-    await expect(tradePartnerRead.getByText("Why this fired")).toBeVisible();
+    await expect(tradePartnerRead.getByText("Partner receipts")).toBeVisible();
     await expect(
       tradePartnerRead.getByRole("button", { name: /Save trade read/i })
     ).toHaveCount(0);
@@ -720,14 +724,13 @@ test.describe("command center feature surfaces", () => {
         page,
         "AI Readout QA"
       );
-      await expect(aiReadoutSection.getByText("One action owner")).toBeVisible();
       const surfaceRegistry = aiReadoutSection.getByLabel("AI surface registry");
-      await expect(surfaceRegistry.getByText("Surface Registry")).toBeVisible();
+      await expect(surfaceRegistry.getByText("Surface Rules")).toBeVisible();
       await expect(
-        surfaceRegistry.getByText("One action owner, every other read is evidence")
+        surfaceRegistry.getByText("One owner. Others support.")
       ).toBeVisible();
-      await expect(surfaceRegistry.getByText("Action owner").first()).toBeVisible();
-      await expect(surfaceRegistry.getByText("Context only").first()).toBeVisible();
+      await expect(surfaceRegistry.getByText("Acts").first()).toBeVisible();
+      await expect(surfaceRegistry.getByText("Supports").first()).toBeVisible();
       await expect(surfaceRegistry.getByText("Schedule Edge")).toBeVisible();
       await expect(
         aiReadoutSection
@@ -738,26 +741,28 @@ test.describe("command center feature surfaces", () => {
       await expect(
         aiReadoutSection
           .getByLabel("AI decision log rows")
-          .getByText("Lower-ranked alternates")
+          .getByText("Rules Log")
+      ).toBeVisible();
+      await expect(
+        aiReadoutSection
+          .getByLabel("AI decision log rows")
+          .getByText("Own, support, hide, or merge.")
       ).toBeVisible();
       await expect(
         aiReadoutSection.getByText(/Conflict check|Source health|Hard blocker|Missing evidence/i).first()
       ).toBeVisible();
-      await expect(aiReadoutSection.getByText("readouts observed")).toBeVisible();
-      await expect(aiReadoutSection.getByText("duplicate-risk flags", { exact: true })).toBeVisible();
+      await expect(aiReadoutSection.getByText("observed", { exact: true })).toBeVisible();
+      await expect(aiReadoutSection.getByText("dupes", { exact: true })).toBeVisible();
       await expect(
         aiReadoutSection
           .getByLabel("AI readout count by tab")
           .getByText("AI Autopilot")
       ).toBeVisible();
       await expect(
-        aiReadoutSection.getByText("Trade Finder / Partner Reads")
+        surfaceRegistry.getByText("Trade Finder", { exact: true })
       ).toBeVisible();
       await expect(
-        aiReadoutSection.getByText("Player Situation Reads", { exact: true })
-      ).toBeVisible();
-      await expect(
-        aiReadoutSection.getByText(/player situation reads have fresh or usable context/i)
+        surfaceRegistry.getByText("Player Situation", { exact: true })
       ).toBeVisible();
       await expect(
         aiReadoutSection.getByText(/All observed readouts have confidence/i)
