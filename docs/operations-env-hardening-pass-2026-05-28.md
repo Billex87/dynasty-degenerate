@@ -52,14 +52,15 @@
 - `env -u NO_COLOR PRODUCTION_SMOKE=true PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm exec playwright test tests/e2e/production-smoke.spec.ts --project=mobile-chrome --project=tablet-chrome` passed: `8` tests across the four representative leagues.
 - Final post-smoke Vercel log checks found no `/var/task`, league-report file-cache, missing-cookie, or `500` entries in the checked post-traffic window.
 - Checked production deployment `dpl_AFqMDXkufYkeg2yXuUyUQVx4hMdP` for `https://dynasty-degenerate-fggoi6z1c-billex87s-projects.vercel.app` was `Ready` and aliased to `https://dynastydegens.com`.
+- Post-`18:40` Pacific cron-window checks found no `/var/task`, league-report file-cache, missing-cookie, `500`, or error-level entries in the checked window, but cron execution itself was inconclusive because production redeployed commit `35f3377` as `dpl_JAzH9xMCBNR6c9VdN1cn8TsiTFdL` at `18:40:37` Pacific, overlapping the configured `dynamic-data-refresh` cron minute.
 
 ## Production Follow-up (manual)
 - Configure `SOURCE_HEALTH_ALERT_WEBHOOK_URL` and, if desired, `SOURCE_HEALTH_ALERT_WEBHOOK_MIN_LEVEL` in the production secret store.
 - Validate webhook target receives a warning/danger alert path test when forced (or at minimum a config validation dry run).
 - Confirm cron invocations in logs return expected cheap `202` responses outside configured Pacific windows.
 - Confirm no provider key or webhook URL appears in user-facing logs/outputs.
-- After the next scheduled cron window, confirm production cron logs still do not contain `/var/task/server/ktc-snapshots`, `/var/task/.cache/api-provider-telemetry`, or `/var/task/.cache` write failures.
+- After the next scheduled cron window that is not overlapped by deployment churn, confirm production cron logs still do not contain `/var/task/server/ktc-snapshots`, `/var/task/.cache/api-provider-telemetry`, or `/var/task/.cache` write failures.
 
 ## Decision
 - The critical auth and cron production env names are present in Vercel and the deployed code fails closed if they are missing.
-- The operations/security gate remains open because source-health alert delivery still needs a real production webhook target, next-window cron logs still need to be checked, and dashboard-level usage/CPU evidence is still unavailable from the current CLI plan.
+- The operations/security gate remains open because source-health alert delivery still needs a real production webhook target, a clean non-overlapped cron window still needs to be checked, and dashboard-level usage/CPU evidence is still unavailable from the current CLI plan.

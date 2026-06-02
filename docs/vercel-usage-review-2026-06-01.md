@@ -53,6 +53,7 @@ Traffic-session result:
 - Build warnings remain the known Vite/Three.js dynamic import chunk warning and large bundle warnings.
 - Follow-up refresh: latest production URL from `vercel ls` was `https://dynasty-degenerate-c29tx2e53-billex87s-projects.vercel.app`; Vercel connector confirmed deployment `dpl_5PqHENRxord7mYP4sje6NH8ZJw7w` is `READY` for commit `5fb087f`.
 - Final deployment refresh after Home refactor and AI-read docs follow-up: `https://dynasty-degenerate-fggoi6z1c-billex87s-projects.vercel.app` inspected as deployment `dpl_AFqMDXkufYkeg2yXuUyUQVx4hMdP`, status `Ready`, aliased to `https://dynastydegens.com`, `https://dynasty-degenerate.vercel.app`, and the main project aliases.
+- Post-cron-window refresh: `https://dynasty-degenerate-doo7utupo-billex87s-projects.vercel.app` inspected as deployment `dpl_JAzH9xMCBNR6c9VdN1cn8TsiTFdL`, status `Ready`, aliased to `https://dynastydegens.com`, `https://dynasty-degenerate.vercel.app`, and the main project aliases. The deployment was a redeploy of commit `35f3377`, which matched local `HEAD` and `origin/main`.
 
 ## Cron State
 - `vercel crons list` returned `12` cron jobs for production:
@@ -89,6 +90,8 @@ Traffic-session result:
 - Production env-name check confirmed `CRON_SECRET`, `JWT_SECRET`, `ADMIN_LOGIN_PASSWORD`, provider database names, FantasyPros API key, and projection feature flags are present and encrypted in Vercel production. `SOURCE_HEALTH_ALERT_WEBHOOK_URL` and `SOURCE_HEALTH_ALERT_WEBHOOK_MIN_LEVEL` are not configured in production yet.
 - Responsive production smoke passed on `mobile-chrome` and `tablet-chrome` for `Skids Get Beat`, `The Fantasy Degenerates`, `test league`, and `Gov Tech Grid Iron`: `env -u NO_COLOR PRODUCTION_SMOKE=true PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm exec playwright test tests/e2e/production-smoke.spec.ts --project=mobile-chrome --project=tablet-chrome` -> `8 passed`.
 - Post-responsive-smoke log checks on deployment `dpl_AFqMDXkufYkeg2yXuUyUQVx4hMdP` found no `/var/task`, `Failed to write file league report cache`, `Missing session cookie`, or `500` entries in the checked window.
+- Post-`18:40` Pacific cron-window checks were inconclusive for cron execution: bounded Vercel CLI queries for `dynamic-data-refresh`, `/api/cron/dynamic-data-refresh`, and generic `cron` returned no matching entries, while a general production log query did return normal report traffic. A production redeploy of commit `35f3377` started at `18:40:37` Pacific, overlapping the configured `40 1 * * *` `dynamic-data-refresh` cron minute, so this window cannot prove scheduled cron execution or skipped-cron behavior.
+- The same post-window log pass found no matching entries for `/var/task`, `Failed to write file league report cache`, `Missing session cookie`, `500` responses, or error-level logs in the checked window.
 
 ## Usage And Metrics Availability
 - `vercel metrics schema vercel.function --format json` confirmed the required metric IDs exist, including:
@@ -107,7 +110,7 @@ Traffic-session result:
 ## Decision
 - This pass proves production deployment health, production report traffic health, cron configuration visibility, and absence of recent visible runtime errors through the available CLI/log surfaces.
 - This pass does not fully close the Vercel usage gate because Fluid Active CPU, function invocation totals, transfer, provisioned memory, and route-level CPU attribution are not accessible through the current CLI/API plan.
-- The follow-up local-write fixes are deployed and clean for report traffic in the checked post-deploy window. The next remaining production-log confirmation is the next scheduled cron window.
+- The follow-up local-write fixes are deployed and clean for report traffic in the checked post-deploy windows. The `18:40` Pacific cron-window check did not show the old local-write errors, but it also did not prove cron execution because a same-commit production redeploy overlapped the scheduled minute.
 - Critical auth/cron env names are present in production; source-health webhook delivery remains unconfigured.
 - Do not mark the Vercel usage checklist item complete until one of these happens:
   - a Vercel dashboard/manual pass records Fluid Active CPU, memory, invocations, transfer, and route hotspots; or
@@ -116,7 +119,7 @@ Traffic-session result:
 ## Follow-up
 - Manually check Vercel dashboard Usage and Functions after the latest traffic/deploy window.
 - Confirm whether the cron schedule warning is a CLI diff artifact or a real deployment mismatch.
-- Re-run production cron log checks after the next scheduled cron window.
+- Re-run production cron log checks after the next scheduled cron window that is not overlapped by deployment churn.
 - If metrics become available, capture top routes for:
   - `/api/trpc/league.analyze`
   - `/api/trpc/league.rankings`
