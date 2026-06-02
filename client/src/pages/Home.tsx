@@ -13,6 +13,7 @@ import { buildLeagueFormatPills } from "@/features/report/lib/reportOverviewPrev
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
 import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsContainer";
 import { HomeReportExperience } from "@/features/home/components/HomeReportExperience";
+import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
 import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
 import {
   buildHomePortfolioRows,
@@ -87,7 +88,6 @@ import {
   type SleeperUserSession,
   buildCachedSleeperUser,
   buildLoadingManagerAnchors,
-  buildPreviewLoadingManagerAnchors,
   findCachedSleeperUser,
   findKnownSleeperLeague,
   getAnalysisLeaguePreview,
@@ -211,59 +211,13 @@ export default function Home() {
   const [isReportRefreshing, setIsReportRefreshing] = useState(false);
   const [analysisCompleteMessage, setAnalysisCompleteMessage] =
     useState<AnalysisLoadingLeague | null>(null);
+  const [pendingAnalysisLeague, setPendingAnalysisLeague] =
+    useState<AnalysisLeaguePreview | null>(null);
   const [previewLoadingLoopTick, setPreviewLoadingLoopTick] = useState(0);
   const previewMode =
     typeof window === "undefined"
       ? null
       : new URLSearchParams(window.location.search).get("preview");
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (previewMode === 'loading' || previewMode === 'success') {
-      setIsLoading(true);
-      const previewLeague = {
-        leagueName: 'The Fantasy Degenerates',
-        leagueFormat: '12-Team Dynasty SF PPR TEP',
-        leagueLogo: '/favicon-32x32.png',
-      };
-      if (previewMode === 'success') {
-        setLoadingTransitionPhase("success");
-        setAnalysisCompleteMessage(previewLeague);
-        setLoadingManagerAnchors([]);
-      } else {
-        setLoadingTransitionPhase("loading");
-        setPendingAnalysisLeague(previewLeague);
-        setAnalysisCompleteMessage(null);
-        setLoadingManagerAnchors(buildPreviewLoadingManagerAnchors());
-      }
-      return;
-    }
-
-    if (previewMode === "loading-loop") {
-      const previewLeague = {
-        leagueName: "The Fantasy Degenerates",
-        leagueFormat: "12-Team Dynasty SF PPR TEP",
-        leagueLogo: "/favicon-32x32.png",
-      };
-      setIsLoading(true);
-      setLoadingTransitionPhase("loading");
-      setPendingAnalysisLeague(previewLeague);
-      setAnalysisCompleteMessage(null);
-      setLoadingManagerAnchors(buildPreviewLoadingManagerAnchors());
-      setPreviewLoadingLoopTick(0);
-
-      const timer = window.setInterval(() => {
-        setLoadingTransitionPhase("loading");
-        setIsLoading(true);
-        setPendingAnalysisLeague(previewLeague);
-        setAnalysisCompleteMessage(null);
-        setLoadingManagerAnchors(buildPreviewLoadingManagerAnchors());
-        setPreviewLoadingLoopTick(tick => tick + 1);
-      }, 8800);
-
-      return () => window.clearInterval(timer);
-    }
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -282,8 +236,6 @@ export default function Home() {
     toast.success(`AI voice set to ${getAIVoiceModeLabel(nextMode)}.`);
   };
 
-  const [pendingAnalysisLeague, setPendingAnalysisLeague] =
-    useState<AnalysisLeaguePreview | null>(null);
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
   const [isChangeLeagueModalOpen, setIsChangeLeagueModalOpen] = useState(false);
   const [isClownModalOpen, setIsClownModalOpen] = useState(false);
@@ -297,6 +249,15 @@ export default function Home() {
   const [loadingTransitionPhase, setLoadingTransitionPhase] =
     useState<LoadingTransitionPhase>("loading");
   const [hasLoadingTimedOut, setHasLoadingTimedOut] = useState(false);
+  useHomePreviewMode({
+    previewMode,
+    setIsLoading,
+    setLoadingTransitionPhase,
+    setPendingAnalysisLeague,
+    setAnalysisCompleteMessage,
+    setLoadingManagerAnchors,
+    setPreviewLoadingLoopTick,
+  });
   const successTransitionTimerRefs = useRef<number[]>([]);
   const activeAnalysisLeagueIdRef = useRef<string | null>(null);
   const reportLoadStartedAtRef = useRef<number | null>(null);
