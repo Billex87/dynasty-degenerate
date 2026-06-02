@@ -15,7 +15,11 @@ describe('buildAutopilotData', () => {
     expect(data.dataStatus).toBeUndefined();
     expect(data.headline).toBe('Long-range roster command');
     expect(data.waivers[0]?.player).toBe('Blake Corum');
-    expect(data.actionQueue[0]?.label).toBe('Do this now');
+    expect(data.actionQueue[0]).toMatchObject({
+      decision: 'watch',
+      label: "Don't force it",
+    });
+    expect(data.actionQueue[0]?.missingEvidence.join(' ')).toContain('precondition proof');
   });
 
   it('builds a dynasty cockpit from live report data', () => {
@@ -208,6 +212,12 @@ describe('buildAutopilotData', () => {
     expect(JSON.stringify(data.waivers)).not.toContain('Blake Corum');
     expect(JSON.stringify(data.actionQueue)).not.toContain('Waiver Receiver');
     expect(JSON.stringify(data.actionQueue)).not.toContain('Blake Corum');
+    const unprovedTrade = data.actionQueue.find((item) => item.source === 'trade' && item.target === 'Sample Runner');
+    expect(unprovedTrade).toMatchObject({
+      decision: 'watch',
+      label: "Don't force it",
+    });
+    expect(unprovedTrade?.missingEvidence.join(' ')).toContain('no concrete expected action');
   });
 
   it('downranks D/ST waiver targets with rough early matchup windows', () => {

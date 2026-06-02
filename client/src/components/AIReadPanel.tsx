@@ -101,6 +101,30 @@ function getVisibleTraceItems(traceItems?: string[]) {
     .slice(0, 4);
 }
 
+function getVerificationTraceItems(evidenceRead?: AIEvidenceResult | null) {
+  if (!evidenceRead) return [];
+  const sourceItems = evidenceRead.sourceTrace.map(trace =>
+    [
+      trace.label,
+      trace.status ? `(${trace.status})` : null,
+      trace.detail,
+    ]
+      .filter(Boolean)
+      .join(' ')
+  );
+  const blockerItems = evidenceRead.hardBlockers.map(item => `Blocked: ${item}`);
+  const missingItems = evidenceRead.missingEvidence.map(item => `Missing: ${item}`);
+  const capItem = evidenceRead.confidenceCapReason
+    ? `Confidence cap: ${evidenceRead.confidenceCap}% from ${evidenceRead.confidenceCapReason}`
+    : null;
+  const items = [...sourceItems, ...blockerItems, ...missingItems, capItem]
+    .map(item => String(item || '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  const uniqueItems = Array.from(new Set(items));
+  if (uniqueItems.length) return uniqueItems.slice(0, 4);
+  return ['Verify current roster, availability, league format, and source freshness before acting.'];
+}
+
 function getVisibleDecisionForPanel({
   props,
   severity,
@@ -356,6 +380,7 @@ function AIReadPanelContent({
   const displayedConfidenceNote =
     normalizedConfidence === null ? null : confidenceNote || getDefaultConfidenceNote(normalizedConfidence);
   const visibleTraceItems = getVisibleTraceItems(traceItems);
+  const verificationTraceItems = getVerificationTraceItems(evidenceRead);
   const visibleDecision = getVisibleDecisionForPanel({
     props: {
       title,
@@ -432,6 +457,10 @@ function AIReadPanelContent({
 
       {visibleTraceItems.length ? (
         <AIReadTrace label={traceLabel} items={visibleTraceItems} />
+      ) : null}
+
+      {verificationTraceItems.length ? (
+        <AIReadTrace label="Where to verify" items={verificationTraceItems} />
       ) : null}
 
       {actions?.length ? (

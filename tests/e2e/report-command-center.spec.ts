@@ -1111,9 +1111,9 @@ test.describe("command center feature surfaces", () => {
     await loadCachedReport(page, cachedReport);
 
     await expect(page.getByRole("tab", { name: "AI Autopilot" })).toBeVisible();
-    await expect(
-      page.locator(".overview-ai-pulse.ai-read-panel-desktop")
-    ).toBeVisible();
+    const overviewRead = page.locator(".overview-ai-pulse.ai-read-panel-desktop");
+    await expect(overviewRead).toBeVisible();
+    await expect(overviewRead.getByText("Where to verify")).toBeVisible();
     await expect(page.locator(".admin-premium-section")).toHaveCount(5);
 
     await page.getByRole("tab", { name: "Rankings" }).click();

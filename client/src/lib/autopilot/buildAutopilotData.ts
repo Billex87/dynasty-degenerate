@@ -5,7 +5,7 @@ import type { AIEvidenceAction, AIEvidenceMode, AIEvidenceSurface, AIConfidenceL
 import { buildAIEvidenceLeagueActivityContext } from '@shared/leagueActivityContext';
 import { buildLeagueSharpnessProfile } from '@shared/leagueSharpness';
 import type { LeagueSharpnessProfile } from '@shared/leagueSharpness';
-import type { RecommendationPlayerRef } from '@shared/recommendationOutcome';
+import type { RecommendationExpectedAction, RecommendationPlayerRef } from '@shared/recommendationOutcome';
 import type {
   ManagerRosterIntelligence,
   MatchupPreview,
@@ -1543,11 +1543,66 @@ function formatQueueSourceTrace(recommendation: AutopilotRecommendation): string
   ], 4);
 }
 
-function getQueueDecision(recommendation: AutopilotRecommendation): AIActionQueueItem['decision'] {
+function hasRecommendationPlayerRef(player?: RecommendationPlayerRef | null): boolean {
+  return Boolean(String(player?.id || player?.name || '').trim());
+}
+
+function getQueueSourceLabel(source: AIActionQueueSource): string {
+  if (source === 'waiver') return 'Waiver';
+  if (source === 'lineup') return 'Lineup';
+  if (source === 'trade') return 'Trade';
+  return 'Strategy';
+}
+
+function getExpectedActionIdentityGap(action: RecommendationExpectedAction): string | null {
+  if (action.type === 'add_player' || action.type === 'waiver_add' || action.type === 'stream_player' || action.type === 'start_player') {
+    return hasRecommendationPlayerRef(action.playerIn) ? null : 'Expected action is missing the player to add/start.';
+  }
+  if (action.type === 'drop_player' || action.type === 'bench_player') {
+    return hasRecommendationPlayerRef(action.playerOut) ? null : 'Expected action is missing the player to drop/bench.';
+  }
+  if (action.type === 'drop_for_add' || action.type === 'swap_starter') {
+    return hasRecommendationPlayerRef(action.playerIn) && hasRecommendationPlayerRef(action.playerOut)
+      ? null
+      : 'Expected action is missing one side of the roster or lineup change.';
+  }
+  if (action.type === 'trade') {
+    return action.playersInvolved?.some(hasRecommendationPlayerRef) || action.expectedRosterChange || action.reason
+      ? null
+      : 'Expected trade action is missing concrete player, pick, or return details.';
+  }
+  return null;
+}
+
+function getActionPreconditionGap(
+  recommendation: AutopilotRecommendation,
+  source: AIActionQueueSource,
+): string | null {
+  if (recommendation.queueEligible === false || recommendation.expectedAction?.type === 'hold') return null;
+
+  const sourceLabel = getQueueSourceLabel(source);
+  const action = recommendation.expectedAction;
+  if (!action || action.type === 'unknown') {
+    return `${sourceLabel} read has no concrete expected action attached, so it cannot render as Do this now.`;
+  }
+
+  const identityGap = getExpectedActionIdentityGap(action);
+  if (identityGap) return identityGap;
+
+  if (!recommendation.evidenceRead?.canAct) {
+    return `${sourceLabel} read has not cleared current roster, lineup, transaction, source-health, and league-format preconditions.`;
+  }
+
+  return null;
+}
+
+function getQueueDecision(recommendation: AutopilotRecommendation, source: AIActionQueueSource): AIActionQueueItem['decision'] {
   const evidence = recommendation.evidenceRead;
   if (evidence?.hardBlockers?.length) return 'blocked';
-  if (evidence && !evidence.canAct) return 'watch';
   if (recommendation.expectedAction?.type === 'hold' || recommendation.queueEligible === false) return 'hold';
+  if (evidence && !evidence.canAct) return 'watch';
+  const preconditionGap = getActionPreconditionGap(recommendation, source);
+  if (recommendation.confidence >= 68 && preconditionGap) return 'watch';
   if (recommendation.confidence >= 68) return 'do';
   if (recommendation.confidence >= 54) return 'watch';
   return 'hold';
@@ -1567,13 +1622,18 @@ function getQueueTone(decision: AIActionQueueItem['decision'], recommendation?: 
   return recommendation?.tone || 'good';
 }
 
-function getQueueRisk(recommendation: AutopilotRecommendation, decision: AIActionQueueItem['decision']) {
+function getQueueRisk(
+  recommendation: AutopilotRecommendation,
+  decision: AIActionQueueItem['decision'],
+  preconditionGap?: string | null,
+) {
   const evidence = recommendation.evidenceRead;
   const blocker = evidence?.hardBlockers?.[0];
   if (blocker) return blocker;
 
   if (decision === 'watch' || decision === 'hold') {
-    return evidence?.confidenceCapReason ||
+    return preconditionGap ||
+      evidence?.confidenceCapReason ||
       evidence?.missingEvidence?.[0] ||
       `Risk ${recommendation.risk}; verify news, usage, and roster changes before acting.`;
   }
@@ -1616,6 +1676,7 @@ function buildQueueChangeTriggers(
   source: AIActionQueueSource,
   decision: AIActionQueueItem['decision'],
   sharpness?: LeagueSharpnessProfile | null,
+  preconditionGap?: string | null,
 ): string[] {
   const evidence = recommendation.evidenceRead;
   const unhealthyTrace = evidence?.sourceTrace?.find((trace) =>
@@ -1645,6 +1706,7 @@ function buildQueueChangeTriggers(
           : 'More evidence must clear the action threshold before this becomes a do-this-now move.';
 
   return dedupeStrings([
+    preconditionGap ? `Prove preconditions: ${preconditionGap}` : null,
     evidence?.hardBlockers?.[0] ? `Clear blocker: ${evidence.hardBlockers[0]}` : null,
     evidence?.confidenceCapReason ? `Resolve confidence cap: ${evidence.confidenceCapReason}.` : null,
     evidence?.missingEvidence?.[0] ? `Add missing evidence: ${evidence.missingEvidence[0]}` : null,
@@ -1724,7 +1786,9 @@ function buildRecommendationQueueItem(
   const confidence = clampPercent(evidenceScore === undefined
     ? recommendation.confidence
     : Math.min(evidenceScore, recommendation.confidence));
-  const decision = getQueueDecision({ ...recommendation, confidence });
+  const normalizedRecommendation = { ...recommendation, confidence };
+  const preconditionGap = getActionPreconditionGap(normalizedRecommendation, source);
+  const decision = getQueueDecision(normalizedRecommendation, source);
   const sourceWeight: Record<AIActionQueueSource, number> = {
     waiver: 6,
     lineup: 5,
@@ -1747,6 +1811,7 @@ function buildRecommendationQueueItem(
       : mode === 'redraft' && source === 'trade' && sharpness?.tier === 'casual'
         ? -6
         : 0;
+  const preconditionScorePenalty = preconditionGap ? 28 : 0;
 
   if (!recommendation.player || !recommendation.action) return null;
 
@@ -1759,18 +1824,19 @@ function buildRecommendationQueueItem(
     target: recommendation.player,
     detail: recommendation.secondary || recommendation.type,
     why: evidence?.whyThisFired || recommendation.summary,
-    risk: getQueueRisk(recommendation, decision),
+    risk: getQueueRisk(recommendation, decision, preconditionGap),
     confidence,
     tone: getQueueTone(decision, recommendation),
     blockers: evidence?.hardBlockers || [],
-    missingEvidence: evidence?.missingEvidence || [],
+    missingEvidence: dedupeStrings([...(evidence?.missingEvidence || []), preconditionGap], 5),
     sourceHealth: formatQueueSourceTrace(recommendation),
     receipts: dedupeStrings([
+      preconditionGap ? `Precondition guard: ${preconditionGap}` : null,
       getLeagueSharpnessQueueCopy(sharpness, source),
       ...receipts,
       recommendation.calibration?.reason ? `Calibration: ${recommendation.calibration.reason}` : null,
     ], 4),
-    changeTriggers: buildQueueChangeTriggers(recommendation, source, decision, sharpness),
+    changeTriggers: buildQueueChangeTriggers(recommendation, source, decision, sharpness, preconditionGap),
     dominoEffects: buildRosterDominoEffects(recommendation, source, decision),
     signals: dedupeStrings([
       sharpness ? `${sharpness.label} ${sharpness.score}%` : null,
@@ -1779,7 +1845,7 @@ function buildRecommendationQueueItem(
     ], 4),
     expectedAction: recommendation.expectedAction || null,
     observedOutcome: recommendation.observedOutcome || null,
-    score: confidence + decisionWeight[decision] + sourceWeight[source] - order + sharpnessScoreAdjustment,
+    score: confidence + decisionWeight[decision] + sourceWeight[source] - order + sharpnessScoreAdjustment - preconditionScorePenalty,
   };
 }
 
