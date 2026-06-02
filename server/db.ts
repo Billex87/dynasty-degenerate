@@ -181,6 +181,34 @@ export type BillingCustomerAccessRecord = {
   updatedAt: Date | null;
 };
 
+export type LeaguePassUpsertInput = {
+  leagueId: string;
+  purchaserUserId?: number | null;
+  purchaserOpenId: string;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  stripeCheckoutSessionId: string;
+  status: string;
+  startsAt?: Date | string | null;
+  expiresAt?: Date | string | null;
+  maxManagers?: number | null;
+  metadata?: unknown;
+};
+
+export type FeatureEntitlementUpsertInput = {
+  subjectType: "user" | "league";
+  userOpenId?: string | null;
+  leagueId?: string | null;
+  featureKey: string;
+  plan?: string | null;
+  source: string;
+  sourceId: string;
+  status: string;
+  startsAt?: Date | string | null;
+  expiresAt?: Date | string | null;
+  metadata?: unknown;
+};
+
 export type CountUsageEventsInput = {
   userOpenId?: string | null;
   leagueId?: string | null;
@@ -1171,6 +1199,150 @@ export async function findBillingCustomerForUser(userOpenId: string): Promise<Bi
     status: String(row.status || ""),
     updatedAt: normalizeDateForDb(row.updatedAt),
   };
+}
+
+export async function upsertLeaguePass(input: LeaguePassUpsertInput): Promise<boolean> {
+  const leagueId = requiredTrimmed(input.leagueId, "leagueId");
+  const purchaserOpenId = requiredTrimmed(input.purchaserOpenId, "purchaserOpenId");
+  const stripeCheckoutSessionId = requiredTrimmed(input.stripeCheckoutSessionId, "stripeCheckoutSessionId");
+  const status = requiredTrimmed(input.status, "status").toLowerCase();
+  const maxManagers = input.maxManagers && Number.isFinite(input.maxManagers)
+    ? Math.max(1, Math.floor(input.maxManagers))
+    : null;
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot upsert league pass: database not available");
+    return false;
+  }
+
+  const updated = await sql`
+    UPDATE "leaguePasses"
+    SET
+      "leagueId" = ${leagueId},
+      "purchaserUserId" = COALESCE(${input.purchaserUserId ?? null}, "leaguePasses"."purchaserUserId"),
+      "purchaserOpenId" = ${purchaserOpenId},
+      "stripeCustomerId" = COALESCE(${optionalTrimmed(input.stripeCustomerId)}, "leaguePasses"."stripeCustomerId"),
+      "stripeSubscriptionId" = COALESCE(${optionalTrimmed(input.stripeSubscriptionId)}, "leaguePasses"."stripeSubscriptionId"),
+      status = ${status},
+      "startsAt" = COALESCE(${normalizeDateForDb(input.startsAt)}, "leaguePasses"."startsAt"),
+      "expiresAt" = ${normalizeDateForDb(input.expiresAt)},
+      "maxManagers" = COALESCE(${maxManagers}, "leaguePasses"."maxManagers"),
+      metadata = COALESCE(${serializeMetadataForDb(input.metadata)}, "leaguePasses".metadata),
+      "updatedAt" = NOW()
+    WHERE "stripeCheckoutSessionId" = ${stripeCheckoutSessionId}
+    RETURNING id
+  ` as Record<string, any>[];
+
+  if (updated.length > 0) return true;
+
+  await sql`
+    INSERT INTO "leaguePasses" (
+      "leagueId",
+      "purchaserUserId",
+      "purchaserOpenId",
+      "stripeCustomerId",
+      "stripeSubscriptionId",
+      "stripeCheckoutSessionId",
+      status,
+      "startsAt",
+      "expiresAt",
+      "maxManagers",
+      metadata,
+      "updatedAt"
+    )
+    VALUES (
+      ${leagueId},
+      ${input.purchaserUserId ?? null},
+      ${purchaserOpenId},
+      ${optionalTrimmed(input.stripeCustomerId)},
+      ${optionalTrimmed(input.stripeSubscriptionId)},
+      ${stripeCheckoutSessionId},
+      ${status},
+      ${normalizeDateForDb(input.startsAt)},
+      ${normalizeDateForDb(input.expiresAt)},
+      ${maxManagers},
+      ${serializeMetadataForDb(input.metadata)},
+      NOW()
+    )
+  `;
+
+  return true;
+}
+
+export async function upsertFeatureEntitlement(input: FeatureEntitlementUpsertInput): Promise<boolean> {
+  const subjectType = requiredTrimmed(input.subjectType, "subjectType").toLowerCase();
+  if (subjectType !== "user" && subjectType !== "league") {
+    throw new Error("subjectType must be user or league");
+  }
+
+  const featureKey = requiredTrimmed(input.featureKey, "featureKey");
+  const source = requiredTrimmed(input.source, "source");
+  const sourceId = requiredTrimmed(input.sourceId, "sourceId");
+  const status = requiredTrimmed(input.status, "status").toLowerCase();
+  const userOpenId = subjectType === "user"
+    ? requiredTrimmed(input.userOpenId, "userOpenId")
+    : optionalTrimmed(input.userOpenId);
+  const leagueId = subjectType === "league"
+    ? requiredTrimmed(input.leagueId, "leagueId")
+    : optionalTrimmed(input.leagueId);
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot upsert feature entitlement: database not available");
+    return false;
+  }
+
+  const updated = await sql`
+    UPDATE "featureEntitlements"
+    SET
+      "userOpenId" = ${userOpenId},
+      "leagueId" = ${leagueId},
+      plan = ${optionalTrimmed(input.plan)},
+      status = ${status},
+      "startsAt" = COALESCE(${normalizeDateForDb(input.startsAt)}, "featureEntitlements"."startsAt"),
+      "expiresAt" = ${normalizeDateForDb(input.expiresAt)},
+      metadata = COALESCE(${serializeMetadataForDb(input.metadata)}, "featureEntitlements".metadata),
+      "updatedAt" = NOW()
+    WHERE "subjectType" = ${subjectType}
+      AND "featureKey" = ${featureKey}
+      AND source = ${source}
+      AND "sourceId" = ${sourceId}
+    RETURNING id
+  ` as Record<string, any>[];
+
+  if (updated.length > 0) return true;
+
+  await sql`
+    INSERT INTO "featureEntitlements" (
+      "subjectType",
+      "userOpenId",
+      "leagueId",
+      "featureKey",
+      plan,
+      source,
+      "sourceId",
+      status,
+      "startsAt",
+      "expiresAt",
+      metadata,
+      "updatedAt"
+    )
+    VALUES (
+      ${subjectType},
+      ${userOpenId},
+      ${leagueId},
+      ${featureKey},
+      ${optionalTrimmed(input.plan)},
+      ${source},
+      ${sourceId},
+      ${status},
+      ${normalizeDateForDb(input.startsAt)},
+      ${normalizeDateForDb(input.expiresAt)},
+      ${serializeMetadataForDb(input.metadata)},
+      NOW()
+    )
+  `;
+
+  return true;
 }
 
 export async function recordUsageEvent(input: UsageEventInput): Promise<boolean> {

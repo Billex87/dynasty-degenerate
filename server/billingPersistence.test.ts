@@ -4,8 +4,10 @@ import {
   findBillingCustomerForUser,
   listBillingSubscriptionsForUser,
   recordUsageEvent,
+  upsertFeatureEntitlement,
   upsertBillingCustomer,
   upsertBillingSubscription,
+  upsertLeaguePass,
 } from "./db";
 
 describe("billing persistence helpers", () => {
@@ -52,6 +54,30 @@ describe("billing persistence helpers", () => {
 
   it("fails safely when billing customer reads have no database", async () => {
     await expect(findBillingCustomerForUser("email:user")).resolves.toBeNull();
+  });
+
+  it("fails safely when league-pass persistence has no database", async () => {
+    await expect(upsertLeaguePass({
+      leagueId: "123456789012345678",
+      purchaserOpenId: "email:user",
+      stripeCustomerId: "cus_test",
+      stripeCheckoutSessionId: "cs_test",
+      status: "active",
+      metadata: { source: "test" },
+    })).resolves.toBe(false);
+  });
+
+  it("fails safely when feature-entitlement persistence has no database", async () => {
+    await expect(upsertFeatureEntitlement({
+      subjectType: "user",
+      userOpenId: "email:user",
+      featureKey: "draft-kit-tools",
+      plan: "one-time",
+      source: "stripe",
+      sourceId: "cs_test",
+      status: "active",
+      metadata: { source: "test" },
+    })).resolves.toBe(false);
   });
 
   it("fails safely when usage event persistence has no database", async () => {
@@ -101,6 +127,21 @@ describe("billing persistence helpers", () => {
         usageKey: "daily-report",
         source: "test",
       })).rejects.toThrow(/featureKey is required/);
+
+      await expect(upsertLeaguePass({
+        leagueId: "",
+        purchaserOpenId: "email:user",
+        stripeCheckoutSessionId: "cs_test",
+        status: "active",
+      })).rejects.toThrow(/leagueId is required/);
+
+      await expect(upsertFeatureEntitlement({
+        subjectType: "league",
+        featureKey: "source-trace-details",
+        source: "stripe",
+        sourceId: "cs_test",
+        status: "active",
+      })).rejects.toThrow(/leagueId is required/);
     } finally {
       warnSpy.mockRestore();
     }

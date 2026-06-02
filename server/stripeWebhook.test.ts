@@ -7,15 +7,21 @@ import {
 import {
   upsertBillingCustomer,
   upsertBillingSubscription,
+  upsertFeatureEntitlement,
+  upsertLeaguePass,
 } from "./db";
 
 vi.mock("./db", () => ({
   upsertBillingCustomer: vi.fn(),
   upsertBillingSubscription: vi.fn(),
+  upsertFeatureEntitlement: vi.fn(),
+  upsertLeaguePass: vi.fn(),
 }));
 
 const mockedUpsertBillingCustomer = vi.mocked(upsertBillingCustomer);
 const mockedUpsertBillingSubscription = vi.mocked(upsertBillingSubscription);
+const mockedUpsertFeatureEntitlement = vi.mocked(upsertFeatureEntitlement);
+const mockedUpsertLeaguePass = vi.mocked(upsertLeaguePass);
 
 const secret = "whsec_test_secret";
 const now = new Date("2026-06-02T12:00:00.000Z");
@@ -36,6 +42,8 @@ describe("Stripe webhook signature verification", () => {
     vi.clearAllMocks();
     mockedUpsertBillingCustomer.mockResolvedValue(true);
     mockedUpsertBillingSubscription.mockResolvedValue(true);
+    mockedUpsertFeatureEntitlement.mockResolvedValue(true);
+    mockedUpsertLeaguePass.mockResolvedValue(true);
   });
 
   it("accepts a valid Stripe-style HMAC signature", () => {
@@ -338,6 +346,149 @@ describe("Stripe webhook signature verification", () => {
         mode: "subscription",
       }),
     }));
+    expect(mockedUpsertFeatureEntitlement).not.toHaveBeenCalled();
+    expect(mockedUpsertLeaguePass).not.toHaveBeenCalled();
+  });
+
+  it("persists league-pass checkout completions into league pass and league entitlements", async () => {
+    const payload = JSON.stringify({
+      id: "evt_checkout_league_pass",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_league_pass",
+          customer: "cus_test",
+          customer_email: "sample@example.com",
+          mode: "payment",
+          metadata: {
+            userOpenId: "email:user",
+            productKey: "league-pass-season",
+            productType: "league-pass",
+            plan: "league-pass",
+            leagueId: "123456789012345678",
+          },
+        },
+      },
+    });
+
+    const result = await handleStripeWebhookPayload({
+      payload,
+      signatureHeader: signedHeader(payload),
+      secret,
+      now,
+    });
+
+    expect(result).toEqual({
+      status: 200,
+      body: {
+        ok: true,
+        received: true,
+        persisted: true,
+        eventId: "evt_checkout_league_pass",
+        eventType: "checkout.session.completed",
+      },
+    });
+    expect(mockedUpsertLeaguePass).toHaveBeenCalledWith(expect.objectContaining({
+      leagueId: "123456789012345678",
+      purchaserOpenId: "email:user",
+      stripeCustomerId: "cus_test",
+      stripeCheckoutSessionId: "cs_league_pass",
+      status: "active",
+    }));
+    expect(mockedUpsertFeatureEntitlement).toHaveBeenCalledTimes(3);
+    expect(mockedUpsertFeatureEntitlement).toHaveBeenCalledWith(expect.objectContaining({
+      subjectType: "league",
+      leagueId: "123456789012345678",
+      featureKey: "source-trace-details",
+      plan: "league-pass",
+      source: "stripe",
+      sourceId: "cs_league_pass:source-trace-details",
+      status: "active",
+    }));
+    expect(mockedUpsertFeatureEntitlement).toHaveBeenCalledWith(expect.objectContaining({
+      featureKey: "ai-confidence-history",
+      sourceId: "cs_league_pass:ai-confidence-history",
+    }));
+    expect(mockedUpsertFeatureEntitlement).toHaveBeenCalledWith(expect.objectContaining({
+      featureKey: "exports",
+      sourceId: "cs_league_pass:exports",
+    }));
+  });
+
+  it("persists draft-kit checkout completions into user entitlements", async () => {
+    const payload = JSON.stringify({
+      id: "evt_checkout_draft_kit",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_rookie_kit",
+          customer: "cus_test",
+          mode: "payment",
+          metadata: {
+            userOpenId: "email:user",
+            productKey: "rookie-draft-kit",
+            productType: "draft-kit",
+            plan: "one-time",
+          },
+        },
+      },
+    });
+
+    const result = await handleStripeWebhookPayload({
+      payload,
+      signatureHeader: signedHeader(payload),
+      secret,
+      now,
+    });
+
+    expect(result.status).toBe(200);
+    expect(mockedUpsertFeatureEntitlement).toHaveBeenCalledWith(expect.objectContaining({
+      subjectType: "user",
+      userOpenId: "email:user",
+      featureKey: "draft-kit-tools",
+      plan: "one-time",
+      source: "stripe",
+      sourceId: "cs_rookie_kit:rookie-draft-kit",
+      status: "active",
+    }));
+  });
+
+  it("returns retryable 503 when checkout product entitlement persistence is unavailable", async () => {
+    mockedUpsertFeatureEntitlement.mockResolvedValue(false);
+    const payload = JSON.stringify({
+      id: "evt_checkout_draft_kit",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_rookie_kit",
+          customer: "cus_test",
+          mode: "payment",
+          metadata: {
+            userOpenId: "email:user",
+            productKey: "rookie-draft-kit",
+          },
+        },
+      },
+    });
+
+    const result = await handleStripeWebhookPayload({
+      payload,
+      signatureHeader: signedHeader(payload),
+      secret,
+      now,
+    });
+
+    expect(result).toEqual({
+      status: 503,
+      body: {
+        ok: false,
+        received: true,
+        persisted: false,
+        eventId: "evt_checkout_draft_kit",
+        eventType: "checkout.session.completed",
+        error: "billing-persistence-unavailable",
+      },
+    });
   });
 
   it("marks subscriptions past due on failed invoice events with billing metadata", async () => {

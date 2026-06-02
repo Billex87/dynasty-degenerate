@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { upsertBillingCustomer, upsertBillingSubscription } from "./db";
+import { upsertBillingCustomer, upsertBillingSubscription, upsertFeatureEntitlement, upsertLeaguePass } from "./db";
 
 const DEFAULT_TOLERANCE_SECONDS = 300;
 const SUPPORTED_STRIPE_WEBHOOK_EVENTS = new Set([
@@ -56,6 +56,14 @@ type StripeWebhookEvent = {
     object?: Record<string, unknown>;
   };
 };
+
+const LEAGUE_PASS_FEATURE_ENTITLEMENTS = [
+  "source-trace-details",
+  "ai-confidence-history",
+  "exports",
+] as const;
+
+const DRAFT_KIT_PRODUCT_KEYS = new Set(["rookie-draft-kit", "redraft-draft-kit"]);
 
 type ParsedStripeSignature = {
   timestamp: number | null;
@@ -189,6 +197,10 @@ function getStripeMetadataValue(object: Record<string, unknown>, ...keys: string
   return null;
 }
 
+function getCheckoutProductKey(checkoutSession: Record<string, unknown>): string | null {
+  return getStripeMetadataValue(checkoutSession, "productKey", "product_key");
+}
+
 function normalizeBillingPlan(value: string | null): string | null {
   const normalized = value?.trim().toLowerCase();
   if (!normalized) return null;
@@ -196,6 +208,119 @@ function normalizeBillingPlan(value: string | null): string | null {
   if (normalized.includes("pro")) return "pro";
   if (normalized === "free") return "free";
   return null;
+}
+
+async function persistLeaguePassCheckout(input: {
+  checkoutSession: Record<string, unknown>;
+  eventId: string | null;
+  eventType: string;
+  userOpenId: string;
+  stripeCustomerId: string;
+}): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const checkoutSessionId = getObjectStringValue(input.checkoutSession, "id");
+  const leagueId = getStripeMetadataValue(input.checkoutSession, "leagueId", "league_id");
+  if (!checkoutSessionId || !leagueId) {
+    return { ok: false, status: 422, error: "missing-billing-metadata" };
+  }
+
+  const metadata = {
+    stripeEventId: input.eventId,
+    stripeEventType: input.eventType,
+    checkoutSessionId,
+    productKey: "league-pass-season",
+  };
+
+  const leaguePassPersisted = await upsertLeaguePass({
+    leagueId,
+    purchaserOpenId: input.userOpenId,
+    stripeCustomerId: input.stripeCustomerId,
+    stripeCheckoutSessionId: checkoutSessionId,
+    status: "active",
+    metadata,
+  });
+  if (!leaguePassPersisted) {
+    return { ok: false, status: 503, error: "billing-persistence-unavailable" };
+  }
+
+  for (const featureKey of LEAGUE_PASS_FEATURE_ENTITLEMENTS) {
+    const entitlementPersisted = await upsertFeatureEntitlement({
+      subjectType: "league",
+      leagueId,
+      featureKey,
+      plan: "league-pass",
+      source: "stripe",
+      sourceId: `${checkoutSessionId}:${featureKey}`,
+      status: "active",
+      metadata,
+    });
+    if (!entitlementPersisted) {
+      return { ok: false, status: 503, error: "billing-persistence-unavailable" };
+    }
+  }
+
+  return { ok: true };
+}
+
+async function persistDraftKitCheckout(input: {
+  checkoutSession: Record<string, unknown>;
+  eventId: string | null;
+  eventType: string;
+  productKey: string;
+  userOpenId: string;
+}): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const checkoutSessionId = getObjectStringValue(input.checkoutSession, "id");
+  if (!checkoutSessionId) {
+    return { ok: false, status: 422, error: "missing-billing-metadata" };
+  }
+
+  const entitlementPersisted = await upsertFeatureEntitlement({
+    subjectType: "user",
+    userOpenId: input.userOpenId,
+    featureKey: "draft-kit-tools",
+    plan: "one-time",
+    source: "stripe",
+    sourceId: `${checkoutSessionId}:${input.productKey}`,
+    status: "active",
+    metadata: {
+      stripeEventId: input.eventId,
+      stripeEventType: input.eventType,
+      checkoutSessionId,
+      productKey: input.productKey,
+    },
+  });
+
+  return entitlementPersisted
+    ? { ok: true }
+    : { ok: false, status: 503, error: "billing-persistence-unavailable" };
+}
+
+async function persistCheckoutProductEntitlements(input: {
+  checkoutSession: Record<string, unknown>;
+  eventId: string | null;
+  eventType: string;
+  userOpenId: string;
+  stripeCustomerId: string;
+}): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const productKey = getCheckoutProductKey(input.checkoutSession);
+  if (!productKey || productKey === "pro-monthly" || productKey === "elite-monthly") {
+    return { ok: true };
+  }
+
+  if (productKey === "league-pass-season") {
+    return persistLeaguePassCheckout(input);
+  }
+
+  if (DRAFT_KIT_PRODUCT_KEYS.has(productKey)) {
+    return persistDraftKitCheckout({
+      checkoutSession: input.checkoutSession,
+      eventId: input.eventId,
+      eventType: input.eventType,
+      productKey,
+      userOpenId: input.userOpenId,
+    });
+  }
+
+  return { ok: false, status: 422, error: "unsupported-checkout-product" };
 }
 
 function getSubscriptionPrice(subscription: Record<string, unknown>): Record<string, unknown> | null {
@@ -351,16 +476,25 @@ async function persistCheckoutCompletedEvent(event: StripeWebhookEvent, eventTyp
       mode: getObjectStringValue(object, "mode"),
     },
   });
-
-  return {
-    status: customerPersisted ? 200 : 503,
-    body: {
-      ok: customerPersisted,
-      received: true,
-      persisted: customerPersisted,
+  const productEntitlementsPersisted = customerPersisted
+    ? await persistCheckoutProductEntitlements({
+      checkoutSession: object,
       eventId,
       eventType,
-      error: customerPersisted ? undefined : "billing-persistence-unavailable",
+      userOpenId,
+      stripeCustomerId,
+    })
+    : { ok: false as const, status: 503, error: "billing-persistence-unavailable" };
+
+  return {
+    status: productEntitlementsPersisted.ok ? 200 : productEntitlementsPersisted.status,
+    body: {
+      ok: productEntitlementsPersisted.ok,
+      received: true,
+      persisted: productEntitlementsPersisted.ok,
+      eventId,
+      eventType,
+      error: productEntitlementsPersisted.ok ? undefined : productEntitlementsPersisted.error,
     },
   };
 }
