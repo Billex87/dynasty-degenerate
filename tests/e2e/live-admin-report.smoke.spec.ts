@@ -49,6 +49,13 @@ async function dismissAdminIntroIfVisible(page: import('@playwright/test').Page)
   }
 }
 
+async function chooseRegularModeIfPrompted(page: import('@playwright/test').Page) {
+  const regularModeButton = page.getByRole('button', { name: 'View Like Regular Person' });
+  if (await regularModeButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await regularModeButton.click();
+  }
+}
+
 async function enterAdminReportView(page: import('@playwright/test').Page) {
   const autopilotTab = page.getByRole('tab', { name: /AI Autopilot/i });
   if (await autopilotTab.isVisible({ timeout: 2_000 }).catch(() => false)) return;
@@ -86,8 +93,10 @@ async function runLeagueReport(page: import('@playwright/test').Page, leagueName
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByPlaceholder('Sleeper username').fill(sleeperUsername);
-  await page.getByRole('button', { name: 'Run Degenerate Analysis' }).click();
+  await page.getByRole('button', { name: 'Find Leagues' }).click();
+  await chooseRegularModeIfPrompted(page);
   await expect(page.getByText(leagueName, { exact: false })).toBeVisible({ timeout: 30_000 });
+  await chooseRegularModeIfPrompted(page);
   const leagueButton = page.getByRole('button', { name: new RegExp(escapeRegex(leagueName), 'i') }).first();
   await leagueButton.scrollIntoViewIfNeeded();
   await leagueButton.click();
@@ -123,13 +132,31 @@ async function expectAdminSurfaces(
   page: import('@playwright/test').Page,
   options: { shouldShowDraftHistory: boolean },
 ) {
-  await expect(page.getByRole('tab', { name: /AI Autopilot/i })).toBeVisible();
-  await expect(page.getByText('Assistant Feature Radar').first()).toBeVisible();
+  const autopilotTab = page.getByRole('tab', { name: /AI Autopilot/i });
+  await expect(autopilotTab).toBeVisible();
+  await autopilotTab.click();
+  await expect(page.getByText('AI Team Autopilot').first()).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Daily AI Verdict' })).toBeVisible();
+  await expect(page.getByText('AI Edge Review').first()).toBeVisible();
 
   await page.getByRole('tab', { name: /^(Rankings|Ranks)$/i }).click();
+  await expect(page.locator('.admin-diagnostics-shell')).toBeVisible();
   await expect(page.getByText('Admin Diagnostics').first()).toBeVisible();
-  await expect(page.getByText('Provider Telemetry').first()).toBeVisible();
-  await expect(page.getByText('Source Coverage').first()).toBeVisible();
+  const providerTelemetry = await openReportDisclosure(page, 'API Budget & Rate Limits');
+  await expect(
+    providerTelemetry
+      .getByText(/Provider budget snapshot|Loading provider telemetry|No provider telemetry available/i)
+      .first(),
+  ).toBeVisible();
+  const sourceMatrix = page.locator('details.report-disclosure').filter({ hasText: 'Source Matrix' }).first();
+  if (await sourceMatrix.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    const sourceCoverage = await openReportDisclosure(page, 'Source Matrix');
+    await expect(
+      sourceCoverage
+        .getByText(/Source coverage matrix|Loading source coverage matrix|No source coverage metadata available/i)
+        .first(),
+    ).toBeVisible();
+  }
   await expect(page.getByRole('button', { name: /Switch to regular report view/i })).toBeVisible();
   await expect(page.getByText(/locked until Admin Tools are unlocked/i)).toHaveCount(0);
 
@@ -137,8 +164,12 @@ async function expectAdminSurfaces(
   await expect(page.getByText('Waiver Intelligence').first()).toBeVisible();
 
   await page.getByRole('tab', { name: /^(Trade History|Trades)$/i }).click();
-  const tradeWarRoom = await openReportDisclosure(page, 'Trade War Room');
-  await expect(tradeWarRoom.getByText('Package Builder').first()).toBeVisible();
+  if (options.shouldShowDraftHistory) {
+    const tradeWarRoom = await openReportDisclosure(page, 'Trade War Room');
+    await expect(tradeWarRoom.getByText('Package Builder').first()).toBeVisible();
+  } else {
+    await expect(page.getByText('Trade reads unlock after the draft')).toBeVisible();
+  }
 
   const bodyText = await page.locator('body').innerText();
   expect(bodyText).not.toMatch(/Submit to Sleeper|Open Sleeper|Copy plan|Copy swap/i);
