@@ -58,6 +58,7 @@ Traffic-session result:
 - Post-Home-threshold refresh: `https://dynasty-degenerate-9wnfprm72-billex87s-projects.vercel.app` inspected as deployment `dpl_9NEdma6k7r7wuReYbenJ4unj2dYs`, status `Ready`, created after `Home.tsx` dropped below the oversized-file threshold, and aliased to `https://dynastydegens.com`, `https://dynasty-degenerate.vercel.app`, and the main project aliases.
 - Latest production smoke refresh: `npx --yes vercel@latest inspect dynastydegens.com` inspected `https://dynasty-degenerate-fhzp803gg-billex87s-projects.vercel.app` as deployment `dpl_6LzxMFJGdVRcnVNq7PUtVeheqGAv`, status `Ready`, created `Tue Jun 02 2026 07:24:06 GMT-0700`, and aliased to `https://dynastydegens.com`, `https://dynasty-degenerate.vercel.app`, and the main project aliases. `curl -I https://dynastydegens.com` returned `200` with `last-modified: Tue, 02 Jun 2026 14:38:43 GMT`.
 - Post-`15:00 UTC` cron-window refresh: `npx --yes vercel@latest inspect dynastydegens.com` inspected `https://dynasty-degenerate-lto4vcg8w-billex87s-projects.vercel.app` as deployment `dpl_9K865A8TVUKJNvYEDVFSeryoVwGs`, status `Ready`, created `Tue Jun 02 2026 07:44:34 GMT-0700`, and aliased to `https://dynastydegens.com`, `https://dynasty-degenerate.vercel.app`, and the main project aliases.
+- Post-`15:20 UTC` cron-window refresh: `npx --yes vercel@latest inspect dynastydegens.com` inspected `https://dynasty-degenerate-5n684b3q9-billex87s-projects.vercel.app` as deployment `dpl_HWz1iE3MdEVSSMbxGeZ75HukDqKa`, status `Ready`, created `Tue Jun 02 2026 08:05:11 GMT-0700`, and aliased to `https://dynastydegens.com`, `https://dynasty-degenerate.vercel.app`, and the main project aliases. The deployment was ready well before the checked `/api/cron/league-report-cache` `15:20 UTC` schedule window.
 
 ## Cron State
 - `vercel crons list` returned `12` cron jobs for production:
@@ -77,6 +78,7 @@ Traffic-session result:
 - The pulled local `.vercel/.env.production.local` file contains the `CRON_SECRET` name but an empty value, so authorized production cron route calls were not run from this machine.
 - Follow-up refresh still reports the same `6 local changes pending deploy` warning, but production lists the same 12 cron entries as `vercel.json`. Local `.vercel/output/config.json` is stale and shows older generated cron entries, so the current evidence points to a CLI/generated-output comparison artifact rather than missing production schedules. Dashboard confirmation is still required before removing this warning entirely.
 - Post-`15:00 UTC` refresh still reports the same `6 local changes pending deploy` warning, but production again lists the expected 12 cron entries, including `/api/cron/ktc-snapshot` at `0 15 * * *`.
+- Post-`15:20 UTC` refresh still reports the same `6 local changes pending deploy` warning, but production again lists the expected 12 cron entries, including `/api/cron/league-report-cache` at `20 15 * * *` and `20 16 * * *`.
 
 ## Runtime Logs
 - Last-hour production error-level log query returned no entries.
@@ -105,6 +107,7 @@ Traffic-session result:
 - Latest production smoke on deployment `dpl_6LzxMFJGdVRcnVNq7PUtVeheqGAv` passed all four representative leagues across mobile, tablet, and desktop Chromium: `env -u NO_COLOR PRODUCTION_SMOKE=true PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm exec playwright test tests/e2e/production-smoke.spec.ts --project=desktop-chrome --project=mobile-chrome --project=tablet-chrome` -> `12 passed`.
 - Post-smoke log checks for deployment `dpl_6LzxMFJGdVRcnVNq7PUtVeheqGAv` returned no rows for error-level logs, `500` responses, or `/var/task` matches in the checked `10m` window: `npx --yes vercel@latest logs --environment production --since 10m --level error --json --limit 100`, `npx --yes vercel@latest logs --environment production --since 10m --status-code 500 --json --limit 100`, and `npx --yes vercel@latest logs --environment production --since 10m --query "/var/task" --json --limit 100`.
 - Repeat confirmation on 2026-06-02 07:44 PDT: the same public production smoke command against `https://dynastydegens.com` passed `12`/`12` again across `Skids Get Beat`, `The Fantasy Degenerates`, `test league`, and `Gov Tech Grid Iron` on mobile, tablet, and desktop Chromium. The same three Vercel log queries for error-level rows, `500` responses, and `/var/task` matches returned no rows in the checked `10m` window.
+- Post-`15:20 UTC` cron-window checks on June 2, 2026 returned no rows beyond CLI headers for these bounded production log queries: `/api/cron/league-report-cache` over `10m`, `/var/task` over `10m`, `500` over `10m`, error-level logs over `10m`, generic `cron` over `10m`, generic `league-report` over `10m`, `ENOENT` over `10m`, `Failed to write file` over `10m`, and generic `league report cache` over `10m`. This clean non-overlapped window is stronger evidence that previous visible serverless local-write failures did not recur for the league-report cache cron window, but the CLI still did not return an explicit scheduled cron execution row.
 
 ## Usage And Metrics Availability
 - `vercel metrics schema vercel.function --format json` confirmed the required metric IDs exist, including:
@@ -127,6 +130,7 @@ Traffic-session result:
 - The latest Home-cleanup deployment is deployed and clean for representative desktop, tablet, and mobile report traffic, but this still does not prove scheduled cron execution or dashboard-only usage metrics.
 - The latest production deployment is Ready and clean for representative public desktop, tablet, and mobile report traffic, but this still does not prove trusted fresh-generation, scheduled cron execution, or dashboard-only usage metrics.
 - The post-`15:00 UTC` deployment is Ready and the checked log window did not show the old `/var/task`/`ENOENT` cron-write failures, but this still does not prove cron execution because Vercel CLI logs did not return explicit cron request rows.
+- The post-`15:20 UTC` deployment was already Ready before the league-report-cache cron minute, and the checked log window did not show `/var/task`, `ENOENT`, `Failed to write file`, `500`, or error-level failures. This still does not prove cron execution because Vercel CLI logs did not return explicit cron request rows.
 - Critical auth/cron env names are present in production; source-health webhook delivery remains unconfigured.
 - Do not mark the Vercel usage checklist item complete until one of these happens:
   - a Vercel dashboard/manual pass records Fluid Active CPU, memory, invocations, transfer, and route hotspots; or
@@ -135,7 +139,7 @@ Traffic-session result:
 ## Follow-up
 - Manually check Vercel dashboard Usage and Functions after the latest traffic/deploy window.
 - Confirm whether the cron schedule warning is a CLI diff artifact or a real deployment mismatch.
-- Re-run production cron log checks from the Vercel dashboard or another source that exposes scheduled cron invocations, since CLI log queries did not show explicit cron request rows even after the clean `15:00 UTC` window.
+- Re-run production cron log checks from the Vercel dashboard or another source that exposes scheduled cron invocations, since CLI log queries did not show explicit cron request rows even after the clean `15:00 UTC` and `15:20 UTC` windows.
 - If metrics become available, capture top routes for:
   - `/api/trpc/league.analyze`
   - `/api/trpc/league.rankings`
