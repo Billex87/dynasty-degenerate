@@ -307,6 +307,80 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('does not treat repeated trade pieces as concrete queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const repeatedPlayerRef = {
+      id: 'duplicate-trade-piece',
+      name: 'Duplicate Trade Piece',
+      position: 'WR',
+      team: 'KC',
+    };
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [],
+      waivers: [],
+      trades: [{
+        id: 'repeated-trade-piece',
+        type: 'Trade',
+        player: 'Duplicate Trade Piece',
+        action: 'Trade now',
+        confidence: 94,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture repeats the same player as two trade pieces.',
+        reasons: ['Malformed expected action should not become a direct action.'],
+        signals: ['Trade proof'],
+        evidenceRead: {
+          evidence: ['High confidence trade rationale.'],
+          missingEvidence: [],
+          hardBlockers: [],
+          softPenalties: [],
+          confidenceCap: 100,
+          confidenceCapReason: null,
+          sourceTrace: [{ label: 'Trade context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+          rawScore: 94,
+          finalScore: 94,
+          label: 'high conviction',
+          shouldRender: true,
+          canAct: true,
+          whyThisFired: 'Trade context is loaded but the expected action repeats a trade piece.',
+        } as any,
+        expectedAction: {
+          type: 'trade',
+          playersInvolved: [repeatedPlayerRef, repeatedPlayerRef],
+          expectedRosterChange: 'Trade Duplicate Trade Piece with Duplicate Trade Piece.',
+          source: 'autopilot',
+          reason: 'Malformed repeated trade-piece fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const tradeQueueItem = data.actionQueue.find((item) => item.id.includes('repeated-trade-piece'));
+    expect(tradeQueueItem).toMatchObject({
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'trade',
+      },
+    });
+    expect(tradeQueueItem?.missingEvidence.join(' ')).toContain('repeats the same player');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('does not treat same-player lineup swaps as concrete queue moves', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.managerRosterIntelligence = [];

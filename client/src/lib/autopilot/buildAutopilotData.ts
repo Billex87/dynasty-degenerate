@@ -1660,8 +1660,12 @@ function isSameRecommendationPlayerRef(
 function hasConcreteTradeProof(action: RecommendationExpectedAction): boolean {
   if (hasRecommendationPlayerRef(action.playerIn) && hasRecommendationPlayerRef(action.playerOut)) return true;
 
-  const involvedCount = (action.playersInvolved || []).filter(hasRecommendationPlayerRef).length;
-  if (involvedCount >= 2) return true;
+  const involvedKeys = new Set(
+    (action.playersInvolved || [])
+      .map(getRecommendationPlayerRefKey)
+      .filter(Boolean)
+  );
+  if (involvedKeys.size >= 2) return true;
 
   const proofText = `${action.expectedRosterChange || ''} ${action.reason || ''}`.toLowerCase();
   return /\b(?:with|from|to)\s+[\w'.-]+/.test(proofText) &&
@@ -1705,6 +1709,13 @@ function getExpectedActionIdentityGap(action: RecommendationExpectedAction): str
       isSameRecommendationPlayerRef(action.playerIn, action.playerOut)
     ) {
       return 'Expected trade action uses the same player on both sides of the trade.';
+    }
+
+    const involvedKeys = (action.playersInvolved || [])
+      .map(getRecommendationPlayerRefKey)
+      .filter(Boolean);
+    if (involvedKeys.length >= 2 && new Set(involvedKeys).size < involvedKeys.length) {
+      return 'Expected trade action repeats the same player as separate trade pieces.';
     }
 
     return hasConcreteTradeProof(action)
