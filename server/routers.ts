@@ -7058,7 +7058,7 @@ export const appRouter = router({
       }),
     list: protectedProcedure
       .input(z.object({
-        leagueId: z.string().max(64).optional().nullable(),
+        leagueId: sleeperLeagueIdSchema.optional().nullable(),
         limit: z.number().int().min(1).max(200).optional(),
       }).optional())
       .query(async ({ input, ctx }) => {
