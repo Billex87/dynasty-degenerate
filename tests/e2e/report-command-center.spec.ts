@@ -44,6 +44,7 @@ async function loadCachedReport(
     totalRosters: 2,
     standingsRank: 1,
     powerRank: 1,
+    managerAnchors: [],
   };
   await page.addInitScript(
     ({
@@ -717,7 +718,7 @@ test.describe("command center feature surfaces", () => {
       }
       const aiReadoutSection = await openReportSection(
         page,
-        "AI Decision Log"
+        "AI Readout QA"
       );
       await expect(aiReadoutSection.getByText("One action owner")).toBeVisible();
       const surfaceRegistry = aiReadoutSection.getByLabel("AI surface registry");
@@ -788,7 +789,7 @@ test.describe("command center feature surfaces", () => {
       }
     } else {
       await expect(page.getByText("Value Source Health")).toHaveCount(0);
-      await expect(page.getByText("AI Decision Log")).toHaveCount(0);
+      await expect(page.getByText("AI Readout QA")).toHaveCount(0);
       await expect(page.getByText("Player Receipt Audit")).toHaveCount(0);
     }
 
@@ -1033,31 +1034,34 @@ test.describe("command center feature surfaces", () => {
 
     await expectVisibleOverviewPulse(
       page,
-      /Tester sets the starting lens for this Overview pass/i
+      /Tester sets the starting lens/i
     );
 
-    await page.getByRole("button", { name: /View as Tester/i }).click();
-    await page
+    const viewAsTester = page.getByRole("button", { name: /View as Tester/i });
+    await viewAsTester.scrollIntoViewIfNeeded();
+    await viewAsTester.click();
+    const rivalMenuItem = page
       .locator('[data-slot="dropdown-menu-content"]')
-      .getByRole("menuitemradio", { name: "Rival" })
-      .click();
+      .getByRole("menuitemradio", { name: "Rival" });
+    await expect(rivalMenuItem).toBeVisible();
+    await rivalMenuItem.click({ force: true });
     await expect(
       page.getByRole("button", { name: /View as Rival/i })
     ).toBeVisible();
     await expectVisibleOverviewPulse(
       page,
-      /Rival sets the starting lens for this Overview pass/i
+      /Rival sets the starting lens/i
     );
 
     await page
       .getByRole("button", { name: /Switch to regular report view/i })
       .click();
     await expect(
-      page.getByRole("button", { name: /Return to admin report view/i })
+      page.getByRole("button", { name: /Switch to admin report view|Admin Tools/i })
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: /View as Tester/i })
-    ).toBeVisible();
+    ).toHaveCount(0);
     await expect(page.locator(".admin-premium-section")).toHaveCount(0);
 
     await page
@@ -1065,7 +1069,7 @@ test.describe("command center feature surfaces", () => {
       .click();
     await expectVisibleOverviewPulse(
       page,
-      /Tester sets the starting lens for this Overview pass/i
+      /Tester sets the starting lens/i
     );
     await expect(page.locator(".admin-premium-section")).toHaveCount(5);
   });
@@ -1085,7 +1089,7 @@ test.describe("command center feature surfaces", () => {
     await page.getByRole("tab", { name: "Rankings" }).click();
     await expect(page.locator(".admin-diagnostics-shell")).toBeVisible();
     await expect(page.getByText("Admin Diagnostics")).toBeVisible();
-    await expect(page.getByText("AI Decision Log")).toBeVisible();
+    await expect(page.getByText("AI Readout QA")).toBeVisible();
 
     await page.getByRole("tab", { name: "Trade History" }).click();
     await expect(
@@ -1105,7 +1109,7 @@ test.describe("command center feature surfaces", () => {
     await expect(page.locator(".overview-ai-pulse")).toHaveCount(0);
     await expect(page.locator(".admin-premium-section")).toHaveCount(0);
     await expect(page.locator(".admin-diagnostics-shell")).toHaveCount(0);
-    await expect(page.getByText("AI Decision Log")).toHaveCount(0);
+    await expect(page.getByText("AI Readout QA")).toHaveCount(0);
     await expect(page.getByText("Player Receipt Audit")).toHaveCount(0);
     await expect(page.getByText("Trade browser read")).toHaveCount(0);
     await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);

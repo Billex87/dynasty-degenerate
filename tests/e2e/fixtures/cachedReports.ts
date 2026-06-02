@@ -1,5 +1,5 @@
-export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v27';
-export const REPORT_CACHE_DATA_VERSION = 'startup-adp-columns-v1';
+export const REPORT_CACHE_KEY = 'dynasty-degenerates:last-report:v29';
+export const REPORT_CACHE_DATA_VERSION = 'sleeper-only-startup-adp-v1';
 
 function normalizeFixtureLeagueId(leagueId: string) {
   if (/^\d{8,24}$/.test(leagueId)) return leagueId;

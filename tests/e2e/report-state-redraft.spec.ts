@@ -78,11 +78,24 @@ function createCachedDynastyRookieReport(leagueId = 'draft-state-dynasty-league'
 }
 
 async function openFullRosterRankings(page: import('@playwright/test').Page) {
-  await page.locator('.report-disclosure-summary').filter({ hasText: 'Full Roster Rankings' }).click();
+  await openReportDisclosure(page, 'Full Roster Rankings');
 }
 
 async function openDraftYear(page: import('@playwright/test').Page, title: string) {
-  await page.locator('.report-disclosure-summary').filter({ hasText: title }).click();
+  await openReportDisclosure(page, title);
+}
+
+async function openReportDisclosure(page: import('@playwright/test').Page, title: string) {
+  const section = page.locator('details.report-disclosure').filter({ hasText: title }).first();
+  await expect(section).toBeVisible();
+  if (!(await section.evaluate(node => node.open))) {
+    await section.locator('summary.report-disclosure-summary').click();
+  }
+  await expect(section).toHaveAttribute('open', '');
+}
+
+function draftPickRow(page: import('@playwright/test').Page, playerName: string) {
+  return page.locator('.rookie-draft-row').filter({ hasText: playerName });
 }
 
 test.describe('shareable report control state', () => {
@@ -94,27 +107,29 @@ test.describe('shareable report control state', () => {
     await loadCachedReportPayload(page, cachedReport, '#rankings');
     await openFullRosterRankings(page);
 
-    const search = page.getByPlaceholder('Search player');
+    const search = page.getByPlaceholder('Search by player, team, manager');
     await expect(search).toBeVisible();
-    const movementSort = page.locator('.rankings-sort-toggle').getByRole('button', { name: /7-Day/ });
+    const movementSort = page.locator('.rankings-movement-sort-button');
+    await expect(movementSort).toHaveAttribute('aria-label', /risers/);
     await movementSort.click();
     await expect(page).toHaveURL(/redraftSort=movement/);
+    await expect(page).not.toHaveURL(/redraftMovement=/);
+    await expect(movementSort).toHaveAttribute('aria-label', /risers/);
+    await expect(movementSort).toContainText('Weekly');
+    await expect(page.locator('.value-board__row').first()).toContainText('Depth Receiver');
+    await movementSort.click();
     await expect(page).toHaveURL(/redraftMovement=down/);
     await expect(movementSort).toHaveAttribute('aria-label', /fallers/);
-    await expect(movementSort).toContainText('7-Day Down');
+    await expect(movementSort).toContainText('Weekly');
     await expect(page.locator('.value-board__row').first()).toContainText('Bijan Robinson');
-    await movementSort.click();
-    await expect(page).toHaveURL(/redraftMovement=up/);
-    await expect(movementSort).toHaveAttribute('aria-label', /risers/);
-    await expect(movementSort).toContainText('7-Day Up');
-    await expect(page.locator('.value-board__row').first()).toContainText('Depth Receiver');
 
     await search.fill('Depth');
     await page.getByRole('button', { name: 'Season' }).click();
     await page.locator('.rankings-position-toggle button[aria-label="WR"]').click();
 
     await expect(page).toHaveURL(/redraftSearch=Depth/);
-    await expect(page).toHaveURL(/redraftSort=value/);
+    await expect(page).not.toHaveURL(/redraftSort=/);
+    await expect(page).not.toHaveURL(/redraftMovement=/);
     await expect(page).toHaveURL(/redraftPositions=WR/);
     await expect(page.getByRole('button', { name: /#2 .*Depth Receiver/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /#1 .*Bijan Robinson/ })).toHaveCount(0);
@@ -151,18 +166,19 @@ test.describe('shareable report control state', () => {
     await loadCachedReport(page, 'draft-state-redraft-league', '#draft');
 
     await openDraftYear(page, '2026 Main Draft');
-    await page.getByRole('button', { name: /Current Season/ }).click();
+    await page.getByRole('button', { name: /current season value/i }).click();
 
     await expect(page).not.toHaveURL(/draftOpen=2026/);
     await expect(page).toHaveURL(/draftSort=currentValue/);
     await expect(page).toHaveURL(/draftDir=desc/);
-    await expect(page.getByText('Season value window').first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /#1 Bijan Robinson/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /current season value/i })).toBeVisible();
+    await expect(page.locator('.rookie-draft-row-header')).toContainText('Current Value');
+    await expect(draftPickRow(page, 'Bijan Robinson').filter({ hasText: '#1' })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByRole('button', { name: /#1 Bijan Robinson/ })).toHaveCount(0);
+    await expect(draftPickRow(page, 'Bijan Robinson')).toHaveCount(0);
     await openDraftYear(page, '2026 Main Draft');
-    await expect(page.getByRole('button', { name: /#1 Bijan Robinson/ })).toBeVisible();
+    await expect(draftPickRow(page, 'Bijan Robinson').filter({ hasText: '#1' })).toBeVisible();
   });
 
   test('keeps draft history visible for legacy redraft cache with current main draft picks', async ({ page }) => {
@@ -185,7 +201,7 @@ test.describe('shareable report control state', () => {
 
     await expect(page.getByRole('tab', { name: 'Draft History' })).toBeVisible();
     await openDraftYear(page, `${currentSeason} Main Draft`);
-    await expect(page.getByRole('button', { name: /#1 Bijan Robinson/ })).toBeVisible();
+    await expect(draftPickRow(page, 'Bijan Robinson').filter({ hasText: '#1' })).toBeVisible();
   });
 
   test('hides draft history for redraft leagues with no draft data yet', async ({ page }) => {
@@ -214,7 +230,7 @@ test.describe('shareable report control state', () => {
     await expect(page.getByRole('heading', { name: 'Market Movers' })).toBeVisible();
 
     await page.getByRole('tab', { name: 'Trade History' }).click();
-    await expect(page.getByRole('heading', { name: 'Trade Value Board' })).toBeVisible();
+    await expect(page.getByText('Trade reads unlock after the draft')).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Draft History' })).toHaveCount(0);
   });
 
@@ -241,16 +257,18 @@ test.describe('shareable report control state', () => {
     await expect(page.getByRole('tab', { name: 'Draft History' })).toHaveCount(0);
   });
 
-  test('shows early rookie market labels without exposing comparison dates', async ({ page }) => {
+  test('shows rookie draft rows without exposing comparison dates', async ({ page }) => {
     const cachedReport = createCachedDynastyRookieReport();
     await loadCachedReportPayload(page, cachedReport, '#draft');
 
     await openDraftYear(page, '2026 Rookie Draft');
-    await expect(page.getByText('Stabilized rookie baseline').first()).toBeVisible();
-    await expect(page.getByText('Early Riser')).toBeVisible();
-    await expect(page.getByText('Early Faller')).toBeVisible();
-    await expect(page.getByText('Hit', { exact: true })).toHaveCount(0);
-    await expect(page.getByText('Miss', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: '2026 Rookie Draft' })).toBeVisible();
+    await expect(page.locator('.rookie-draft-row-header')).toContainText('Draft Value');
+    await expect(page.locator('.rookie-draft-row-header')).toContainText('Now Value');
+    await expect(draftPickRow(page, 'Sample Starter').filter({ hasText: '#1' })).toBeVisible();
+    await expect(draftPickRow(page, 'Depth Receiver').filter({ hasText: '#2' })).toBeVisible();
+    await expect(page.locator('.rookie-draft-row-list')).not.toContainText(/\bHit\b/);
+    await expect(page.locator('.rookie-draft-row-list')).not.toContainText(/\bMiss\b/);
 
     const draftTabText = await page.locator('.draft-year-card-grid').innerText();
     expect(draftTabText).not.toContain('2026-05-07');

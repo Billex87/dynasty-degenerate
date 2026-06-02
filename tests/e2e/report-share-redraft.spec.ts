@@ -7,6 +7,13 @@ function getPerLeagueReportCacheKey(leagueId: string) {
   return `${REPORT_CACHE_KEY}:${leagueId}`;
 }
 
+async function expectVisibleLeagueHeader(
+  page: import('@playwright/test').Page,
+  leagueName: string,
+) {
+  await expect(page.locator('.report-league-lockup')).toContainText(leagueName);
+}
+
 test.describe('shareable report URLs and redraft copy', () => {
   test('restores a cached redraft league from leagueId plus tab hash', async ({ page }) => {
     const cachedReport = createCachedRedraftReport();
@@ -17,7 +24,7 @@ test.describe('shareable report URLs and redraft copy', () => {
 
     await page.goto(`/?leagueId=${cachedReport.leagueId}#trades`, { waitUntil: 'domcontentloaded' });
 
-    await expect(page.getByText('test league')).toBeVisible();
+    await expectVisibleLeagueHeader(page, 'test league');
     await expect(page.locator('.report-league-format-row')).toContainText('Redraft');
     await expect(page.getByRole('tab', { name: 'Trade History' })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByText('Trade Value Board')).toBeVisible();
@@ -69,7 +76,7 @@ test.describe('shareable report URLs and redraft copy', () => {
 
     await page.goto(`/?leagueId=${targetReport.leagueId}#overview`, { waitUntil: 'domcontentloaded' });
 
-    await expect(page.getByText('Target URL League')).toBeVisible();
+    await expectVisibleLeagueHeader(page, 'Target URL League');
     await expect(page.getByText('Stale Global League')).toHaveCount(0);
   });
 
@@ -106,7 +113,7 @@ test.describe('shareable report URLs and redraft copy', () => {
 
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-    await expect(page.getByText('Target Session League')).toBeVisible();
+    await expectVisibleLeagueHeader(page, 'Target Session League');
     await expect(page.getByText('Stale Session Global League')).toHaveCount(0);
     await expect(page).toHaveURL(new RegExp(`leagueId=${targetReport.leagueId}`));
   });
@@ -131,14 +138,14 @@ test.describe('shareable report URLs and redraft copy', () => {
     );
 
     await page.goto(`/?leagueId=${staleReport.leagueId}#overview`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByText('Stale Restored League')).toBeVisible();
+    await expectVisibleLeagueHeader(page, 'Stale Restored League');
 
     await page.evaluate((targetLeagueId) => {
       window.history.replaceState(null, '', `/?leagueId=${targetLeagueId}#overview`);
       window.dispatchEvent(new Event('pageshow'));
     }, targetReport.leagueId);
 
-    await expect(page.getByText('Target Restored League')).toBeVisible();
+    await expectVisibleLeagueHeader(page, 'Target Restored League');
     await expect(page.getByText('Stale Restored League')).toHaveCount(0);
   });
 
