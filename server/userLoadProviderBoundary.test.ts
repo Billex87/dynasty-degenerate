@@ -265,6 +265,28 @@ describe("user-load provider boundary", () => {
     expect(previewSource).toContain("id: 'league.getLeaguePreview'");
   });
 
+  it("keeps report cache status metadata-only behind report access and rate limits", () => {
+    const statusSource = extractSource("reportCacheStatus: publicProcedure", "\n    getUserLeagueRanks: publicProcedure");
+    const helperSource = extractSource("async function getLeagueReportCacheStatus", "\n\nfunction getBlueprintSnapshotMonth");
+    const accessIndex = statusSource.indexOf("assertReportAccess(ctx)");
+    const rateLimitIndex = statusSource.indexOf("assertRateLimit(ctx.req as any");
+    const keyIndex = statusSource.indexOf("const reportCacheKey = getLeagueReportCacheKey(input.leagueId, input.viewerUserId)");
+    const statusIndex = statusSource.indexOf("getLeagueReportCacheStatus(reportCacheKey, input.leagueId, input.viewerUserId)");
+
+    expect(statusSource).toContain("leagueId: sleeperLeagueIdSchema");
+    expect(statusSource).toContain("viewerUserId: sleeperUserIdSchema.optional()");
+    expect(accessIndex).toBeGreaterThan(0);
+    expect(rateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(keyIndex).toBeGreaterThan(rateLimitIndex);
+    expect(statusIndex).toBeGreaterThan(keyIndex);
+    expect(statusSource).toContain("id: 'league.reportCacheStatus'");
+    expect(helperSource).toContain("findLeagueReportCacheMetadata(cacheKey, LEAGUE_REPORT_CACHE_TTL_MS)");
+    expect(helperSource).toContain("getLeagueReportFileCacheMetadata(cacheKey)");
+    expect(helperSource).not.toContain("readCachedLeagueReport(");
+    expect(helperSource).not.toContain("findLeagueReportCache(cacheKey");
+    expect(helperSource).not.toContain("readFileCachedLeagueReport(cacheKey");
+  });
+
   it("records source-trace view usage before returning paid trace details", () => {
     const sanitizeSource = extractSource("async function sanitizeAnalyzePayloadForPaidAccess", "\nfunction assertSessionJwtSecretConfigured");
     const accessIndex = sanitizeSource.indexOf('feature: "source-trace-details"');
