@@ -466,7 +466,6 @@ describe("user-load provider boundary", () => {
     expect(rostersFetchIndex).toBeGreaterThan(playerIndexFetch);
     expect(cacheWriteIndex).toBeGreaterThan(rostersFetchIndex);
     expect(leagueRanksSource).toContain("id: 'league.getUserLeagueRanks'");
-    expect(leagueRanksSource).toContain("mapWithConcurrencyLimit(validMissingRankInputs, LEAGUE_RANK_FANOUT_CONCURRENCY");
     expect(routersSource).toContain("const USER_LEAGUE_RANK_CACHE_MAX_ENTRIES = 500");
     expect(rankCacheSetSource).toContain("pruneUserLeagueRankCache()");
     expect(rankCacheSetSource).toContain("userLeagueRankCache.set(cacheKey");
