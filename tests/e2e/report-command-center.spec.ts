@@ -16,6 +16,7 @@ async function loadCachedReport(
     admin?: boolean;
     preserveLocalStorage?: boolean;
     deltaSnapshots?: Record<string, unknown>;
+    sleeperLeagues?: Array<Record<string, unknown>>;
   } = {}
 ) {
   const useAdminSession = options.admin !== false;
@@ -46,6 +47,16 @@ async function loadCachedReport(
     powerRank: 1,
     managerAnchors: [],
   };
+  const sessionUser = useAdminSession
+    ? adminUser
+    : {
+        ...adminUser,
+        hasAdminPermissions: false,
+        isPrivilegedReportViewer: false,
+      };
+  const sessionLeagues = options.sleeperLeagues?.length
+    ? options.sleeperLeagues
+    : [league];
   await page.addInitScript(
     ({
       key,
@@ -55,7 +66,7 @@ async function loadCachedReport(
       deltaKey,
       deltaSnapshots,
       user,
-      leagueOption,
+      leagueOptions,
       admin,
       preserve,
     }) => {
@@ -70,22 +81,23 @@ async function loadCachedReport(
           })
         );
       }
-      if (!admin) return;
-      window.sessionStorage.setItem(
-        "dynasty-degenerates:admin-unlock-dismissed:v1",
-        "true"
-      );
-      window.sessionStorage.setItem(
-        "dynasty-degenerates:admin-passphrase-verified-session:v1",
-        "true"
-      );
+      if (admin) {
+        window.sessionStorage.setItem(
+          "dynasty-degenerates:admin-unlock-dismissed:v1",
+          "true"
+        );
+        window.sessionStorage.setItem(
+          "dynasty-degenerates:admin-passphrase-verified-session:v1",
+          "true"
+        );
+      }
       window.localStorage.setItem(
         sessionKey,
         JSON.stringify({
           username: user.username,
           user,
-          leagues: [leagueOption],
-          adminViewMode: "admin",
+          leagues: leagueOptions,
+          adminViewMode: admin ? "admin" : "regular",
           savedAt: Date.now(),
         })
       );
@@ -94,8 +106,8 @@ async function loadCachedReport(
         JSON.stringify([
           {
             ...user,
-            leagues: [leagueOption],
-            recentLeagueIds: [leagueOption.leagueId],
+            leagues: leagueOptions,
+            recentLeagueIds: leagueOptions.map(league => league.leagueId),
             savedAt: Date.now(),
           },
         ])
@@ -108,8 +120,8 @@ async function loadCachedReport(
       usersKey: cachedUsersKey,
       deltaKey: "dynasty-degenerates:report-delta-snapshots:v1",
       deltaSnapshots: options.deltaSnapshots || null,
-      user: adminUser,
-      leagueOption: league,
+      user: sessionUser,
+      leagueOptions: sessionLeagues,
       admin: useAdminSession,
       preserve: preserveLocalStorage,
     }
@@ -1659,6 +1671,128 @@ test.describe("command center feature surfaces", () => {
       portfolioCard.getByText(/1 saved team snapshot/i)
     ).toBeVisible();
     await reloadedPage.close();
+  });
+
+  test("shows Player Hoard on regular Overview with cross-league filters", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport("player-hoard-overview");
+    const sleeperLeagues = [
+      {
+        leagueId: cachedReport.leagueId,
+        name: cachedReport.leagueName,
+        avatarUrl: cachedReport.leagueLogo,
+        season: "2026",
+        format: cachedReport.leagueFormat,
+        mobileFormat: cachedReport.leagueFormat,
+        totalRosters: 4,
+        standingsRank: 1,
+        powerRank: 1,
+        managerAnchors: [],
+        rosterPlayers: [
+          {
+            playerId: "shared-qb",
+            name: "Shared Quarterback",
+            position: "QB",
+            team: "BUF",
+            value: 6200,
+            positionRank: "QB4",
+            rosterSpot: "active",
+          },
+          {
+            playerId: "taxi-wr",
+            name: "Taxi Receiver",
+            position: "WR",
+            team: "DAL",
+            value: 900,
+            positionRank: "WR80",
+            rosterSpot: "taxi",
+          },
+        ],
+      },
+      {
+        leagueId: "player-hoard-beta",
+        name: "Beta Exposure",
+        avatarUrl: null,
+        season: "2026",
+        format: "Dynasty SF PPR",
+        mobileFormat: "Dynasty SF",
+        totalRosters: 4,
+        standingsRank: 2,
+        powerRank: 2,
+        managerAnchors: [],
+        rosterPlayers: [
+          {
+            playerId: "shared-qb",
+            name: "Shared Quarterback",
+            position: "QB",
+            team: "BUF",
+            value: 6100,
+            positionRank: "QB4",
+            rosterSpot: "active",
+          },
+        ],
+      },
+      {
+        leagueId: "player-hoard-gamma",
+        name: "Gamma Exposure",
+        avatarUrl: null,
+        season: "2026",
+        format: "Redraft PPR",
+        mobileFormat: "Redraft",
+        totalRosters: 4,
+        standingsRank: 3,
+        powerRank: 3,
+        managerAnchors: [],
+        rosterPlayers: [
+          {
+            playerId: "shared-qb",
+            name: "Shared Quarterback",
+            position: "QB",
+            team: "BUF",
+            value: 6000,
+            positionRank: "QB4",
+            rosterSpot: "active",
+          },
+          {
+            playerId: "single-te",
+            name: "Single Tight End",
+            position: "TE",
+            team: "KC",
+            value: 1400,
+            positionRank: "TE18",
+            rosterSpot: "active",
+          },
+        ],
+      },
+    ];
+
+    await loadCachedReport(page, cachedReport, "#overview", {
+      admin: false,
+      sleeperLeagues,
+    });
+
+    await expect(page.getByRole("tab", { name: "Overview" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    await expect(page.getByText("Pick The Target")).toHaveCount(0);
+    const playerHoard = await openReportSection(page, "Player Hoard");
+    await expect(playerHoard).toContainText("Cross-league exposure");
+    await expect(playerHoard.getByText("Shared Quarterback")).toBeVisible();
+    const leagueNames = playerHoard.locator(".home-portfolio-league-names");
+    await expect(leagueNames.filter({ hasText: "Beta Exposure" }).first()).toBeVisible();
+    await expect(leagueNames.filter({ hasText: "Gamma Exposure" }).first()).toBeVisible();
+
+    await playerHoard.getByRole("button", { name: "3+ Leagues" }).click();
+    await expect(playerHoard.getByText("1 of 3 shown")).toBeVisible();
+    await expect(playerHoard.getByText("Shared Quarterback")).toBeVisible();
+    await expect(playerHoard.getByText("Single Tight End")).toHaveCount(0);
+
+    await playerHoard.getByRole("button", { name: "Taxi/IR" }).click();
+    await expect(playerHoard.getByText("1 of 3 shown")).toBeVisible();
+    await expect(playerHoard.getByText("Taxi Receiver")).toBeVisible();
+    await expect(playerHoard.getByText("Shared Quarterback")).toHaveCount(0);
   });
 
   test("keeps blueprint export controls print-focused without clipboard copy", async ({
