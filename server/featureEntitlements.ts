@@ -273,6 +273,18 @@ export function canUseFeature(input: CanUseFeatureInput): FeatureEntitlementResu
   const plan = getUserBillingPlan(input.user, input.plan, input.subscriptions);
   const usageLimit = policy.usageLimit ?? null;
 
+  if (policy.launchState === "admin-only" && input.user?.role !== "admin") {
+    return {
+      allowed: false,
+      feature: input.feature,
+      plan,
+      requiredPlan: policy.minimumPlan,
+      launchState: policy.launchState,
+      usageLimit,
+      reason: `The ${input.feature} feature requires an admin account.`,
+    };
+  }
+
   if (policy.launchState === "paid-not-launched" && !isPaidFeatureLaunchEnabled(input)) {
     return {
       allowed: false,

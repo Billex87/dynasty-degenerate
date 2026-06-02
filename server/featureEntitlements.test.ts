@@ -280,8 +280,6 @@ describe("feature entitlements", () => {
   });
 
   it("ignores inactive, future, and expired persisted entitlements", () => {
-    const now = new Date("2026-06-02T12:00:00.000Z");
-
     const inactive = canUseFeature({
       user: baseUser,
       feature: "draft-kit-tools",
@@ -297,7 +295,7 @@ describe("feature entitlements", () => {
       entitlements: [{
         featureKey: "draft-kit-tools",
         status: "active",
-        startsAt: new Date(now.getTime() + 60_000),
+        startsAt: new Date(Date.now() + 60_000),
       }],
       paidFeaturesEnabled: true,
     });
@@ -418,6 +416,11 @@ describe("feature entitlements", () => {
     expect(canUseFeature({
       user: baseUser,
       feature: "admin-diagnostics",
+    }).allowed).toBe(false);
+    expect(canUseFeature({
+      user: baseUser,
+      feature: "admin-diagnostics",
+      plan: "admin",
     }).allowed).toBe(false);
   });
 });
