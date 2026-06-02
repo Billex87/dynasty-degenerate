@@ -568,6 +568,11 @@ function getLeagueActivityTrace(activity?: AIEvidenceLeagueActivityContext | nul
   };
 }
 
+function traceMentionsAny(trace: AISourceTrace, patterns: RegExp[]): boolean {
+  const text = [trace.label, trace.detail].filter(Boolean).join(" ");
+  return patterns.some(pattern => pattern.test(text));
+}
+
 export function getAIEvidenceLeagueContextFromDiagnostics(
   diagnostics?: AIEvidenceLeagueDiagnosticsLike | null,
   fallbackValueMode?: AIEvidenceLeagueValueMode | null
@@ -908,6 +913,29 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
     !hasCurrentSignal
   ) {
     hardBlockers.push("Redraft read has no current-season evidence.");
+  }
+
+  const hasStartSitProjectionProof = Boolean(
+    cleanText(player.weeklyProjectionStatus) ||
+    player.hasByeWeek ||
+    schedule.hasScheduleData ||
+    signalModes.has("schedule") ||
+    explicitSourceTrace.some(trace => traceMentionsAny(trace, [/projection/i, /matchup/i, /schedule/i, /\bSOS\b/i, /\bECR\b/i]))
+  );
+  if ((input.action === "start" || input.action === "sit") && !hasStartSitProjectionProof) {
+    missingEvidence.push("No projection or matchup proof returned for this start/sit read.");
+    softPenalties.push({
+      label: "Missing projection or matchup proof caps start/sit confidence",
+      points: 10,
+    });
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      56,
+      "Missing start/sit projection or matchup proof"
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
   }
 
   const lowValueThreshold = input.lowValueThreshold ?? getLeagueContextLowValueThreshold(input, leagueContext, position);

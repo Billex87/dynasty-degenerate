@@ -126,6 +126,33 @@ describe("ai evidence engine", () => {
     expect(read.hardBlockers.join(" ")).toContain("Bye Week Defense is on bye");
   });
 
+  it("caps start/sit reads without projection or matchup proof", () => {
+    const read = evaluateAIEvidence({
+      surface: "player-detail",
+      action: "start",
+      leagueValueMode: "redraft",
+      baseScore: 94,
+      evidence: ["WR18 current-season rank is attached.", "Roster need is attached."],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Projectionless Receiver",
+        position: "WR",
+        team: "MIN",
+        value: 5300,
+        sourceCount: 3,
+        hasCurrentSeasonValue: true,
+      },
+      requiresCurrentSeasonEvidence: true,
+    });
+
+    expect(read.canAct).toBe(false);
+    expect(read.finalScore).toBeLessThanOrEqual(56);
+    expect(read.confidenceCapReason).toBe("Missing start/sit projection or matchup proof");
+    expect(read.missingEvidence).toContain("No projection or matchup proof returned for this start/sit read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing projection or matchup proof caps start/sit confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 56% from Missing start/sit projection or matchup proof");
+  });
+
   it("blocks immediate add/start actions for unavailable players", () => {
     const read = evaluateAIEvidence({
       surface: "waiver",
@@ -164,6 +191,7 @@ describe("ai evidence engine", () => {
         value: 5300,
         sourceCount: 3,
         hasCurrentSeasonValue: true,
+        weeklyProjectionStatus: "projected",
         injuryStatus: "Questionable",
       },
       requiresCurrentSeasonEvidence: true,
