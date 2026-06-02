@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   countUsageEvents,
   findBillingCustomerForUser,
+  listActiveFeatureEntitlementsForLeague,
+  listActiveFeatureEntitlementsForUser,
   listBillingSubscriptionsForUser,
   recordUsageEvent,
   upsertFeatureEntitlement,
@@ -78,6 +80,11 @@ describe("billing persistence helpers", () => {
       status: "active",
       metadata: { source: "test" },
     })).resolves.toBe(false);
+  });
+
+  it("fails safely when active feature-entitlement reads have no database", async () => {
+    await expect(listActiveFeatureEntitlementsForUser("email:user")).resolves.toEqual([]);
+    await expect(listActiveFeatureEntitlementsForLeague("123456789012345678")).resolves.toEqual([]);
   });
 
   it("fails safely when usage event persistence has no database", async () => {

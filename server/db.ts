@@ -209,6 +209,26 @@ export type FeatureEntitlementUpsertInput = {
   metadata?: unknown;
 };
 
+export type FeatureEntitlementAccessRecord = {
+  subjectType: "user" | "league" | string;
+  userOpenId: string | null;
+  leagueId: string | null;
+  featureKey: string;
+  plan: string | null;
+  status: string;
+  startsAt: Date | null;
+  expiresAt: Date | null;
+};
+
+export type LeaguePassAccessRecord = {
+  leagueId: string;
+  purchaserOpenId: string;
+  status: string;
+  startsAt: Date | null;
+  expiresAt: Date | null;
+  maxManagers: number | null;
+};
+
 export type CountUsageEventsInput = {
   userOpenId?: string | null;
   leagueId?: string | null;
@@ -1513,6 +1533,115 @@ export async function upsertFeatureEntitlement(input: FeatureEntitlementUpsertIn
   `;
 
   return true;
+}
+
+function normalizeFeatureEntitlementAccessRow(row: Record<string, any>): FeatureEntitlementAccessRecord {
+  return {
+    subjectType: String(row.subjectType || ""),
+    userOpenId: row.userOpenId ? String(row.userOpenId) : null,
+    leagueId: row.leagueId ? String(row.leagueId) : null,
+    featureKey: String(row.featureKey || ""),
+    plan: row.plan ? String(row.plan) : null,
+    status: String(row.status || ""),
+    startsAt: normalizeDateForDb(row.startsAt),
+    expiresAt: normalizeDateForDb(row.expiresAt),
+  };
+}
+
+export async function listActiveFeatureEntitlementsForUser(userOpenId: string): Promise<FeatureEntitlementAccessRecord[]> {
+  const normalizedUserOpenId = requiredTrimmed(userOpenId, "userOpenId");
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot list user feature entitlements: database not available");
+    return [];
+  }
+
+  const result = await sql`
+    SELECT
+      "subjectType",
+      "userOpenId",
+      "leagueId",
+      "featureKey",
+      plan,
+      status,
+      "startsAt",
+      "expiresAt"
+    FROM "featureEntitlements"
+    WHERE "subjectType" = 'user'
+      AND "userOpenId" = ${normalizedUserOpenId}
+      AND status = 'active'
+      AND ("startsAt" IS NULL OR "startsAt" <= NOW())
+      AND ("expiresAt" IS NULL OR "expiresAt" > NOW())
+    ORDER BY "updatedAt" DESC
+  ` as Record<string, any>[];
+
+  return result.map(normalizeFeatureEntitlementAccessRow);
+}
+
+export async function listActiveFeatureEntitlementsForLeague(leagueId: string): Promise<FeatureEntitlementAccessRecord[]> {
+  const normalizedLeagueId = requiredTrimmed(leagueId, "leagueId");
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot list league feature entitlements: database not available");
+    return [];
+  }
+
+  const result = await sql`
+    SELECT
+      "subjectType",
+      "userOpenId",
+      "leagueId",
+      "featureKey",
+      plan,
+      status,
+      "startsAt",
+      "expiresAt"
+    FROM "featureEntitlements"
+    WHERE "subjectType" = 'league'
+      AND "leagueId" = ${normalizedLeagueId}
+      AND status = 'active'
+      AND ("startsAt" IS NULL OR "startsAt" <= NOW())
+      AND ("expiresAt" IS NULL OR "expiresAt" > NOW())
+    ORDER BY "updatedAt" DESC
+  ` as Record<string, any>[];
+
+  return result.map(normalizeFeatureEntitlementAccessRow);
+}
+
+export async function listActiveLeaguePassesForLeague(leagueId: string): Promise<LeaguePassAccessRecord[]> {
+  const normalizedLeagueId = requiredTrimmed(leagueId, "leagueId");
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot list active league passes: database not available");
+    return [];
+  }
+
+  const result = await sql`
+    SELECT
+      "leagueId",
+      "purchaserOpenId",
+      status,
+      "startsAt",
+      "expiresAt",
+      "maxManagers"
+    FROM "leaguePasses"
+    WHERE "leagueId" = ${normalizedLeagueId}
+      AND status = 'active'
+      AND ("startsAt" IS NULL OR "startsAt" <= NOW())
+      AND ("expiresAt" IS NULL OR "expiresAt" > NOW())
+    ORDER BY "updatedAt" DESC
+  ` as Record<string, any>[];
+
+  return result.map((row) => ({
+    leagueId: String(row.leagueId || ""),
+    purchaserOpenId: String(row.purchaserOpenId || ""),
+    status: String(row.status || ""),
+    startsAt: normalizeDateForDb(row.startsAt),
+    expiresAt: normalizeDateForDb(row.expiresAt),
+    maxManagers: row.maxManagers === null || row.maxManagers === undefined
+      ? null
+      : Number(row.maxManagers),
+  }));
 }
 
 export async function recordUsageEvent(input: UsageEventInput): Promise<boolean> {

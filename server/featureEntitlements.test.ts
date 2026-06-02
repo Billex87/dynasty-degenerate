@@ -129,6 +129,81 @@ describe("feature entitlements", () => {
     }).allowed).toBe(true);
   });
 
+  it("allows paid features from active persisted user entitlements after billing launch is enabled", () => {
+    const entitlement = {
+      subjectType: "user",
+      userOpenId: "sample-user",
+      leagueId: null,
+      featureKey: "draft-kit-tools",
+      status: "Active",
+      expiresAt: null,
+    };
+
+    expect(canUseFeature({
+      user: baseUser,
+      feature: "draft-kit-tools",
+      entitlements: [entitlement],
+      paidFeaturesEnabled: false,
+    }).allowed).toBe(false);
+
+    const result = canUseFeature({
+      user: baseUser,
+      feature: "draft-kit-tools",
+      entitlements: [entitlement],
+      paidFeaturesEnabled: true,
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.reason).toBe("Allowed by persisted feature entitlement.");
+  });
+
+  it("allows paid features from matching active league entitlements only for that league", () => {
+    const entitlements = [{
+      subjectType: "league",
+      userOpenId: null,
+      leagueId: "123456789012345678",
+      featureKey: "source-trace-details",
+      status: "active",
+      expiresAt: "2026-07-02T12:00:00.000Z",
+    }];
+
+    expect(canUseFeature({
+      user: baseUser,
+      feature: "source-trace-details",
+      leagueId: "123456789012345678",
+      entitlements,
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(true);
+
+    expect(canUseFeature({
+      user: baseUser,
+      feature: "source-trace-details",
+      leagueId: "999999999999999999",
+      entitlements,
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(false);
+  });
+
+  it("ignores expired or inactive persisted entitlements", () => {
+    expect(canUseFeature({
+      user: baseUser,
+      feature: "exports",
+      entitlements: [
+        {
+          featureKey: "exports",
+          status: "canceled",
+          expiresAt: "2026-07-02T12:00:00.000Z",
+        },
+        {
+          featureKey: "exports",
+          status: "active",
+          expiresAt: "2026-06-01T12:00:00.000Z",
+        },
+      ],
+      paidFeaturesEnabled: true,
+    }).allowed).toBe(false);
+  });
+
   it("keeps paid feature access blocked below the required plan", () => {
     const result = canUseFeature({
       user: baseUser,

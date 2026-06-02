@@ -28,6 +28,23 @@ type BillingSubscriptionAccess = {
   currentPeriodEnd?: Date | string | null;
 };
 
+type PersistedFeatureEntitlementAccess = {
+  subjectType?: string | null;
+  userOpenId?: string | null;
+  leagueId?: string | null;
+  featureKey: string;
+  status: string;
+  startsAt?: Date | string | null;
+  expiresAt?: Date | string | null;
+};
+
+type PersistedLeaguePassAccess = {
+  leagueId?: string | null;
+  status: string;
+  startsAt?: Date | string | null;
+  expiresAt?: Date | string | null;
+};
+
 type FeaturePolicy = {
   minimumPlan: BillingPlan;
   launchState: "active" | "paid-not-launched" | "admin-only";
@@ -42,7 +59,13 @@ const PLAN_RANK: Record<BillingPlan, number> = {
 };
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
+const ACTIVE_FEATURE_ENTITLEMENT_STATUSES = new Set(["active"]);
 const BILLING_SUBSCRIPTION_PLANS = new Set<BillingPlan>(["free", "pro", "elite"]);
+const LEAGUE_PASS_FEATURE_KEYS = new Set<PaidFeatureKey>([
+  "source-trace-details",
+  "ai-confidence-history",
+  "exports",
+]);
 
 const FEATURE_POLICIES: Record<PaidFeatureKey, FeaturePolicy> = {
   "free-sleeper-report": {
@@ -104,6 +127,8 @@ type CanUseFeatureInput = {
   leagueId?: string | null;
   plan?: BillingPlan | null;
   subscriptions?: BillingSubscriptionAccess[];
+  entitlements?: PersistedFeatureEntitlementAccess[];
+  leaguePasses?: PersistedLeaguePassAccess[];
   paidFeaturesEnabled?: boolean;
 };
 
@@ -121,6 +146,45 @@ function normalizeBillingSubscriptionPlan(plan: string | null | undefined): Bill
   if (!plan) return null;
   const normalized = plan.trim().toLowerCase() as BillingPlan;
   return BILLING_SUBSCRIPTION_PLANS.has(normalized) ? normalized : null;
+}
+
+function isDateStarted(value: Date | string | null | undefined, now: Date): boolean {
+  if (!value) return true;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) && date.getTime() <= now.getTime();
+}
+
+function hasActivePersistedFeatureEntitlement(
+  input: CanUseFeatureInput,
+  now = new Date()
+): boolean {
+  if (input.feature === "admin-diagnostics") return false;
+
+  return (input.entitlements || []).some((entitlement) => {
+    if (entitlement.featureKey !== input.feature) return false;
+    if (!ACTIVE_FEATURE_ENTITLEMENT_STATUSES.has(entitlement.status.trim().toLowerCase())) return false;
+    if (!isDateStarted(entitlement.startsAt, now)) return false;
+    if (!isDateInFuture(entitlement.expiresAt, now)) return false;
+
+    const entitlementLeagueId = entitlement.leagueId?.trim();
+    if (!entitlementLeagueId) return true;
+    return Boolean(input.leagueId && entitlementLeagueId === input.leagueId);
+  });
+}
+
+function hasActivePersistedLeaguePass(
+  input: CanUseFeatureInput,
+  now = new Date()
+): boolean {
+  if (!input.leagueId || !LEAGUE_PASS_FEATURE_KEYS.has(input.feature)) return false;
+
+  return (input.leaguePasses || []).some((leaguePass) => {
+    if (!ACTIVE_FEATURE_ENTITLEMENT_STATUSES.has(leaguePass.status.trim().toLowerCase())) return false;
+    if (!isDateStarted(leaguePass.startsAt, now)) return false;
+    if (!isDateInFuture(leaguePass.expiresAt, now)) return false;
+    const leaguePassLeagueId = leaguePass.leagueId?.trim();
+    return !leaguePassLeagueId || leaguePassLeagueId === input.leagueId;
+  });
 }
 
 export function getUserBillingPlan(
@@ -159,6 +223,18 @@ export function canUseFeature(input: CanUseFeatureInput): FeatureEntitlementResu
   }
 
   if (PLAN_RANK[plan] < PLAN_RANK[policy.minimumPlan]) {
+    if (hasActivePersistedFeatureEntitlement(input) || hasActivePersistedLeaguePass(input)) {
+      return {
+        allowed: true,
+        feature: input.feature,
+        plan,
+        requiredPlan: policy.minimumPlan,
+        launchState: policy.launchState,
+        usageLimit,
+        reason: "Allowed by persisted feature entitlement.",
+      };
+    }
+
     return {
       allowed: false,
       feature: input.feature,
