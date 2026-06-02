@@ -24,6 +24,7 @@ import { useHomeLeagueIntelRanks } from "@/features/home/hooks/useHomeLeagueInte
 import { useHomeNavigationActions } from "@/features/home/hooks/useHomeNavigationActions";
 import { useHomePortfolio } from "@/features/home/hooks/useHomePortfolio";
 import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
+import { useHomeReportIdentityRecovery } from "@/features/home/hooks/useHomeReportIdentityRecovery";
 import { useHomeSleeperLeagueSearch } from "@/features/home/hooks/useHomeSleeperLeagueSearch";
 import { usePersistHomeReportCache } from "@/features/home/hooks/usePersistHomeReportCache";
 import { useHomeReportRankings } from "@/features/home/hooks/useHomeReportRankings";
@@ -73,8 +74,6 @@ import {
   hasDraftReportData,
   isFreshTimestamp,
   isUsableCachedReport,
-  normalizeReportLeagueId,
-  getReportDataLeagueId,
   readBrowserReportCache,
   shouldBackgroundRefreshCachedReport,
   formatMutationErrorMessage,
@@ -480,71 +479,24 @@ export default function Home() {
     setReportDataCacheVersion,
   });
 
-  useEffect(() => {
-    if (!reportData) return;
-    let isCancelled = false;
-
-    const recoverMismatchedReportIdentity = async () => {
-      const urlLeagueId = getInitialReportLeagueIdFromUrl();
-      const expectedLeagueId = normalizeReportLeagueId(urlLeagueId || leagueId);
-      if (!expectedLeagueId) return;
-
-      const currentLeagueId = normalizeReportLeagueId(leagueId);
-      const reportDataLeagueId = getReportDataLeagueId(reportData);
-      const urlMismatch = Boolean(urlLeagueId && currentLeagueId !== urlLeagueId);
-      const reportMismatch = Boolean(
-        reportDataLeagueId && reportDataLeagueId !== expectedLeagueId
-      );
-      if (!urlMismatch && !reportMismatch) return;
-
-      const tab = getInitialReportTabFromUrl() || activeTab || "overview";
-      clearBrowserReportCache(currentLeagueId || reportDataLeagueId);
-      setReportData(null);
-      setReportDataCacheVersion(null);
-      setAnalysisCompleteMessage(null);
-      setPendingAnalysisLeague(null);
-      setLeagueId(expectedLeagueId);
-      setActiveTab(tab);
-      rememberLeagueId(expectedLeagueId);
-
-      const restored = await restoreFreshCachedReportForLeague(
-        expectedLeagueId,
-        tab,
-        viewerUserId
-      );
-      if (isCancelled || restored) return;
-
-      await beginAnalysisLoading(expectedLeagueId, userLeagues);
-      if (isCancelled || activeAnalysisLeagueIdRef.current !== expectedLeagueId) {
-        return;
-      }
-      analyzeMutation.mutate({
-        leagueId: expectedLeagueId,
-        viewerUserId: getValidSleeperUserId(viewerUserId) || undefined,
-      });
-    };
-
-    const handlePageShow = () => {
-      void recoverMismatchedReportIdentity();
-    };
-    const handleVisible = () => {
-      if (document.visibilityState === "visible") {
-        void recoverMismatchedReportIdentity();
-      }
-    };
-
-    void recoverMismatchedReportIdentity();
-    window.addEventListener("pageshow", handlePageShow);
-    document.addEventListener("visibilitychange", handleVisible);
-    return () => {
-      isCancelled = true;
-      window.removeEventListener("pageshow", handlePageShow);
-      document.removeEventListener("visibilitychange", handleVisible);
-    };
-    // The function dependencies are intentionally omitted so this guard runs
-    // from report/URL identity state instead of rebinding on every mutation state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, leagueId, reportData, userLeagues, viewerUserId]);
+  useHomeReportIdentityRecovery({
+    activeTab,
+    activeAnalysisLeagueIdRef,
+    beginAnalysisLoading,
+    leagueId,
+    reportData,
+    restoreFreshCachedReportForLeague,
+    userLeagues,
+    viewerUserId,
+    rememberLeagueId,
+    onAnalyzeReport: variables => analyzeMutation.mutate(variables),
+    setActiveTab,
+    setAnalysisCompleteMessage,
+    setLeagueId,
+    setPendingAnalysisLeague,
+    setReportData,
+    setReportDataCacheVersion,
+  });
 
   const { isLeagueRanksPending } = useHomeLeagueIntelRanks({
     sleeperSessionKey: SLEEPER_SESSION_KEY,
