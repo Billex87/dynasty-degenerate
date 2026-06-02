@@ -104,6 +104,57 @@ describe('AI prediction calibration', () => {
     expect(created.missingEvidence).toContain('Verify live roster state before acting.');
   });
 
+  it('does not persist do decisions when server-side source proof is missing', () => {
+    const sourceBacked = evaluateAIEvidence({
+      surface: 'waiver',
+      action: 'pickup',
+      baseScore: 88,
+      evidence: ['DraftSharks SOS loaded', 'live roster availability confirmed', 'recent usage trend confirmed'],
+      sourceTrace: [
+        { label: 'DraftSharks SOS', status: 'loaded' },
+        { label: 'Sleeper roster ownership', status: 'loaded' },
+        { label: 'Usage trend snapshot', status: 'loaded' },
+      ],
+      player: {
+        name: 'Source Backed Player',
+        position: 'WR',
+        team: 'BUF',
+        owner: null,
+        value: 5000,
+        sourceCount: 3,
+        hasRecentUsage: true,
+      },
+      schedule: { hasScheduleData: true },
+      requiresActiveTeam: true,
+      requiresLiveAvailability: true,
+    });
+    const created = createAIPredictionEvent({
+      evidenceRead: {
+        ...sourceBacked,
+        sourceTrace: [],
+        missingEvidence: [],
+        hardBlockers: [],
+        confidenceCapReason: null,
+        confidenceCap: 100,
+        label: 'high conviction',
+        finalScore: 88,
+        canAct: true,
+      },
+      decision: 'do',
+      surface: 'waiver',
+      action: 'pickup',
+      entityType: 'player',
+      entityId: 'missing-source-player',
+      createdAt: '2026-05-20T00:00:00.000Z',
+    });
+
+    expect(created.decision).toBe('watch');
+    expect(created.sourceAgreement).toMatchObject({
+      state: 'missing',
+      reason: 'No source signals were available',
+    });
+  });
+
   it('does not persist do decisions when the read fails its decision-time baseline', () => {
     const evidenceRead = evaluateAIEvidence({
       surface: 'waiver',

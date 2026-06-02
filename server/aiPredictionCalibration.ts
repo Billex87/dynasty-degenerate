@@ -418,11 +418,22 @@ function defaultDecision(result: AIEvidenceResult): AIPredictionDecision {
 function normalizePredictionDecision(
   decision: AIPredictionDecision,
   evidenceRead: AIEvidenceResult,
-  counterfactual: AICounterfactualRead | null
+  counterfactual: AICounterfactualRead | null,
+  sourceAgreement: AISourceAgreementRead | null
 ): AIPredictionDecision {
   if (!evidenceRead.shouldRender || evidenceRead.hardBlockers.length || evidenceRead.label === 'blocked') return 'blocked';
   if (decision === 'do' && (evidenceRead.confidenceCapReason || evidenceRead.missingEvidence.length)) return 'watch';
   if (decision === 'do' && counterfactual && counterfactual.status !== 'beats-baseline') return 'watch';
+  if (
+    decision === 'do' &&
+    (!sourceAgreement ||
+      sourceAgreement.state === 'missing' ||
+      sourceAgreement.state === 'unknown' ||
+      sourceAgreement.state === 'split' ||
+      sourceAgreement.state === 'conflicted')
+  ) {
+    return 'watch';
+  }
   return decision;
 }
 
@@ -445,7 +456,8 @@ export function createAIPredictionEvent(input: CreateAIPredictionEventInput): AI
   const week = weekNumber(input.week);
   const counterfactual = input.counterfactual || input.decisionSnapshot?.counterfactual || null;
   const rawDecision = input.decision || defaultDecision(input.evidenceRead);
-  const decision = normalizePredictionDecision(rawDecision, input.evidenceRead, counterfactual);
+  const sourceAgreement = input.sourceAgreement || buildSourceAgreementReadFromTrace(input.evidenceRead.sourceTrace);
+  const decision = normalizePredictionDecision(rawDecision, input.evidenceRead, counterfactual, sourceAgreement);
   const predictionKey = cleanText(input.predictionKey) || getAIPredictionKey({
     surface: input.surface,
     action: input.action,
@@ -482,7 +494,7 @@ export function createAIPredictionEvent(input: CreateAIPredictionEventInput): AI
     hardBlockers: input.evidenceRead.hardBlockers,
     softPenalties: input.evidenceRead.softPenalties,
     sourceTrace: input.evidenceRead.sourceTrace,
-    sourceAgreement: input.sourceAgreement || null,
+    sourceAgreement,
     decisionSnapshot: input.decisionSnapshot || null,
     counterfactual,
     decay: input.decay || null,
@@ -625,6 +637,27 @@ export function buildSourceAgreementRead(signals: AISourceAgreementSignal[]): AI
     reason: missingCount > 0 ? 'Directional source proof is mixed with missing source signals' : 'Directional sources align',
     signals: normalized,
   };
+}
+
+function buildSourceAgreementReadFromTrace(sourceTrace: AISourceTrace[]): AISourceAgreementRead {
+  return buildSourceAgreementRead(
+    sourceTrace.slice(0, 8).map(trace => {
+      const detail = cleanText(trace.detail);
+      const unhealthy = hasMissingSourceStatus({
+        source: trace.label,
+        direction: 'neutral',
+        status: trace.status,
+        detail,
+      });
+      return {
+        source: trace.label,
+        direction: unhealthy ? 'missing' : 'for',
+        confidence: unhealthy ? 0 : 70,
+        status: trace.status,
+        detail,
+      };
+    })
+  );
 }
 
 function eventGroupValue(event: AIPredictionEvent, groupBy: AIPredictionReliabilityGroupBy): string {
