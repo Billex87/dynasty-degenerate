@@ -68,6 +68,7 @@ type TimelineIndexCache = {
 let timelineIndexCache: TimelineIndexCache | null | undefined;
 let timelineShardAvailabilityCache: { dir: string; available: boolean } | undefined;
 const timelineShardCache = new Map<string, TimelineIndexCache | null>();
+const TIMELINE_SHARD_CACHE_MAX_ENTRIES = 128;
 
 export type HistoricalPlayerValueLookup = {
   playerName: string;
@@ -142,6 +143,15 @@ function getShardKey(value: string): string {
   return normalized.slice(0, 2) || '__';
 }
 
+function setTimelineShardCache(shardCacheKey: string, value: TimelineIndexCache | null): void {
+  while (timelineShardCache.size >= TIMELINE_SHARD_CACHE_MAX_ENTRIES) {
+    const oldestCacheKey = timelineShardCache.keys().next().value;
+    if (!oldestCacheKey) break;
+    timelineShardCache.delete(oldestCacheKey);
+  }
+  timelineShardCache.set(shardCacheKey, value);
+}
+
 function getTimelineShard(shardKey: string): TimelineIndexCache | null {
   if (!hasTimelineShards()) return null;
   const shardCacheKey = `${getTimelineShardDir()}:${shardKey}`;
@@ -149,7 +159,7 @@ function getTimelineShard(shardKey: string): TimelineIndexCache | null {
 
   const shardPath = path.join(getTimelineShardDir(), `${shardKey}.json`);
   if (!fs.existsSync(shardPath)) {
-    timelineShardCache.set(shardCacheKey, null);
+    setTimelineShardCache(shardCacheKey, null);
     return null;
   }
 
@@ -171,11 +181,11 @@ function getTimelineShard(shardKey: string): TimelineIndexCache | null {
       keys.forEach((lookupKey) => lookup.set(lookupKey, player));
     }
     const shard = { generatedAt: payload.generatedAt, players, lookup };
-    timelineShardCache.set(shardCacheKey, shard);
+    setTimelineShardCache(shardCacheKey, shard);
     return shard;
   } catch (error) {
     console.warn(`[PlayerValueTimeline] Failed to load timeline shard ${shardKey}:`, error);
-    timelineShardCache.set(shardCacheKey, null);
+    setTimelineShardCache(shardCacheKey, null);
     return null;
   }
 }
@@ -932,4 +942,10 @@ export function slimPlayerValueTimelineForReport(
     windows: undefined,
     yearlyExtremes: undefined,
   };
+}
+
+export function clearPlayerValueTimelineCachesForTests() {
+  timelineIndexCache = undefined;
+  timelineShardAvailabilityCache = undefined;
+  timelineShardCache.clear();
 }

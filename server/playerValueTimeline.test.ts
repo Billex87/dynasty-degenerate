@@ -13,7 +13,7 @@ vi.mock('./ktcLoader', () => ({
   loadLocalKtcSnapshotForDate: mocks.loadLocalKtcSnapshotForDate,
 }));
 
-import { buildPlayerValueTimelineMap, getHistoricalPlayerValueAtDate, getPlayerValueTimelineForPlayer } from './playerValueTimeline';
+import { buildPlayerValueTimelineMap, clearPlayerValueTimelineCachesForTests, getHistoricalPlayerValueAtDate, getPlayerValueTimelineForPlayer } from './playerValueTimeline';
 
 describe('player value timeline', () => {
   it('builds compact stored snapshot timelines and flags source-set changes', () => {
@@ -269,6 +269,55 @@ describe('player value timeline', () => {
     process.env.VALUE_TIMELINE_INDEX_FILE = previousIndexFile;
     process.env.VALUE_TIMELINE_SHARDS_DIR = previousShardDir;
     fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('bounds missing timeline shard cache entries under broad player-name probes', () => {
+    const previousUseIndex = process.env.USE_VALUE_TIMELINE_INDEX;
+    const previousIndexFile = process.env.VALUE_TIMELINE_INDEX_FILE;
+    const previousShardDir = process.env.VALUE_TIMELINE_SHARDS_DIR;
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'value-timeline-missing-shards-'));
+    fs.writeFileSync(path.join(tempDir, 'manifest.json'), JSON.stringify({
+      schemaVersion: 1,
+      shardCount: 0,
+      shards: [],
+    }));
+
+    process.env.USE_VALUE_TIMELINE_INDEX = '1';
+    process.env.VALUE_TIMELINE_SHARDS_DIR = tempDir;
+    process.env.VALUE_TIMELINE_INDEX_FILE = path.join(tempDir, 'missing-full-index.json');
+    mocks.listLocalKtcSnapshotDateKeysSince.mockReturnValue([]);
+    const existsSpy = vi.spyOn(fs, 'existsSync');
+
+    try {
+      const lookup = (name: string) => getHistoricalPlayerValueAtDate({
+        playerName: name,
+        date: '2026-03-31',
+        valueProfileKey: '12_sf_ppr_base',
+        leagueValueMode: 'dynasty',
+      });
+      const firstShardPath = path.join(tempDir, 'aa.json');
+      lookup('aa Player');
+
+      const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+      const shardKeys = letters
+        .flatMap((first) => letters.map((second) => `${first}${second}`))
+        .filter((key) => key !== 'aa')
+        .slice(0, 128);
+      shardKeys.forEach((key) => lookup(`${key} Player`));
+      lookup('aa Player');
+
+      const firstShardChecks = existsSpy.mock.calls
+        .map(([target]) => String(target))
+        .filter((target) => target === firstShardPath);
+      expect(firstShardChecks).toHaveLength(2);
+    } finally {
+      existsSpy.mockRestore();
+      process.env.USE_VALUE_TIMELINE_INDEX = previousUseIndex;
+      process.env.VALUE_TIMELINE_INDEX_FILE = previousIndexFile;
+      process.env.VALUE_TIMELINE_SHARDS_DIR = previousShardDir;
+      clearPlayerValueTimelineCachesForTests();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   it('extends historical timelines with recent stored scrape points', () => {
