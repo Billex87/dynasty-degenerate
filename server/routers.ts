@@ -2827,6 +2827,7 @@ const sleeperPlayerResearchCache = new Map<string, { fetchedAt: number; data: Re
 const SLEEPER_PLAYER_RESEARCH_CACHE_TTL_MS = 60 * 60 * 1000;
 const sleeperLeagueUsageCache = new Map<string, { fetchedAt: number; data: Record<string, SleeperLeagueUsageSummary> }>();
 const SLEEPER_LEAGUE_USAGE_CACHE_TTL_MS = 60 * 60 * 1000;
+const SLEEPER_LEAGUE_USAGE_CACHE_MAX_ENTRIES = 80;
 const SLEEPER_LEAGUE_USAGE_WEEKS = 18;
 
 function normalizeSleeperSeasonType(value: string | null | undefined): string {
@@ -2846,6 +2847,32 @@ function normalizeSleeperPlayerIds(ids: Array<string | number | null | undefined
   }
 
   return normalized;
+}
+
+function pruneSleeperLeagueUsageCache(now = Date.now()) {
+  for (const [cacheKey, cached] of Array.from(sleeperLeagueUsageCache.entries())) {
+    if (now - cached.fetchedAt > SLEEPER_LEAGUE_USAGE_CACHE_TTL_MS) {
+      sleeperLeagueUsageCache.delete(cacheKey);
+    }
+  }
+
+  while (sleeperLeagueUsageCache.size >= SLEEPER_LEAGUE_USAGE_CACHE_MAX_ENTRIES) {
+    const oldestCacheKey = Array.from(sleeperLeagueUsageCache.entries())
+      .sort((a, b) => a[1].fetchedAt - b[1].fetchedAt)[0]?.[0];
+    if (!oldestCacheKey) break;
+    sleeperLeagueUsageCache.delete(oldestCacheKey);
+  }
+}
+
+function setCachedSleeperLeagueUsageSummary(
+  cacheKey: string,
+  data: Record<string, SleeperLeagueUsageSummary>
+) {
+  pruneSleeperLeagueUsageCache();
+  sleeperLeagueUsageCache.set(cacheKey, {
+    fetchedAt: Date.now(),
+    data,
+  });
 }
 
 async function fetchSleeperLeagueUsageSummary(
@@ -2959,10 +2986,7 @@ async function fetchSleeperLeagueUsageSummary(
     ])
   ) as Record<string, SleeperLeagueUsageSummary>;
 
-  sleeperLeagueUsageCache.set(cacheKey, {
-    fetchedAt: Date.now(),
-    data,
-  });
+  setCachedSleeperLeagueUsageSummary(cacheKey, data);
 
   return data;
 }
