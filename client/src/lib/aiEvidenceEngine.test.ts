@@ -367,6 +367,36 @@ describe("ai evidence engine", () => {
     expect(read.sourceTrace.map(trace => trace.detail).join(" ")).toContain("zero rows");
   });
 
+  it("caps disabled source trace details below actionable confidence", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 96,
+      evidence: ["WR28 current-season rank is attached.", "Roster need is attached."],
+      signalModes: ["redraft", "current"],
+      sourceTrace: [{
+        label: "FantasyPros waiver snapshot",
+        status: "loaded",
+        detail: "Provider disabled for this environment.",
+      }],
+      player: {
+        name: "Disabled Source Receiver",
+        position: "WR",
+        team: "LV",
+        value: 5200,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+      },
+    });
+
+    expect(read.canAct).toBe(false);
+    expect(read.finalScore).toBeLessThanOrEqual(48);
+    expect(read.confidenceCapReason).toBe("FantasyPros waiver snapshot source freshness");
+    expect(read.missingEvidence).toContain("Fresh source proof is stale or unhealthy for this action read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("FantasyPros waiver snapshot is stale or unhealthy");
+  });
+
   it("caps unavailable source traces below actionable confidence", () => {
     const read = evaluateAIEvidence({
       surface: "waiver",

@@ -275,6 +275,68 @@ describe("AI prediction event builder", () => {
     });
   });
 
+  it("classifies disabled source detail as missing source-agreement proof", () => {
+    const agreement = buildClientSourceAgreementRead({
+      sourceTrace: [{
+        label: "FantasyPros waiver source",
+        status: "loaded",
+        detail: "Provider disabled for this environment.",
+      }],
+      hardBlockers: [],
+      missingEvidence: [],
+    });
+
+    expect(agreement).toMatchObject({
+      state: "missing",
+      missingCount: 1,
+      confidenceCap: 48,
+      signals: [{
+        direction: "missing",
+        confidence: 0,
+        status: "loaded",
+      }],
+    });
+  });
+
+  it("splits source agreement when loaded proof is mixed with stale source traces", () => {
+    const agreement = buildClientSourceAgreementRead({
+      sourceTrace: [{
+        label: "Sleeper availability",
+        status: "loaded",
+        detail: "Availability confirmed.",
+      }, {
+        label: "FantasyPros waiver source",
+        status: "stale",
+        detail: "0 rows returned from latest endpoint probe.",
+      }],
+      hardBlockers: [],
+      missingEvidence: [],
+    });
+
+    expect(agreement).toMatchObject({
+      state: "split",
+      directionalSourceCount: 1,
+      sourceCount: 2,
+      forWeight: 70,
+      againstWeight: 0,
+      missingCount: 1,
+      confidenceCap: 62,
+      reason: "Source signals are split, so calibration should stay cautious.",
+      signals: expect.arrayContaining([
+        expect.objectContaining({
+          direction: "for",
+          confidence: 70,
+          status: "loaded",
+        }),
+        expect.objectContaining({
+          direction: "missing",
+          confidence: 0,
+          status: "stale",
+        }),
+      ]),
+    });
+  });
+
   it("does not emit fake calibration events when report data is missing", () => {
     expect(buildAIPredictionEventsForReport({ reportData: null })).toEqual([]);
   });

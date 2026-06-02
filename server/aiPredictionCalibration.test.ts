@@ -173,6 +173,46 @@ describe('AI prediction calibration', () => {
     });
   });
 
+  it('splits source agreement when loaded proof is mixed with stale source signals', () => {
+    const read = buildSourceAgreementRead([
+      {
+        source: 'Sleeper availability',
+        direction: 'for',
+        confidence: 80,
+        status: 'loaded',
+        detail: 'Availability confirmed.',
+      },
+      {
+        source: 'FantasyPros waiver snapshot',
+        direction: 'for',
+        confidence: 90,
+        status: 'stale',
+        detail: '0 rows returned from latest endpoint probe.',
+      },
+    ]);
+
+    expect(read).toMatchObject({
+      state: 'split',
+      directionalSourceCount: 1,
+      sourceCount: 2,
+      forWeight: 80,
+      againstWeight: 0,
+      neutralWeight: 0,
+      missingCount: 1,
+      confidenceCap: 62,
+      reason: 'Directional source proof is mixed with missing source signals',
+      signals: [{
+        direction: 'for',
+        confidence: 80,
+        status: 'loaded',
+      }, {
+        direction: 'missing',
+        confidence: 90,
+        status: 'stale',
+      }],
+    });
+  });
+
   it('summarizes whether AI reads beat decision-time baselines', () => {
     const beats = buildAICounterfactualRead({
       aiScore: 84,

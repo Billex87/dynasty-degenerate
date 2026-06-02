@@ -407,19 +407,28 @@ function sourceSignalDirectionFromTrace(
     trace.status === "missing" ||
     trace.status === "unavailable" ||
     trace.status === "unverified" ||
-    /missing|no source|not attached|unavailable|unverified/i.test(text)
+    trace.status === "stale" ||
+    trace.status === "error" ||
+    trace.status === "limited" ||
+    /missing|no source|not attached|unavailable|unverified|empty source|source empty|provider disabled|source disabled|\b(?:0|zero)\s+rows?\b/i.test(text)
   ) return "missing";
-  if (trace.status === "error" || hardBlockers.some(blocker => text.includes(blocker.toLowerCase()))) return "against";
-  if (trace.status === "stale" || trace.status === "limited") return missingEvidence.length ? "neutral" : "against";
+  if (hardBlockers.some(blocker => text.includes(blocker.toLowerCase()))) return "against";
   if (/rough|avoid|blocked|conflict|drop confidence|penalty/i.test(text)) return "against";
   if (/loaded|available|confirmed|rank|schedule|source|trend|value|matchup|baseline/i.test(text)) return "for";
   return "neutral";
 }
 
 function sourceSignalWeight(trace: AISourceTrace): number {
-  if (trace.status === "missing" || trace.status === "unavailable" || trace.status === "unverified") return 0;
-  if (trace.status === "error") return 35;
-  if (trace.status === "stale" || trace.status === "limited") return 45;
+  const text = `${trace.label} ${trace.detail || ""}`;
+  if (
+    trace.status === "missing" ||
+    trace.status === "unavailable" ||
+    trace.status === "unverified" ||
+    trace.status === "stale" ||
+    trace.status === "error" ||
+    trace.status === "limited" ||
+    /empty source|source empty|provider disabled|source disabled|\b(?:0|zero)\s+rows?\b/i.test(text)
+  ) return 0;
   return 70;
 }
 
@@ -466,6 +475,8 @@ export function buildClientSourceAgreementRead(input: {
     ? "conflicted"
     : !signals.length || missingCount === signals.length
       ? "missing"
+      : missingCount > 0
+        ? "split"
       : directional.length < 2
         ? "thin"
         : hasFor && hasAgainst

@@ -312,7 +312,10 @@ function normalizeCalibrationText(value?: string | null): string | null {
 function getSourceTraceHealth(trace: AISourceTrace): "loaded" | "missing" | "unhealthy" | "unknown" {
   const status = String(trace.status || "").trim().toLowerCase();
   const detail = String(trace.detail || "").trim();
-  if (status === "missing" || /\b(?:0|zero)\s+rows?\b|no source/i.test(detail)) return "missing";
+  if (
+    status === "missing" ||
+    /\b(?:0|zero)\s+rows?\b|no source|empty source|source empty|provider disabled|source disabled/i.test(detail)
+  ) return "missing";
   if (
     status === "stale" ||
     status === "error" ||

@@ -480,17 +480,33 @@ function normalizeDirection(value: unknown): AISourceSignalDirection {
   const clean = String(value || '').trim().toLowerCase();
   if (clean === 'for' || clean === 'support' || clean === 'positive' || clean === 'boost') return 'for';
   if (clean === 'against' || clean === 'negative' || clean === 'avoid' || clean === 'fade') return 'against';
-  if (clean === 'missing' || clean === 'unavailable' || clean === 'unverified') return 'missing';
+  if (
+    clean === 'missing' ||
+    clean === 'unavailable' ||
+    clean === 'unverified' ||
+    clean === 'stale' ||
+    clean === 'error' ||
+    clean === 'limited'
+  ) return 'missing';
   return 'neutral';
 }
 
-function signalWeight(signal: AISourceAgreementSignal): number {
-  if (
+function hasMissingSourceStatus(signal: AISourceAgreementSignal): boolean {
+  const detail = `${signal.source || ''} ${signal.detail || ''}`;
+  return (
     signal.status === 'missing' ||
     signal.status === 'unavailable' ||
     signal.status === 'unverified' ||
-    signal.direction === 'missing'
-  ) return 0;
+    signal.status === 'stale' ||
+    signal.status === 'error' ||
+    signal.status === 'limited' ||
+    signal.direction === 'missing' ||
+    /\b(?:0|zero)\s+rows?\b|no source|empty source|source empty|provider disabled|source disabled/i.test(detail)
+  );
+}
+
+function signalWeight(signal: AISourceAgreementSignal): number {
+  if (hasMissingSourceStatus(signal)) return 0;
   return Math.max(1, Math.min(100, clampPercent(signal.confidence ?? 60)));
 }
 
@@ -498,7 +514,7 @@ export function buildSourceAgreementRead(signals: AISourceAgreementSignal[]): AI
   const normalized = signals
     .map(signal => ({
       source: cleanText(signal.source) || 'unknown-source',
-      direction: signal.status === 'unavailable' || signal.status === 'unverified'
+      direction: hasMissingSourceStatus(signal)
         ? 'missing'
         : normalizeDirection(signal.direction),
       confidence: signal.confidence === null || signal.confidence === undefined ? null : clampPercent(signal.confidence),
@@ -506,12 +522,7 @@ export function buildSourceAgreementRead(signals: AISourceAgreementSignal[]): AI
       detail: cleanText(signal.detail),
     }))
     .filter(signal => signal.source);
-  const missingCount = normalized.filter(signal =>
-    signal.status === 'missing' ||
-    signal.status === 'unavailable' ||
-    signal.status === 'unverified' ||
-    signal.direction === 'missing'
-  ).length;
+  const missingCount = normalized.filter(hasMissingSourceStatus).length;
   const directional = normalized.filter(signal => signal.direction === 'for' || signal.direction === 'against');
   const forWeight = directional
     .filter(signal => signal.direction === 'for')
@@ -544,15 +555,17 @@ export function buildSourceAgreementRead(signals: AISourceAgreementSignal[]): AI
 
   if (directional.length < 2) {
     return {
-      state: 'thin',
+      state: missingCount > 0 ? 'split' : 'thin',
       directionalSourceCount: directional.length,
       sourceCount: normalized.length,
       forWeight,
       againstWeight,
       neutralWeight,
       missingCount,
-      confidenceCap: 56,
-      reason: 'Only one directional source supports this read',
+      confidenceCap: missingCount > 0 ? 62 : 56,
+      reason: missingCount > 0
+        ? 'Directional source proof is mixed with missing source signals'
+        : 'Only one directional source supports this read',
       signals: normalized,
     };
   }
@@ -580,15 +593,15 @@ export function buildSourceAgreementRead(signals: AISourceAgreementSignal[]): AI
   }
 
   return {
-    state: 'aligned',
+    state: missingCount > 0 ? 'split' : 'aligned',
     directionalSourceCount: directional.length,
     sourceCount: normalized.length,
     forWeight,
     againstWeight,
     neutralWeight,
     missingCount,
-    confidenceCap: missingCount > 0 ? 84 : null,
-    reason: missingCount > 0 ? 'Directional sources align, but at least one expected source is missing' : 'Directional sources align',
+    confidenceCap: missingCount > 0 ? 62 : null,
+    reason: missingCount > 0 ? 'Directional source proof is mixed with missing source signals' : 'Directional sources align',
     signals: normalized,
   };
 }
