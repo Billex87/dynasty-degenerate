@@ -57,6 +57,9 @@ export function AdminManagerSwitcher({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="center"
+        side="top"
+        sideOffset={8}
+        collisionPadding={16}
         className="w-72 border-orange-400/20 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/20"
       >
         <DropdownMenuLabel className="px-2 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-400">
