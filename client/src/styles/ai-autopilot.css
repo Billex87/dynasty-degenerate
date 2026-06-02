@@ -34,12 +34,12 @@
   --autopilot-line: rgba(34, 211, 238, 0.22);
   --autopilot-text: #f8fafc;
   --autopilot-muted: rgba(203, 213, 225, 0.78);
-  --autopilot-cyan: #67e8f9;
-  --autopilot-orange: #fb923c;
-  --autopilot-good: #34d399;
-  --autopilot-info: #38bdf8;
-  --autopilot-warn: #f59e0b;
-  --autopilot-danger: #fb7185;
+  --autopilot-cyan: var(--dd-tron-cyan, #67e8f9);
+  --autopilot-orange: var(--dd-brand-orange, #fb923c);
+  --autopilot-good: var(--dd-success, #34d399);
+  --autopilot-info: var(--dd-brand-blue, #38bdf8);
+  --autopilot-warn: var(--dd-warning, #f59e0b);
+  --autopilot-danger: var(--dd-danger, #fb7185);
   width: min(100%, 86rem);
   margin: 0 auto;
   color: var(--autopilot-text);
@@ -296,12 +296,12 @@
   --autopilot-line: rgba(34, 211, 238, 0.22);
   --autopilot-text: #f8fafc;
   --autopilot-muted: rgba(203, 213, 225, 0.78);
-  --autopilot-cyan: #67e8f9;
-  --autopilot-orange: #fb923c;
-  --autopilot-good: #34d399;
-  --autopilot-info: #38bdf8;
-  --autopilot-warn: #f59e0b;
-  --autopilot-danger: #fb7185;
+  --autopilot-cyan: var(--dd-tron-cyan, #67e8f9);
+  --autopilot-orange: var(--dd-brand-orange, #fb923c);
+  --autopilot-good: var(--dd-success, #34d399);
+  --autopilot-info: var(--dd-brand-blue, #38bdf8);
+  --autopilot-warn: var(--dd-warning, #f59e0b);
+  --autopilot-danger: var(--dd-danger, #fb7185);
   position: relative;
   overflow: hidden;
   margin-bottom: clamp(0.9rem, 2vw, 1.25rem);
@@ -722,7 +722,11 @@
   display: block;
   min-height: 0.48rem;
   border-radius: 999px 999px 0.18rem 0.18rem;
-  background: linear-gradient(180deg, #67e8f9, #fb923c);
+  background: linear-gradient(
+    180deg,
+    var(--autopilot-cyan),
+    var(--autopilot-orange)
+  );
   box-shadow: 0 0 14px rgba(34, 211, 238, 0.2);
 }
 
@@ -1639,7 +1643,11 @@
   display: block;
   min-height: 0.8rem;
   border-radius: 999px 999px 0.34rem 0.34rem;
-  background: linear-gradient(180deg, #f59e0b, rgba(34, 211, 238, 0.82));
+  background: linear-gradient(
+    180deg,
+    var(--autopilot-warn),
+    rgba(34, 211, 238, 0.82)
+  );
   box-shadow: 0 0 18px rgba(245, 158, 11, 0.2);
 }
 

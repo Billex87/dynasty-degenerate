@@ -14,21 +14,30 @@ interface HomeLandingFeatureCardProps {
   isClone?: boolean;
 }
 
+function getFeatureTileTone(colorClass: string) {
+  if (colorClass.includes("green") || colorClass.includes("cyan"))
+    return "success";
+  if (colorClass.includes("orange") || colorClass.includes("amber"))
+    return "warning";
+  if (colorClass.includes("purple")) return "violet";
+  if (colorClass.includes("blue")) return "brand";
+  return "danger";
+}
+
 export function HomeLandingFeatureCard({
   card,
   isClone,
 }: HomeLandingFeatureCardProps) {
   return (
     <article
-      className={`home-feature-card ${card.colorClass} p-4 sm:p-6 space-y-3${
+      className={`dd-tile dd-cut-frame u-dd-scanlines home-feature-card ${card.colorClass} p-4 sm:p-6 space-y-3${
         isClone ? " home-feature-card-clone" : ""
       }`}
+      data-dd-tone={getFeatureTileTone(card.colorClass)}
       aria-hidden={isClone ? true : undefined}
     >
       <div className="home-feature-heading">
-        <div
-          className={`home-feature-heading-icon ${card.headingBgClass}`}
-        >
+        <div className={`home-feature-heading-icon ${card.headingBgClass}`}>
           {card.icon}
         </div>
         <h3 className="home-feature-card-title">{card.title}</h3>

@@ -1,0 +1,390 @@
+/*
+  Dynasty Degens shared tile system.
+  Football-first surfaces with a restrained AI/HUD overlay. Keep this layer
+  semantic and reusable; feature files can opt in with dd-tile classes or by
+  inheriting the bridge selectors below.
+*/
+
+@layer components {
+  :root {
+    --dd-bg-0: #050b14;
+    --dd-bg-1: #081120;
+    --dd-bg-2: #0b1730;
+    --dd-surface-1: rgba(10, 21, 39, 0.9);
+    --dd-surface-2: rgba(13, 27, 51, 0.92);
+    --dd-surface-3: rgba(17, 35, 64, 0.94);
+    --dd-text: #eef6ff;
+    --dd-text-muted: #9eb5d1;
+    --dd-text-dim: #7691b4;
+    --dd-brand-blue: #2e78dd;
+    --dd-brand-orange: #f3a43f;
+    --dd-tron-cyan: #41e6ff;
+    --dd-tron-violet: #8d5dff;
+    --dd-success: #2fd39b;
+    --dd-danger: #ff6486;
+    --dd-warning: #ffd166;
+    --dd-border: rgba(46, 120, 221, 0.3);
+    --dd-border-strong: rgba(65, 230, 255, 0.62);
+    --dd-radius: 1rem;
+    --dd-radius-tight: 0.75rem;
+    --dd-space-1: 0.25rem;
+    --dd-space-2: 0.5rem;
+    --dd-space-3: 0.75rem;
+    --dd-space-4: 1rem;
+    --dd-space-5: 1.5rem;
+    --dd-space-6: 2rem;
+    --dd-font-ui: var(--font-athletic, Oswald, system-ui, sans-serif);
+    --dd-font-display: var(--font-athletic, Oswald, system-ui, sans-serif);
+    --dd-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .dd-tile,
+  .dd-tile-surface {
+    --dd-tile-accent: var(--dd-tron-cyan);
+    --dd-tile-accent-rgb: 65, 230, 255;
+    --dd-tile-warm-rgb: 243, 164, 63;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border: 1px solid
+      color-mix(in srgb, var(--dd-tile-accent) 34%, var(--dd-border));
+    border-radius: var(--dd-radius);
+    background:
+      radial-gradient(
+        circle at 12% 0%,
+        rgba(var(--dd-tile-accent-rgb), 0.11),
+        transparent 32%
+      ),
+      radial-gradient(
+        circle at 86% 92%,
+        rgba(var(--dd-tile-warm-rgb), 0.1),
+        transparent 34%
+      ),
+      linear-gradient(
+        135deg,
+        rgba(8, 17, 32, 0.94),
+        rgba(5, 11, 20, 0.96) 58%,
+        rgba(3, 7, 14, 0.98)
+      );
+    color: var(--dd-text);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.055),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+      0 16px 40px rgba(0, 0, 0, 0.3),
+      0 0 22px rgba(var(--dd-tile-accent-rgb), 0.08);
+    transition:
+      transform 160ms var(--dd-ease-standard),
+      border-color 160ms var(--dd-ease-standard),
+      box-shadow 160ms var(--dd-ease-standard),
+      background-color 160ms var(--dd-ease-standard);
+  }
+
+  .dd-tile[data-dd-tone="brand"] {
+    --dd-tile-accent: var(--dd-brand-blue);
+    --dd-tile-accent-rgb: 46, 120, 221;
+  }
+
+  .dd-tile[data-dd-tone="success"] {
+    --dd-tile-accent: var(--dd-success);
+    --dd-tile-accent-rgb: 47, 211, 155;
+  }
+
+  .dd-tile[data-dd-tone="warning"] {
+    --dd-tile-accent: var(--dd-warning);
+    --dd-tile-accent-rgb: 255, 209, 102;
+  }
+
+  .dd-tile[data-dd-tone="danger"] {
+    --dd-tile-accent: var(--dd-danger);
+    --dd-tile-accent-rgb: 255, 100, 134;
+  }
+
+  .dd-tile[data-dd-tone="violet"] {
+    --dd-tile-accent: var(--dd-tron-violet);
+    --dd-tile-accent-rgb: 141, 93, 255;
+  }
+
+  .dd-cut-frame::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        135deg,
+        rgba(var(--dd-tile-accent-rgb), 0.42) 0 1px,
+        transparent 1px 1.05rem,
+        rgba(var(--dd-tile-accent-rgb), 0.22) 1.05rem 1.12rem,
+        transparent 1.12rem
+      ),
+      linear-gradient(
+        315deg,
+        rgba(var(--dd-tile-warm-rgb), 0.3) 0 1px,
+        transparent 1px 1.05rem,
+        rgba(var(--dd-tile-warm-rgb), 0.16) 1.05rem 1.12rem,
+        transparent 1.12rem
+      );
+    opacity: 0.74;
+  }
+
+  .dd-tile > *,
+  .dd-tile-surface > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .u-dd-scanlines::after,
+  .u-dd-noise::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .u-dd-scanlines::after {
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.03) 0 1px,
+      transparent 1px 5px
+    );
+    mix-blend-mode: soft-light;
+    opacity: 0.16;
+  }
+
+  .u-dd-noise::after {
+    background-image:
+      radial-gradient(rgba(255, 255, 255, 0.06) 0.55px, transparent 0.9px),
+      radial-gradient(rgba(65, 230, 255, 0.035) 0.55px, transparent 0.95px);
+    background-size:
+      13px 13px,
+      19px 19px;
+    opacity: 0.08;
+    mix-blend-mode: soft-light;
+  }
+
+  .dd-chip,
+  .dd-stat {
+    display: inline-flex;
+    min-height: 1.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.34rem;
+    border: 1px solid
+      color-mix(
+        in srgb,
+        var(--dd-tile-accent, var(--dd-tron-cyan)) 34%,
+        rgba(148, 163, 184, 0.18)
+      );
+    border-radius: 999px;
+    background: rgba(8, 17, 32, 0.72);
+    padding-inline: 0.62rem;
+    color: var(--dd-text);
+    font-family: var(--dd-font-ui);
+    font-size: 0.68rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .dd-meter {
+    display: block;
+    height: 0.42rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(65, 230, 255, 0.12);
+  }
+
+  .dd-meter > span,
+  .dd-meter > i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(
+      90deg,
+      var(--dd-brand-blue),
+      var(--dd-tron-cyan)
+    );
+    box-shadow: 0 0 14px rgba(65, 230, 255, 0.32);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .dd-tile:is(:hover, [data-state="hover"]) {
+      transform: translateY(-2px);
+      border-color: color-mix(
+        in srgb,
+        var(--dd-tile-accent) 58%,
+        rgba(255, 255, 255, 0.14)
+      );
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.07),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+        0 18px 44px rgba(0, 0, 0, 0.34),
+        0 0 28px rgba(var(--dd-tile-accent-rgb), 0.12);
+    }
+  }
+
+  .dd-tile:is(button, a):focus-visible,
+  .dd-tile :is(button, a, summary):focus-visible,
+  :is(.report-shell, .player-detail-modal)
+    :is(
+      button.player-team-tile,
+      button.owner-summary-tile,
+      button.command-depth-tile,
+      button.ranking-player-card,
+      button.trade-asset-clickable,
+      button.player-trade-comp-card
+    ):focus-visible,
+  .autopilot-dashboard :is(button, summary):focus-visible {
+    outline: 2px solid var(--dd-tron-cyan);
+    outline-offset: 3px;
+    box-shadow:
+      0 0 0 4px rgba(65, 230, 255, 0.16),
+      0 16px 36px rgba(0, 0, 0, 0.28);
+  }
+
+  .report-shell .balanced-tile-grid {
+    justify-content: center;
+  }
+
+  :is(.report-shell, .player-detail-modal)
+    :is(
+      .player-team-tile,
+      .owner-summary-tile,
+      .command-depth-tile,
+      .ranking-player-card,
+      .trade-profit-card,
+      .draft-decision-card,
+      .trade-market-card,
+      .rookie-player-tile,
+      .waiver-intel-card,
+      .weekly-momentum-tile,
+      .trending-player-card,
+      .recent-transaction-player,
+      .trade-war-player-card,
+      .trade-war-selected-asset,
+      .trade-war-value-match-asset,
+      .manager-command-player-tile,
+      .starter-player-tile,
+      .player-modal-metric-tile,
+      .player-intelligence-card,
+      .player-value-confidence-card,
+      .player-trade-comp-card,
+      .owner-intel-heat-pill
+    ) {
+    --dd-tile-accent: var(--dd-tron-cyan);
+    --dd-tile-accent-rgb: 65, 230, 255;
+    position: relative;
+    isolation: isolate;
+    border-color: color-mix(
+      in srgb,
+      var(--dd-tile-accent) 26%,
+      rgba(148, 163, 184, 0.18)
+    );
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      0 12px 28px rgba(0, 0, 0, 0.22),
+      0 0 16px rgba(var(--dd-tile-accent-rgb), 0.055);
+  }
+
+  :is(.report-shell, .player-detail-modal)
+    :is(.trade-market-card-sell, .weekly-momentum-tile-up) {
+    --dd-tile-accent: var(--dd-success);
+    --dd-tile-accent-rgb: 47, 211, 155;
+  }
+
+  :is(.report-shell, .player-detail-modal)
+    :is(
+      .trade-market-card-buy,
+      .weekly-momentum-tile-down,
+      .manager-intel-player-warn
+    ) {
+    --dd-tile-accent: var(--dd-warning);
+    --dd-tile-accent-rgb: 255, 209, 102;
+  }
+
+  :is(.report-shell, .player-detail-modal) :is(.manager-intel-player-danger) {
+    --dd-tile-accent: var(--dd-danger);
+    --dd-tile-accent-rgb: 255, 100, 134;
+  }
+
+  :is(.report-shell, .player-detail-modal)
+    :is(
+      .trade-detail-panel,
+      .trade-detail-decision-bar,
+      .trade-side-card,
+      .trade-outcome-panel
+    ) {
+    --dd-tile-accent: var(--dd-tron-cyan);
+    --dd-tile-accent-rgb: 65, 230, 255;
+    position: relative;
+    isolation: isolate;
+    border-color: color-mix(
+      in srgb,
+      var(--dd-tile-accent) 28%,
+      rgba(148, 163, 184, 0.18)
+    );
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 16px 40px rgba(0, 0, 0, 0.24),
+      0 0 18px rgba(var(--dd-tile-accent-rgb), 0.06);
+  }
+
+  .autopilot-dashboard {
+    --autopilot-cyan: var(--dd-tron-cyan);
+    --autopilot-orange: var(--dd-brand-orange);
+    --autopilot-good: var(--dd-success);
+    --autopilot-warn: var(--dd-warning);
+    --autopilot-danger: var(--dd-danger);
+  }
+
+  .autopilot-dashboard
+    :is(
+      .autopilot-score-tile,
+      .autopilot-recommendation-card,
+      .autopilot-pull-card,
+      .autopilot-start-option,
+      .autopilot-projection-row,
+      .autopilot-power-row
+    ) {
+    border-radius: var(--dd-radius-tight);
+  }
+
+  .autopilot-dashboard
+    :is(.autopilot-mode-button, .autopilot-screenshot-button) {
+    min-height: 2.35rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dd-tile,
+    .dd-tile::before,
+    .dd-tile::after,
+    .dd-tile *,
+    :is(.report-shell, .player-detail-modal)
+      :is(
+        .player-team-tile,
+        .owner-summary-tile,
+        .command-depth-tile,
+        .ranking-player-card,
+        .trade-asset-clickable,
+        .player-trade-comp-card
+      ),
+    .autopilot-dashboard
+      :is(
+        .autopilot-score-tile,
+        .autopilot-recommendation-card,
+        .autopilot-pull-card,
+        .autopilot-start-option,
+        .autopilot-projection-row,
+        .autopilot-power-row
+      ) {
+      animation: none !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}
