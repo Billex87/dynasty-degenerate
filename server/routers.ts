@@ -6765,6 +6765,13 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const userKey = getActionPlanUserKey(ctx.user);
+        assertRateLimit(ctx.req as any, {
+          id: "aiPredictions.upsertMany",
+          max: 20,
+          windowMs: 1000 * 60 * 10,
+          scope: userKey,
+          message: "Too many AI prediction telemetry writes. Please wait a few minutes and try again.",
+        });
         const results = await Promise.all(
           input.events.map(event => upsertAiPredictionEvent({ userKey, event }))
         );

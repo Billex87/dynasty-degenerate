@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { TrpcContext } from "./_core/context";
 import { appRouter } from "./routers";
@@ -155,5 +157,16 @@ describe("aiPredictions router", () => {
     })).rejects.toMatchObject({
       code: "BAD_REQUEST",
     });
+  });
+
+  it("keeps telemetry writes behind a route-level rate limit", () => {
+    const source = fs.readFileSync(path.join(process.cwd(), "server/routers.ts"), "utf8");
+    const routeStart = source.indexOf("aiPredictions: router({");
+    const routeEnd = source.indexOf("\n\n  league: router({", routeStart);
+    const routeSource = source.slice(routeStart, routeEnd);
+
+    expect(routeSource).toContain("assertRateLimit(ctx.req as any");
+    expect(routeSource).toContain('id: "aiPredictions.upsertMany"');
+    expect(routeSource).toContain("scope: userKey");
   });
 });
