@@ -361,6 +361,7 @@ function primaryExpectedPlayer(expectedAction?: RecommendationExpectedAction | n
 function decisionFromEvidence(read: AIEvidenceResult, fallbackScore: number): ClientAIPredictionDecision {
   if (read.label === "blocked" || read.hardBlockers.length) return "blocked";
   if (!read.canAct) return read.label === "thin" ? "dont" : "watch";
+  if (read.confidenceCapReason || read.missingEvidence.length) return "watch";
   if (fallbackScore >= 58) return "do";
   return "watch";
 }
@@ -1446,3 +1447,7 @@ export function getAIPredictionEventBatchSignature(events: ClientAIPredictionEve
     .sort()
     .join("|");
 }
+
+export const __testing = {
+  decisionFromEvidence,
+};

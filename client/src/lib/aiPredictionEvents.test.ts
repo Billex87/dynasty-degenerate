@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createCachedCommandCenterReport } from "../../../tests/e2e/fixtures/cachedReports";
 import {
+  __testing,
   buildAIPredictionEventsForReport,
   buildClientSourceAgreementRead,
   getAIPredictionEventBatchSignature,
@@ -249,6 +250,30 @@ describe("AI prediction event builder", () => {
       },
     });
     expect(scheduleEvent?.decision).toBe("do");
+  });
+
+  it("does not calibrate malformed actionable evidence gaps as do decisions", () => {
+    const decision = __testing.decisionFromEvidence({
+      label: "priority",
+      finalScore: 78,
+      canAct: true,
+      whyThisFired: "Multiple returned sources agree.",
+      evidence: ["Loaded market signal."],
+      missingEvidence: ["Verify live roster state before acting."],
+      hardBlockers: [],
+      softPenalties: [],
+      sourceTrace: [{
+        label: "Sleeper roster snapshot",
+        status: "loaded",
+      }],
+      confidenceCap: 68,
+      confidenceCapReason: "Missing live roster proof",
+      receipts: [],
+      action: "pickup",
+      surface: "waiver",
+    } as any, 78);
+
+    expect(decision).toBe("watch");
   });
 
   it("classifies unavailable source traces as missing source-agreement proof", () => {
