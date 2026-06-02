@@ -1644,6 +1644,19 @@ function hasRecommendationPlayerRef(player?: RecommendationPlayerRef | null): bo
   return Boolean(String(player?.id || player?.name || '').trim());
 }
 
+function getRecommendationPlayerRefKey(player?: RecommendationPlayerRef | null): string {
+  return String(player?.id || player?.name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function isSameRecommendationPlayerRef(
+  a?: RecommendationPlayerRef | null,
+  b?: RecommendationPlayerRef | null,
+): boolean {
+  const aKey = getRecommendationPlayerRefKey(a);
+  const bKey = getRecommendationPlayerRefKey(b);
+  return Boolean(aKey && bKey && aKey === bKey);
+}
+
 function hasConcreteTradeProof(action: RecommendationExpectedAction): boolean {
   if (hasRecommendationPlayerRef(action.playerIn) && hasRecommendationPlayerRef(action.playerOut)) return true;
 
@@ -1670,9 +1683,12 @@ function getExpectedActionIdentityGap(action: RecommendationExpectedAction): str
     return hasRecommendationPlayerRef(action.playerOut) ? null : 'Expected action is missing the player to drop/bench.';
   }
   if (action.type === 'drop_for_add' || action.type === 'swap_starter') {
-    return hasRecommendationPlayerRef(action.playerIn) && hasRecommendationPlayerRef(action.playerOut)
-      ? null
-      : 'Expected action is missing one side of the roster or lineup change.';
+    if (!hasRecommendationPlayerRef(action.playerIn) || !hasRecommendationPlayerRef(action.playerOut)) {
+      return 'Expected action is missing one side of the roster or lineup change.';
+    }
+    return isSameRecommendationPlayerRef(action.playerIn, action.playerOut)
+      ? 'Expected action uses the same player on both sides of the roster or lineup change.'
+      : null;
   }
   if (action.type === 'trade') {
     const hasTradeIdentity = hasRecommendationPlayerRef(action.playerIn) ||

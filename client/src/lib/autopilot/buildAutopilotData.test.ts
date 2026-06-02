@@ -231,6 +231,82 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('does not treat same-player lineup swaps as concrete queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const samePlayerRef = {
+      id: 'same-player',
+      name: 'Same Player',
+      position: 'WR',
+      team: 'DAL',
+    };
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [{
+        id: 'same-player-swap',
+        type: 'Start/Sit',
+        player: 'Same Player',
+        action: 'Start',
+        confidence: 94,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture incorrectly uses the same player on both sides of a lineup swap.',
+        reasons: ['Malformed expected action should not become a direct action.'],
+        signals: ['Lineup proof'],
+        evidenceRead: {
+          evidence: ['High confidence lineup rationale.'],
+          missingEvidence: [],
+          hardBlockers: [],
+          softPenalties: [],
+          confidenceCap: 100,
+          confidenceCapReason: null,
+          sourceTrace: [{ label: 'Lineup context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+          rawScore: 94,
+          finalScore: 94,
+          label: 'high conviction',
+          shouldRender: true,
+          canAct: true,
+          whyThisFired: 'Lineup context is loaded but the expected action is malformed.',
+        } as any,
+        expectedAction: {
+          type: 'swap_starter',
+          playerIn: samePlayerRef,
+          playerOut: samePlayerRef,
+          playersInvolved: [samePlayerRef, samePlayerRef],
+          expectedLineupChange: 'Same Player should start over Same Player.',
+          source: 'autopilot',
+          reason: 'Malformed same-player swap fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      waivers: [],
+      trades: [],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const samePlayerQueueItem = data.actionQueue.find((item) => item.id.includes('same-player-swap'));
+    expect(samePlayerQueueItem).toMatchObject({
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'swap_starter',
+      },
+    });
+    expect(samePlayerQueueItem?.missingEvidence.join(' ')).toContain('same player on both sides');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('does not treat single-player trade ideas without partner proof as concrete queue moves', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];
