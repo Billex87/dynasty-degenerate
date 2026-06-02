@@ -218,6 +218,81 @@ export type CountUsageEventsInput = {
   createdAtTo?: Date | string | null;
 };
 
+export type UserSleeperAccountInput = {
+  userOpenId: string;
+  sleeperUserId: string;
+  sleeperUsername: string;
+  displayName?: string | null;
+  avatar?: string | null;
+  isPrimary?: boolean | number | null;
+  metadata?: unknown;
+};
+
+export type UserSleeperAccountRecord = {
+  sleeperUserId: string;
+  sleeperUsername: string;
+  displayName: string | null;
+  avatar: string | null;
+  isPrimary: boolean;
+  updatedAt: Date | null;
+};
+
+export type UserFavoriteLeagueInput = {
+  userOpenId: string;
+  leagueId: string;
+  leagueName?: string | null;
+  platform?: string | null;
+  sleeperUserId?: string | null;
+  metadata?: unknown;
+};
+
+export type UserFavoriteLeagueRecord = {
+  leagueId: string;
+  leagueName: string | null;
+  platform: string;
+  sleeperUserId: string | null;
+  updatedAt: Date | null;
+};
+
+export type UserRecentReportInput = {
+  userOpenId: string;
+  leagueId: string;
+  leagueName?: string | null;
+  sleeperUsername?: string | null;
+  sleeperUserId?: string | null;
+  platform?: string | null;
+  metadata?: unknown;
+  lastViewedAt?: Date | string | null;
+};
+
+export type UserRecentReportRecord = {
+  leagueId: string;
+  leagueName: string | null;
+  sleeperUsername: string | null;
+  sleeperUserId: string | null;
+  platform: string;
+  lastViewedAt: Date | null;
+};
+
+export type UserNotificationPreferencesInput = {
+  userOpenId: string;
+  billingEmails?: boolean | number | null;
+  productEmails?: boolean | number | null;
+  reportAlerts?: boolean | number | null;
+  anomalyAlerts?: boolean | number | null;
+  weeklyDigest?: boolean | number | null;
+  metadata?: unknown;
+};
+
+export type UserNotificationPreferencesRecord = {
+  billingEmails: boolean;
+  productEmails: boolean;
+  reportAlerts: boolean;
+  anomalyAlerts: boolean;
+  weeklyDigest: boolean;
+  updatedAt: Date | null;
+};
+
 function getSql() {
   if (!process.env.DATABASE_URL) return null;
   if (!sqlClient) {
@@ -429,6 +504,101 @@ async function ensureSchema(sql: SqlClient) {
       await sql`
         CREATE INDEX IF NOT EXISTS "usageEvents_feature_usage_key_idx"
         ON "usageEvents" ("featureKey", "usageKey")
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "userSleeperAccounts" (
+          id SERIAL PRIMARY KEY,
+          "userOpenId" VARCHAR(64) NOT NULL,
+          "sleeperUserId" VARCHAR(64) NOT NULL,
+          "sleeperUsername" VARCHAR(64) NOT NULL,
+          "displayName" TEXT,
+          avatar TEXT,
+          "isPrimary" INTEGER NOT NULL DEFAULT 0,
+          metadata TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "userSleeperAccounts_user_sleeper_uidx"
+        ON "userSleeperAccounts" ("userOpenId", "sleeperUserId")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "userSleeperAccounts_user_username_idx"
+        ON "userSleeperAccounts" ("userOpenId", "sleeperUsername")
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "userFavoriteLeagues" (
+          id SERIAL PRIMARY KEY,
+          "userOpenId" VARCHAR(64) NOT NULL,
+          "leagueId" VARCHAR(64) NOT NULL,
+          "leagueName" TEXT,
+          platform VARCHAR(32) NOT NULL DEFAULT 'sleeper',
+          "sleeperUserId" VARCHAR(64),
+          metadata TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "userFavoriteLeagues_user_league_uidx"
+        ON "userFavoriteLeagues" ("userOpenId", "leagueId")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "userFavoriteLeagues_user_updatedAt_idx"
+        ON "userFavoriteLeagues" ("userOpenId", "updatedAt" DESC)
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "userRecentReports" (
+          id SERIAL PRIMARY KEY,
+          "userOpenId" VARCHAR(64) NOT NULL,
+          "leagueId" VARCHAR(64) NOT NULL,
+          "leagueName" TEXT,
+          "sleeperUsername" VARCHAR(64),
+          "sleeperUserId" VARCHAR(64),
+          platform VARCHAR(32) NOT NULL DEFAULT 'sleeper',
+          metadata TEXT,
+          "lastViewedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS "userRecentReports_user_league_uidx"
+        ON "userRecentReports" ("userOpenId", "leagueId")
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "userRecentReports_user_viewed_idx"
+        ON "userRecentReports" ("userOpenId", "lastViewedAt" DESC)
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS "userNotificationPreferences" (
+          id SERIAL PRIMARY KEY,
+          "userOpenId" VARCHAR(64) NOT NULL UNIQUE,
+          "billingEmails" INTEGER NOT NULL DEFAULT 1,
+          "productEmails" INTEGER NOT NULL DEFAULT 1,
+          "reportAlerts" INTEGER NOT NULL DEFAULT 0,
+          "anomalyAlerts" INTEGER NOT NULL DEFAULT 0,
+          "weeklyDigest" INTEGER NOT NULL DEFAULT 0,
+          metadata TEXT,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
+      await sql`
+        CREATE INDEX IF NOT EXISTS "userNotificationPreferences_user_open_id_idx"
+        ON "userNotificationPreferences" ("userOpenId")
       `;
 
       await sql`
@@ -1411,6 +1581,387 @@ export async function countUsageEvents(input: CountUsageEventsInput): Promise<nu
   ` as Array<{ usageCount?: number | string | null }>;
 
   return Number(result[0]?.usageCount || 0);
+}
+
+function normalizeBooleanFlag(value: boolean | number | null | undefined, fallback: boolean): number {
+  if (value === undefined || value === null) return fallback ? 1 : 0;
+  if (typeof value === "number") return value ? 1 : 0;
+  return value ? 1 : 0;
+}
+
+function parseBooleanFlag(value: unknown, fallback = false): boolean {
+  if (value === undefined || value === null) return fallback;
+  return Number(value) === 1 || value === true;
+}
+
+function toAccountMetadata(metadata: unknown): string | null {
+  return serializeMetadataForDb(metadata);
+}
+
+export async function upsertUserSleeperAccount(input: UserSleeperAccountInput): Promise<boolean> {
+  const userOpenId = requiredTrimmed(input.userOpenId, "userOpenId");
+  const sleeperUserId = requiredTrimmed(input.sleeperUserId, "sleeperUserId");
+  const sleeperUsername = requiredTrimmed(input.sleeperUsername, "sleeperUsername").toLowerCase();
+  const isPrimary = normalizeBooleanFlag(input.isPrimary, false);
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot upsert user Sleeper account: database not available");
+    return false;
+  }
+
+  if (isPrimary) {
+    await sql`
+      UPDATE "userSleeperAccounts"
+      SET "isPrimary" = 0, "updatedAt" = NOW()
+      WHERE "userOpenId" = ${userOpenId}
+    `;
+  }
+
+  await sql`
+    INSERT INTO "userSleeperAccounts" (
+      "userOpenId",
+      "sleeperUserId",
+      "sleeperUsername",
+      "displayName",
+      avatar,
+      "isPrimary",
+      metadata,
+      "updatedAt"
+    )
+    VALUES (
+      ${userOpenId},
+      ${sleeperUserId},
+      ${sleeperUsername},
+      ${optionalTrimmed(input.displayName)},
+      ${optionalTrimmed(input.avatar)},
+      ${isPrimary},
+      ${toAccountMetadata(input.metadata)},
+      NOW()
+    )
+    ON CONFLICT ("userOpenId", "sleeperUserId") DO UPDATE SET
+      "sleeperUsername" = EXCLUDED."sleeperUsername",
+      "displayName" = COALESCE(EXCLUDED."displayName", "userSleeperAccounts"."displayName"),
+      avatar = COALESCE(EXCLUDED.avatar, "userSleeperAccounts".avatar),
+      "isPrimary" = EXCLUDED."isPrimary",
+      metadata = COALESCE(EXCLUDED.metadata, "userSleeperAccounts".metadata),
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function listUserSleeperAccounts(userOpenId: string): Promise<UserSleeperAccountRecord[]> {
+  const normalizedUserOpenId = requiredTrimmed(userOpenId, "userOpenId");
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot list user Sleeper accounts: database not available");
+    return [];
+  }
+
+  const result = await sql`
+    SELECT
+      "sleeperUserId",
+      "sleeperUsername",
+      "displayName",
+      avatar,
+      "isPrimary",
+      "updatedAt"
+    FROM "userSleeperAccounts"
+    WHERE "userOpenId" = ${normalizedUserOpenId}
+    ORDER BY "isPrimary" DESC, "updatedAt" DESC
+  ` as Record<string, any>[];
+
+  return result.map((row) => ({
+    sleeperUserId: String(row.sleeperUserId || ""),
+    sleeperUsername: String(row.sleeperUsername || ""),
+    displayName: row.displayName ? String(row.displayName) : null,
+    avatar: row.avatar ? String(row.avatar) : null,
+    isPrimary: parseBooleanFlag(row.isPrimary),
+    updatedAt: normalizeDateForDb(row.updatedAt),
+  }));
+}
+
+export async function deleteUserSleeperAccount(input: {
+  userOpenId: string;
+  sleeperUserId: string;
+}): Promise<boolean> {
+  const userOpenId = requiredTrimmed(input.userOpenId, "userOpenId");
+  const sleeperUserId = requiredTrimmed(input.sleeperUserId, "sleeperUserId");
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot delete user Sleeper account: database not available");
+    return false;
+  }
+
+  await sql`
+    DELETE FROM "userSleeperAccounts"
+    WHERE "userOpenId" = ${userOpenId}
+      AND "sleeperUserId" = ${sleeperUserId}
+  `;
+
+  return true;
+}
+
+export async function upsertUserFavoriteLeague(input: UserFavoriteLeagueInput): Promise<boolean> {
+  const userOpenId = requiredTrimmed(input.userOpenId, "userOpenId");
+  const leagueId = requiredTrimmed(input.leagueId, "leagueId");
+  const platform = optionalTrimmed(input.platform) ?? "sleeper";
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot upsert user favorite league: database not available");
+    return false;
+  }
+
+  await sql`
+    INSERT INTO "userFavoriteLeagues" (
+      "userOpenId",
+      "leagueId",
+      "leagueName",
+      platform,
+      "sleeperUserId",
+      metadata,
+      "updatedAt"
+    )
+    VALUES (
+      ${userOpenId},
+      ${leagueId},
+      ${optionalTrimmed(input.leagueName)},
+      ${platform},
+      ${optionalTrimmed(input.sleeperUserId)},
+      ${toAccountMetadata(input.metadata)},
+      NOW()
+    )
+    ON CONFLICT ("userOpenId", "leagueId") DO UPDATE SET
+      "leagueName" = COALESCE(EXCLUDED."leagueName", "userFavoriteLeagues"."leagueName"),
+      platform = EXCLUDED.platform,
+      "sleeperUserId" = COALESCE(EXCLUDED."sleeperUserId", "userFavoriteLeagues"."sleeperUserId"),
+      metadata = COALESCE(EXCLUDED.metadata, "userFavoriteLeagues".metadata),
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function listUserFavoriteLeagues(userOpenId: string): Promise<UserFavoriteLeagueRecord[]> {
+  const normalizedUserOpenId = requiredTrimmed(userOpenId, "userOpenId");
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot list user favorite leagues: database not available");
+    return [];
+  }
+
+  const result = await sql`
+    SELECT
+      "leagueId",
+      "leagueName",
+      platform,
+      "sleeperUserId",
+      "updatedAt"
+    FROM "userFavoriteLeagues"
+    WHERE "userOpenId" = ${normalizedUserOpenId}
+    ORDER BY "updatedAt" DESC
+  ` as Record<string, any>[];
+
+  return result.map((row) => ({
+    leagueId: String(row.leagueId || ""),
+    leagueName: row.leagueName ? String(row.leagueName) : null,
+    platform: String(row.platform || "sleeper"),
+    sleeperUserId: row.sleeperUserId ? String(row.sleeperUserId) : null,
+    updatedAt: normalizeDateForDb(row.updatedAt),
+  }));
+}
+
+export async function deleteUserFavoriteLeague(input: {
+  userOpenId: string;
+  leagueId: string;
+}): Promise<boolean> {
+  const userOpenId = requiredTrimmed(input.userOpenId, "userOpenId");
+  const leagueId = requiredTrimmed(input.leagueId, "leagueId");
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot delete user favorite league: database not available");
+    return false;
+  }
+
+  await sql`
+    DELETE FROM "userFavoriteLeagues"
+    WHERE "userOpenId" = ${userOpenId}
+      AND "leagueId" = ${leagueId}
+  `;
+
+  return true;
+}
+
+export async function recordUserRecentReport(input: UserRecentReportInput): Promise<boolean> {
+  const userOpenId = requiredTrimmed(input.userOpenId, "userOpenId");
+  const leagueId = requiredTrimmed(input.leagueId, "leagueId");
+  const platform = optionalTrimmed(input.platform) ?? "sleeper";
+  const lastViewedAt = normalizeDateForDb(input.lastViewedAt) ?? new Date();
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot record user recent report: database not available");
+    return false;
+  }
+
+  await sql`
+    INSERT INTO "userRecentReports" (
+      "userOpenId",
+      "leagueId",
+      "leagueName",
+      "sleeperUsername",
+      "sleeperUserId",
+      platform,
+      metadata,
+      "lastViewedAt",
+      "updatedAt"
+    )
+    VALUES (
+      ${userOpenId},
+      ${leagueId},
+      ${optionalTrimmed(input.leagueName)},
+      ${optionalTrimmed(input.sleeperUsername)?.toLowerCase() ?? null},
+      ${optionalTrimmed(input.sleeperUserId)},
+      ${platform},
+      ${toAccountMetadata(input.metadata)},
+      ${lastViewedAt},
+      NOW()
+    )
+    ON CONFLICT ("userOpenId", "leagueId") DO UPDATE SET
+      "leagueName" = COALESCE(EXCLUDED."leagueName", "userRecentReports"."leagueName"),
+      "sleeperUsername" = COALESCE(EXCLUDED."sleeperUsername", "userRecentReports"."sleeperUsername"),
+      "sleeperUserId" = COALESCE(EXCLUDED."sleeperUserId", "userRecentReports"."sleeperUserId"),
+      platform = EXCLUDED.platform,
+      metadata = COALESCE(EXCLUDED.metadata, "userRecentReports".metadata),
+      "lastViewedAt" = EXCLUDED."lastViewedAt",
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function listUserRecentReports(userOpenId: string, limit = 20): Promise<UserRecentReportRecord[]> {
+  const normalizedUserOpenId = requiredTrimmed(userOpenId, "userOpenId");
+  const boundedLimit = Math.max(1, Math.min(50, Math.floor(Number(limit) || 20)));
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot list user recent reports: database not available");
+    return [];
+  }
+
+  const result = await sql`
+    SELECT
+      "leagueId",
+      "leagueName",
+      "sleeperUsername",
+      "sleeperUserId",
+      platform,
+      "lastViewedAt"
+    FROM "userRecentReports"
+    WHERE "userOpenId" = ${normalizedUserOpenId}
+    ORDER BY "lastViewedAt" DESC
+    LIMIT ${boundedLimit}
+  ` as Record<string, any>[];
+
+  return result.map((row) => ({
+    leagueId: String(row.leagueId || ""),
+    leagueName: row.leagueName ? String(row.leagueName) : null,
+    sleeperUsername: row.sleeperUsername ? String(row.sleeperUsername) : null,
+    sleeperUserId: row.sleeperUserId ? String(row.sleeperUserId) : null,
+    platform: String(row.platform || "sleeper"),
+    lastViewedAt: normalizeDateForDb(row.lastViewedAt),
+  }));
+}
+
+export async function upsertUserNotificationPreferences(input: UserNotificationPreferencesInput): Promise<boolean> {
+  const userOpenId = requiredTrimmed(input.userOpenId, "userOpenId");
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot upsert user notification preferences: database not available");
+    return false;
+  }
+
+  await sql`
+    INSERT INTO "userNotificationPreferences" (
+      "userOpenId",
+      "billingEmails",
+      "productEmails",
+      "reportAlerts",
+      "anomalyAlerts",
+      "weeklyDigest",
+      metadata,
+      "updatedAt"
+    )
+    VALUES (
+      ${userOpenId},
+      ${normalizeBooleanFlag(input.billingEmails, true)},
+      ${normalizeBooleanFlag(input.productEmails, true)},
+      ${normalizeBooleanFlag(input.reportAlerts, false)},
+      ${normalizeBooleanFlag(input.anomalyAlerts, false)},
+      ${normalizeBooleanFlag(input.weeklyDigest, false)},
+      ${toAccountMetadata(input.metadata)},
+      NOW()
+    )
+    ON CONFLICT ("userOpenId") DO UPDATE SET
+      "billingEmails" = EXCLUDED."billingEmails",
+      "productEmails" = EXCLUDED."productEmails",
+      "reportAlerts" = EXCLUDED."reportAlerts",
+      "anomalyAlerts" = EXCLUDED."anomalyAlerts",
+      "weeklyDigest" = EXCLUDED."weeklyDigest",
+      metadata = COALESCE(EXCLUDED.metadata, "userNotificationPreferences".metadata),
+      "updatedAt" = NOW()
+  `;
+
+  return true;
+}
+
+export async function getUserNotificationPreferences(userOpenId: string): Promise<UserNotificationPreferencesRecord> {
+  const normalizedUserOpenId = requiredTrimmed(userOpenId, "userOpenId");
+  const sql = await getDb();
+  if (!sql) {
+    warnWhenDatabaseUnavailable("[Database] Cannot get user notification preferences: database not available");
+    return {
+      billingEmails: true,
+      productEmails: true,
+      reportAlerts: false,
+      anomalyAlerts: false,
+      weeklyDigest: false,
+      updatedAt: null,
+    };
+  }
+
+  const result = await sql`
+    SELECT
+      "billingEmails",
+      "productEmails",
+      "reportAlerts",
+      "anomalyAlerts",
+      "weeklyDigest",
+      "updatedAt"
+    FROM "userNotificationPreferences"
+    WHERE "userOpenId" = ${normalizedUserOpenId}
+    LIMIT 1
+  ` as Record<string, any>[];
+
+  const row = result[0];
+  if (!row) {
+    return {
+      billingEmails: true,
+      productEmails: true,
+      reportAlerts: false,
+      anomalyAlerts: false,
+      weeklyDigest: false,
+      updatedAt: null,
+    };
+  }
+
+  return {
+    billingEmails: parseBooleanFlag(row.billingEmails, true),
+    productEmails: parseBooleanFlag(row.productEmails, true),
+    reportAlerts: parseBooleanFlag(row.reportAlerts),
+    anomalyAlerts: parseBooleanFlag(row.anomalyAlerts),
+    weeklyDigest: parseBooleanFlag(row.weeklyDigest),
+    updatedAt: normalizeDateForDb(row.updatedAt),
+  };
 }
 
 export async function insertKtcSnapshot(snapshotDate: Date, ktcData: string) {

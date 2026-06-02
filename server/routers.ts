@@ -82,7 +82,7 @@ import {
   loadStoredSleeperProjectionSnapshot,
   type SleeperProjectionScoringProfile,
 } from "./sleeperProjectionSnapshots";
-import { findBillingCustomerForUser, findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, findMagicLinkTokenByHash, getUserByOpenId, insertLoginAttempt, insertMagicLinkToken, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listWaiverBidHistory, markMagicLinkTokenConsumed, parseLeagueReportCachePayloadFromStorage, recordUsageEvent, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser } from "./db";
+import { deleteUserFavoriteLeague, deleteUserSleeperAccount, findBillingCustomerForUser, findLatestSleeperHiddenLeagueSnapshot, findLeagueReportCache, findLeagueReportCacheMetadata, findMagicLinkTokenByHash, getUserByOpenId, getUserNotificationPreferences, insertLoginAttempt, insertMagicLinkToken, listActionPlans, listAiPredictionEvents, listMonthlyRosterBlueprintSnapshots, listUserFavoriteLeagues, listUserRecentReports, listUserSleeperAccounts, listWaiverBidHistory, markMagicLinkTokenConsumed, parseLeagueReportCachePayloadFromStorage, recordUsageEvent, recordUserRecentReport, reserveMonthlyReportGeneration, serializeLeagueReportCachePayloadForStorage, updateAiPredictionOutcome, upsertAiPredictionEvent, upsertLeagueReportCache, upsertMonthlyRosterBlueprintSnapshots, upsertSleeperHiddenLeagueSnapshot, upsertUser, upsertUserFavoriteLeague, upsertUserNotificationPreferences, upsertUserSleeperAccount } from "./db";
 import { consumeMagicLinkToken, createMagicLinkToken, getMagicLinkUserOpenId, hashMagicLinkToken, normalizeMagicLinkRedirectPath } from "./magicLinkTokens";
 import { buildUsageEvent } from "./usageEvents";
 import { createStripeCheckoutSession, createStripeCustomerPortalSession, resolveStripeBillingAppBaseUrl, STRIPE_BILLING_PRODUCT_KEYS } from "./stripeBilling";
@@ -139,6 +139,24 @@ function assertBillingPersistenceConfigured() {
     throw new TRPCError({
       code: "PRECONDITION_FAILED",
       message: "Stripe billing requires DATABASE_URL in production.",
+    });
+  }
+}
+
+function assertAccountPersistenceConfigured() {
+  if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Account linking requires DATABASE_URL in production.",
+    });
+  }
+}
+
+function assertAccountPersistenceResult(ok: boolean) {
+  if (!ok) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Account linking requires database availability.",
     });
   }
 }
@@ -6369,6 +6387,122 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+  }),
+
+  account: router({
+    links: protectedProcedure
+      .query(async ({ ctx }) => ({
+        sleeperAccounts: await listUserSleeperAccounts(ctx.user.openId),
+        favoriteLeagues: await listUserFavoriteLeagues(ctx.user.openId),
+        recentReports: await listUserRecentReports(ctx.user.openId),
+        notificationPreferences: await getUserNotificationPreferences(ctx.user.openId),
+      })),
+    saveSleeperAccount: protectedProcedure
+      .input(z.object({
+        sleeperUserId: sleeperUserIdSchema,
+        sleeperUsername: sleeperUsernameSchema,
+        displayName: z.string().trim().max(160).optional(),
+        avatar: z.string().trim().max(512).optional(),
+        isPrimary: z.boolean().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        assertAccountPersistenceConfigured();
+        const ok = await upsertUserSleeperAccount({
+          userOpenId: ctx.user.openId,
+          sleeperUserId: input.sleeperUserId,
+          sleeperUsername: input.sleeperUsername,
+          displayName: input.displayName,
+          avatar: input.avatar,
+          isPrimary: input.isPrimary,
+          metadata: { source: "account.saveSleeperAccount" },
+        });
+        assertAccountPersistenceResult(ok);
+        return { success: true } as const;
+      }),
+    removeSleeperAccount: protectedProcedure
+      .input(z.object({
+        sleeperUserId: sleeperUserIdSchema,
+      }))
+      .mutation(async ({ input, ctx }) => {
+        assertAccountPersistenceConfigured();
+        const ok = await deleteUserSleeperAccount({
+          userOpenId: ctx.user.openId,
+          sleeperUserId: input.sleeperUserId,
+        });
+        assertAccountPersistenceResult(ok);
+        return { success: true } as const;
+      }),
+    saveFavoriteLeague: protectedProcedure
+      .input(z.object({
+        leagueId: sleeperLeagueIdSchema,
+        leagueName: z.string().trim().max(240).optional(),
+        sleeperUserId: sleeperUserIdSchema.optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        assertAccountPersistenceConfigured();
+        const ok = await upsertUserFavoriteLeague({
+          userOpenId: ctx.user.openId,
+          leagueId: input.leagueId,
+          leagueName: input.leagueName,
+          sleeperUserId: input.sleeperUserId,
+          platform: "sleeper",
+          metadata: { source: "account.saveFavoriteLeague" },
+        });
+        assertAccountPersistenceResult(ok);
+        return { success: true } as const;
+      }),
+    removeFavoriteLeague: protectedProcedure
+      .input(z.object({
+        leagueId: sleeperLeagueIdSchema,
+      }))
+      .mutation(async ({ input, ctx }) => {
+        assertAccountPersistenceConfigured();
+        const ok = await deleteUserFavoriteLeague({
+          userOpenId: ctx.user.openId,
+          leagueId: input.leagueId,
+        });
+        assertAccountPersistenceResult(ok);
+        return { success: true } as const;
+      }),
+    recordRecentReport: protectedProcedure
+      .input(z.object({
+        leagueId: sleeperLeagueIdSchema,
+        leagueName: z.string().trim().max(240).optional(),
+        sleeperUsername: sleeperUsernameSchema.optional(),
+        sleeperUserId: sleeperUserIdSchema.optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        assertAccountPersistenceConfigured();
+        const ok = await recordUserRecentReport({
+          userOpenId: ctx.user.openId,
+          leagueId: input.leagueId,
+          leagueName: input.leagueName,
+          sleeperUsername: input.sleeperUsername,
+          sleeperUserId: input.sleeperUserId,
+          platform: "sleeper",
+          metadata: { source: "account.recordRecentReport" },
+        });
+        assertAccountPersistenceResult(ok);
+        return { success: true } as const;
+      }),
+    updateNotificationPreferences: protectedProcedure
+      .input(z.object({
+        billingEmails: z.boolean(),
+        productEmails: z.boolean(),
+        reportAlerts: z.boolean(),
+        anomalyAlerts: z.boolean(),
+        weeklyDigest: z.boolean(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        assertAccountPersistenceConfigured();
+        const ok = await upsertUserNotificationPreferences({
+          userOpenId: ctx.user.openId,
+          ...input,
+          metadata: { source: "account.updateNotificationPreferences" },
+        });
+        assertAccountPersistenceResult(ok);
+        return { success: true } as const;
+      }),
   }),
 
   billing: router({

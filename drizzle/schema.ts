@@ -156,6 +156,81 @@ export const usageEvents = mysqlTable("usageEvents", {
 export type UsageEvent = typeof usageEvents.$inferSelect;
 export type InsertUsageEvent = typeof usageEvents.$inferInsert;
 
+export const userSleeperAccounts = mysqlTable("userSleeperAccounts", {
+  id: int("id").autoincrement().primaryKey(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  sleeperUserId: varchar("sleeperUserId", { length: 64 }).notNull(),
+  sleeperUsername: varchar("sleeperUsername", { length: 64 }).notNull(),
+  displayName: text("displayName"),
+  avatar: text("avatar"),
+  isPrimary: int("isPrimary").default(0).notNull(),
+  metadata: longtext("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userSleeperUnique: uniqueIndex("userSleeperAccounts_user_sleeper_uidx").on(table.userOpenId, table.sleeperUserId),
+  userUsernameIndex: index("userSleeperAccounts_user_username_idx").on(table.userOpenId, table.sleeperUsername),
+}));
+
+export type UserSleeperAccount = typeof userSleeperAccounts.$inferSelect;
+export type InsertUserSleeperAccount = typeof userSleeperAccounts.$inferInsert;
+
+export const userFavoriteLeagues = mysqlTable("userFavoriteLeagues", {
+  id: int("id").autoincrement().primaryKey(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  leagueId: varchar("leagueId", { length: 64 }).notNull(),
+  leagueName: text("leagueName"),
+  platform: varchar("platform", { length: 32 }).default("sleeper").notNull(),
+  sleeperUserId: varchar("sleeperUserId", { length: 64 }),
+  metadata: longtext("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userLeagueUnique: uniqueIndex("userFavoriteLeagues_user_league_uidx").on(table.userOpenId, table.leagueId),
+  userUpdatedAtIndex: index("userFavoriteLeagues_user_updatedAt_idx").on(table.userOpenId, table.updatedAt),
+}));
+
+export type UserFavoriteLeague = typeof userFavoriteLeagues.$inferSelect;
+export type InsertUserFavoriteLeague = typeof userFavoriteLeagues.$inferInsert;
+
+export const userRecentReports = mysqlTable("userRecentReports", {
+  id: int("id").autoincrement().primaryKey(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull(),
+  leagueId: varchar("leagueId", { length: 64 }).notNull(),
+  leagueName: text("leagueName"),
+  sleeperUsername: varchar("sleeperUsername", { length: 64 }),
+  sleeperUserId: varchar("sleeperUserId", { length: 64 }),
+  platform: varchar("platform", { length: 32 }).default("sleeper").notNull(),
+  metadata: longtext("metadata"),
+  lastViewedAt: timestamp("lastViewedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userLeagueUnique: uniqueIndex("userRecentReports_user_league_uidx").on(table.userOpenId, table.leagueId),
+  userViewedIndex: index("userRecentReports_user_viewed_idx").on(table.userOpenId, table.lastViewedAt),
+}));
+
+export type UserRecentReport = typeof userRecentReports.$inferSelect;
+export type InsertUserRecentReport = typeof userRecentReports.$inferInsert;
+
+export const userNotificationPreferences = mysqlTable("userNotificationPreferences", {
+  id: int("id").autoincrement().primaryKey(),
+  userOpenId: varchar("userOpenId", { length: 64 }).notNull().unique(),
+  billingEmails: int("billingEmails").default(1).notNull(),
+  productEmails: int("productEmails").default(1).notNull(),
+  reportAlerts: int("reportAlerts").default(0).notNull(),
+  anomalyAlerts: int("anomalyAlerts").default(0).notNull(),
+  weeklyDigest: int("weeklyDigest").default(0).notNull(),
+  metadata: longtext("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userOpenIdIndex: index("userNotificationPreferences_user_open_id_idx").on(table.userOpenId),
+}));
+
+export type UserNotificationPreference = typeof userNotificationPreferences.$inferSelect;
+export type InsertUserNotificationPreference = typeof userNotificationPreferences.$inferInsert;
+
 export const leagueAnalysis = mysqlTable("leagueAnalysis", {
   id: int("id").autoincrement().primaryKey(),
   leagueId: varchar("leagueId", { length: 64 }).notNull().unique(),
