@@ -1795,6 +1795,18 @@ function getExpectedActionSourceGap(
   return null;
 }
 
+function getExpectedActionTimingGap(action: RecommendationExpectedAction): string | null {
+  const deadline = String(action.deadline || '').trim();
+  if (!deadline) return null;
+
+  const deadlineTime = Date.parse(deadline);
+  if (!Number.isFinite(deadlineTime)) return null;
+
+  return deadlineTime <= Date.now()
+    ? 'Expected action deadline has already passed.'
+    : null;
+}
+
 function hasWaiverRosterMoveProof(action: RecommendationExpectedAction): boolean {
   if (hasRecommendationPlayerRef(action.playerOut)) return true;
   const proofText = `${action.expectedRosterChange || ''} ${action.reason || ''}`.toLowerCase();
@@ -1819,6 +1831,8 @@ function getActionPreconditionGap(
   if (identityGap) return identityGap;
   const sourceGap = getExpectedActionSourceGap(action, source);
   if (sourceGap) return sourceGap;
+  const timingGap = getExpectedActionTimingGap(action);
+  if (timingGap) return timingGap;
 
   if (
     source === 'waiver' &&

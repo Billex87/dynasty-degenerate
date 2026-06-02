@@ -1110,6 +1110,90 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('does not treat expired expected actions as current queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const addRef = {
+      id: 'expired-add-player',
+      name: 'Expired Add Player',
+      position: 'RB',
+      team: 'DAL',
+    };
+    const dropRef = {
+      id: 'expired-drop-player',
+      name: 'Expired Drop Player',
+      position: 'WR',
+      team: 'CAR',
+    };
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [],
+      waivers: [{
+        id: 'expired-waiver-action',
+        type: 'Waiver',
+        player: 'Expired Add Player',
+        action: 'Queue-backed pickup',
+        confidence: 96,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture has concrete action proof but the deadline has passed.',
+        reasons: ['Expired expected action should not become a direct waiver action.'],
+        signals: ['Waiver proof'],
+        evidenceRead: {
+          evidence: ['High confidence waiver rationale.'],
+          missingEvidence: [],
+          hardBlockers: [],
+          softPenalties: [],
+          confidenceCap: 100,
+          confidenceCapReason: null,
+          sourceTrace: [{ label: 'Waiver context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+          rawScore: 96,
+          finalScore: 96,
+          label: 'high conviction',
+          shouldRender: true,
+          canAct: true,
+          whyThisFired: 'Waiver context is loaded but the expected action is expired.',
+        } as any,
+        expectedAction: {
+          type: 'drop_for_add',
+          playerIn: addRef,
+          playerOut: dropRef,
+          playersInvolved: [addRef, dropRef],
+          expectedRosterChange: 'Add Expired Add Player and drop Expired Drop Player.',
+          deadline: '2020-01-01T00:00:00.000Z',
+          source: 'autopilot',
+          reason: 'Malformed expired action fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      trades: [],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const expiredQueueItem = data.actionQueue.find((item) => item.id.includes('expired-waiver-action'));
+    expect(expiredQueueItem).toMatchObject({
+      source: 'waiver',
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'drop_for_add',
+      },
+    });
+    expect(expiredQueueItem?.missingEvidence.join(' ')).toContain('deadline has already passed');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('does not treat single-player trade ideas without partner proof as concrete queue moves', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];
