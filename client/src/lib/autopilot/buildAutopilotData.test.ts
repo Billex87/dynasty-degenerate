@@ -528,6 +528,83 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.filter((item) => item.target === 'Waiver Receiver' && item.decision === 'do')).toHaveLength(0);
   });
 
+  it('does not treat same-player add/drop expected actions as concrete queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const samePlayerRef = {
+      id: 'same-add-drop-player',
+      name: 'Same Add Drop Player',
+      position: 'RB',
+      team: 'SEA',
+    };
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [],
+      waivers: [{
+        id: 'same-player-add-drop',
+        type: 'Waiver',
+        player: 'Same Add Drop Player',
+        action: 'Queue-backed pickup',
+        confidence: 92,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture incorrectly adds and drops the same player.',
+        reasons: ['Malformed expected action should not become a direct action.'],
+        signals: ['Waiver proof'],
+        evidenceRead: {
+          evidence: ['High confidence waiver rationale.'],
+          missingEvidence: [],
+          hardBlockers: [],
+          softPenalties: [],
+          confidenceCap: 100,
+          confidenceCapReason: null,
+          sourceTrace: [{ label: 'Waiver context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+          rawScore: 92,
+          finalScore: 92,
+          label: 'high conviction',
+          shouldRender: true,
+          canAct: true,
+          whyThisFired: 'Waiver context is loaded but the expected action is malformed.',
+        } as any,
+        expectedAction: {
+          type: 'add_player',
+          playerIn: samePlayerRef,
+          playerOut: samePlayerRef,
+          playersInvolved: [samePlayerRef, samePlayerRef],
+          expectedRosterChange: 'Add Same Add Drop Player and drop Same Add Drop Player.',
+          source: 'autopilot',
+          reason: 'Malformed same-player add/drop fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      trades: [],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const waiverQueueItem = data.actionQueue.find((item) => item.id.includes('same-player-add-drop'));
+    expect(waiverQueueItem).toMatchObject({
+      source: 'waiver',
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'add_player',
+      },
+    });
+    expect(waiverQueueItem?.missingEvidence.join(' ')).toContain('same player');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('does not promote waiver add/drop reads when the drop candidate is no longer rostered', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];

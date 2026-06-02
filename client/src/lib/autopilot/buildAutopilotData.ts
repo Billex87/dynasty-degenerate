@@ -1681,7 +1681,12 @@ function getQueueSourceLabel(source: AIActionQueueSource): string {
 
 function getExpectedActionIdentityGap(action: RecommendationExpectedAction): string | null {
   if (action.type === 'add_player' || action.type === 'waiver_add' || action.type === 'stream_player' || action.type === 'start_player') {
-    return hasRecommendationPlayerRef(action.playerIn) ? null : 'Expected action is missing the player to add/start.';
+    if (!hasRecommendationPlayerRef(action.playerIn)) {
+      return 'Expected action is missing the player to add/start.';
+    }
+    return isSameRecommendationPlayerRef(action.playerIn, action.playerOut)
+      ? 'Expected action uses the same player as both the add/start and drop/bench side.'
+      : null;
   }
   if (action.type === 'drop_player' || action.type === 'bench_player') {
     return hasRecommendationPlayerRef(action.playerOut) ? null : 'Expected action is missing the player to drop/bench.';
