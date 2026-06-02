@@ -60,6 +60,26 @@ describe("user-load provider boundary", () => {
     expect(usageRecordIndex).toBeGreaterThan(leagueFetchIndex);
   });
 
+  it("records source-trace view usage before returning paid trace details", () => {
+    const sanitizeSource = extractSource("async function sanitizeAnalyzePayloadForPaidAccess", "\nfunction assertSessionJwtSecretConfigured");
+    const accessIndex = sanitizeSource.indexOf('feature: "source-trace-details"');
+    const sanitizeIndex = sanitizeSource.indexOf("sanitizeLeagueReportPayloadForPaidAccess(input.payload", accessIndex);
+    const retainedTraceIndex = sanitizeSource.indexOf("sanitized.stats.retainedSourceTraceFields");
+    const usageCheckIndex = sanitizeSource.indexOf("checkPersistedUsageLimit({");
+    const usageRecordIndex = sanitizeSource.indexOf("recordLimitedUsageEvent({");
+    const returnIndex = sanitizeSource.indexOf("return sanitized.payload");
+
+    expect(accessIndex).toBeGreaterThan(0);
+    expect(sanitizeIndex).toBeGreaterThan(accessIndex);
+    expect(retainedTraceIndex).toBeGreaterThan(sanitizeIndex);
+    expect(usageCheckIndex).toBeGreaterThan(retainedTraceIndex);
+    expect(usageRecordIndex).toBeGreaterThan(usageCheckIndex);
+    expect(returnIndex).toBeGreaterThan(usageRecordIndex);
+    expect(sanitizeSource).toContain('featureKey: "source-trace-view"');
+    expect(sanitizeSource).toContain('source: "league.analyze.sourceTrace"');
+    expect(sanitizeSource).toContain("canViewSourceTraceDetails: false");
+  });
+
   it("keeps ranking and player-detail non-Sleeper enrichments snapshot-only", () => {
     expect(routersSource).toContain("loadBlendedKTCValues(leagueValueOptions, getUserLoadSnapshotOptions())");
     expect(routersSource).toContain("leagueValueCache.set(key, loadBlendedKTCValues(options, getUserLoadSnapshotOptions()))");

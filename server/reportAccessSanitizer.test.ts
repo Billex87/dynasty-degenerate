@@ -96,6 +96,9 @@ describe("report access sanitizer", () => {
       removedSourceTraceFields: 1,
       removedTraceSummaryFields: 1,
       removedAiConfidenceHistoryFields: 1,
+      retainedSourceTraceFields: 0,
+      retainedTraceSummaryFields: 0,
+      retainedAiConfidenceHistoryFields: 0,
     });
     expect((result.payload as any).waiverIntelligence.weeklyEcrTargets[0].signal).not.toHaveProperty("sourceTrace");
     expect((result.payload as any).waiverIntelligence.weeklyEcrTargets[0].signal).not.toHaveProperty("traceSummary");
@@ -113,6 +116,9 @@ describe("report access sanitizer", () => {
 
     expect(result.payload).toBe(report);
     expect(result.stats.removedSourceTraceFields).toBe(0);
+    expect(result.stats.retainedSourceTraceFields).toBe(1);
+    expect(result.stats.retainedTraceSummaryFields).toBe(1);
+    expect(result.stats.retainedAiConfidenceHistoryFields).toBe(1);
     expect((result.payload as any).waiverIntelligence.weeklyEcrTargets[0].signal.sourceTrace).toHaveLength(1);
     expect(result.payload.leagueDiagnostics?.aiConfidence?.history).toHaveLength(1);
   });

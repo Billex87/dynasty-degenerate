@@ -9,6 +9,9 @@ type SanitizerStats = {
   removedSourceTraceFields: number;
   removedTraceSummaryFields: number;
   removedAiConfidenceHistoryFields: number;
+  retainedSourceTraceFields: number;
+  retainedTraceSummaryFields: number;
+  retainedAiConfidenceHistoryFields: number;
 };
 
 type SanitizerResult<T> = {
@@ -21,6 +24,9 @@ function createStats(): SanitizerStats {
     removedSourceTraceFields: 0,
     removedTraceSummaryFields: 0,
     removedAiConfidenceHistoryFields: 0,
+    retainedSourceTraceFields: 0,
+    retainedTraceSummaryFields: 0,
+    retainedAiConfidenceHistoryFields: 0,
   };
 }
 
@@ -63,16 +69,28 @@ function sanitizeValue(value: unknown, access: ReportAccessInput, stats: Sanitiz
       continue;
     }
 
+    if (access.canViewSourceTraceDetails && key === "sourceTrace") {
+      stats.retainedSourceTraceFields += 1;
+    }
+
     if (!access.canViewSourceTraceDetails && key === "traceSummary") {
       stats.removedTraceSummaryFields += 1;
       changed = true;
       continue;
     }
 
+    if (access.canViewSourceTraceDetails && key === "traceSummary") {
+      stats.retainedTraceSummaryFields += 1;
+    }
+
     if (!access.canViewAiConfidenceHistory && isAiConfidenceRecord && key === "history") {
       stats.removedAiConfidenceHistoryFields += 1;
       changed = true;
       continue;
+    }
+
+    if (access.canViewAiConfidenceHistory && isAiConfidenceRecord && key === "history") {
+      stats.retainedAiConfidenceHistoryFields += 1;
     }
 
     const sanitized = sanitizeValue(child, access, stats);

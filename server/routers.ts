@@ -86,6 +86,7 @@ import { deleteUserFavoriteLeague, deleteUserSleeperAccount, findBillingCustomer
 import { consumeMagicLinkToken, createMagicLinkToken, getMagicLinkUserOpenId, hashMagicLinkToken, normalizeMagicLinkRedirectPath } from "./magicLinkTokens";
 import { buildUsageEvent } from "./usageEvents";
 import {
+  checkPersistedUsageLimit,
   assertPersistedUsageLimit,
   getPlanUsageLimit,
   recordLimitedUsageEvent,
@@ -231,11 +232,57 @@ async function sanitizeAnalyzePayloadForPaidAccess(input: {
     paidFeaturesEnabled: true,
     ...persistedAccess,
   });
-
-  return sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+  const sanitized = sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
     canViewSourceTraceDetails: sourceTraceAccess.allowed,
     canViewAiConfidenceHistory: aiConfidenceHistoryAccess.allowed,
-  }).payload;
+  });
+  const returnedSourceTraceFields =
+    sanitized.stats.retainedSourceTraceFields + sanitized.stats.retainedTraceSummaryFields;
+
+  if (sourceTraceAccess.allowed && returnedSourceTraceFields > 0) {
+    const sourceTraceUsage = await checkPersistedUsageLimit({
+      user: input.ctx.user,
+      featureKey: "source-trace-view",
+      leagueId: input.leagueId,
+      paidFeaturesEnabled: true,
+    })
+      .catch((error) => {
+        console.warn("[Usage] Failed to check source trace view usage:", error);
+        return null;
+      });
+
+    if (!sourceTraceUsage?.allowed) {
+      return sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+        canViewSourceTraceDetails: false,
+        canViewAiConfidenceHistory: aiConfidenceHistoryAccess.allowed,
+      }).payload;
+    }
+
+    const recordedSourceTraceUsage = await recordLimitedUsageEvent({
+      user: input.ctx.user,
+      featureKey: "source-trace-view",
+      leagueId: input.leagueId,
+      source: "league.analyze.sourceTrace",
+      idempotencyKey: `league:${input.leagueId}:viewer:${input.ctx.user?.openId || "anonymous"}:viewed:${Date.now()}`,
+      metadata: {
+        leagueId: input.leagueId,
+        returnedSourceTraceFields,
+      },
+    })
+      .catch((error) => {
+        console.warn("[Usage] Failed to record source trace view usage:", error);
+        return false;
+      });
+
+    if (!recordedSourceTraceUsage) {
+      return sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+        canViewSourceTraceDetails: false,
+        canViewAiConfidenceHistory: aiConfidenceHistoryAccess.allowed,
+      }).payload;
+    }
+  }
+
+  return sanitized.payload;
 }
 
 function assertSessionJwtSecretConfigured() {
