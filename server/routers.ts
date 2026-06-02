@@ -53,7 +53,7 @@ import {
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import { buildPlayerSituationDeltas } from "./playerSituationDelta";
 import { filterCompletedFuturePickPortfolios } from "../shared/pickPortfolioFilters";
-import { assertCanUseFeature, assertCanUsePersistedFeature } from "./featureEntitlements";
+import { assertCanUseFeature } from "./featureEntitlements";
 import { buildLeaguePlayoffWeeks, buildMatchupWindowSet, getShortTermMatchupOutlook } from "../shared/matchupWindows";
 import {
   buildNflverseDraftCapitalBySleeperId,
@@ -1860,7 +1860,7 @@ export async function assertMonthlyReportGenerationAllowed(input: {
   ipAddress?: string | null;
 }) {
   if (isTrustedAutomationRequest(input.ctx.req as any)) return;
-  await assertCanUsePersistedFeature({
+  assertCanUseFeature({
     user: input.ctx.user,
     feature: "monthly-roster-blueprint",
     leagueId: input.leagueId,
