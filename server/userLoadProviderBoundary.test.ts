@@ -289,16 +289,19 @@ describe("user-load provider boundary", () => {
     const statusSource = extractSource("reportCacheStatus: publicProcedure", "\n    getUserLeagueRanks: publicProcedure");
     const helperSource = extractSource("async function getLeagueReportCacheStatus", "\n\nfunction getBlueprintSnapshotMonth");
     const accessIndex = statusSource.indexOf("assertReportAccess(ctx)");
-    const rateLimitIndex = statusSource.indexOf("assertRateLimit(ctx.req as any");
+    const ipRateLimitIndex = statusSource.indexOf("id: 'league.reportCacheStatus.ip'");
+    const rateLimitIndex = statusSource.indexOf("id: 'league.reportCacheStatus',", ipRateLimitIndex);
     const keyIndex = statusSource.indexOf("const reportCacheKey = getLeagueReportCacheKey(input.leagueId, input.viewerUserId)");
     const statusIndex = statusSource.indexOf("getLeagueReportCacheStatus(reportCacheKey, input.leagueId, input.viewerUserId)");
 
     expect(statusSource).toContain("leagueId: sleeperLeagueIdSchema");
     expect(statusSource).toContain("viewerUserId: sleeperUserIdSchema.optional()");
     expect(accessIndex).toBeGreaterThan(0);
-    expect(rateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(ipRateLimitIndex).toBeGreaterThan(accessIndex);
+    expect(rateLimitIndex).toBeGreaterThan(ipRateLimitIndex);
     expect(keyIndex).toBeGreaterThan(rateLimitIndex);
     expect(statusIndex).toBeGreaterThan(keyIndex);
+    expect(statusSource).toContain("id: 'league.reportCacheStatus.ip'");
     expect(statusSource).toContain("id: 'league.reportCacheStatus'");
     expect(helperSource).toContain("findLeagueReportCacheMetadata(cacheKey, LEAGUE_REPORT_CACHE_TTL_MS)");
     expect(helperSource).toContain("getLeagueReportFileCacheMetadata(cacheKey)");
