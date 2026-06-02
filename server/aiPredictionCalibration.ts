@@ -409,9 +409,21 @@ export function getAIPredictionKey(input: {
 
 function defaultDecision(result: AIEvidenceResult): AIPredictionDecision {
   if (!result.shouldRender || result.hardBlockers.length || result.label === 'blocked') return 'blocked';
+  if (result.confidenceCapReason || result.missingEvidence.length) return 'watch';
   if (result.label === 'high conviction' || result.label === 'priority' || result.label === 'actionable') return 'do';
   if (result.label === 'watchlist') return 'watch';
   return 'dont';
+}
+
+function normalizePredictionDecision(
+  decision: AIPredictionDecision,
+  evidenceRead: AIEvidenceResult,
+  counterfactual: AICounterfactualRead | null
+): AIPredictionDecision {
+  if (!evidenceRead.shouldRender || evidenceRead.hardBlockers.length || evidenceRead.label === 'blocked') return 'blocked';
+  if (decision === 'do' && (evidenceRead.confidenceCapReason || evidenceRead.missingEvidence.length)) return 'watch';
+  if (decision === 'do' && counterfactual && counterfactual.status !== 'beats-baseline') return 'watch';
+  return decision;
 }
 
 export function createAIPredictionEvent(input: CreateAIPredictionEventInput): AIPredictionEvent {
@@ -422,9 +434,7 @@ export function createAIPredictionEvent(input: CreateAIPredictionEventInput): AI
   const week = weekNumber(input.week);
   const counterfactual = input.counterfactual || input.decisionSnapshot?.counterfactual || null;
   const rawDecision = input.decision || defaultDecision(input.evidenceRead);
-  const decision = rawDecision === 'do' && counterfactual && counterfactual.status !== 'beats-baseline'
-    ? 'watch'
-    : rawDecision;
+  const decision = normalizePredictionDecision(rawDecision, input.evidenceRead, counterfactual);
   const predictionKey = cleanText(input.predictionKey) || getAIPredictionKey({
     surface: input.surface,
     action: input.action,

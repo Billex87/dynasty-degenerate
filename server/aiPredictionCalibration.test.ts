@@ -63,6 +63,107 @@ describe('AI prediction calibration', () => {
     expect(created.evidence.length).toBeGreaterThan(0);
   });
 
+  it('does not persist do decisions when caller-supplied evidence still has gaps', () => {
+    const evidenceRead = evaluateAIEvidence({
+      surface: 'waiver',
+      action: 'pickup',
+      baseScore: 86,
+      evidence: ['Market signal is loaded.'],
+      missingEvidence: ['Verify live roster state before acting.'],
+      sourceTrace: [{ label: 'Sleeper roster source', status: 'loaded' }],
+      confidenceCap: 68,
+      confidenceCapReason: 'Missing live roster proof',
+      player: { name: 'Gap Player', position: 'WR', team: 'BUF', value: 5000, sourceCount: 1 },
+      requiresActiveTeam: true,
+      requiresLiveAvailability: true,
+    });
+
+    const created = createAIPredictionEvent({
+      evidenceRead,
+      decision: 'do',
+      surface: 'waiver',
+      action: 'pickup',
+      entityType: 'player',
+      entityId: 'gap-player',
+      createdAt: '2026-05-20T00:00:00.000Z',
+    });
+
+    expect(created.decision).toBe('watch');
+    expect(created.missingEvidence).toContain('Verify live roster state before acting.');
+  });
+
+  it('does not persist do decisions when the read fails its decision-time baseline', () => {
+    const evidenceRead = evaluateAIEvidence({
+      surface: 'waiver',
+      action: 'pickup',
+      baseScore: 86,
+      evidence: ['Live roster availability and market value are loaded.'],
+      sourceTrace: [
+        { label: 'Sleeper roster source', status: 'loaded' },
+        { label: 'Market value source', status: 'loaded' },
+      ],
+      player: { name: 'Baseline Player', position: 'WR', team: 'BUF', value: 5000, sourceCount: 3 },
+      requiresActiveTeam: true,
+      requiresLiveAvailability: true,
+    });
+    const counterfactual = buildAICounterfactualRead({
+      aiScore: 76,
+      baseline: {
+        kind: 'highest-ranked-available',
+        label: 'highest-ranked available',
+        score: 82,
+      },
+    });
+
+    const created = createAIPredictionEvent({
+      evidenceRead,
+      decision: 'do',
+      counterfactual,
+      surface: 'waiver',
+      action: 'pickup',
+      entityType: 'player',
+      entityId: 'baseline-player',
+      createdAt: '2026-05-20T00:00:00.000Z',
+    });
+
+    expect(counterfactual.status).toBe('below-baseline');
+    expect(created.decision).toBe('watch');
+  });
+
+  it('does not persist do decisions when caller-supplied evidence still has blockers', () => {
+    const evidenceRead = evaluateAIEvidence({
+      surface: 'waiver',
+      action: 'pickup',
+      baseScore: 82,
+      evidence: ['Market signal is loaded.'],
+      hardBlockers: ['Player is already rostered.'],
+      sourceTrace: [{ label: 'Sleeper roster source', status: 'loaded' }],
+      player: {
+        name: 'Blocked Player',
+        position: 'WR',
+        team: 'BUF',
+        value: 5000,
+        sourceCount: 1,
+        owner: 'Rival',
+      },
+      requiresActiveTeam: true,
+      requiresLiveAvailability: true,
+    });
+
+    const created = createAIPredictionEvent({
+      evidenceRead,
+      decision: 'do',
+      surface: 'waiver',
+      action: 'pickup',
+      entityType: 'player',
+      entityId: 'blocked-player',
+      createdAt: '2026-05-20T00:00:00.000Z',
+    });
+
+    expect(created.decision).toBe('blocked');
+    expect(created.hardBlockers.join(' ')).toContain('already on Rival');
+  });
+
   it('summarizes hit rate, brier score, and overconfidence by bucket', () => {
     const summary = summarizeAIPredictionReliability([
       event({ entityId: 'p1', finalScore: 90, outcome: { status: 'miss' } }),
