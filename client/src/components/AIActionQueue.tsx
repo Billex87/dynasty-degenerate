@@ -59,6 +59,9 @@ function QueueReceipts({
   const sourceHealth = compact ? item.sourceHealth.slice(0, 2) : item.sourceHealth.slice(0, 3);
   const changeTriggers = compact ? item.changeTriggers.slice(0, 2) : item.changeTriggers.slice(0, 3);
   const dominoEffects = compact ? (item.dominoEffects || []).slice(0, 2) : (item.dominoEffects || []).slice(0, 3);
+  const verificationRows = sourceHealth.length
+    ? sourceHealth
+    : ['Verify current roster, availability, league format, and source freshness before acting.'];
 
   return (
     <div className="ai-action-queue-receipts">
@@ -92,11 +95,11 @@ function QueueReceipts({
           </ul>
         </div>
       )}
-      {sourceHealth.length > 0 && (
+      {verificationRows.length > 0 && (
         <div>
-          <span>Source health</span>
+          <span>Where to verify</span>
           <ul>
-            {sourceHealth.map((source) => (
+            {verificationRows.map((source) => (
               <li key={source}>{source}</li>
             ))}
           </ul>

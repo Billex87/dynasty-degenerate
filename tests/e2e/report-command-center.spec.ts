@@ -1788,6 +1788,7 @@ test.describe("command center feature surfaces", () => {
     await expect(actionQueue).toBeVisible();
     await expect(actionQueue.getByText("Daily AI Verdict")).toBeVisible();
     await expect(actionQueue.getByText("Roster domino")).toBeVisible();
+    await expect(actionQueue.getByText("Where to verify")).toBeVisible();
     await expect(actionQueue.getByText("Source conflict check")).toBeVisible();
     await expect(actionQueue.getByText("Decision memory")).toBeVisible();
     await expect(actionQueue.getByText("Outcome observer")).toBeVisible();
