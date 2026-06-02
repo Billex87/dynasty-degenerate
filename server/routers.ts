@@ -7228,6 +7228,12 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         assertReportAccess(ctx);
         assertRateLimit(ctx.req as any, {
+          id: 'league.getLeaguePreview.ip',
+          max: 60,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many league lookups. Please wait a few minutes and try again.',
+        });
+        assertRateLimit(ctx.req as any, {
           id: 'league.getLeaguePreview',
           max: 30,
           windowMs: 1000 * 60 * 10,
