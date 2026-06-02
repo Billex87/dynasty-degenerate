@@ -18,6 +18,8 @@ import { useHomeAIPredictionTelemetry } from "@/features/home/hooks/useHomeAIPre
 import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeout";
 import { useHomePortfolio } from "@/features/home/hooks/useHomePortfolio";
 import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
+import { usePersistHomeReportCache } from "@/features/home/hooks/usePersistHomeReportCache";
+import { useHomeReportTabActions } from "@/features/home/hooks/useHomeReportTabActions";
 import { useQueuedTimeouts } from "@/features/home/hooks/useQueuedTimeouts";
 import { useReportBackgroundRefresh } from "@/features/home/hooks/useReportBackgroundRefresh";
 import { useReportLoadTelemetry } from "@/features/home/hooks/useReportLoadTelemetry";
@@ -75,8 +77,6 @@ import {
   shouldBackgroundRefreshCachedReport,
   formatMutationErrorMessage,
   showMutationErrorToast,
-  withReportDataLeagueId,
-  writeBrowserReportCache,
 } from "@/features/home/lib/reportCache";
 import {
   type AnalysisLeaguePreview,
@@ -236,7 +236,6 @@ export default function Home() {
   const analysisModeRef = useRef<ReportAnalysisMode>("blocking");
   const backgroundRefreshLeagueIdRef = useRef<string | null>(null);
   const lastBackgroundRefreshAtRef = useRef<Record<string, number>>({});
-  const autopilotAccessToastShownRef = useRef(false);
   const queueReportVisibleTelemetry = useReportLoadTelemetry({
     reportLoadStartedAtRef,
     analyzeRequestStartedAtRef,
@@ -943,43 +942,15 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (!reportData) return;
-    const normalizedLeagueId = normalizeReportLeagueId(leagueId);
-    const reportDataLeagueId = getReportDataLeagueId(reportData);
-    if (
-      !normalizedLeagueId ||
-      (reportDataLeagueId && reportDataLeagueId !== normalizedLeagueId)
-    ) {
-      return;
-    }
-    const cacheReportData = withReportDataLeagueId(reportData, normalizedLeagueId);
-
-    const lastLeague: LastLeague = {
-      leagueId: normalizedLeagueId,
-      leagueName,
-      leagueLogo,
-      leagueFormat,
-      activeTab,
-      savedAt: Date.now(),
-    };
-
-    try {
-      localStorage.setItem(LAST_LEAGUE_KEY, JSON.stringify(lastLeague));
-      writeBrowserReportCache({
-        ...lastLeague,
-        cacheVersion: REPORT_CACHE_DATA_VERSION,
-        reportData: cacheReportData,
-      });
-    } catch {
-      clearBrowserReportCache();
-      try {
-        localStorage.setItem(LAST_LEAGUE_KEY, JSON.stringify(lastLeague));
-      } catch {
-        localStorage.removeItem(LAST_LEAGUE_KEY);
-      }
-    }
-  }, [activeTab, leagueFormat, leagueId, leagueLogo, leagueName, reportData]);
+  usePersistHomeReportCache({
+    activeTab,
+    lastLeagueKey: LAST_LEAGUE_KEY,
+    leagueFormat,
+    leagueId,
+    leagueLogo,
+    leagueName,
+    reportData,
+  });
 
   useEffect(() => {
     if (
@@ -1347,50 +1318,6 @@ export default function Home() {
     leagueId,
     leagueName,
   });
-  const showAutopilotAccessToast = () => {
-    if (autopilotAccessToastShownRef.current) return;
-    autopilotAccessToastShownRef.current = true;
-    toast.info("AI Autopilot is available in admin mode for now.");
-  };
-  const handleReportTabChange = (nextTab: string) => {
-    const isBlockedAutopilotTab =
-      nextTab === "autopilot" && !canViewAutopilotTab;
-    const isBlockedDraftTab =
-      nextTab === "draft" && !shouldShowDraftHistoryTab;
-    if (isBlockedAutopilotTab) {
-      showAutopilotAccessToast();
-    }
-    const allowedNextTab =
-      isBlockedAutopilotTab || isBlockedDraftTab ? "overview" : nextTab;
-    setActiveTab(allowedNextTab);
-    updateReportTabUrl(allowedNextTab, leagueId);
-  };
-  const handleScoutLeaguemates = () => {
-    setActiveTab("rankings");
-    updateReportTabUrl("rankings", leagueId);
-    window.setTimeout(() => {
-      setRosterScannerFocusKey(current => current + 1);
-    }, 0);
-  };
-
-  useEffect(() => {
-    if (
-      activeTab === "autopilot" &&
-      !canViewAutopilotTab &&
-      !authQuery.isLoading
-    ) {
-      showAutopilotAccessToast();
-      setActiveTab("overview");
-      updateReportTabUrl("overview", leagueId);
-      return;
-    }
-
-    if (activeTab === "projections") {
-      setActiveTab("rankings");
-      updateReportTabUrl("rankings", leagueId);
-    }
-  }, [activeTab, authQuery.isLoading, canViewAutopilotTab, leagueId]);
-
   useReportBackgroundRefresh({
     reportData,
     leagueId,
@@ -1402,32 +1329,19 @@ export default function Home() {
     prefetchDebounceMs: REPORT_CACHE_PREFETCH_DEBOUNCE_MS,
     onRefreshReport: refreshReportInBackground,
   });
-
-  useEffect(() => {
-    if (!reportData || activeTab !== "draft" || shouldShowDraftHistoryTab)
-      return;
-
-    setActiveTab("overview");
-    updateReportTabUrl("overview", leagueId);
-  }, [activeTab, leagueId, reportData, shouldShowDraftHistoryTab]);
-
-  useEffect(() => {
-    if (!reportData || !leagueId) return;
-    if (shouldDeferAutopilotUrlSync) return;
-    updateReportTabUrl(resolvedActiveTab, leagueId);
-  }, [leagueId, reportData, resolvedActiveTab, shouldDeferAutopilotUrlSync]);
-
-  useEffect(() => {
-    if (!reportData) return;
-    const syncTabFromUrl = () => {
-      const tabFromUrl = getInitialReportTabFromUrl();
-      if (!tabFromUrl) return;
-      setActiveTab(tabFromUrl);
-    };
-    syncTabFromUrl();
-    window.addEventListener("hashchange", syncTabFromUrl);
-    return () => window.removeEventListener("hashchange", syncTabFromUrl);
-  }, [reportData]);
+  const { handleReportTabChange, handleScoutLeaguemates } =
+    useHomeReportTabActions({
+      activeTab,
+      setActiveTab,
+      leagueId,
+      reportData,
+      canViewAutopilotTab,
+      shouldShowDraftHistoryTab,
+      isAuthLoading: authQuery.isLoading,
+      shouldDeferAutopilotUrlSync,
+      resolvedActiveTab,
+      setRosterScannerFocusKey,
+    });
 
   const loadingLeague =
     analysisCompleteMessage ||
