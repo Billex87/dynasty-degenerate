@@ -960,6 +960,156 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('does not treat slotless bench expected actions as concrete queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const benchRef = {
+      id: 'slotless-bench-player',
+      name: 'Slotless Bench Player',
+      position: 'WR',
+      team: 'TEN',
+    };
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [{
+        id: 'slotless-bench-action',
+        type: 'Start/Sit',
+        player: 'Slotless Bench Player',
+        action: 'Bench now',
+        confidence: 94,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture incorrectly asks for a bench without replacement or slot proof.',
+        reasons: ['Malformed expected action should not become a direct lineup action.'],
+        signals: ['Lineup proof'],
+        evidenceRead: {
+          evidence: ['High confidence lineup rationale.'],
+          missingEvidence: [],
+          hardBlockers: [],
+          softPenalties: [],
+          confidenceCap: 100,
+          confidenceCapReason: null,
+          sourceTrace: [{ label: 'Lineup context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+          rawScore: 94,
+          finalScore: 94,
+          label: 'high conviction',
+          shouldRender: true,
+          canAct: true,
+          whyThisFired: 'Lineup context is loaded but no concrete replacement or lineup slot is attached.',
+        } as any,
+        expectedAction: {
+          type: 'bench_player',
+          playerOut: benchRef,
+          expectedLineupChange: 'Bench Slotless Bench Player this week.',
+          source: 'autopilot',
+          reason: 'Malformed slotless bench fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      waivers: [],
+      trades: [],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const benchQueueItem = data.actionQueue.find((item) => item.id.includes('slotless-bench-action'));
+    expect(benchQueueItem).toMatchObject({
+      source: 'lineup',
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'bench_player',
+      },
+    });
+    expect(benchQueueItem?.missingEvidence.join(' ')).toContain('missing the replacement or explicit lineup slot proof');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
+  it('does not treat replacementless drop expected actions as concrete queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const dropRef = {
+      id: 'replacementless-drop-player',
+      name: 'Replacementless Drop Player',
+      position: 'RB',
+      team: 'NYG',
+    };
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [],
+      waivers: [{
+        id: 'replacementless-drop-action',
+        type: 'Waiver',
+        player: 'Replacementless Drop Player',
+        action: 'Drop now',
+        confidence: 94,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture incorrectly asks for a drop without a replacement or open roster spot proof.',
+        reasons: ['Malformed expected action should not become a direct waiver action.'],
+        signals: ['Waiver proof'],
+        evidenceRead: {
+          evidence: ['High confidence waiver rationale.'],
+          missingEvidence: [],
+          hardBlockers: [],
+          softPenalties: [],
+          confidenceCap: 100,
+          confidenceCapReason: null,
+          sourceTrace: [{ label: 'Waiver context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+          rawScore: 94,
+          finalScore: 94,
+          label: 'high conviction',
+          shouldRender: true,
+          canAct: true,
+          whyThisFired: 'Waiver context is loaded but no replacement or open roster spot proof is attached.',
+        } as any,
+        expectedAction: {
+          type: 'drop_player',
+          playerOut: dropRef,
+          expectedRosterChange: 'Drop Replacementless Drop Player this week.',
+          source: 'autopilot',
+          reason: 'Malformed replacementless drop fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      trades: [],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const dropQueueItem = data.actionQueue.find((item) => item.id.includes('replacementless-drop-action'));
+    expect(dropQueueItem).toMatchObject({
+      source: 'waiver',
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'drop_player',
+      },
+    });
+    expect(dropQueueItem?.missingEvidence.join(' ')).toContain('missing a replacement or open roster spot proof');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('does not treat single-player trade ideas without partner proof as concrete queue moves', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];

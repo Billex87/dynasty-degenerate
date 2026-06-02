@@ -1663,6 +1663,12 @@ function hasExplicitLineupSlotProof(action: RecommendationExpectedAction): boole
     /\b(?:lineup|starter)\s+(?:spot|slot)\s+(?:at|for|is)\s+(?:qb|rb|wr|te|flex|superflex|sf|dst|d\/st|defense|k|kicker)\b/.test(proofText);
 }
 
+function hasOpenRosterSpotProof(action: RecommendationExpectedAction): boolean {
+  const proofText = `${action.expectedLineupChange || ''} ${action.expectedRosterChange || ''} ${action.reason || ''}`.toLowerCase();
+  return /\b(?:open|empty|free|available)\s+(?:roster|bench)\s+(?:spot|slot)\b/.test(proofText) ||
+    /\b(?:roster|bench)\s+(?:spot|slot)\s+(?:is\s+)?(?:open|empty|free|available)\b/.test(proofText);
+}
+
 function hasConcreteTradeProof(action: RecommendationExpectedAction): boolean {
   if (hasRecommendationPlayerRef(action.playerIn) && hasRecommendationPlayerRef(action.playerOut)) return true;
 
@@ -1705,13 +1711,27 @@ function getExpectedActionIdentityGap(action: RecommendationExpectedAction): str
       ? null
       : 'Expected start action is missing the starter-out side or explicit lineup slot proof.';
   }
-  if (action.type === 'drop_player' || action.type === 'bench_player') {
+  if (action.type === 'drop_player') {
     if (!hasRecommendationPlayerRef(action.playerOut)) {
       return 'Expected action is missing the player to drop/bench.';
     }
-    return isSameRecommendationPlayerRef(action.playerIn, action.playerOut)
-      ? 'Expected action uses the same player as both the add/start and drop/bench side.'
-      : null;
+    if (isSameRecommendationPlayerRef(action.playerIn, action.playerOut)) {
+      return 'Expected action uses the same player as both the add/start and drop/bench side.';
+    }
+    return hasRecommendationPlayerRef(action.playerIn) || hasOpenRosterSpotProof(action)
+      ? null
+      : 'Expected drop action is missing a replacement or open roster spot proof.';
+  }
+  if (action.type === 'bench_player') {
+    if (!hasRecommendationPlayerRef(action.playerOut)) {
+      return 'Expected action is missing the player to drop/bench.';
+    }
+    if (isSameRecommendationPlayerRef(action.playerIn, action.playerOut)) {
+      return 'Expected action uses the same player as both the add/start and drop/bench side.';
+    }
+    return hasRecommendationPlayerRef(action.playerIn) || hasExplicitLineupSlotProof(action)
+      ? null
+      : 'Expected bench action is missing the replacement or explicit lineup slot proof.';
   }
   if (action.type === 'drop_for_add' || action.type === 'swap_starter') {
     if (!hasRecommendationPlayerRef(action.playerIn) || !hasRecommendationPlayerRef(action.playerOut)) {
