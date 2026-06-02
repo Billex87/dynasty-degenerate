@@ -345,6 +345,45 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.filter((item) => item.target === 'Waiver Receiver' && item.decision === 'do')).toHaveLength(0);
   });
 
+  it('does not promote waiver add/drop reads when the drop candidate is currently starting', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    reportData.managerRosterIntelligence = (reportData.managerRosterIntelligence || []).map((row) => {
+      if (row.manager !== 'Tester') return row;
+      const starterDrop = row.rosterPlayers?.find((player) => player.player_id === 'te1') || row.rosterPlayers?.[0];
+      return {
+        ...row,
+        droppablePlayers: starterDrop ? [starterDrop] : [],
+      };
+    });
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    expect(data.waivers[0]).toMatchObject({
+      player: 'Waiver Receiver',
+      action: 'Monitor only',
+      expectedAction: {
+        type: 'hold',
+      },
+    });
+    expect(data.waivers[0]?.secondary).not.toContain('drop Sample Tight End');
+    expect(data.waivers[0]?.reasons.join(' ')).toContain('Drop candidate proof points at a current starter');
+
+    const waiverQueueItem = data.actionQueue.find((item) => item.target === 'Waiver Receiver');
+    expect(waiverQueueItem).toMatchObject({
+      source: 'waiver',
+      decision: 'hold',
+      expectedAction: {
+        type: 'hold',
+      },
+    });
+    expect(data.actionQueue.filter((item) => item.target === 'Waiver Receiver' && item.decision === 'do')).toHaveLength(0);
+  });
+
   it('surfaces legal stored-projection start/sit swaps without changing dynasty value copy', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];
