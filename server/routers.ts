@@ -7405,6 +7405,14 @@ export const appRouter = router({
         });
         const username = input.username.trim();
         if (!username) throw new Error('Please enter a Sleeper username');
+        assertRateLimit(ctx.req as any, {
+          id: 'league.getUserLeagues.username',
+          max: 12,
+          windowMs: 1000 * 60 * 10,
+          scope: username.toLowerCase(),
+          clientKey: 'sleeper-username',
+          message: 'Too many league lookup attempts for this Sleeper username. Please wait a few minutes and try again.',
+        });
         const currentSeason = String(new Date().getFullYear());
         const cacheKey = getSleeperUserLeaguesCacheKey(username, currentSeason);
         const cachedLookup = getCachedSleeperUserLeagues(cacheKey);

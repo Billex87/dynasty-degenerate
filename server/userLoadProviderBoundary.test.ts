@@ -245,6 +245,7 @@ describe("user-load provider boundary", () => {
     const userLeaguesCacheSetSource = extractSource("function setCachedSleeperUserLeagues", "\n\nfunction getUserLeagueRankCacheKey");
     const rateLimitIndex = getUserLeaguesSource.indexOf("assertRateLimit(ctx.req as any");
     const usernameIndex = getUserLeaguesSource.indexOf("const username = input.username.trim()");
+    const usernameRateLimitIndex = getUserLeaguesSource.indexOf("id: 'league.getUserLeagues.username'");
     const cacheReadIndex = getUserLeaguesSource.indexOf("const cachedLookup = getCachedSleeperUserLeagues(cacheKey)");
     const notFoundCacheReadIndex = getUserLeaguesSource.indexOf("isSleeperUserNotFoundCached(cacheKey)");
     const userUrlIndex = getUserLeaguesSource.indexOf("const userUrl = `https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`");
@@ -258,7 +259,8 @@ describe("user-load provider boundary", () => {
 
     expect(rateLimitIndex).toBeGreaterThan(0);
     expect(usernameIndex).toBeGreaterThan(rateLimitIndex);
-    expect(cacheReadIndex).toBeGreaterThan(usernameIndex);
+    expect(usernameRateLimitIndex).toBeGreaterThan(usernameIndex);
+    expect(cacheReadIndex).toBeGreaterThan(usernameRateLimitIndex);
     expect(notFoundCacheReadIndex).toBeGreaterThan(cacheReadIndex);
     expect(userUrlIndex).toBeGreaterThan(notFoundCacheReadIndex);
     expect(userAllowedUrlIndex).toBeGreaterThan(notFoundCacheReadIndex);
@@ -269,7 +271,11 @@ describe("user-load provider boundary", () => {
     expect(leaguesFetchIndex).toBeGreaterThan(cacheReadIndex);
     expect(cacheWriteIndex).toBeGreaterThan(leaguesFetchIndex);
     expect(getUserLeaguesSource).toContain("id: 'league.getUserLeagues'");
+    expect(getUserLeaguesSource).toContain("id: 'league.getUserLeagues.username'");
+    expect(getUserLeaguesSource).toContain("scope: username.toLowerCase()");
+    expect(getUserLeaguesSource).toContain("clientKey: 'sleeper-username'");
     expect(getUserLeaguesSource).toContain("message: 'Too many league lookup attempts. Please wait a few minutes and try again.'");
+    expect(getUserLeaguesSource).toContain("message: 'Too many league lookup attempts for this Sleeper username. Please wait a few minutes and try again.'");
     expect(routersSource).toContain("const SLEEPER_USER_LEAGUES_CACHE_MAX_ENTRIES = 500");
     expect(routersSource).toContain("const SLEEPER_USER_NOT_FOUND_CACHE_MAX_ENTRIES = 1000");
     expect(userNotFoundCacheSource).toContain("pruneSleeperUserNotFoundCache()");
