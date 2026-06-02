@@ -313,6 +313,36 @@ describe("user-load provider boundary", () => {
     expect(latestNewsSource).toContain("...getUserLoadSnapshotOptions()");
   });
 
+  it("keeps player value timelines behind report access, bounded inputs, and rate limits", () => {
+    const redraftTimelineSource = extractSource("redraftValueTimeline: publicProcedure", "\n    valueTimeline: publicProcedure");
+    const dynastyTimelineSource = extractSource("valueTimeline: publicProcedure", "\n    seasonGameLog: publicProcedure");
+    const redraftAccessIndex = redraftTimelineSource.indexOf("assertReportAccess(ctx)");
+    const redraftRateLimitIndex = redraftTimelineSource.indexOf("assertRateLimit(ctx.req as any");
+    const redraftLoadIndex = redraftTimelineSource.indexOf("getRedraftValueTimelineForPlayer(input.playerName)");
+    const dynastyAccessIndex = dynastyTimelineSource.indexOf("assertReportAccess(ctx)");
+    const dynastyRateLimitIndex = dynastyTimelineSource.indexOf("assertRateLimit(ctx.req as any");
+    const dynastySnapshotIndex = dynastyTimelineSource.indexOf("loadStoredValueTimelineSnapshotsForPlayers({");
+    const dynastyLoadIndex = dynastyTimelineSource.indexOf("getPlayerValueTimelineForPlayer({");
+
+    expect(redraftTimelineSource).toContain("leagueId: sleeperLeagueIdSchema.optional()");
+    expect(redraftTimelineSource).toContain("playerName: z.string().trim().min(1).max(120)");
+    expect(redraftAccessIndex).toBeGreaterThan(0);
+    expect(redraftRateLimitIndex).toBeGreaterThan(redraftAccessIndex);
+    expect(redraftLoadIndex).toBeGreaterThan(redraftRateLimitIndex);
+    expect(redraftTimelineSource).toContain("id: 'players.redraftValueTimeline'");
+
+    expect(dynastyTimelineSource).toContain("leagueId: sleeperLeagueIdSchema.optional()");
+    expect(dynastyTimelineSource).toContain("playerName: z.string().trim().min(1).max(120)");
+    expect(dynastyTimelineSource).toContain("valueProfileKey: z.string().trim().min(1).max(120).default('12_sf_ppr_base')");
+    expect(dynastyTimelineSource).toContain("selectedWindow: valueTimelineWindowSchema.optional()");
+    expect(dynastyAccessIndex).toBeGreaterThan(0);
+    expect(dynastyRateLimitIndex).toBeGreaterThan(dynastyAccessIndex);
+    expect(dynastySnapshotIndex).toBeGreaterThan(dynastyRateLimitIndex);
+    expect(dynastyLoadIndex).toBeGreaterThan(dynastySnapshotIndex);
+    expect(dynastyTimelineSource).toContain("id: 'players.valueTimeline'");
+    expect(dynastyTimelineSource).not.toContain("fetchSleeperJson");
+  });
+
   it("keeps player season-game-log live work behind report access and rate limits", () => {
     const seasonLogSource = extractSource("seasonGameLog: publicProcedure", "\n  }),\n\n  images: router");
     const accessIndex = seasonLogSource.indexOf("assertReportAccess(ctx)");
