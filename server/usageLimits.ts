@@ -205,11 +205,7 @@ export async function checkPersistedUsageLimit(input: {
     period: policy.period,
     now,
   });
-  const persistedAccess = await loadPersistedFeatureAccess({
-    user: input.user,
-    leagueId: input.leagueId,
-  });
-  const plan = getUserBillingPlan(input.user, null, persistedAccess.subscriptions, now);
+  let plan = getUserBillingPlan(input.user, null, [], now);
   let effectivePlan = plan;
   const missingSubjectReason = getMissingSubjectReason({
     identifiers,
@@ -234,6 +230,13 @@ export async function checkPersistedUsageLimit(input: {
       reason: missingSubjectReason,
     };
   }
+
+  const persistedAccess = await loadPersistedFeatureAccess({
+    user: input.user,
+    leagueId: input.leagueId,
+  });
+  plan = getUserBillingPlan(input.user, null, persistedAccess.subscriptions, now);
+  effectivePlan = plan;
 
   if (policy.paidFeature) {
     const entitlement = canUseFeature({

@@ -136,6 +136,10 @@ describe("persisted usage limits", () => {
       code: "FORBIDDEN",
     });
     expect(mockedCountUsageEvents).not.toHaveBeenCalled();
+    expect(mockedListBillingSubscriptionsForUser).not.toHaveBeenCalled();
+    expect(mockedListActiveFeatureEntitlementsForUser).not.toHaveBeenCalled();
+    expect(mockedListActiveFeatureEntitlementsForLeague).not.toHaveBeenCalled();
+    expect(mockedListActiveLeaguePassesForLeague).not.toHaveBeenCalled();
   });
 
   it("requires a league ID for league-scoped persisted limits", async () => {
@@ -148,6 +152,10 @@ describe("persisted usage limits", () => {
       code: "FORBIDDEN",
     });
     expect(mockedCountUsageEvents).not.toHaveBeenCalled();
+    expect(mockedListBillingSubscriptionsForUser).not.toHaveBeenCalled();
+    expect(mockedListActiveFeatureEntitlementsForUser).not.toHaveBeenCalled();
+    expect(mockedListActiveFeatureEntitlementsForLeague).not.toHaveBeenCalled();
+    expect(mockedListActiveLeaguePassesForLeague).not.toHaveBeenCalled();
   });
 
   it("applies pro quotas when a league pass grants export access", async () => {
