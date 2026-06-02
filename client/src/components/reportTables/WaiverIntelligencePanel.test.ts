@@ -204,6 +204,19 @@ describe("waiver recommendation evidence gate", () => {
         seasonPositionRank: "WR31",
         sources: ["KTC", "FantasyCalc"],
       },
+      weeklyProjection: {
+        source: "stored-weekly-projection",
+        provider: "sleeper",
+        season: "2026",
+        week: 1,
+        scoringProfile: "ppr",
+        projectedFantasyPoints: 10.7,
+        opponent: "BUF",
+        homeAway: "home",
+        team: "NYJ",
+        status: "ready",
+        note: "Fixture projection proof.",
+      },
     },
   };
 

@@ -1812,6 +1812,8 @@ function buildWaiverEvidenceRead({
   const sourceCount = getWaiverEvidenceSourceCount(details, weeklyEcrSignal);
   const weeklyRead = formatWaiverWeeklyEcrReason(weeklyEcrSignal);
   const weeklyProjection = player.weeklyProjection || details?.weeklyProjection || null;
+  const hasRecentUsage = Boolean(weeklyProjection || details?.usageTrend);
+  const hasRoleContext = Boolean(details?.playerCohort || details?.playerSituationDelta);
   const matchupOutlook =
     isWaiverScheduleWindowSignal(weeklyEcrSignal)
       ? getShortTermMatchupOutlook(weeklyEcrSignal.matchupWindows)
@@ -1893,6 +1895,8 @@ function buildWaiverEvidenceRead({
       hasCurrentSeasonValue,
       hasDynastyValue,
       hasProspectOnlyValue,
+      hasRecentUsage,
+      hasRoleContext,
     },
     schedule: {
       hasScheduleData: Boolean(weeklyEcrSignal?.matchupWindows || weeklyEcrSignal?.weeks?.length),

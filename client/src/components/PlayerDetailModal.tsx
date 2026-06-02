@@ -3687,6 +3687,8 @@ function buildPlayerAiEvidenceRead(input: {
       hasCurrentSeasonValue: hasCurrentSeasonEvidence,
       hasDynastyValue: hasDynastyEvidence,
       hasProspectOnlyValue: Boolean(input.isCollegeProspect && !hasCurrentSeasonEvidence && !hasDynastyEvidence),
+      hasRecentUsage: hasRecentUsageTrend,
+      hasRoleContext: hasRoleEvidence,
     },
     requiresCurrentSeasonEvidence: input.valueMode === 'redraft',
     requiresActiveTeam: evidenceAction === 'start',

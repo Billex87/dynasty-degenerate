@@ -2791,6 +2791,8 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       const weeklyEcrTraceRead = formatWaiverWeeklyEcrTraceRead(player);
       const weeklyProjection = getWeeklyProjection(player);
       const weeklyProjectionRead = formatWeeklyProjectionRead(player);
+      const hasRecentUsage = Boolean(weeklyProjection || player.playerDetails?.usageTrend);
+      const hasRoleContext = Boolean(player.playerDetails?.playerCohort || player.playerDetails?.playerSituationDelta);
       const matchupOutlook = isScheduleWindowSignal(player.weeklyEcr)
         ? getShortTermMatchupOutlook(player.weeklyEcr.matchupWindows)
         : null;
@@ -2864,6 +2866,8 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
           hasCurrentSeasonValue,
           hasDynastyValue,
           hasProspectOnlyValue: Boolean(player.playerDetails?.prospectProfile && !hasCurrentSeasonValue && !hasDynastyValue),
+          hasRecentUsage,
+          hasRoleContext,
         },
         schedule: {
           hasScheduleData: Boolean(player.weeklyEcr?.matchupWindows || player.weeklyEcr?.weeks?.length),
@@ -2911,13 +2915,13 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         : `${clearsWaiverActionThreshold ? 'Queue-backed' : "Don't add yet"}: ${player.name} has the strongest dynasty waiver case the evidence layer allows${weeklyProjectionRead ? ', with short-term projection support' : weeklyEcrRead ? ', with short-window matchup support' : ''}.`,
       reasons: dedupeStrings([
         evidenceRead.whyThisFired,
+        rosterMoveGuard,
         player.count ? `${formatCompactValue(player.count)} add/drop trend signal in the feed.` : null,
         rank ? `${rank} rank gives this more than a blind trend-chase case.` : null,
         weeklyProjectionRead,
         weeklyEcrRead,
         matchupGuard.reason,
         weeklyEcrTraceRead,
-        rosterMoveGuard,
         intel?.tradePlan?.needPosition === getPlayerPosition(player) ? `Matches ${manager}'s ${getPlayerPosition(player)} need.` : null,
         dropCandidate ? `${dropCandidate.name} is a usable drop candidate if a roster spot is needed.` : null,
       ], 4),

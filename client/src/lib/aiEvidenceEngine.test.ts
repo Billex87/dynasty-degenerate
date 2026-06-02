@@ -369,6 +369,37 @@ describe("ai evidence engine", () => {
     expect(read.hardBlockers.join(" ")).toContain("Redraft read has no current-season evidence");
   });
 
+  it("blocks redraft lineup reads that only have dynasty evidence by default", () => {
+    const read = evaluateAIEvidence({
+      surface: "player-detail",
+      action: "start",
+      leagueValueMode: "redraft",
+      baseScore: 88,
+      evidence: ["Dynasty WR22 market value is attached."],
+      sourceTrace: [{
+        label: "Dynasty market snapshot",
+        status: "loaded",
+      }, {
+        label: "Sleeper roster snapshot",
+        status: "loaded",
+      }],
+      signalModes: ["dynasty", "market"],
+      player: {
+        name: "Dynasty-Only Starter",
+        position: "WR",
+        team: "DET",
+        value: 5100,
+        sourceCount: 2,
+        hasDynastyValue: true,
+        hasRoleContext: true,
+      },
+    });
+
+    expect(read.label).toBe("blocked");
+    expect(read.canAct).toBe(false);
+    expect(read.hardBlockers.join(" ")).toContain("Redraft read has no current-season evidence");
+  });
+
   it("caps dynasty action reads that only have redraft evidence", () => {
     const read = evaluateAIEvidence({
       surface: "waiver",

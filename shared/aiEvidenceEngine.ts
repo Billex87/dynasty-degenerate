@@ -989,9 +989,12 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
     signalModes.has("market") ||
     signalModes.has("prospect") ||
     Boolean(player.hasDynastyValue);
+  const requiresCurrentSeasonForRedraftAction =
+    input.requiresCurrentSeasonEvidence ??
+    (isPickupLike || input.action === "start" || input.action === "sit");
   if (
     input.leagueValueMode === "redraft" &&
-    (input.requiresCurrentSeasonEvidence ?? isPickupLike) &&
+    requiresCurrentSeasonForRedraftAction &&
     !hasCurrentSignal
   ) {
     hardBlockers.push("Redraft read has no current-season evidence.");
