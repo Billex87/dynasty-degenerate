@@ -1,27 +1,18 @@
 import {
   useEffect,
-  lazy,
   useMemo,
   useRef,
   useState,
-  Suspense,
   type CSSProperties,
-  type ReactNode,
 } from "react";
 import "@/styles/home-backgrounds-v12.css";
 import { trpc } from "@/lib/trpc";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
-import { type PremiumFxVariant } from "@/components/PremiumFxLayer";
-import {
-  buildLeagueFormatPills,
-  getReportManagerNames,
-} from "@/features/report/lib/reportOverviewPreview";
-import { getReportDashboardManagers } from "@/features/report/lib/reportDashboardUtils";
+import { buildLeagueFormatPills } from "@/features/report/lib/reportOverviewPreview";
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
 import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsContainer";
+import { HomeReportExperience } from "@/features/home/components/HomeReportExperience";
 import { type OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
 import {
   buildHomePortfolioRows,
@@ -39,7 +30,6 @@ import {
 } from "@/features/home/lib/sleeperIdentity";
 import {
   getFilteredAutocompleteOptions,
-  getLoadingSuccessTitleClassName,
   MAX_AUTOCOMPLETE_HISTORY,
   readAutocompleteHistory,
   rememberAutocompleteValue,
@@ -63,7 +53,6 @@ import {
   updateReportTabUrl,
 } from "@/features/home/lib/reportRouteState";
 import {
-  buildReportDeltaChanges,
   buildReportDeltaSnapshot,
   readReportDeltaSnapshot,
   type ReportDeltaSnapshot,
@@ -111,20 +100,10 @@ import {
   rememberCachedSleeperUser,
 } from "@/features/home/lib/leagueHistory";
 import {
-  type HomeLeagueSelectionLeague,
-  type HomePortfolioRow,
-} from "@/features/home/components/HomeLeagueSelection";
-import {
-  type ReportDeltaTone,
-} from "@/features/report/components/ReportDeltaBrief";
-import {
   type AnalysisLoadingLeague,
   type LoadingTransitionPhase,
 } from "@/features/report/components/ReportDialogs";
-import {
-  getLeagueModeCopy,
-  normalizeLeagueValueMode,
-} from "@/lib/leagueValueMode";
+import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
 import {
   getBestDraftAdpValueManager,
   getBestDraftSignalManager,
@@ -144,10 +123,6 @@ import {
   type AIVoiceMode,
 } from "@/lib/aiVoice";
 
-const DYNASTY_MOBILE_REPORT_LOGO_SRC =
-  "/brand/logos/png/mobile-dd-stacked-transparent.png?v=20260519-mobile-transparent";
-const DYNASTY_REPORT_HEADER_LOGO_SRC =
-  "/brand/logos/uploads/report-header-logo-compact-transparent-cropped.png?v=20260518-compact-crop";
 // Cached reports render immediately, then refresh volatile Sleeper activity in the background.
 const REPORT_BACKGROUND_REFRESH_AFTER_MS = 0;
 const REPORT_CACHE_PREFETCH_DEBOUNCE_MS = 10 * 60 * 1000;
@@ -164,29 +139,6 @@ const REPORT_SUCCESS_READ_AFTER_REVEAL_MS = 850;
 const REPORT_SUCCESS_KICK_MS = 900;
 const REPORT_LOADING_TIMEOUT_MS = 10_000;
 const SHOW_LEGACY_LEAGUE_ID_LOGIN = true;
-const SHOW_ASSISTANT_FEATURE_RADAR =
-  String(
-    import.meta.env.VITE_SHOW_ASSISTANT_FEATURE_RADAR || "true"
-  ).toLowerCase() !== "false";
-
-const ReportDashboardShell = lazy(() =>
-  import("@/features/report/components/ReportDashboardShell").then(module => ({
-    default: module.ReportDashboardShell,
-  }))
-);
-const ReportDashboardContent = lazy(() =>
-  import("@/features/report/components/ReportDashboardContent").then(module => ({
-    default: module.ReportDashboardContent,
-  }))
-);
-
-function ReportDashboardChunkFallback() {
-  return (
-    <div className="report-shell min-h-screen" role="status" aria-live="polite">
-      <span className="sr-only">Loading report</span>
-    </div>
-  );
-}
 
 export default function Home() {
   const authQuery = trpc.auth.me.useQuery(undefined, {
@@ -1717,22 +1669,6 @@ export default function Home() {
     reportData?.leagueDiagnostics?.valueMode || reportData?.leagueValueMode
   );
   const leagueLogoInitials = getLeagueFallbackInitials(leagueName);
-  const loadingSuccessCardClassName = [
-    "loading-success-card",
-    analysisCompleteMessage?.leagueLogo ? "loading-success-card-logo" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-  const reportFxVariant: PremiumFxVariant =
-    resolvedActiveTab === "trades"
-      ? "trade-flow"
-      : resolvedActiveTab === "momentum"
-        ? "waiver-radar"
-        : resolvedActiveTab === "rankings"
-          ? "rankings-grid"
-          : resolvedActiveTab === "autopilot"
-            ? "autopilot-orbit"
-            : "report-shell";
   const homeDialogs = (
     <HomeDialogsContainer
       isLeaguePickerOpen={isLeaguePickerOpen}
@@ -1777,131 +1713,63 @@ export default function Home() {
     />
   );
   if (reportData && !analysisCompleteMessage) {
-    const leagueValueMode = normalizeLeagueValueMode(
-      reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode
-    );
-    const isRedraftReport = leagueValueMode === "redraft";
-    const modeCopy = getLeagueModeCopy(leagueValueMode);
-    const reportDataBase = reportDataWithRankings || reportData;
-    const selectedViewerManager = canViewAdminFeatureExpansion
-      ? (adminViewerManager ?? reportDataBase.viewerManager ?? null)
-      : (reportDataBase.viewerManager ?? null);
-    const reportManagerNames = getReportManagerNames(
-      reportDataBase,
-      selectedViewerManager
-    );
-    const effectiveViewerManager =
-      selectedViewerManager && reportManagerNames.includes(selectedViewerManager)
-        ? selectedViewerManager
-        : null;
-    const reportDataForView: ReportData = {
-      ...reportDataBase,
-      viewerManager: effectiveViewerManager,
-    };
-    const dashboardManagers = getReportDashboardManagers(reportDataForView);
-    const dashboardViewerManager =
-      effectiveViewerManager || dashboardManagers[0] || null;
-    const hasManagerViewOptions = reportManagerNames.length > 1;
-    const showTradeMarketRadar =
-      reportData.weeklyRisers.some(player => player.val_now >= 2500) ||
-      reportData.weeklyFallers.some(player => player.val_now >= 1800);
-    const reportDeltaChanges = currentReportDeltaSnapshot
-      ? buildReportDeltaChanges(
-          previousReportDeltaSnapshot,
-          currentReportDeltaSnapshot
-        )
-      : [];
     return (
-      <>
-        <Suspense fallback={<ReportDashboardChunkFallback />}>
-          <ReportDashboardShell
-            isLoadingRevealPhase={isLoadingRevealPhase}
-            aiVoiceMode={aiVoiceMode}
-            resolvedActiveTab={resolvedActiveTab}
-            reportFxVariant={reportFxVariant}
-            onReportTabChange={handleReportTabChange}
-            hasAdminPermissions={hasAdminPermissions}
-            canViewAutopilotTab={canViewAutopilotTab}
-            shouldShowDraftHistoryTab={shouldShowDraftHistoryTab}
-            reportTabsClassName={reportTabsClassName}
-            reportTabsStyle={reportTabsStyle}
-            leagueName={leagueName}
-            leagueFormatPills={leagueFormatPills}
-            leagueLogo={leagueLogo}
-            leagueLogoInitials={leagueLogoInitials}
-            onHeaderLeagueClick={handleHeaderLeagueClick}
-            onAnalyzeAnotherLeague={handleAnalyzeAnotherLeague}
-            mobileLogoSrc={DYNASTY_MOBILE_REPORT_LOGO_SRC}
-            headerLogoSrc={DYNASTY_REPORT_HEADER_LOGO_SRC}
-            isChangeLeagueModalOpen={isChangeLeagueModalOpen}
-            onChangeLeagueOpenChange={setIsChangeLeagueModalOpen}
-            onChangeLeagueStay={() => setIsChangeLeagueModalOpen(false)}
-            onStartOver={handleStartOver}
-            canOpenAdminToolsEntry={canOpenAdminToolsEntry}
-            canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
-            isAdminPassphraseVerifiedForSession={
-              isAdminPassphraseVerifiedForSession
-            }
-            hasManagerViewOptions={hasManagerViewOptions}
-            reportManagerNames={reportManagerNames}
-            effectiveViewerManager={effectiveViewerManager}
-            managerAvatars={reportData.managerAvatars}
-            leagueId={leagueId}
-            leagueFormat={leagueFormat}
-            onAIVoiceModeChange={handleAIVoiceModeChange}
-            onAdminToolsClick={handleAdminToolsClick}
-            onAdminViewerManagerChange={setAdminViewerManager}
-            managerChampionships={reportData.managerChampionships}
-          >
-            <ReportDashboardContent
-              canViewAdminDiagnostics={canViewAdminDiagnostics}
-              canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
-              canViewAutopilotTab={canViewAutopilotTab}
-              dashboardViewerManager={dashboardViewerManager}
-              isRedraftReport={isRedraftReport}
-              leagueFormat={leagueFormat}
-              leagueId={leagueId}
-              leagueLogo={leagueLogo}
-              leagueName={leagueName}
-              leagueRosterScannerMode={leagueRosterScannerMode}
-              leagueValueMode={leagueValueMode}
-              onAnalyze={handleAnalyze}
-              onOwnerIntelSortModeChange={setOwnerIntelSortMode}
-              onScoutLeaguemates={handleScoutLeaguemates}
-              ownerIntelSortMode={ownerIntelSortMode}
-              ownerTitle={modeCopy.ownerTitle}
-              ownerKicker={modeCopy.ownerKicker}
-              previousSavedAt={currentReportDeltaSnapshot?.savedAt}
-              rankingsForReport={rankingsForReport}
-              rankingsQueryIsLoading={rankingsQuery.isLoading}
-              reportData={reportData}
-              reportDataForView={reportDataForView}
-              reportDeltaChanges={reportDeltaChanges}
-              resolvedActiveTab={resolvedActiveTab}
-              rosterScannerFocusKey={rosterScannerFocusKey}
-              rosterTitle={modeCopy.rosterTitle}
-              rosterKicker={modeCopy.rosterKicker}
-              setLeagueRosterScannerMode={setLeagueRosterScannerMode}
-              showAssistantFeatureRadar={SHOW_ASSISTANT_FEATURE_RADAR}
-              showTradeMarketRadar={showTradeMarketRadar}
-              shouldShowDraftHistoryTab={shouldShowDraftHistoryTab}
-              tradeWarKicker={modeCopy.tradeWarKicker}
-              effectiveViewerManager={effectiveViewerManager}
-              homePortfolioRows={homePortfolioRows}
-              filteredHomePortfolioRows={filteredHomePortfolioRows}
-              orderedUserLeagues={orderedUserLeagues}
-              isHomePortfolioLoading={isHomePortfolioLoading}
-              portfolioSearch={portfolioSearch}
-              portfolioExposureFilter={portfolioExposureFilter}
-              portfolioLeagueFilter={portfolioLeagueFilter}
-              onPortfolioSearchChange={setPortfolioSearch}
-              onPortfolioExposureFilterChange={setPortfolioExposureFilter}
-              onPortfolioLeagueFilterChange={setPortfolioLeagueFilter}
-            />
-          </ReportDashboardShell>
-        </Suspense>
-        {homeDialogs}
-      </>
+      <HomeReportExperience
+        reportData={reportData}
+        reportDataWithRankings={reportDataWithRankings}
+        isLoadingRevealPhase={isLoadingRevealPhase}
+        aiVoiceMode={aiVoiceMode}
+        resolvedActiveTab={resolvedActiveTab}
+        onReportTabChange={handleReportTabChange}
+        hasAdminPermissions={hasAdminPermissions}
+        canViewAutopilotTab={canViewAutopilotTab}
+        shouldShowDraftHistoryTab={shouldShowDraftHistoryTab}
+        reportTabsClassName={reportTabsClassName}
+        reportTabsStyle={reportTabsStyle}
+        leagueName={leagueName}
+        leagueFormat={leagueFormat}
+        leagueId={leagueId}
+        leagueFormatPills={leagueFormatPills}
+        leagueLogo={leagueLogo}
+        leagueLogoInitials={leagueLogoInitials}
+        onHeaderLeagueClick={handleHeaderLeagueClick}
+        onAnalyzeAnotherLeague={handleAnalyzeAnotherLeague}
+        isChangeLeagueModalOpen={isChangeLeagueModalOpen}
+        onChangeLeagueOpenChange={setIsChangeLeagueModalOpen}
+        onStartOver={handleStartOver}
+        canOpenAdminToolsEntry={canOpenAdminToolsEntry}
+        canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+        canViewAdminDiagnostics={canViewAdminDiagnostics}
+        isAdminPassphraseVerifiedForSession={
+          isAdminPassphraseVerifiedForSession
+        }
+        adminViewerManager={adminViewerManager}
+        onAIVoiceModeChange={handleAIVoiceModeChange}
+        onAdminToolsClick={handleAdminToolsClick}
+        onAdminViewerManagerChange={setAdminViewerManager}
+        leagueRosterScannerMode={leagueRosterScannerMode}
+        onLeagueRosterScannerModeChange={setLeagueRosterScannerMode}
+        ownerIntelSortMode={ownerIntelSortMode}
+        onOwnerIntelSortModeChange={setOwnerIntelSortMode}
+        rankingsForReport={rankingsForReport}
+        rankingsQueryIsLoading={rankingsQuery.isLoading}
+        onAnalyze={() => handleAnalyze()}
+        onScoutLeaguemates={handleScoutLeaguemates}
+        currentReportDeltaSnapshot={currentReportDeltaSnapshot}
+        previousReportDeltaSnapshot={previousReportDeltaSnapshot}
+        rosterScannerFocusKey={rosterScannerFocusKey}
+        homePortfolioRows={homePortfolioRows}
+        filteredHomePortfolioRows={filteredHomePortfolioRows}
+        orderedUserLeagues={orderedUserLeagues}
+        isHomePortfolioLoading={isHomePortfolioLoading}
+        portfolioSearch={portfolioSearch}
+        portfolioExposureFilter={portfolioExposureFilter}
+        portfolioLeagueFilter={portfolioLeagueFilter}
+        onPortfolioSearchChange={setPortfolioSearch}
+        onPortfolioExposureFilterChange={setPortfolioExposureFilter}
+        onPortfolioLeagueFilterChange={setPortfolioLeagueFilter}
+        homeDialogs={homeDialogs}
+      />
     );
   }
 
