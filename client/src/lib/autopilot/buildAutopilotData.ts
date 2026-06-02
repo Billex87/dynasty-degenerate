@@ -1562,6 +1562,17 @@ function hasRecommendationPlayerRef(player?: RecommendationPlayerRef | null): bo
   return Boolean(String(player?.id || player?.name || '').trim());
 }
 
+function hasConcreteTradeProof(action: RecommendationExpectedAction): boolean {
+  if (hasRecommendationPlayerRef(action.playerIn) && hasRecommendationPlayerRef(action.playerOut)) return true;
+
+  const involvedCount = (action.playersInvolved || []).filter(hasRecommendationPlayerRef).length;
+  if (involvedCount >= 2) return true;
+
+  const proofText = `${action.expectedRosterChange || ''} ${action.reason || ''}`.toLowerCase();
+  return /\b(?:with|from|to)\s+[\w'.-]+/.test(proofText) &&
+    /\b(?:return|asset|pick|player|package|counter|offer)\b/.test(proofText);
+}
+
 function getQueueSourceLabel(source: AIActionQueueSource): string {
   if (source === 'waiver') return 'Waiver';
   if (source === 'lineup') return 'Lineup';
@@ -1582,9 +1593,17 @@ function getExpectedActionIdentityGap(action: RecommendationExpectedAction): str
       : 'Expected action is missing one side of the roster or lineup change.';
   }
   if (action.type === 'trade') {
-    return action.playersInvolved?.some(hasRecommendationPlayerRef) || action.expectedRosterChange
+    const hasTradeIdentity = hasRecommendationPlayerRef(action.playerIn) ||
+      hasRecommendationPlayerRef(action.playerOut) ||
+      Boolean(action.playersInvolved?.some(hasRecommendationPlayerRef));
+
+    if (!hasTradeIdentity) {
+      return 'Expected trade action is missing concrete player, pick, or return details.';
+    }
+
+    return hasConcreteTradeProof(action)
       ? null
-      : 'Expected trade action is missing concrete player, pick, or return details.';
+      : 'Expected trade action is missing a partner or explicit return side.';
   }
   return null;
 }

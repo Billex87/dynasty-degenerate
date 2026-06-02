@@ -231,6 +231,41 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('does not treat single-player trade ideas without partner proof as concrete queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.recentTransactions = [];
+    reportData.positionDepth = [];
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback: AUTOPILOT_MOCK_DATA.dynasty,
+    });
+
+    const tradeCard = data.trades.find((recommendation) => recommendation.player === 'Sample Runner');
+    expect(tradeCard).toMatchObject({
+      action: 'Shop only if return clears',
+      expectedAction: {
+        type: 'trade',
+        playerOut: {
+          name: 'Sample Runner',
+        },
+      },
+    });
+    expect(tradeCard?.expectedAction?.expectedRosterChange).not.toContain('with Rival');
+
+    const partnerlessTrade = data.actionQueue.find((item) => item.source === 'trade' && item.target === 'Sample Runner');
+    expect(partnerlessTrade).toMatchObject({
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'trade',
+      },
+    });
+    expect(partnerlessTrade?.missingEvidence.join(' ')).toContain('missing a partner or explicit return side');
+    expect(data.actionQueue.filter((item) => item.target === 'Sample Runner' && item.decision === 'do')).toHaveLength(0);
+  });
+
   it('does not promote waiver adds without a drop candidate or open roster spot proof', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];
