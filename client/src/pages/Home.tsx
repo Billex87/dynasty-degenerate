@@ -46,10 +46,9 @@ import {
   type ReportLoadTelemetryEvent,
 } from "@/features/home/lib/adminSessionState";
 import {
+  buildHomeReportTabState,
   getInitialReportLeagueIdFromUrl,
   getInitialReportTabFromUrl,
-  normalizeReportTab,
-  REPORT_TAB_VALUES,
   updateReportTabUrl,
 } from "@/features/home/lib/reportRouteState";
 import {
@@ -1433,39 +1432,24 @@ export default function Home() {
     setIsAdminAccessModalOpen(true);
   };
 
-  const migratedActiveTab =
-    activeTab === "projections" ? "rankings" : activeTab;
   const canViewAutopilotTab = canViewAdminFeatureExpansion;
   const tabLeagueValueMode = normalizeLeagueValueMode(
     reportData?.leagueDiagnostics?.valueMode || reportData?.leagueValueMode
   );
   const shouldShowDraftHistoryTab =
     tabLeagueValueMode !== "redraft" || hasDraftReportData(reportData);
-  const shouldDeferAutopilotUrlSync =
-    migratedActiveTab === "autopilot" &&
-    !canViewAutopilotTab &&
-    authQuery.isLoading;
-  const resolvedActiveTab =
-    migratedActiveTab === "draft" && !shouldShowDraftHistoryTab
-      ? "overview"
-      : migratedActiveTab === "autopilot" && !canViewAutopilotTab
-      ? "overview"
-      : migratedActiveTab;
-  const visibleReportTabCount =
-    4 + (canViewAutopilotTab ? 1 : 0) + (shouldShowDraftHistoryTab ? 1 : 0);
-  const reportTabsClassName = `report-tabs report-tabs-${visibleReportTabCount === 6 ? "six" : visibleReportTabCount === 5 ? "five" : "four"}`;
-  const visibleReportTabIds = [
-    "overview",
-    ...(canViewAutopilotTab ? ["autopilot"] : []),
-    "momentum",
-    "rankings",
-    "trades",
-    ...(shouldShowDraftHistoryTab ? ["draft"] : []),
-  ];
-  const resolvedReportTabIndex = Math.max(
-    0,
-    visibleReportTabIds.indexOf(resolvedActiveTab)
-  );
+  const {
+    resolvedActiveTab,
+    visibleReportTabCount,
+    reportTabsClassName,
+    resolvedReportTabIndex,
+    shouldDeferAutopilotUrlSync,
+  } = buildHomeReportTabState({
+    activeTab,
+    canViewAutopilotTab,
+    shouldShowDraftHistoryTab,
+    isAuthLoading: authQuery.isLoading,
+  });
   const reportTabsStyle = {
     width: "100%",
     "--dd-report-tab-count": String(visibleReportTabCount),

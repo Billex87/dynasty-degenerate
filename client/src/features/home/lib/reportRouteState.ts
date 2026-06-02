@@ -62,3 +62,54 @@ export function updateReportTabUrl(tab: string, leagueId?: string | null) {
   const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${nextHash}`;
   window.history.replaceState(null, "", nextUrl);
 }
+
+type HomeReportTabStateInput = {
+  activeTab: string;
+  canViewAutopilotTab: boolean;
+  shouldShowDraftHistoryTab: boolean;
+  isAuthLoading: boolean;
+};
+
+export function buildHomeReportTabState({
+  activeTab,
+  canViewAutopilotTab,
+  shouldShowDraftHistoryTab,
+  isAuthLoading,
+}: HomeReportTabStateInput) {
+  const migratedActiveTab = activeTab === "projections" ? "rankings" : activeTab;
+  const shouldDeferAutopilotUrlSync =
+    migratedActiveTab === "autopilot" &&
+    !canViewAutopilotTab &&
+    isAuthLoading;
+  const resolvedActiveTab =
+    migratedActiveTab === "draft" && !shouldShowDraftHistoryTab
+      ? "overview"
+      : migratedActiveTab === "autopilot" && !canViewAutopilotTab
+        ? "overview"
+        : migratedActiveTab;
+  const visibleReportTabCount =
+    4 + (canViewAutopilotTab ? 1 : 0) + (shouldShowDraftHistoryTab ? 1 : 0);
+  const reportTabsClassName = `report-tabs report-tabs-${visibleReportTabCount === 6 ? "six" : visibleReportTabCount === 5 ? "five" : "four"}`;
+  const visibleReportTabIds = [
+    "overview",
+    ...(canViewAutopilotTab ? ["autopilot"] : []),
+    "momentum",
+    "rankings",
+    "trades",
+    ...(shouldShowDraftHistoryTab ? ["draft"] : []),
+  ];
+  const resolvedReportTabIndex = Math.max(
+    0,
+    visibleReportTabIds.indexOf(resolvedActiveTab)
+  );
+
+  return {
+    migratedActiveTab,
+    shouldDeferAutopilotUrlSync,
+    resolvedActiveTab,
+    visibleReportTabCount,
+    reportTabsClassName,
+    visibleReportTabIds,
+    resolvedReportTabIndex,
+  };
+}
