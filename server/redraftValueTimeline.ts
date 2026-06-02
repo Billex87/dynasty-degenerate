@@ -100,6 +100,7 @@ const SOURCE_PRIORITY: Record<RedraftTimelineScopeKey, string[]> = {
 };
 
 const shardCache = new Map<string, RedraftShard | null>();
+const REDRAFT_VALUE_SHARD_CACHE_MAX_ENTRIES = 128;
 
 function getShardsDir() {
   return process.env.REDRAFT_VALUE_HISTORY_SHARDS_DIR || DEFAULT_REDFRAFT_VALUE_SHARDS_DIR;
@@ -127,23 +128,32 @@ function getShardKey(value: string) {
   return normalizeLookupKey(value).slice(0, 1) || '_';
 }
 
+function setRedraftShardCache(cacheKey: string, value: RedraftShard | null) {
+  while (shardCache.size >= REDRAFT_VALUE_SHARD_CACHE_MAX_ENTRIES) {
+    const oldestCacheKey = shardCache.keys().next().value;
+    if (!oldestCacheKey) break;
+    shardCache.delete(oldestCacheKey);
+  }
+  shardCache.set(cacheKey, value);
+}
+
 function loadShard(shardKey: string): RedraftShard | null {
   const cacheKey = `${getShardsDir()}:${shardKey}`;
   if (shardCache.has(cacheKey)) return shardCache.get(cacheKey) || null;
 
   const shardPath = path.join(getShardsDir(), `${shardKey}.json`);
   if (!fs.existsSync(shardPath)) {
-    shardCache.set(cacheKey, null);
+    setRedraftShardCache(cacheKey, null);
     return null;
   }
 
   try {
     const shard = JSON.parse(fs.readFileSync(shardPath, 'utf8')) as RedraftShard;
-    shardCache.set(cacheKey, shard);
+    setRedraftShardCache(cacheKey, shard);
     return shard;
   } catch (error) {
     console.warn(`[RedraftValueTimeline] Failed to load shard ${shardKey}:`, error);
-    shardCache.set(cacheKey, null);
+    setRedraftShardCache(cacheKey, null);
     return null;
   }
 }
@@ -363,4 +373,8 @@ export function getRedraftValueTimelineForPlayer(playerName: string): RedraftVal
     source: 'redraft-value-history-shards',
     scopes,
   };
+}
+
+export function clearRedraftValueTimelineCacheForTests() {
+  shardCache.clear();
 }
