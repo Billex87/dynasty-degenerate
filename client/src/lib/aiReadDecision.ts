@@ -52,16 +52,19 @@ function normalizeDecision(decision: string | AIReadDecision): AIReadDecision {
     };
   }
 
-    return {
-      ...decision,
-      label: cleanText(decision.label) || "Don't force it",
-      detail: clampDecisionDetail(decision.detail),
-      tone: decision.tone || "watch",
-      status: cleanText(decision.status) || "Decision",
+  return {
+    ...decision,
+    label: cleanText(decision.label) || "Don't force it",
+    detail: clampDecisionDetail(decision.detail),
+    tone: decision.tone || "watch",
+    status: cleanText(decision.status) || "Decision",
   };
 }
 
-function getEvidenceDecision(read: NonNullable<AIReadDecisionInput["evidenceRead"]>): AIReadDecision {
+function getEvidenceDecision(
+  read: NonNullable<AIReadDecisionInput["evidenceRead"]>,
+  hasEnabledAction: boolean
+): AIReadDecision {
   const blocker = read.hardBlockers?.[0] || null;
   const detail =
     read.confidenceCapReason
@@ -87,6 +90,15 @@ function getEvidenceDecision(read: NonNullable<AIReadDecisionInput["evidenceRead
   }
 
   if (read.canAct) {
+    if (!hasEnabledAction) {
+      return {
+        label: "Don't force it",
+        detail: `Evidence cleared, but no concrete action is attached to this read. ${detail || ""}`.trim(),
+        tone: "watch",
+        status: `${read.label} · ${read.finalScore}%`,
+      };
+    }
+
     return {
       label: "Do this",
       detail,
@@ -105,7 +117,9 @@ function getEvidenceDecision(read: NonNullable<AIReadDecisionInput["evidenceRead
 
 export function buildAIReadDecision(input: AIReadDecisionInput): AIReadDecision {
   if (input.decision) return normalizeDecision(input.decision);
-  if (input.evidenceRead) return normalizeDecision(getEvidenceDecision(input.evidenceRead));
+  if (input.evidenceRead) {
+    return normalizeDecision(getEvidenceDecision(input.evidenceRead, Boolean(input.hasEnabledAction)));
+  }
 
   const confidence = normalizeConfidence(input.confidence);
   const severity = input.severity || "info";
@@ -156,13 +170,18 @@ export function buildAIReadDecision(input: AIReadDecisionInput): AIReadDecision 
     };
   }
 
+  if (!input.hasEnabledAction) {
+    return {
+      label: "Don't force it",
+      detail: confidenceDetail || "Strong context, but no concrete action is attached to this read.",
+      tone: "watch",
+      status: `Context · ${confidence}%`,
+    };
+  }
+
   return {
     label: "Do this",
-    detail: confidenceDetail || (
-      input.hasEnabledAction
-        ? "Evidence is strong enough to take the surfaced action."
-        : "Evidence is strong enough to use this as the primary read."
-    ),
+    detail: confidenceDetail || "Evidence is strong enough to take the surfaced action.",
     tone: "go",
     status: `Actionable · ${confidence}%`,
   };
