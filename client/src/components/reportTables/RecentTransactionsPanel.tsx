@@ -482,7 +482,7 @@ export default function RecentTransactionsPanel({
                         )}
                         {validBetterCutInsight &&
                           renderPlayerRow(
-                            "Better Cut",
+                            "Drop review",
                             transaction.alternativeDrop,
                             "alt",
                             validBetterCutInsight,
