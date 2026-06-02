@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
+import fs from "fs";
+import path from "path";
 import { appRouter } from "./routers";
 import { createContext } from "./_core/context";
 import { COOKIE_NAME } from "../shared/const";
 import type { TrpcContext } from "./_core/context";
 import { sdk } from "./_core/sdk";
+
+const routersSource = fs.readFileSync(path.resolve(__dirname, "routers.ts"), "utf8");
 
 type CookieCall = {
   name: string;
@@ -242,5 +246,28 @@ describe("auth.adminLogin", () => {
       if (originalAdminPassword === undefined) delete process.env.ADMIN_LOGIN_PASSWORD;
       else process.env.ADMIN_LOGIN_PASSWORD = originalAdminPassword;
     }
+  });
+
+  it("keeps passphrase checks and session writes behind an admin login rate limit", () => {
+    const start = routersSource.indexOf("adminLogin: publicProcedure");
+    const end = routersSource.indexOf("logout: publicProcedure", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const routeSource = routersSource.slice(start, end);
+    const jwtPreconditionIndex = routeSource.indexOf('process.env.NODE_ENV === "production" && !process.env.JWT_SECRET');
+    const passwordPreconditionIndex = routeSource.indexOf("if (!getAdminLoginPassword())");
+    const rateLimitIndex = routeSource.indexOf("assertRateLimit(ctx.req as any");
+    const passphraseCheckIndex = routeSource.indexOf("isValidAdminLoginPassword(input.passphrase)");
+    const upsertUserIndex = routeSource.indexOf("upsertUser({");
+    const cookieIndex = routeSource.indexOf("ctx.res.cookie(COOKIE_NAME");
+
+    expect(jwtPreconditionIndex).toBeGreaterThan(0);
+    expect(passwordPreconditionIndex).toBeGreaterThan(jwtPreconditionIndex);
+    expect(rateLimitIndex).toBeGreaterThan(passwordPreconditionIndex);
+    expect(passphraseCheckIndex).toBeGreaterThan(rateLimitIndex);
+    expect(upsertUserIndex).toBeGreaterThan(rateLimitIndex);
+    expect(cookieIndex).toBeGreaterThan(rateLimitIndex);
+    expect(routeSource).toContain('id: "auth.adminLogin"');
+    expect(routeSource).toContain('max: 8');
   });
 });

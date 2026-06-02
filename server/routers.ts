@@ -6516,6 +6516,13 @@ export const appRouter = router({
           });
         }
 
+        assertRateLimit(ctx.req as any, {
+          id: "auth.adminLogin",
+          max: 8,
+          windowMs: 1000 * 60 * 10,
+          message: "Too many admin login attempts. Please wait a few minutes and try again.",
+        });
+
         if (!isValidAdminLoginPassword(input.passphrase)) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
