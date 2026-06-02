@@ -532,6 +532,135 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('does not treat waiver or trade reads with wrong-source expected actions as concrete queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const addRef = {
+      id: 'wrong-source-waiver-add',
+      name: 'Wrong Source Waiver Add',
+      position: 'RB',
+      team: 'MIA',
+    };
+    const tradeReturnRef = {
+      id: 'wrong-source-trade-return',
+      name: 'Wrong Source Trade Return',
+      position: 'WR',
+      team: 'PHI',
+    };
+    const starterRef = {
+      id: 'wrong-source-starter',
+      name: 'Wrong Source Starter',
+      position: 'TE',
+      team: 'CHI',
+    };
+    const benchRef = {
+      id: 'wrong-source-bench',
+      name: 'Wrong Source Bench',
+      position: 'TE',
+      team: 'ARI',
+    };
+    const loadedEvidence = {
+      evidence: ['High confidence rationale.'],
+      missingEvidence: [],
+      hardBlockers: [],
+      softPenalties: [],
+      confidenceCap: 100,
+      confidenceCapReason: null,
+      sourceTrace: [{ label: 'Action context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+      rawScore: 95,
+      finalScore: 95,
+      label: 'high conviction',
+      shouldRender: true,
+      canAct: true,
+      whyThisFired: 'Context is loaded but the expected action belongs to a different lane.',
+    } as any;
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [],
+      waivers: [{
+        id: 'waiver-with-trade-action',
+        type: 'Waiver',
+        player: 'Wrong Source Waiver Add',
+        action: 'Queue-backed pickup',
+        confidence: 95,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture incorrectly attaches a trade action to a waiver read.',
+        reasons: ['Malformed expected action should not become a direct action.'],
+        signals: ['Waiver proof'],
+        evidenceRead: loadedEvidence,
+        expectedAction: {
+          type: 'trade',
+          playerIn: tradeReturnRef,
+          playerOut: addRef,
+          playersInvolved: [addRef, tradeReturnRef],
+          expectedRosterChange: 'Trade Wrong Source Waiver Add for Wrong Source Trade Return.',
+          source: 'autopilot',
+          reason: 'Malformed waiver source/action fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      trades: [{
+        id: 'trade-with-lineup-action',
+        type: 'Trade',
+        player: 'Wrong Source Starter',
+        action: 'Trade now',
+        confidence: 95,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture incorrectly attaches a lineup action to a trade read.',
+        reasons: ['Malformed expected action should not become a direct action.'],
+        signals: ['Trade proof'],
+        evidenceRead: loadedEvidence,
+        expectedAction: {
+          type: 'swap_starter',
+          playerIn: starterRef,
+          playerOut: benchRef,
+          playersInvolved: [starterRef, benchRef],
+          expectedLineupChange: 'Start Wrong Source Starter over Wrong Source Bench.',
+          source: 'autopilot',
+          reason: 'Malformed trade source/action fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const waiverQueueItem = data.actionQueue.find((item) => item.id.includes('waiver-with-trade-action'));
+    expect(waiverQueueItem).toMatchObject({
+      source: 'waiver',
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'trade',
+      },
+    });
+    expect(waiverQueueItem?.missingEvidence.join(' ')).toContain('Waiver read cannot use a trade expected action');
+
+    const tradeQueueItem = data.actionQueue.find((item) => item.id.includes('trade-with-lineup-action'));
+    expect(tradeQueueItem).toMatchObject({
+      source: 'trade',
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'swap_starter',
+      },
+    });
+    expect(tradeQueueItem?.missingEvidence.join(' ')).toContain('Trade read cannot use a swap_starter expected action');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('does not treat same-player bench expected actions as concrete queue moves', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.managerRosterIntelligence = [];
