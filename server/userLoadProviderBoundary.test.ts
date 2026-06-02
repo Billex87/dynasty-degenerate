@@ -453,24 +453,28 @@ describe("user-load provider boundary", () => {
       {
         name: "rankings",
         source: extractSource("rankings: publicProcedure", "\n    rankingsMeta: publicProcedure"),
+        ipRateLimitId: "league.rankings.ip",
         rateLimitId: "league.rankings",
         detailMarker: null,
       },
       {
         name: "rankingsMeta",
         source: extractSource("rankingsMeta: publicProcedure", "\n    rankingProfile: publicProcedure"),
+        ipRateLimitId: "league.rankingsMeta.ip",
         rateLimitId: "league.rankingsMeta",
         detailMarker: "buildRankingsMetadata(payload.rankings)",
       },
       {
         name: "rankingProfile",
         source: extractSource("rankingProfile: publicProcedure", "\n    rankingDraftBuzz: publicProcedure"),
+        ipRateLimitId: "league.rankingProfile.ip",
         rateLimitId: "league.rankingProfile",
         detailMarker: "buildRankingProfileDetail(payload.rankings, input.profileKey.trim())",
       },
       {
         name: "rankingDraftBuzz",
         source: extractSource("rankingDraftBuzz: publicProcedure", "\n    analyze: publicProcedure"),
+        ipRateLimitId: "league.rankingDraftBuzz.ip",
         rateLimitId: "league.rankingDraftBuzz",
         detailMarker: "buildRankingDraftBuzzDetail(payload.rankings)",
       },
@@ -478,12 +482,15 @@ describe("user-load provider boundary", () => {
 
     for (const route of routeChecks) {
       const accessIndex = route.source.indexOf("assertReportAccess(ctx)");
-      const rateLimitIndex = route.source.indexOf("assertRateLimit(ctx.req as any");
+      const ipRateLimitIndex = route.source.indexOf(`id: '${route.ipRateLimitId}'`);
+      const rateLimitIndex = route.source.indexOf(`id: '${route.rateLimitId}',`, ipRateLimitIndex);
       const payloadIndex = route.source.indexOf("buildLeagueRankingsPayload(input.leagueId, forceRefresh)");
 
       expect(accessIndex, route.name).toBeGreaterThan(0);
-      expect(rateLimitIndex, route.name).toBeGreaterThan(accessIndex);
+      expect(ipRateLimitIndex, route.name).toBeGreaterThan(accessIndex);
+      expect(rateLimitIndex, route.name).toBeGreaterThan(ipRateLimitIndex);
       expect(payloadIndex, route.name).toBeGreaterThan(rateLimitIndex);
+      expect(route.source, route.name).toContain(`id: '${route.ipRateLimitId}'`);
       expect(route.source, route.name).toContain(`id: '${route.rateLimitId}'`);
       if (route.detailMarker) {
         expect(route.source.indexOf(route.detailMarker), route.name).toBeGreaterThan(payloadIndex);

@@ -7456,6 +7456,12 @@ export const appRouter = router({
       .query(async ({ input, ctx }) => {
         assertReportAccess(ctx);
         assertRateLimit(ctx.req as any, {
+          id: 'league.rankings.ip',
+          max: 120,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many ranking requests. Please wait a few minutes and try again.',
+        });
+        assertRateLimit(ctx.req as any, {
           id: 'league.rankings',
           max: 45,
           windowMs: 1000 * 60 * 10,
@@ -7470,6 +7476,12 @@ export const appRouter = router({
       .input(z.object({ leagueId: sleeperLeagueIdSchema, forceRefresh: z.boolean().optional() }))
       .query(async ({ input, ctx }) => {
         assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'league.rankingsMeta.ip',
+          max: 160,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many ranking metadata requests. Please wait a few minutes and try again.',
+        });
         assertRateLimit(ctx.req as any, {
           id: 'league.rankingsMeta',
           max: 60,
@@ -7493,6 +7505,12 @@ export const appRouter = router({
       .query(async ({ input, ctx }) => {
         assertReportAccess(ctx);
         assertRateLimit(ctx.req as any, {
+          id: 'league.rankingProfile.ip',
+          max: 240,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many ranking profile requests. Please wait a few minutes and try again.',
+        });
+        assertRateLimit(ctx.req as any, {
           id: 'league.rankingProfile',
           max: 90,
           windowMs: 1000 * 60 * 10,
@@ -7508,6 +7526,12 @@ export const appRouter = router({
       .input(z.object({ leagueId: sleeperLeagueIdSchema, forceRefresh: z.boolean().optional() }))
       .query(async ({ input, ctx }) => {
         assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'league.rankingDraftBuzz.ip',
+          max: 120,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many prospect archive requests. Please wait a few minutes and try again.',
+        });
         assertRateLimit(ctx.req as any, {
           id: 'league.rankingDraftBuzz',
           max: 45,
