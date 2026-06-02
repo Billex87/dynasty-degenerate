@@ -64,7 +64,7 @@ describe("buildAIReadDecision", () => {
 
     expect(decision.label).toBe("Don't force it");
     expect(decision.tone).toBe("watch");
-    expect(decision.status).toBe("Capped · 63%");
+    expect(decision.status).toBe("Limited · 63%");
   });
 
   it("does not invent action when no score exists", () => {

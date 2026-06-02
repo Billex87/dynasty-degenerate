@@ -4095,7 +4095,7 @@ export function buildPlayerAiRead({
     evidenceRead,
     confidenceNote: [
       `Evidence ${evidenceRead.label}.`,
-      evidenceRead.confidenceCapReason ? `Confidence capped by ${evidenceRead.confidenceCapReason}.` : null,
+      evidenceRead.confidenceCapReason ? `Confidence limited by ${evidenceRead.confidenceCapReason}.` : null,
       valueFraming.note,
       redraftHistoryContext?.confidenceNote || null,
       actionArchetype ? `Archetype ${actionArchetype.label}: ${actionArchetype.note}` : null,

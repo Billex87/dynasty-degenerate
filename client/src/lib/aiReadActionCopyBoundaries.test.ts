@@ -44,6 +44,12 @@ function readSourceSubtrees(subtrees: string[]): string {
     .join("\n");
 }
 
+function readSpecificSources(files: string[]): string {
+  return files
+    .map((file) => fs.readFileSync(path.join(SOURCE_ROOT, file), "utf8"))
+    .join("\n");
+}
+
 describe("AI read action copy boundaries", () => {
   it("keeps secondary action queue rows labeled with verification or change framing", () => {
     const source = fs.readFileSync(path.join(SOURCE_ROOT, "components/AIActionQueue.tsx"), "utf8");
@@ -64,6 +70,19 @@ describe("AI read action copy boundaries", () => {
     expect(source).not.toContain("Blocked:");
     expect(source).not.toContain("Missing:");
     expect(source).not.toContain("Confidence cap:");
+  });
+
+  it("keeps shared AI confidence-limit copy out of internal cap language", () => {
+    const source = readSpecificSources([
+      "components/CommandCenterExpansion.tsx",
+      "components/PlayerDetailModal.tsx",
+      "lib/aiReadDecision.ts",
+    ]);
+
+    expect(source).toContain("Confidence limited by");
+    expect(source).toContain("Limited ·");
+    expect(source).not.toContain("Confidence capped by");
+    expect(source).not.toContain("Capped ·");
   });
 
   it("keeps exact Do this copy limited to reviewed action-owned component panels", () => {

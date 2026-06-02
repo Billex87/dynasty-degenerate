@@ -983,7 +983,7 @@ export function OverviewAIPulse({
       subtitle="Compact direction only; exact metrics stay in the sections below."
       readType="League Exploit"
       confidence={evidenceRead.finalScore}
-      confidenceNote={evidenceRead.confidenceCapReason ? `Confidence capped by ${evidenceRead.confidenceCapReason}.` : getAiConfidenceDisplayNote(data) || evidenceRead.whyThisFired}
+      confidenceNote={evidenceRead.confidenceCapReason ? `Confidence limited by ${evidenceRead.confidenceCapReason}.` : getAiConfidenceDisplayNote(data) || evidenceRead.whyThisFired}
       evidenceRead={evidenceRead}
       hideDecision
       severity={evidenceRead.label === 'thin' ? 'warn' : evidenceRead.finalScore >= 76 ? 'info' : 'warn'}
@@ -2108,7 +2108,7 @@ export function TeamBreakdownRecon({
             title={`${manager} suggested next move`}
             readType={isRedraft ? 'Season Roster Read' : intel.timeline?.toLowerCase().includes('rebuild') ? 'Rebuild Path' : 'Contender Path'}
             confidence={ownerEvidenceRead.finalScore}
-            confidenceNote={ownerEvidenceRead.confidenceCapReason ? `Confidence capped by ${ownerEvidenceRead.confidenceCapReason}.` : ownerEvidenceRead.whyThisFired}
+            confidenceNote={ownerEvidenceRead.confidenceCapReason ? `Confidence limited by ${ownerEvidenceRead.confidenceCapReason}.` : ownerEvidenceRead.whyThisFired}
             evidenceRead={ownerEvidenceRead}
             severity={ownerEvidenceRead.label === 'thin' ? 'warn' : weaknesses.length > 2 ? 'warn' : 'info'}
             chips={[
@@ -2533,7 +2533,7 @@ export function RankingsMarketRead({
       subtitle="This board uses league-matched values and source metadata when returned by the rankings endpoint."
       readType="Market Signal"
       confidence={evidenceRead.finalScore}
-      confidenceNote={evidenceRead.confidenceCapReason ? `Confidence capped by ${evidenceRead.confidenceCapReason}.` : evidenceRead.whyThisFired}
+      confidenceNote={evidenceRead.confidenceCapReason ? `Confidence limited by ${evidenceRead.confidenceCapReason}.` : evidenceRead.whyThisFired}
       severity={evidenceRead.label === 'thin' ? 'warn' : evidenceRead.finalScore >= 70 ? 'info' : 'warn'}
       chips={[
         getEvidenceChip(evidenceRead),
@@ -2573,7 +2573,7 @@ export function TradeBrowserRead({
       subtitle="Searchable trade ledger foundation with value-gap context, manager tendency signals, and roster-window reads."
       readType="Trade Window"
       confidence={evidenceRead.finalScore}
-      confidenceNote={evidenceRead.confidenceCapReason ? `Confidence capped by ${evidenceRead.confidenceCapReason}.` : evidenceRead.whyThisFired}
+      confidenceNote={evidenceRead.confidenceCapReason ? `Confidence limited by ${evidenceRead.confidenceCapReason}.` : evidenceRead.whyThisFired}
       severity={evidenceRead.label === 'thin' ? 'warn' : evidenceRead.finalScore >= 68 ? 'info' : 'warn'}
       chips={[
         getEvidenceChip(evidenceRead),

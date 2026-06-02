@@ -68,7 +68,7 @@ function getEvidenceDecision(
   const blocker = read.hardBlockers?.[0] || null;
   const detail =
     read.confidenceCapReason
-      ? `Confidence capped by ${read.confidenceCapReason}.`
+      ? `Confidence limited by ${read.confidenceCapReason}.`
       : blocker || read.whyThisFired;
 
   if (read.label === "blocked") {
@@ -166,7 +166,7 @@ export function buildAIReadDecision(input: AIReadDecisionInput): AIReadDecision 
       label: "Don't force it",
       detail: confidenceDetail || "Useful signal, but not strong enough to force an action.",
       tone: "watch",
-      status: `Capped · ${confidence}%`,
+      status: `Limited · ${confidence}%`,
     };
   }
 

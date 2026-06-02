@@ -13,14 +13,14 @@ describe("aiVoice", () => {
         label: "Don't force it",
         detail: "Useful signal, but not strong enough to force an action.",
         tone: "watch",
-        status: "Capped · 63%",
+        status: "Limited · 63%",
       },
       "straight"
     );
 
     expect(decision).toMatchObject({
       label: "Don't force it",
-      status: "Capped · 63%",
+      status: "Limited · 63%",
       detail: "Useful signal, but not strong enough to force an action.",
     });
   });
@@ -31,7 +31,7 @@ describe("aiVoice", () => {
         label: "Don't force it",
         detail: "Useful signal, but not strong enough to force an action.",
         tone: "watch",
-        status: "Capped · 63%",
+        status: "Limited · 63%",
       },
       "degen"
     );
