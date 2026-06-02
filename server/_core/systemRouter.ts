@@ -81,7 +81,7 @@ function assertSystemAdminDiagnosticsRateLimit(ctx: SystemAdminRateLimitContext,
     socket: ctx.req.socket,
   });
   const scope = ctx.user.openId || String(ctx.user.id);
-  const key = [id, clientId, scope].join(":");
+  const key = [id, "admin-user", scope].join(":");
   pruneSystemAdminRateLimitBuckets(now, key);
   const existing = systemAdminRateLimitBuckets.get(key);
   const bucket = existing && existing.resetAt > now

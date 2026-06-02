@@ -86,6 +86,7 @@ describe("system router boundary", () => {
 
     expect(pruneSource).toContain("SYSTEM_ADMIN_RATE_LIMIT_BUCKET_MAX_ENTRIES");
     expect(pruneSource).toContain("systemAdminRateLimitBuckets.delete(oldestKey)");
+    expect(guardSource).toContain('const key = [id, "admin-user", scope].join(":")');
     expect(guardSource).toContain("systemAdminRateLimitBuckets.set(key, bucket)");
     expect(guardSource).toContain('code: "TOO_MANY_REQUESTS"');
 
