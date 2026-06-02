@@ -525,8 +525,11 @@ export function buildSourceAgreementRead(signals: AISourceAgreementSignal[]): AI
   const totalDirectionalWeight = forWeight + againstWeight;
 
   if (!normalized.length || directional.length === 0) {
+    const state: AISourceAgreementState = !normalized.length || missingCount === normalized.length
+      ? 'missing'
+      : 'unknown';
     return {
-      state: normalized.length ? 'unknown' : 'missing',
+      state,
       directionalSourceCount: directional.length,
       sourceCount: normalized.length,
       forWeight,
@@ -534,7 +537,7 @@ export function buildSourceAgreementRead(signals: AISourceAgreementSignal[]): AI
       neutralWeight,
       missingCount,
       confidenceCap: 48,
-      reason: normalized.length ? 'No directional source signal was available' : 'No source signals were available',
+      reason: state === 'missing' ? 'No source signals were available' : 'No directional source signal was available',
       signals: normalized,
     };
   }

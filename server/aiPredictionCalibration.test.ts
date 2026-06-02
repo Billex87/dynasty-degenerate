@@ -156,7 +156,7 @@ describe('AI prediction calibration', () => {
     ]);
 
     expect(read).toMatchObject({
-      state: 'unknown',
+      state: 'missing',
       directionalSourceCount: 0,
       sourceCount: 1,
       forWeight: 0,
@@ -164,7 +164,7 @@ describe('AI prediction calibration', () => {
       neutralWeight: 0,
       missingCount: 1,
       confidenceCap: 48,
-      reason: 'No directional source signal was available',
+      reason: 'No source signals were available',
       signals: [{
         direction: 'missing',
         confidence: 90,
