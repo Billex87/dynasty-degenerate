@@ -487,7 +487,8 @@ describe("user-load provider boundary", () => {
     const imageCacheWriteSource = extractSourceFrom(imageProxySource, "function setCachedImage", "\n\n/**\n * Fetch a player headshot");
     const missCacheWriteSource = extractSourceFrom(imageProxySource, "function setImageMiss", "\n\nfunction setCachedImage");
     const cacheIndex = headshotSource.indexOf("getCachedImage(input.playerId)");
-    const rateLimitIndex = headshotSource.indexOf("assertRateLimit(ctx.req as any");
+    const ipRateLimitIndex = headshotSource.indexOf("id: 'images.playerHeadshot.ip'");
+    const rateLimitIndex = headshotSource.indexOf("id: 'images.playerHeadshot',", ipRateLimitIndex);
     const fetchIndex = headshotSource.indexOf("fetchPlayerHeadshot(input.playerId)");
     const prospectIndex = headshotSource.indexOf("loadProspectContext()");
 
@@ -495,9 +496,11 @@ describe("user-load provider boundary", () => {
     expect(headshotSource).toContain("playerName: z.string().trim().max(120)");
     expect(headshotSource).toContain("position: z.string().trim().max(16)");
     expect(cacheIndex).toBeGreaterThan(0);
-    expect(rateLimitIndex).toBeGreaterThan(cacheIndex);
+    expect(ipRateLimitIndex).toBeGreaterThan(cacheIndex);
+    expect(rateLimitIndex).toBeGreaterThan(ipRateLimitIndex);
     expect(fetchIndex).toBeGreaterThan(rateLimitIndex);
     expect(prospectIndex).toBeGreaterThan(rateLimitIndex);
+    expect(headshotSource).toContain("id: 'images.playerHeadshot.ip'");
     expect(headshotSource).toContain("id: 'images.playerHeadshot'");
     expect(imageProxySource).toContain("const IMAGE_CACHE_MAX_ITEMS = 300");
     expect(imageProxySource).toContain("const IMAGE_MISS_CACHE_MAX_ITEMS = 1000");

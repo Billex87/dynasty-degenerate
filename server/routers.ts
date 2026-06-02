@@ -8838,6 +8838,12 @@ export const appRouter = router({
         }
 
         assertRateLimit(ctx.req as any, {
+          id: 'images.playerHeadshot.ip',
+          max: 300,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many player image requests. Please wait a few minutes and try again.',
+        });
+        assertRateLimit(ctx.req as any, {
           id: 'images.playerHeadshot',
           max: 120,
           windowMs: 1000 * 60 * 10,
