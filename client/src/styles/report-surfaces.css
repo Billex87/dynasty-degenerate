@@ -10634,7 +10634,6 @@ body {
 }
 
 .home-portfolio-filter:hover,
-.home-portfolio-filter:focus-visible,
 .home-portfolio-filter.is-active {
   border-color: rgba(244, 160, 32, 0.62);
   background: rgba(244, 160, 32, 0.14);
