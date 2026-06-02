@@ -8503,11 +8503,11 @@ export const appRouter = router({
   images: router({
     playerHeadshot: publicProcedure
       .input(z.object({
-        playerId: z.string(),
-        playerName: z.string().optional().nullable(),
-        position: z.string().optional().nullable(),
+        playerId: z.string().trim().min(1).max(64),
+        playerName: z.string().trim().max(120).optional().nullable(),
+        position: z.string().trim().max(16).optional().nullable(),
       }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         // Try to get from cache first
         const cached = getCachedImage(input.playerId);
         if (cached) {
@@ -8520,6 +8520,14 @@ export const appRouter = router({
             source: 'sleeper' as const,
           };
         }
+
+        assertRateLimit(ctx.req as any, {
+          id: 'images.playerHeadshot',
+          max: 120,
+          windowMs: 1000 * 60 * 10,
+          scope: input.playerId,
+          message: 'Too many player image requests. Please wait a few minutes and try again.',
+        });
 
         // Fetch and cache
         const imageBuffer = await fetchPlayerHeadshot(input.playerId);

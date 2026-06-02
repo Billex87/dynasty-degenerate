@@ -104,6 +104,23 @@ describe("user-load provider boundary", () => {
     expect(latestNewsSource).toContain("...getUserLoadSnapshotOptions()");
   });
 
+  it("keeps player headshot provider work bounded behind cache and rate limits", () => {
+    const headshotSource = extractSource("playerHeadshot: publicProcedure", "\n  }),\n});");
+    const cacheIndex = headshotSource.indexOf("getCachedImage(input.playerId)");
+    const rateLimitIndex = headshotSource.indexOf("assertRateLimit(ctx.req as any");
+    const fetchIndex = headshotSource.indexOf("fetchPlayerHeadshot(input.playerId)");
+    const prospectIndex = headshotSource.indexOf("loadProspectContext()");
+
+    expect(headshotSource).toContain("playerId: z.string().trim().min(1).max(64)");
+    expect(headshotSource).toContain("playerName: z.string().trim().max(120)");
+    expect(headshotSource).toContain("position: z.string().trim().max(16)");
+    expect(cacheIndex).toBeGreaterThan(0);
+    expect(rateLimitIndex).toBeGreaterThan(cacheIndex);
+    expect(fetchIndex).toBeGreaterThan(rateLimitIndex);
+    expect(prospectIndex).toBeGreaterThan(rateLimitIndex);
+    expect(headshotSource).toContain("id: 'images.playerHeadshot'");
+  });
+
   it("routes user-load live fetches through the guarded wrapper", () => {
     const liveUrlSources = [routersSource, draftAnalysisSource].join("\n");
     const urls = Array.from(liveUrlSources.matchAll(/https:\/\/[^`'")\s]+/g), (match) => match[0]);
