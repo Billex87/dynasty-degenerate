@@ -1500,6 +1500,17 @@ type SleeperLeagueOption = NonNullable<ReturnType<typeof toSleeperLeagueOption>>
 type SleeperLeaguePreview = SleeperLeagueOption & {
   managerAnchors: Array<{ id: string; avatarUrl: string | null }>;
 };
+type SleeperUserLeagueLookupResult = {
+  user: {
+    userId: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+    hasAdminPermissions: boolean;
+    isPrivilegedReportViewer: boolean;
+  };
+  leagues: SleeperLeagueOption[];
+};
 type UserLeagueRankResult = {
   leagueId: string;
   standingsRank: number | null;
@@ -1525,6 +1536,9 @@ const leaguePreviewCache = new Map<string, { loadedAt: number; preview: SleeperL
 const LEAGUE_SCORING_SETTINGS_CACHE_TTL_MS = 10 * 60 * 1000;
 const LEAGUE_SCORING_SETTINGS_CACHE_MAX_ENTRIES = 200;
 const leagueScoringSettingsCache = new Map<string, { loadedAt: number; scoringSettings: Record<string, any> }>();
+const SLEEPER_USER_LEAGUES_CACHE_TTL_MS = 2 * 60 * 1000;
+const SLEEPER_USER_LEAGUES_CACHE_MAX_ENTRIES = 500;
+const sleeperUserLeaguesCache = new Map<string, { loadedAt: number; result: SleeperUserLeagueLookupResult }>();
 const USER_LEAGUE_RANK_CACHE_TTL_MS = 2 * 60 * 1000;
 const USER_LEAGUE_RANK_CACHE_MAX_ENTRIES = 500;
 const userLeagueRankCache = new Map<string, { loadedAt: number; rank: UserLeagueRankResult }>();
@@ -1667,6 +1681,59 @@ function setCachedLeagueScoringSettings(
   });
 
   return clonedSettings;
+}
+
+function getSleeperUserLeaguesCacheKey(username: string, season: string): string {
+  return `${username.trim().toLowerCase()}:${season}`;
+}
+
+function cloneSleeperUserLeagueLookupResult(
+  result: SleeperUserLeagueLookupResult
+): SleeperUserLeagueLookupResult {
+  return {
+    user: { ...result.user },
+    leagues: result.leagues.map(league => ({ ...league })),
+  };
+}
+
+function pruneSleeperUserLeaguesCache(now = Date.now()) {
+  for (const [cacheKey, cached] of Array.from(sleeperUserLeaguesCache.entries())) {
+    if (now - cached.loadedAt > SLEEPER_USER_LEAGUES_CACHE_TTL_MS) {
+      sleeperUserLeaguesCache.delete(cacheKey);
+    }
+  }
+
+  while (sleeperUserLeaguesCache.size >= SLEEPER_USER_LEAGUES_CACHE_MAX_ENTRIES) {
+    const oldestCacheKey = Array.from(sleeperUserLeaguesCache.entries())
+      .sort((a, b) => a[1].loadedAt - b[1].loadedAt)[0]?.[0];
+    if (!oldestCacheKey) break;
+    sleeperUserLeaguesCache.delete(oldestCacheKey);
+  }
+}
+
+function getCachedSleeperUserLeagues(cacheKey: string): SleeperUserLeagueLookupResult | null {
+  const cached = sleeperUserLeaguesCache.get(cacheKey);
+  if (!cached) return null;
+
+  if (Date.now() - cached.loadedAt > SLEEPER_USER_LEAGUES_CACHE_TTL_MS) {
+    sleeperUserLeaguesCache.delete(cacheKey);
+    return null;
+  }
+
+  return cloneSleeperUserLeagueLookupResult(cached.result);
+}
+
+function setCachedSleeperUserLeagues(
+  cacheKey: string,
+  result: SleeperUserLeagueLookupResult
+): SleeperUserLeagueLookupResult {
+  pruneSleeperUserLeaguesCache();
+  sleeperUserLeaguesCache.set(cacheKey, {
+    loadedAt: Date.now(),
+    result: cloneSleeperUserLeagueLookupResult(result),
+  });
+
+  return result;
 }
 
 function getUserLeagueRankCacheKey(leagueId: string, userId: string, fallbackManagerName: string): string | null {
@@ -7258,6 +7325,11 @@ export const appRouter = router({
         });
         const username = input.username.trim();
         if (!username) throw new Error('Please enter a Sleeper username');
+        const currentSeason = String(new Date().getFullYear());
+        const cacheKey = getSleeperUserLeaguesCacheKey(username, currentSeason);
+        const cachedLookup = getCachedSleeperUserLeagues(cacheKey);
+        if (cachedLookup) return cachedLookup;
+
         const ipAddress = getClientIp(ctx.req as any);
         const userAgent = typeof ctx.req.headers["user-agent"] === "string" ? ctx.req.headers["user-agent"] : null;
 
@@ -7290,7 +7362,6 @@ export const appRouter = router({
             throw new Error('Sleeper user not found');
           }
 
-          const currentSeason = String(new Date().getFullYear());
           const seenLeagueIds = new Set<string>();
           const leagues = [];
 
@@ -7327,7 +7398,7 @@ export const appRouter = router({
             username
           );
 
-          return {
+          return setCachedSleeperUserLeagues(cacheKey, {
             user: {
               userId: String(user.user_id),
               username: user.username || username,
@@ -7337,7 +7408,7 @@ export const appRouter = router({
               isPrivilegedReportViewer: hasAdminPermissions,
             },
             leagues: leagues.sort((a, b) => Number(b.season) - Number(a.season) || a.name.localeCompare(b.name)),
-          };
+          });
         } catch (error) {
           if (!(error instanceof Error && error.message === 'Sleeper user not found')) {
             await insertLoginAttempt({

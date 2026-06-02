@@ -239,25 +239,34 @@ describe("user-load provider boundary", () => {
 
   it("keeps Sleeper username lookup provider calls behind the route limiter", () => {
     const getUserLeaguesSource = extractSource("getUserLeagues: publicProcedure", "\n    getUserLeagueRanks: publicProcedure");
+    const userLeaguesCacheSetSource = extractSource("function setCachedSleeperUserLeagues", "\n\nfunction getUserLeagueRankCacheKey");
     const rateLimitIndex = getUserLeaguesSource.indexOf("assertRateLimit(ctx.req as any");
     const usernameIndex = getUserLeaguesSource.indexOf("const username = input.username.trim()");
+    const cacheReadIndex = getUserLeaguesSource.indexOf("const cachedLookup = getCachedSleeperUserLeagues(cacheKey)");
     const userUrlIndex = getUserLeaguesSource.indexOf("const userUrl = `https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`");
     const userAllowedUrlIndex = getUserLeaguesSource.indexOf("assertUserLoadAllowedLiveProviderUrl(userUrl, \"Sleeper username lookup\")");
     const userFetchIndex = getUserLeaguesSource.indexOf("fetchUserLoadResponse(userUrl, \"Sleeper username lookup\")");
     const leaguesUrlIndex = getUserLeaguesSource.indexOf("const leaguesUrl = `https://api.sleeper.app/v1/user/${user.user_id}/leagues/nfl/${currentSeason}`");
     const leaguesAllowedUrlIndex = getUserLeaguesSource.indexOf("assertUserLoadAllowedLiveProviderUrl(leaguesUrl, \"Sleeper user league lookup\")");
     const leaguesFetchIndex = getUserLeaguesSource.indexOf("fetchUserLoadResponse(leaguesUrl, \"Sleeper user league lookup\")");
+    const cacheWriteIndex = getUserLeaguesSource.indexOf("return setCachedSleeperUserLeagues(cacheKey");
 
     expect(rateLimitIndex).toBeGreaterThan(0);
     expect(usernameIndex).toBeGreaterThan(rateLimitIndex);
-    expect(userUrlIndex).toBeGreaterThan(rateLimitIndex);
-    expect(userAllowedUrlIndex).toBeGreaterThan(rateLimitIndex);
-    expect(userFetchIndex).toBeGreaterThan(rateLimitIndex);
-    expect(leaguesUrlIndex).toBeGreaterThan(rateLimitIndex);
-    expect(leaguesAllowedUrlIndex).toBeGreaterThan(rateLimitIndex);
-    expect(leaguesFetchIndex).toBeGreaterThan(rateLimitIndex);
+    expect(cacheReadIndex).toBeGreaterThan(usernameIndex);
+    expect(userUrlIndex).toBeGreaterThan(cacheReadIndex);
+    expect(userAllowedUrlIndex).toBeGreaterThan(cacheReadIndex);
+    expect(userFetchIndex).toBeGreaterThan(cacheReadIndex);
+    expect(leaguesUrlIndex).toBeGreaterThan(cacheReadIndex);
+    expect(leaguesAllowedUrlIndex).toBeGreaterThan(cacheReadIndex);
+    expect(leaguesFetchIndex).toBeGreaterThan(cacheReadIndex);
+    expect(cacheWriteIndex).toBeGreaterThan(leaguesFetchIndex);
     expect(getUserLeaguesSource).toContain("id: 'league.getUserLeagues'");
     expect(getUserLeaguesSource).toContain("message: 'Too many league lookup attempts. Please wait a few minutes and try again.'");
+    expect(routersSource).toContain("const SLEEPER_USER_LEAGUES_CACHE_MAX_ENTRIES = 500");
+    expect(userLeaguesCacheSetSource).toContain("pruneSleeperUserLeaguesCache()");
+    expect(userLeaguesCacheSetSource).toContain("sleeperUserLeaguesCache.set(cacheKey");
+    expect(routersSource).toContain("while (sleeperUserLeaguesCache.size >= SLEEPER_USER_LEAGUES_CACHE_MAX_ENTRIES)");
   });
 
   it("keeps direct league previews cache-first after route access checks", () => {
