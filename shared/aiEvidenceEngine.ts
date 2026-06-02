@@ -252,6 +252,18 @@ function isImmediateAvailabilityAction(action: AIEvidenceAction): boolean {
   return action === "pickup" || isStartLikeAction(action);
 }
 
+function canActionBecomeExecutable(action: AIEvidenceAction): boolean {
+  return (
+    action === "pickup" ||
+    action === "stash" ||
+    action === "stream" ||
+    action === "start" ||
+    action === "sit" ||
+    action === "trade" ||
+    action === "avoid"
+  );
+}
+
 function hasRosterAvailabilityProof(player: AIEvidencePlayerContext): boolean {
   return (
     (Object.prototype.hasOwnProperty.call(player, "owner") &&
@@ -1265,7 +1277,9 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
     };
   }
   const shouldRender = label !== "blocked" && evidence.length > 0;
-  const canAct = label === "actionable" || label === "priority" || label === "high conviction";
+  const canAct = canActionBecomeExecutable(input.action) && (
+    label === "actionable" || label === "priority" || label === "high conviction"
+  );
   const result = {
     evidence,
     missingEvidence,

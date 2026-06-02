@@ -654,6 +654,53 @@ describe("ai evidence engine", () => {
     expect(read.whyThisFired).toMatch(/No positive evidence|Do not act yet/i);
   });
 
+  it("keeps hold and watch reads out of executable action state even when confidence is high", () => {
+    const holdRead = evaluateAIEvidence({
+      surface: "player-detail",
+      action: "hold",
+      leagueValueMode: "dynasty",
+      baseScore: 96,
+      evidence: ["Three market sources agree.", "Role and usage context are attached."],
+      sourceTrace: [{
+        label: "Dynasty market snapshot",
+        status: "loaded",
+      }, {
+        label: "Usage trend snapshot",
+        status: "loaded",
+      }],
+      signalModes: ["dynasty", "market"],
+      player: {
+        name: "Hold Candidate",
+        position: "WR",
+        team: "DAL",
+        value: 6900,
+        sourceCount: 3,
+        hasDynastyValue: true,
+        hasRecentUsage: true,
+        hasRoleContext: true,
+      },
+    });
+
+    const watchRead = evaluateAIEvidence({
+      surface: "overview",
+      action: "watch",
+      baseScore: 96,
+      evidence: ["League trend is visible.", "Two source families returned."],
+      sourceTrace: [{
+        label: "League trend snapshot",
+        status: "loaded",
+      }, {
+        label: "Source coverage snapshot",
+        status: "loaded",
+      }],
+    });
+
+    expect(holdRead.label).toBe("high conviction");
+    expect(watchRead.label).toBe("high conviction");
+    expect(holdRead.canAct).toBe(false);
+    expect(watchRead.canAct).toBe(false);
+  });
+
   it("uses superflex context before blocking low-source QB pickup advice", () => {
     const superflexRead = evaluateAIEvidence({
       surface: "waiver",
