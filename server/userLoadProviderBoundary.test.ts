@@ -128,6 +128,61 @@ describe("user-load provider boundary", () => {
     expect(readBucketIndex).toBeGreaterThan(sweepIndex);
   });
 
+  it("keeps protected account writes behind the route limiter", () => {
+    const guardSource = extractSource("function assertAccountWriteRateLimit", "\n\nasync function assertAccountSavedResourceLimit");
+    const routeChecks = [
+      {
+        name: "saveSleeperAccount",
+        source: extractSource("saveSleeperAccount: protectedProcedure", "\n    removeSleeperAccount: protectedProcedure"),
+        rateLimitId: "account.saveSleeperAccount",
+        workMarkers: ["assertAccountPersistenceConfigured()", "upsertUserSleeperAccount({"],
+      },
+      {
+        name: "removeSleeperAccount",
+        source: extractSource("removeSleeperAccount: protectedProcedure", "\n    saveFavoriteLeague: protectedProcedure"),
+        rateLimitId: "account.removeSleeperAccount",
+        workMarkers: ["assertAccountPersistenceConfigured()", "deleteUserSleeperAccount({"],
+      },
+      {
+        name: "saveFavoriteLeague",
+        source: extractSource("saveFavoriteLeague: protectedProcedure", "\n    removeFavoriteLeague: protectedProcedure"),
+        rateLimitId: "account.saveFavoriteLeague",
+        workMarkers: ["assertAccountPersistenceConfigured()", "const favoriteLeagues = await listUserFavoriteLeagues(ctx.user.openId)", "upsertUserFavoriteLeague({"],
+      },
+      {
+        name: "removeFavoriteLeague",
+        source: extractSource("removeFavoriteLeague: protectedProcedure", "\n    recordRecentReport: protectedProcedure"),
+        rateLimitId: "account.removeFavoriteLeague",
+        workMarkers: ["assertAccountPersistenceConfigured()", "deleteUserFavoriteLeague({"],
+      },
+      {
+        name: "recordRecentReport",
+        source: extractSource("recordRecentReport: protectedProcedure", "\n    updateNotificationPreferences: protectedProcedure"),
+        rateLimitId: "account.recordRecentReport",
+        workMarkers: ["assertAccountPersistenceConfigured()", "const recentReports = await listUserRecentReports(ctx.user.openId, 200)", "recordUserRecentReport({"],
+      },
+      {
+        name: "updateNotificationPreferences",
+        source: extractSource("updateNotificationPreferences: protectedProcedure", "\n  }),\n\n  billing: router"),
+        rateLimitId: "account.updateNotificationPreferences",
+        workMarkers: ["assertAccountPersistenceConfigured()", "const persistedAccess = await loadPersistedFeatureAccess({", "upsertUserNotificationPreferences({"],
+      },
+    ];
+
+    expect(guardSource).toContain("assertRateLimit(ctx.req as any");
+    expect(guardSource).toContain("max: 60");
+    expect(guardSource).toContain("windowMs: 1000 * 60 * 10");
+    expect(guardSource).toContain("scope: getActionPlanUserKey(ctx.user)");
+
+    for (const route of routeChecks) {
+      const rateLimitIndex = route.source.indexOf(`assertAccountWriteRateLimit(ctx, "${route.rateLimitId}")`);
+      expect(rateLimitIndex, route.name).toBeGreaterThan(0);
+      for (const marker of route.workMarkers) {
+        expect(route.source.indexOf(marker), `${route.name}:${marker}`).toBeGreaterThan(rateLimitIndex);
+      }
+    }
+  });
+
   it("bounds Sleeper league usage cache before writing matchup summaries", () => {
     const pruneUsageCacheSource = extractSource("function pruneSleeperLeagueUsageCache", "\n\nfunction setCachedSleeperLeagueUsageSummary");
     const setUsageCacheSource = extractSource("function setCachedSleeperLeagueUsageSummary", "\n\nasync function fetchSleeperLeagueUsageSummary");

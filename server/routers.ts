@@ -169,6 +169,19 @@ function assertAccountPersistenceResult(ok: boolean) {
   }
 }
 
+function assertAccountWriteRateLimit(
+  ctx: TrpcContext & { user: NonNullable<TrpcContext["user"]> },
+  id: string
+) {
+  assertRateLimit(ctx.req as any, {
+    id,
+    max: 60,
+    windowMs: 1000 * 60 * 10,
+    scope: getActionPlanUserKey(ctx.user),
+    message: "Too many account updates. Please wait a few minutes and try again.",
+  });
+}
+
 async function assertAccountSavedResourceLimit(input: {
   user: NonNullable<TrpcContext["user"]>;
   featureKey: Extract<UsageLimitedFeatureKey, "saved-league" | "saved-report">;
@@ -6711,6 +6724,7 @@ export const appRouter = router({
         isPrimary: z.boolean().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        assertAccountWriteRateLimit(ctx, "account.saveSleeperAccount");
         assertAccountPersistenceConfigured();
         const ok = await upsertUserSleeperAccount({
           userOpenId: ctx.user.openId,
@@ -6729,6 +6743,7 @@ export const appRouter = router({
         sleeperUserId: sleeperUserIdSchema,
       }))
       .mutation(async ({ input, ctx }) => {
+        assertAccountWriteRateLimit(ctx, "account.removeSleeperAccount");
         assertAccountPersistenceConfigured();
         const ok = await deleteUserSleeperAccount({
           userOpenId: ctx.user.openId,
@@ -6744,6 +6759,7 @@ export const appRouter = router({
         sleeperUserId: sleeperUserIdSchema.optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        assertAccountWriteRateLimit(ctx, "account.saveFavoriteLeague");
         assertAccountPersistenceConfigured();
         const favoriteLeagues = await listUserFavoriteLeagues(ctx.user.openId);
         await assertAccountSavedResourceLimit({
@@ -6769,6 +6785,7 @@ export const appRouter = router({
         leagueId: sleeperLeagueIdSchema,
       }))
       .mutation(async ({ input, ctx }) => {
+        assertAccountWriteRateLimit(ctx, "account.removeFavoriteLeague");
         assertAccountPersistenceConfigured();
         const ok = await deleteUserFavoriteLeague({
           userOpenId: ctx.user.openId,
@@ -6785,6 +6802,7 @@ export const appRouter = router({
         sleeperUserId: sleeperUserIdSchema.optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        assertAccountWriteRateLimit(ctx, "account.recordRecentReport");
         assertAccountPersistenceConfigured();
         const recentReports = await listUserRecentReports(ctx.user.openId, 200);
         await assertAccountSavedResourceLimit({
@@ -6815,6 +6833,7 @@ export const appRouter = router({
         weeklyDigest: z.boolean(),
       }))
       .mutation(async ({ input, ctx }) => {
+        assertAccountWriteRateLimit(ctx, "account.updateNotificationPreferences");
         assertAccountPersistenceConfigured();
         if (input.anomalyAlerts) {
           const persistedAccess = await loadPersistedFeatureAccess({
