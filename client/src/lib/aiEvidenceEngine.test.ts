@@ -249,6 +249,39 @@ describe("ai evidence engine", () => {
     expect(read.hardBlockers.join(" ")).toContain("Redraft read has no current-season evidence");
   });
 
+  it("caps dynasty action reads that only have redraft evidence", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "dynasty",
+      baseScore: 94,
+      evidence: ["WR31 current-season rank is attached.", "Roster need is attached."],
+      sourceTrace: [{
+        label: "FantasyPros redraft waiver snapshot",
+        status: "loaded",
+      }, {
+        label: "Sleeper trend snapshot",
+        status: "loaded",
+      }],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Redraft Only Receiver",
+        position: "WR",
+        team: "SEA",
+        value: 4200,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+      },
+    });
+
+    expect(read.canAct).toBe(false);
+    expect(read.finalScore).toBeLessThanOrEqual(56);
+    expect(read.confidenceCapReason).toBe("Missing dynasty/market evidence");
+    expect(read.missingEvidence).toContain("No dynasty or market evidence returned for this dynasty action read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Missing dynasty/market evidence caps dynasty action confidence");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence cap: 56% from Missing dynasty/market evidence");
+  });
+
   it("caps confidence when sources are stale", () => {
     const read = evaluateAIEvidence({
       surface: "player-detail",

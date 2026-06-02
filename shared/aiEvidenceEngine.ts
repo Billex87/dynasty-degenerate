@@ -907,6 +907,11 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
     signalModes.has("current") ||
     signalModes.has("schedule") ||
     Boolean(player.hasCurrentSeasonValue);
+  const hasDynastySignal =
+    signalModes.has("dynasty") ||
+    signalModes.has("market") ||
+    signalModes.has("prospect") ||
+    Boolean(player.hasDynastyValue);
   if (
     input.leagueValueMode === "redraft" &&
     (input.requiresCurrentSeasonEvidence ?? isPickupLike) &&
@@ -947,6 +952,28 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
     input.action === "sit" ||
     input.action === "trade" ||
     input.action === "avoid";
+  const needsDynastyMarketEvidence =
+    input.leagueValueMode === "dynasty" &&
+    (input.action === "pickup" ||
+      input.action === "stash" ||
+      input.action === "trade" ||
+      input.action === "avoid") &&
+    !hasScheduleEvidence;
+  if (input.player && needsDynastyMarketEvidence && !hasDynastySignal) {
+    missingEvidence.push("No dynasty or market evidence returned for this dynasty action read.");
+    softPenalties.push({
+      label: "Missing dynasty/market evidence caps dynasty action confidence",
+      points: 10,
+    });
+    const capped = applyCap(
+      confidenceCap,
+      confidenceCapReason,
+      56,
+      "Missing dynasty/market evidence"
+    );
+    confidenceCap = capped.cap;
+    confidenceCapReason = capped.reason;
+  }
   if (
     input.player &&
     isDirectPlayerAction &&
