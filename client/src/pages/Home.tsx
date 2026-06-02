@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -13,10 +12,7 @@ import { buildLeagueFormatPills } from "@/features/report/lib/reportOverviewPrev
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";
 import { HomeDialogsContainer } from "@/features/home/components/HomeDialogsContainer";
 import { HomeReportExperience } from "@/features/home/components/HomeReportExperience";
-import {
-  persistHomeAdminViewMode,
-  useHomeAdminAccess,
-} from "@/features/home/hooks/useHomeAdminAccess";
+import { useHomeAdminAccess } from "@/features/home/hooks/useHomeAdminAccess";
 import { useHomeAIVoiceMode } from "@/features/home/hooks/useHomeAIVoiceMode";
 import { useHomeAIPredictionTelemetry } from "@/features/home/hooks/useHomeAIPredictionTelemetry";
 import { useHomeLoadingTimeout } from "@/features/home/hooks/useHomeLoadingTimeout";
@@ -24,7 +20,9 @@ import { useHomeLeagueIntelRanks } from "@/features/home/hooks/useHomeLeagueInte
 import { useHomeNavigationActions } from "@/features/home/hooks/useHomeNavigationActions";
 import { useHomePortfolio } from "@/features/home/hooks/useHomePortfolio";
 import { useHomePreviewMode } from "@/features/home/hooks/useHomePreviewMode";
+import { useHomeSleeperLeagueSearch } from "@/features/home/hooks/useHomeSleeperLeagueSearch";
 import { usePersistHomeReportCache } from "@/features/home/hooks/usePersistHomeReportCache";
+import { useHomeReportRankings } from "@/features/home/hooks/useHomeReportRankings";
 import { useHomeReportTabActions } from "@/features/home/hooks/useHomeReportTabActions";
 import { useQueuedTimeouts } from "@/features/home/hooks/useQueuedTimeouts";
 import { useReportBackgroundRefresh } from "@/features/home/hooks/useReportBackgroundRefresh";
@@ -46,7 +44,6 @@ import {
 } from "@/features/home/lib/sleeperIdentity";
 import {
   getFilteredAutocompleteOptions,
-  MAX_AUTOCOMPLETE_HISTORY,
   readAutocompleteHistory,
   rememberAutocompleteValue,
 } from "@/features/home/lib/inputHelpers";
@@ -304,12 +301,6 @@ export default function Home() {
 
   const rememberLeagueId = (value: string) => {
     setLeagueIdHistory(rememberAutocompleteValue(LEAGUE_ID_HISTORY_KEY, value));
-  };
-
-  const rememberSleeperUsername = (value: string) => {
-    setSleeperUsernameHistory(
-      rememberAutocompleteValue(SLEEPER_USERNAME_HISTORY_KEY, value)
-    );
   };
 
   const getCurrentSessionUserForCache = (): SleeperUserSession | null => {
@@ -677,62 +668,6 @@ export default function Home() {
     setUserLeagues,
   });
 
-  const userLeaguesMutation = trpc.league.getUserLeagues.useMutation({
-    onSuccess: (data, variables) => {
-      const username = variables.username.trim();
-      const nextViewerUserId = data.user?.userId || null;
-      const nextViewerIdentity = getKtcAdminIdentity(data.user, username);
-      const nextHasAdminPermissions =
-        data.user?.hasAdminPermissions === true ||
-        data.user?.isPrivilegedReportViewer === true;
-      setUserLeagues(data.leagues);
-      setIsLeagueIntelLoading(Boolean(nextViewerUserId && data.leagues.length));
-      setViewerUserId(nextViewerUserId);
-      setViewerUsername(nextViewerIdentity);
-      setAdminViewMode(null);
-      setAdminViewerManager(null);
-      if (data.leagues.length === 0) {
-        toast.error("No Sleeper leagues found for this username");
-        return;
-      }
-      rememberSleeperUsername(username);
-      setCachedSleeperUsers(
-        rememberCachedSleeperUser(
-          buildCachedSleeperUser(username, data.user, data.leagues)
-        )
-      );
-      try {
-        localStorage.setItem(
-          SLEEPER_SESSION_KEY,
-          JSON.stringify({
-            username,
-            user: data.user || null,
-            leagues: data.leagues,
-            adminViewMode: null,
-            savedAt: Date.now(),
-          } satisfies SleeperSession)
-        );
-      } catch {
-        // Losing this cache only affects the league switcher, not the report itself.
-      }
-      if (nextHasAdminPermissions) {
-        setAdminViewMode("regular");
-        persistHomeAdminViewMode({
-          mode: "regular",
-          sleeperSessionKey: SLEEPER_SESSION_KEY,
-        });
-      }
-      toast.success(
-        `Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? "" : "s"}`
-      );
-      setIsLeaguePickerOpen(true);
-    },
-    onError: error => {
-      setAnalysisErrorMessage(formatMutationErrorMessage(error));
-      showMutationErrorToast(error);
-    },
-  });
-
   useEffect(() => {
     let isCancelled = false;
 
@@ -948,34 +883,30 @@ export default function Home() {
     );
   };
 
-  const handleFindLeagues = async () => {
-    const normalizedUsername = sleeperUsername.trim();
-    if (!normalizedUsername) {
-      setAnalysisErrorMessage("Please enter a Sleeper username.");
-      toast.error("Please enter a Sleeper username");
-      return;
-    }
-    if (CLOWN_EASTER_EGG_USERNAMES.has(normalizedUsername.toLowerCase())) {
-      setIsClownModalOpen(true);
-      return;
-    }
-    setPortfolioSearch("");
-    setAnalysisErrorMessage(null);
-    setIsLeagueIntelLoading(false);
-    userLeaguesMutation.mutate({ username: normalizedUsername });
-  };
-
-  const handleClownDismiss = () => {
-    setIsClownModalOpen(false);
-    setSleeperUsername("");
-    setPortfolioSearch("");
-    setAnalysisErrorMessage(null);
-    setUserLeagues([]);
-    setIsLeagueIntelLoading(false);
-    setFocusedAutocomplete(null);
-    setAdminViewMode(null);
-    setAdminViewerManager(null);
-  };
+  const {
+    handleClownDismiss,
+    handleFindLeagues,
+    isFindLeaguesPending,
+  } = useHomeSleeperLeagueSearch({
+    clownUsernames: CLOWN_EASTER_EGG_USERNAMES,
+    sleeperSessionKey: SLEEPER_SESSION_KEY,
+    sleeperUsername,
+    sleeperUsernameHistoryKey: SLEEPER_USERNAME_HISTORY_KEY,
+    setAdminViewMode,
+    setAdminViewerManager,
+    setAnalysisErrorMessage,
+    setCachedSleeperUsers,
+    setFocusedAutocomplete,
+    setIsClownModalOpen,
+    setIsLeagueIntelLoading,
+    setIsLeaguePickerOpen,
+    setPortfolioSearch,
+    setSleeperUsername,
+    setSleeperUsernameHistory,
+    setUserLeagues,
+    setViewerUserId,
+    setViewerUsername,
+  });
 
   const {
     handleAnalyzeAnotherLeague,
@@ -1104,24 +1035,14 @@ export default function Home() {
     "--dd-report-tab-count": String(visibleReportTabCount),
     "--dd-report-tab-index": String(resolvedReportTabIndex),
   } as CSSProperties;
-  const rankingsQuery = trpc.league.rankingsMeta.useQuery(
-    { leagueId },
-    {
-      enabled: Boolean(reportData && leagueId && !reportData.rankings),
-      staleTime: 1000 * 60 * 60 * 12,
-      refetchOnWindowFocus: false,
-      retry: 1,
-    }
-  );
-  const rankingsForReport =
-    rankingsQuery.data?.rankings || reportData?.rankings;
-  const reportDataWithRankings = useMemo(
-    () =>
-      reportData && rankingsForReport
-        ? { ...reportData, rankings: rankingsForReport }
-        : reportData,
-    [rankingsForReport, reportData]
-  );
+  const {
+    rankingsForReport,
+    rankingsQueryIsLoading,
+    reportDataWithRankings,
+  } = useHomeReportRankings({
+    leagueId,
+    reportData,
+  });
   useHomeAIPredictionTelemetry({
     enabled: Boolean(authQuery.data),
     reportData: reportDataWithRankings,
@@ -1258,7 +1179,7 @@ export default function Home() {
         ownerIntelSortMode={ownerIntelSortMode}
         onOwnerIntelSortModeChange={setOwnerIntelSortMode}
         rankingsForReport={rankingsForReport}
-        rankingsQueryIsLoading={rankingsQuery.isLoading}
+        rankingsQueryIsLoading={rankingsQueryIsLoading}
         onAnalyze={() => handleAnalyze()}
         onScoutLeaguemates={handleScoutLeaguemates}
         currentReportDeltaSnapshot={currentReportDeltaSnapshot}
@@ -1318,7 +1239,7 @@ export default function Home() {
           setFocusedAutocomplete(null);
         }}
         handleFindLeagues={handleFindLeagues}
-        isFindLeaguesPending={userLeaguesMutation.isPending}
+        isFindLeaguesPending={isFindLeaguesPending}
         analysisErrorMessage={analysisErrorMessage}
         showLegacyLeagueIdLogin={SHOW_LEGACY_LEAGUE_ID_LOGIN}
         handleAnalyze={() => handleAnalyze()}
