@@ -13,6 +13,11 @@ export type UsageLimitCheck = {
   windowEnd: Date;
 };
 
+export type UsageCountLimitCheck = UsageLimitCheck & {
+  requested: number;
+  remainingAfterRequest: number;
+};
+
 export function getUsagePeriodWindow(input: {
   period: UsagePeriod;
   now?: Date;
@@ -83,20 +88,48 @@ export function checkUsageLimit(input: {
   period: UsagePeriod;
   now?: Date;
 }): UsageLimitCheck {
+  const result = checkUsageCountLimit({
+    used: sumUsageQuantity(input.events),
+    limit: input.limit,
+    period: input.period,
+    now: input.now,
+  });
+
+  return {
+    allowed: result.allowed,
+    used: result.used,
+    remaining: result.remaining,
+    limit: result.limit,
+    period: result.period,
+    windowStart: result.windowStart,
+    windowEnd: result.windowEnd,
+  };
+}
+
+export function checkUsageCountLimit(input: {
+  used: number;
+  limit: number;
+  period: UsagePeriod;
+  requested?: number;
+  now?: Date;
+}): UsageCountLimitCheck {
   const { windowStart, windowEnd } = getUsagePeriodWindow({
     period: input.period,
     now: input.now,
   });
-  const used = sumUsageQuantity(input.events);
+  const used = Math.max(0, Math.floor(Number(input.used || 0)));
   const limit = Math.max(0, Math.floor(input.limit));
-  const remaining = Math.max(0, limit - used);
+  const requested = Math.max(1, Math.floor(Number(input.requested || 1)));
+  const remainingBeforeRequest = Math.max(0, limit - used);
 
   return {
-    allowed: used < limit,
+    allowed: requested <= remainingBeforeRequest,
     used,
-    remaining,
+    remaining: remainingBeforeRequest,
     limit,
     period: input.period,
+    requested,
+    remainingAfterRequest: Math.max(0, remainingBeforeRequest - requested),
     windowStart,
     windowEnd,
   };
