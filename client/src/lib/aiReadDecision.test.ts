@@ -78,6 +78,50 @@ describe("buildAIReadDecision", () => {
     expect(decision.status).toBe("Limited · 74%");
   });
 
+  it("does not let explicit do-this copy override unresolved evidence gaps", () => {
+    const decision = buildAIReadDecision({
+      decision: "Do this",
+      hasEnabledAction: true,
+      evidenceRead: {
+        label: "priority",
+        finalScore: 76,
+        canAct: true,
+        whyThisFired: "Multiple returned sources agree.",
+        missingEvidence: ["Verify live roster state before acting."],
+        hardBlockers: [],
+        confidenceCapReason: null,
+      },
+    });
+
+    expect(decision.label).toBe("Don't force it");
+    expect(decision.tone).toBe("watch");
+    expect(decision.detail).toContain("Verify live roster");
+  });
+
+  it("does not let explicit go-tone decisions override hard blockers", () => {
+    const decision = buildAIReadDecision({
+      decision: {
+        label: "Do this. Don't overthink it.",
+        tone: "go",
+        status: "Actionable",
+      },
+      hasEnabledAction: true,
+      evidenceRead: {
+        label: "blocked",
+        finalScore: 0,
+        canAct: false,
+        whyThisFired: "Blocked by roster status.",
+        missingEvidence: [],
+        hardBlockers: ["Player is already rostered."],
+        confidenceCapReason: null,
+      },
+    });
+
+    expect(decision.label).toBe("Do not do this");
+    expect(decision.tone).toBe("stop");
+    expect(decision.detail).toContain("already rostered");
+  });
+
   it("turns blocked evidence reads into a do-not decision", () => {
     const decision = buildAIReadDecision({
       evidenceRead: {

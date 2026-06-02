@@ -62,6 +62,11 @@ function normalizeDecision(decision: string | AIReadDecision): AIReadDecision {
   };
 }
 
+function isGoDecision(decision: AIReadDecision): boolean {
+  const label = cleanText(decision.label)?.toLowerCase() || "";
+  return decision.tone === "go" || label === "do this" || label.startsWith("do this.");
+}
+
 function getEvidenceDecision(
   read: NonNullable<AIReadDecisionInput["evidenceRead"]>,
   hasEnabledAction: boolean
@@ -127,10 +132,15 @@ function getEvidenceDecision(
 }
 
 export function buildAIReadDecision(input: AIReadDecisionInput): AIReadDecision {
-  if (input.decision) return normalizeDecision(input.decision);
   if (input.evidenceRead) {
-    return normalizeDecision(getEvidenceDecision(input.evidenceRead, Boolean(input.hasEnabledAction)));
+    const evidenceDecision = normalizeDecision(getEvidenceDecision(input.evidenceRead, Boolean(input.hasEnabledAction)));
+    if (!input.decision) return evidenceDecision;
+
+    const explicitDecision = normalizeDecision(input.decision);
+    if (isGoDecision(explicitDecision) && evidenceDecision.tone !== "go") return evidenceDecision;
+    return explicitDecision;
   }
+  if (input.decision) return normalizeDecision(input.decision);
 
   const confidence = normalizeConfidence(input.confidence);
   const severity = input.severity || "info";
