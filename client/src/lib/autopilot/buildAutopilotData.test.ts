@@ -231,6 +231,82 @@ describe('buildAutopilotData', () => {
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
+  it('does not treat same-player trade expected actions as concrete queue moves', () => {
+    const reportData = createCachedCommandCenterReport().reportData as ReportData;
+    reportData.managerRosterIntelligence = [];
+    reportData.managerPositionCounts = [];
+    reportData.waiverIntelligence = undefined;
+    reportData.recentTransactions = [];
+
+    const samePlayerRef = {
+      id: 'same-trade-player',
+      name: 'Same Trade Player',
+      position: 'RB',
+      team: 'GB',
+    };
+    const fallback = {
+      ...AUTOPILOT_MOCK_DATA.dynasty,
+      lineup: [],
+      waivers: [],
+      trades: [{
+        id: 'same-player-trade',
+        type: 'Trade',
+        player: 'Same Trade Player',
+        action: 'Trade now',
+        confidence: 93,
+        risk: 'Low' as const,
+        upside: 'High' as const,
+        summary: 'This fixture incorrectly uses the same player on both sides of a trade.',
+        reasons: ['Malformed expected action should not become a direct action.'],
+        signals: ['Trade proof'],
+        evidenceRead: {
+          evidence: ['High confidence trade rationale.'],
+          missingEvidence: [],
+          hardBlockers: [],
+          softPenalties: [],
+          confidenceCap: 100,
+          confidenceCapReason: null,
+          sourceTrace: [{ label: 'Trade context', status: 'loaded', detail: 'Fixture says the context is loaded.' }],
+          rawScore: 93,
+          finalScore: 93,
+          label: 'high conviction',
+          shouldRender: true,
+          canAct: true,
+          whyThisFired: 'Trade context is loaded but the expected action is malformed.',
+        } as any,
+        expectedAction: {
+          type: 'trade',
+          playerIn: samePlayerRef,
+          playerOut: samePlayerRef,
+          playersInvolved: [samePlayerRef, samePlayerRef],
+          expectedRosterChange: 'Trade Same Trade Player for Same Trade Player.',
+          source: 'autopilot',
+          reason: 'Malformed same-player trade fixture.',
+        },
+        tone: 'good' as const,
+      }],
+      projections: [],
+      power: [],
+    };
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'dynasty',
+      fallback,
+    });
+
+    const tradeQueueItem = data.actionQueue.find((item) => item.id.includes('same-player-trade'));
+    expect(tradeQueueItem).toMatchObject({
+      decision: 'watch',
+      label: "Don't force it",
+      expectedAction: {
+        type: 'trade',
+      },
+    });
+    expect(tradeQueueItem?.missingEvidence.join(' ')).toContain('same player on both sides');
+    expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
+  });
+
   it('does not treat same-player lineup swaps as concrete queue moves', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.managerRosterIntelligence = [];

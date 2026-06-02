@@ -1699,6 +1699,14 @@ function getExpectedActionIdentityGap(action: RecommendationExpectedAction): str
       return 'Expected trade action is missing concrete player, pick, or return details.';
     }
 
+    if (
+      hasRecommendationPlayerRef(action.playerIn) &&
+      hasRecommendationPlayerRef(action.playerOut) &&
+      isSameRecommendationPlayerRef(action.playerIn, action.playerOut)
+    ) {
+      return 'Expected trade action uses the same player on both sides of the trade.';
+    }
+
     return hasConcreteTradeProof(action)
       ? null
       : 'Expected trade action is missing a partner or explicit return side.';
