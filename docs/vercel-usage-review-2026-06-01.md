@@ -55,6 +55,7 @@ Traffic-session result:
 - Final deployment refresh after Home refactor and AI-read docs follow-up: `https://dynasty-degenerate-fggoi6z1c-billex87s-projects.vercel.app` inspected as deployment `dpl_AFqMDXkufYkeg2yXuUyUQVx4hMdP`, status `Ready`, aliased to `https://dynastydegens.com`, `https://dynasty-degenerate.vercel.app`, and the main project aliases.
 - Post-cron-window refresh: `https://dynasty-degenerate-doo7utupo-billex87s-projects.vercel.app` inspected as deployment `dpl_JAzH9xMCBNR6c9VdN1cn8TsiTFdL`, status `Ready`, aliased to `https://dynastydegens.com`, `https://dynasty-degenerate.vercel.app`, and the main project aliases. The deployment was a redeploy of commit `35f3377`, which matched local `HEAD` and `origin/main`.
 - Latest Home-cleanup refresh: `https://dynasty-degenerate-38o63iwy5-billex87s-projects.vercel.app` inspected as deployment `dpl_ohw2DUvovZqHdXKdzZeUPfZSEqC3`, status `Ready`, created immediately after local `HEAD` `b9dcc05`, and aliased to `https://dynastydegens.com`, `https://dynasty-degenerate.vercel.app`, and the main project aliases.
+- Post-Home-threshold refresh: `https://dynasty-degenerate-9wnfprm72-billex87s-projects.vercel.app` inspected as deployment `dpl_9NEdma6k7r7wuReYbenJ4unj2dYs`, status `Ready`, created after `Home.tsx` dropped below the oversized-file threshold, and aliased to `https://dynastydegens.com`, `https://dynasty-degenerate.vercel.app`, and the main project aliases.
 
 ## Cron State
 - `vercel crons list` returned `12` cron jobs for production:
@@ -95,6 +96,8 @@ Traffic-session result:
 - The same post-window log pass found no matching entries for `/var/task`, `Failed to write file league report cache`, `Missing session cookie`, `500` responses, or error-level logs in the checked window.
 - Latest Home-cleanup production smoke on deployment `dpl_ohw2DUvovZqHdXKdzZeUPfZSEqC3` passed all four representative leagues on desktop Chromium: `PRODUCTION_SMOKE=true PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm exec playwright test tests/e2e/production-smoke.spec.ts --project=desktop-chrome` -> `4 passed`.
 - Post-smoke log checks for deployment `dpl_ohw2DUvovZqHdXKdzZeUPfZSEqC3` found live `league.analyze` `200` traffic and no matching entries for error-level logs, `500` responses, `/var/task`, `Failed to write file league report cache`, `Missing session cookie`, or `ApiProviderTelemetry` in the checked `10m` window.
+- Post-Home-threshold production smoke on deployment `dpl_9NEdma6k7r7wuReYbenJ4unj2dYs` passed all four representative leagues across mobile, tablet, and desktop Chromium: `PRODUCTION_SMOKE=true PLAYWRIGHT_BASE_URL=https://dynastydegens.com pnpm exec playwright test tests/e2e/production-smoke.spec.ts --project=desktop-chrome --project=mobile-chrome --project=tablet-chrome` -> `12 passed`.
+- Post-smoke log checks for deployment `dpl_9NEdma6k7r7wuReYbenJ4unj2dYs` found live `league.analyze` `200` traffic and no matching entries for error-level logs, `500` responses, `/var/task`, `Failed to write file league report cache`, `Missing session cookie`, or `ApiProviderTelemetry` in the checked `15m` window.
 
 ## Usage And Metrics Availability
 - `vercel metrics schema vercel.function --format json` confirmed the required metric IDs exist, including:
@@ -114,7 +117,7 @@ Traffic-session result:
 - This pass proves production deployment health, production report traffic health, cron configuration visibility, and absence of recent visible runtime errors through the available CLI/log surfaces.
 - This pass does not fully close the Vercel usage gate because Fluid Active CPU, function invocation totals, transfer, provisioned memory, and route-level CPU attribution are not accessible through the current CLI/API plan.
 - The follow-up local-write fixes are deployed and clean for report traffic in the checked post-deploy windows. The `18:40` Pacific cron-window check did not show the old local-write errors, but it also did not prove cron execution because a same-commit production redeploy overlapped the scheduled minute.
-- The latest Home-cleanup deployment is deployed and clean for representative desktop report traffic, but this still does not prove scheduled cron execution or dashboard-only usage metrics.
+- The latest Home-cleanup deployment is deployed and clean for representative desktop, tablet, and mobile report traffic, but this still does not prove scheduled cron execution or dashboard-only usage metrics.
 - Critical auth/cron env names are present in production; source-health webhook delivery remains unconfigured.
 - Do not mark the Vercel usage checklist item complete until one of these happens:
   - a Vercel dashboard/manual pass records Fluid Active CPU, memory, invocations, transfer, and route hotspots; or
