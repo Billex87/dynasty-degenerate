@@ -49,6 +49,8 @@ describe('buildAutopilotData', () => {
       },
     });
     expect(data.waivers[0]?.player).toBe('Waiver Receiver');
+    expect(data.waivers[0]?.summary).toContain('Queue-backed');
+    expect(JSON.stringify(data.waivers)).not.toContain('Do this');
     expect(data.trades.some((recommendation) => recommendation.player === 'Sample Runner')).toBe(true);
     expect(data.trades.map((recommendation) => recommendation.action)).toEqual(
       expect.arrayContaining(['Shop only if return clears', 'Test offer only']),

@@ -2583,8 +2583,8 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       risk: confidence >= 78 ? 'Low' : 'Medium',
       upside: mode === 'dynasty' && age && age <= 24 ? 'High' : confidence >= 80 ? 'High' : 'Medium',
       summary: mode === 'redraft'
-        ? `${clearsWaiverActionThreshold ? 'Do this' : "Don't add yet"}: ${player.name} has the strongest current-season waiver case the evidence layer allows${weeklyProjectionRead ? ', with stored weekly projection support' : ''}.`
-        : `${clearsWaiverActionThreshold ? 'Do this' : "Don't add yet"}: ${player.name} has the strongest dynasty waiver case the evidence layer allows${weeklyProjectionRead ? ', with short-term projection support' : weeklyEcrRead ? ', with short-window matchup support' : ''}.`,
+        ? `${clearsWaiverActionThreshold ? 'Queue-backed' : "Don't add yet"}: ${player.name} has the strongest current-season waiver case the evidence layer allows${weeklyProjectionRead ? ', with stored weekly projection support' : ''}.`
+        : `${clearsWaiverActionThreshold ? 'Queue-backed' : "Don't add yet"}: ${player.name} has the strongest dynasty waiver case the evidence layer allows${weeklyProjectionRead ? ', with short-term projection support' : weeklyEcrRead ? ', with short-window matchup support' : ''}.`,
       reasons: dedupeStrings([
         evidenceRead.whyThisFired,
         player.count ? `${formatCompactValue(player.count)} add/drop trend signal in the feed.` : null,
