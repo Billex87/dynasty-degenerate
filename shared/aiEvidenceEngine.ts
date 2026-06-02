@@ -1279,7 +1279,7 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
   const shouldRender = label !== "blocked" && evidence.length > 0;
   const canAct = canActionBecomeExecutable(input.action) && (
     label === "actionable" || label === "priority" || label === "high conviction"
-  );
+  ) && !hardBlockers.length && !missingEvidence.length && !confidenceCapReason;
   const result = {
     evidence,
     missingEvidence,

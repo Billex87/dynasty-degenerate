@@ -130,6 +130,44 @@ describe("ai evidence engine", () => {
     expect(undefinedOwnerRead.confidenceCapReason).toBe("Missing roster ownership proof");
   });
 
+  it("keeps high-scoring reads non-executable when any evidence gap remains", () => {
+    const read = evaluateAIEvidence({
+      surface: "waiver",
+      action: "pickup",
+      leagueValueMode: "redraft",
+      baseScore: 100,
+      evidence: [
+        "WR18 current-season rank is attached.",
+        "Roster need is attached.",
+        "Availability source loaded.",
+      ],
+      missingEvidence: ["Verify live roster state before acting."],
+      sourceTrace: [{
+        label: "FantasyPros waiver snapshot",
+        status: "loaded",
+      }, {
+        label: "Sleeper availability snapshot",
+        status: "loaded",
+      }],
+      signalModes: ["redraft", "current"],
+      player: {
+        name: "Gap Receiver",
+        position: "WR",
+        team: "LAC",
+        owner: null,
+        value: 7200,
+        sourceCount: 2,
+        hasCurrentSeasonValue: true,
+        hasRecentUsage: true,
+      },
+    });
+
+    expect(read.label).toBe("high conviction");
+    expect(read.finalScore).toBeGreaterThanOrEqual(84);
+    expect(read.canAct).toBe(false);
+    expect(read.missingEvidence).toContain("Verify live roster state before acting.");
+  });
+
   it("keeps fully sourced available pickup reads actionable when owner is explicitly clear", () => {
     const read = evaluateAIEvidence({
       surface: "waiver",
