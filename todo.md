@@ -163,14 +163,18 @@
 - [ ] Add Stripe webhook handling for subscription created, updated, canceled, payment failed, and one-time purchase completed events.
 - [ ] Add billing and entitlement tables for `billingCustomers`, `subscriptions`, `leaguePasses`, `featureEntitlements`, and `usageEvents`.
 - [ ] Enforce paid access on the backend with a shared entitlement helper such as `canUseFeature(user, feature, leagueId)`; frontend paywalls should only be UX hints.
+  - 2026-06-02 entitlement helper scaffold: added server-side `canUseFeature` / `assertCanUseFeature` policy coverage for free reports, monthly roster blueprints, paid feature keys, and admin diagnostics. The helper fails closed for paid features until `ENABLE_PAID_FEATURES=true`, is wired into public report access and monthly blueprint quota checks, and is covered by `server/featureEntitlements.test.ts` plus the existing monthly quota tests. This does not close the item until Stripe/billing tables provide real user plans, league passes, entitlement overrides, and persisted usage records.
 - [ ] Add usage limits by tier, including reports per day, saved leagues, saved reports, alert count, export access, and source-trace visibility.
+  - 2026-06-02 usage-limit scaffold: the entitlement policy now documents the active one-monthly-blueprint limit and preserves the existing persisted monthly quota check. Remaining limits still need tier-specific persisted `usageEvents` for daily reports, saved leagues/reports, alerts, exports, and source-trace visibility.
 - [ ] Gate high-cost or high-value features first: unlimited reports, multi-league portfolio, AI confidence history, source trace details, anomaly alerts, exports, and draft kit tools.
+  - 2026-06-02 paid gate scaffold: source traces, AI confidence history, anomaly alerts, exports, draft kit tools, multi-league portfolio, and unlimited reports are represented as paid feature keys that fail closed before billing launch. Remaining work is to wire each feature surface to persisted plan/league-pass entitlements when those products are implemented.
 - [ ] Build a League Pass model where one purchaser can unlock a specific league for all managers or invited league members.
 - [ ] Add paid-feature telemetry for conversion, trial-to-paid movement, active subscribers, MRR, churn, failed payments, report usage, and upgrade prompt performance.
 - [ ] Add an admin billing board for active plans, failed payments, entitlement overrides, revenue metrics, and suspicious usage.
 - [ ] Add legal/compliance pages before charging: Terms, Privacy Policy, Refund/Cancellation Policy, and data-source disclosures.
 - [x] Do not use personal/non-commercial API keys inside paid/public feature outputs unless we have provider approval or a commercial license for that source.
 - [ ] Add tests for auth token expiry, magic-link replay protection, webhook signature verification, entitlement checks, usage limits, and paid/free report boundaries.
+  - 2026-06-02 entitlement test slice: added unit coverage for anonymous free report access, monthly blueprint limit metadata, paid-feature fail-closed behavior before billing launch, pro/elite plan checks when billing is enabled, and admin diagnostics access. Remaining tests: auth token expiry, magic-link replay protection, Stripe webhook signature verification, persisted usage events, and real paid/free report boundaries.
 
 ## Source Audit / Feature Roadmap
 

@@ -53,6 +53,7 @@ import {
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import { buildPlayerSituationDeltas } from "./playerSituationDelta";
 import { filterCompletedFuturePickPortfolios } from "../shared/pickPortfolioFilters";
+import { assertCanUseFeature } from "./featureEntitlements";
 import { buildLeaguePlayoffWeeks, buildMatchupWindowSet, getShortTermMatchupOutlook } from "../shared/matchupWindows";
 import {
   buildNflverseDraftCapitalBySleeperId,
@@ -669,9 +670,14 @@ function assertRateLimit(req: RequestLike, options: RateLimitOptions) {
   }
 }
 
-function assertReportAccess(ctx: { user?: unknown }) {
-  if (process.env.REQUIRE_AUTH_FOR_REPORTS !== 'true' || ctx.user) return;
-  throw new TRPCError({ code: 'UNAUTHORIZED', message: UNAUTHED_ERR_MSG });
+function assertReportAccess(ctx: { user?: TrpcContext["user"] }) {
+  if (process.env.REQUIRE_AUTH_FOR_REPORTS === 'true' && !ctx.user) {
+    throw new TRPCError({ code: 'UNAUTHORIZED', message: UNAUTHED_ERR_MSG });
+  }
+  assertCanUseFeature({
+    user: ctx.user,
+    feature: "free-sleeper-report",
+  });
 }
 
 function getSleeperAvatarUrl(avatarId: string | null | undefined): string | null {
@@ -1774,6 +1780,11 @@ export async function assertMonthlyReportGenerationAllowed(input: {
   ipAddress?: string | null;
 }) {
   if (isTrustedAutomationRequest(input.ctx.req as any)) return;
+  assertCanUseFeature({
+    user: input.ctx.user,
+    feature: "monthly-roster-blueprint",
+    leagueId: input.leagueId,
+  });
 
   const snapshotMonth = getBlueprintSnapshotMonth();
   const identity = getMonthlyReportGenerationIdentity({
