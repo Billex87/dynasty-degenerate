@@ -1,4 +1,6 @@
-import type { CSSProperties, ReactNode } from "react";
+import { type CSSProperties, type ReactNode } from "react";
+
+import { StatTile } from "@/components/tiles";
 
 export type DashboardMetricTone = "neutral" | "info" | "good" | "warn" | "danger";
 export type DashboardVisualMetricKind =
@@ -25,7 +27,7 @@ export type DashboardHeroMetric = {
   kind?: DashboardVisualMetricKind;
   label: string;
   value: ReactNode;
-  subLabel?: string;
+  subLabel?: ReactNode;
   helper?: ReactNode;
   score?: number | null;
   tone?: DashboardMetricTone;
@@ -80,15 +82,14 @@ export function DashboardMetricCard({
   helper?: ReactNode;
 }) {
   return (
-    <div
+    <StatTile
+      tone={tone}
       className={`dashboard-metric-card ${className}`.trim()}
-      data-tone={tone}
-    >
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {subLabel && <em>{subLabel}</em>}
-      {helper && <small>{helper}</small>}
-    </div>
+      label={label}
+      value={value}
+      subLabel={subLabel}
+      helper={helper}
+    />
   );
 }
 
@@ -112,20 +113,22 @@ export function DashboardRingMetric({
   const graphStyle = {
     "--dashboard-balance-score": `${clampedScore}%`,
   } as CSSProperties;
+  const metricValue = value ?? score ?? "-";
 
   return (
-    <div
+    <StatTile
       className="dashboard-metric-card dashboard-balance-metric"
-      data-tone={tone}
+      tone={tone}
+      label={title}
+      subLabel={label}
+      helper={helper}
+      size="md"
     >
-      <span>{title}</span>
       <div className="dashboard-balance-graph">
         <i style={graphStyle} aria-hidden="true" />
-        <strong>{value ?? score ?? "-"}</strong>
+        <strong>{metricValue}</strong>
       </div>
-      <em>{label}</em>
-      {helper && <small>{helper}</small>}
-    </div>
+    </StatTile>
   );
 }
 
@@ -173,16 +176,21 @@ export function DashboardMeterMetric({
     score === null ? 0 : Math.max(0, Math.min(100, Math.round(score)));
 
   return (
-    <div className="dashboard-metric-card dashboard-meter-metric" data-tone={tone}>
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <StatTile
+      className="dashboard-metric-card dashboard-meter-metric"
+      tone={tone}
+      label={label}
+      value={value}
+      subLabel={subLabel}
+      helper={helper}
+    >
       <i
-        style={{ "--dashboard-meter-score": `${clampedScore}%` } as CSSProperties}
+        style={{
+          "--dashboard-meter-score": `${clampedScore}%`,
+        } as CSSProperties}
         aria-hidden="true"
       />
-      {subLabel && <em>{subLabel}</em>}
-      {helper && <small>{helper}</small>}
-    </div>
+    </StatTile>
   );
 }
 
@@ -191,11 +199,13 @@ export function DashboardMiniBarStack({ metric }: { metric: DashboardHeroMetric 
   const maxValue = Math.max(1, ...bars.map(bar => Math.max(0, bar.value)));
 
   return (
-    <div
+    <StatTile
       className="dashboard-metric-card dashboard-mini-bar-stack"
-      data-tone={metric.tone || "neutral"}
+      tone={metric.tone || "neutral"}
+      label={metric.label}
+      subLabel={metric.subLabel}
+      helper={metric.helper}
     >
-      <span>{metric.label}</span>
       {metric.targetManager ? (
         <div className="dashboard-target-lockup">
           <div className="dashboard-target-avatar" aria-hidden="true">
@@ -209,7 +219,6 @@ export function DashboardMiniBarStack({ metric }: { metric: DashboardHeroMetric 
       ) : (
         <strong>{metric.value}</strong>
       )}
-      {metric.subLabel && <em>{metric.subLabel}</em>}
       {bars.length ? (
         <div className="dashboard-mini-bars" aria-hidden="true">
           {bars.map(bar => (
@@ -236,12 +245,11 @@ export function DashboardMiniBarStack({ metric }: { metric: DashboardHeroMetric 
           ))}
         </div>
       ) : null}
-      {metric.helper && <small>{metric.helper}</small>}
-    </div>
+    </StatTile>
   );
 }
 
-function getDashboardTargetNameSize(value: ReactNode) {
+function getDashboardVisualNameSize(value: ReactNode) {
   if (typeof value !== "string") return "normal";
   const length = value.trim().length;
   if (length >= 18) return "micro";
@@ -251,16 +259,19 @@ function getDashboardTargetNameSize(value: ReactNode) {
 }
 
 export function DashboardDeltaMetric({ metric }: { metric: DashboardHeroMetric }) {
-  const valueTitle = typeof metric.value === "string" ? metric.value : undefined;
-  const nameSize = getDashboardTargetNameSize(metric.value);
+  const valueTitle =
+    typeof metric.value === "string" ? metric.value : undefined;
+  const nameSize = getDashboardVisualNameSize(metric.value);
 
   return (
-    <div
+    <StatTile
       className="dashboard-metric-card dashboard-delta-metric"
-      data-tone={metric.tone || "neutral"}
+      tone={metric.tone || "neutral"}
+      label={metric.label}
+      helper={metric.helper}
+      subLabel={metric.subLabel}
       data-direction={metric.deltaDirection || "flat"}
     >
-      <span>{metric.label}</span>
       {metric.targetManager ? (
         <div className="dashboard-target-lockup">
           <div className="dashboard-target-avatar" aria-hidden="true">
@@ -274,24 +285,27 @@ export function DashboardDeltaMetric({ metric }: { metric: DashboardHeroMetric }
           </strong>
         </div>
       ) : (
-        <strong title={valueTitle}>{metric.value}</strong>
+        <strong title={valueTitle} data-name-size={nameSize}>
+          {metric.value}
+        </strong>
       )}
-      {metric.subLabel && <em>{metric.subLabel}</em>}
-      {metric.helper && <small>{metric.helper}</small>}
-    </div>
+    </StatTile>
   );
 }
 
 export function DashboardTargetMetric({ metric }: { metric: DashboardHeroMetric }) {
-  const valueTitle = typeof metric.value === "string" ? metric.value : undefined;
-  const nameSize = getDashboardTargetNameSize(metric.value);
+  const valueTitle =
+    typeof metric.value === "string" ? metric.value : undefined;
+  const nameSize = getDashboardVisualNameSize(metric.value);
 
   return (
-    <div
+    <StatTile
       className="dashboard-metric-card dashboard-target-metric"
-      data-tone={metric.tone || "neutral"}
+      tone={metric.tone || "neutral"}
+      label={metric.label}
+      subLabel={metric.subLabel}
+      helper={metric.helper}
     >
-      <span>{metric.label}</span>
       <div className="dashboard-target-lockup">
         {metric.targetManager && (
           <div className="dashboard-target-avatar" aria-hidden="true">
@@ -305,7 +319,6 @@ export function DashboardTargetMetric({ metric }: { metric: DashboardHeroMetric 
           {metric.value}
         </strong>
       </div>
-      {metric.subLabel && <em>{metric.subLabel}</em>}
       {metric.badges?.length ? (
         <div className="dashboard-metric-badges">
           {metric.badges.slice(0, 3).map((badge, index) => (
@@ -315,8 +328,7 @@ export function DashboardTargetMetric({ metric }: { metric: DashboardHeroMetric 
           ))}
         </div>
       ) : null}
-      {metric.helper && <small>{metric.helper}</small>}
-    </div>
+    </StatTile>
   );
 }
 
@@ -325,15 +337,18 @@ export function DashboardBadgeListMetric({
 }: {
   metric: DashboardHeroMetric;
 }) {
-  const valueTitle = typeof metric.value === "string" ? metric.value : undefined;
-  const nameSize = getDashboardTargetNameSize(metric.value);
+  const valueTitle =
+    typeof metric.value === "string" ? metric.value : undefined;
+  const nameSize = getDashboardVisualNameSize(metric.value);
 
   return (
-    <div
+    <StatTile
       className="dashboard-metric-card dashboard-badge-list-metric"
-      data-tone={metric.tone || "neutral"}
+      tone={metric.tone || "neutral"}
+      label={metric.label}
+      subLabel={metric.subLabel}
+      helper={metric.helper}
     >
-      <span>{metric.label}</span>
       {metric.targetManager ? (
         <div className="dashboard-target-lockup">
           <div className="dashboard-target-avatar" aria-hidden="true">
@@ -349,7 +364,6 @@ export function DashboardBadgeListMetric({
       ) : (
         <strong title={valueTitle}>{metric.value}</strong>
       )}
-      {metric.subLabel && <em>{metric.subLabel}</em>}
       {metric.badges?.length ? (
         <div className="dashboard-metric-badges">
           {metric.badges.slice(0, 4).map((badge, index) => (
@@ -359,8 +373,7 @@ export function DashboardBadgeListMetric({
           ))}
         </div>
       ) : null}
-      {metric.helper && <small>{metric.helper}</small>}
-    </div>
+    </StatTile>
   );
 }
 
@@ -441,15 +454,16 @@ export function DashboardSpotlightFocusGrid({
   return (
     <div className="dashboard-spotlight-focus-grid">
       {blocks.map(block => (
-        <div
+        <StatTile
           key={block.key}
           className="dashboard-spotlight-focus-card"
+          tone={block.tone || "neutral"}
+          label={block.label}
+          value={block.value}
+          subLabel={block.subLabel}
+          size="sm"
           data-tone={block.tone || "neutral"}
-        >
-          <span>{block.label}</span>
-          <strong>{block.value}</strong>
-          {block.subLabel && <em>{block.subLabel}</em>}
-        </div>
+        />
       ))}
     </div>
   );

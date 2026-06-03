@@ -83,8 +83,6 @@ export function AdminScheduleEdgeSection({
     "--range-end": `${((selectedRange.end - 1) / 17) * 100}%`,
   } as CSSProperties;
 
-  if (!rows.length && !healthRows.length) return null;
-
   return (
     <CollapsibleReportSection
       title="Schedule Edge Table"

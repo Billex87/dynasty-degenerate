@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import {
+  CardTile,
+  CompactTile,
+  StatTile,
+} from "@/components/tiles";
+import {
   DashboardManagerAvatar,
   DashboardSpotlightFocusGrid,
   DashboardVisualMetric,
@@ -68,6 +73,29 @@ function getReportDashboardSpotlightClassName({
     .join(" ");
 }
 
+function renderDashboardRankCard({
+  position,
+  rank,
+  tier,
+  key: itemKey,
+}: DashboardSpotlightRankCard & {
+  key?: string;
+}) {
+  return (
+    <CompactTile
+      key={itemKey || position}
+      as="span"
+      title={<em>{position}</em>}
+      aside={<strong>{formatDashboardRank(rank)}</strong>}
+      meta={<b>{tier}</b>}
+      data-position={position}
+      tone="brand"
+      size="sm"
+      className="dashboard-position-rank-card"
+    />
+  );
+}
+
 export function ReportDashboardSpotlight({
   manager,
   managerAvatarUrl,
@@ -111,26 +139,21 @@ export function ReportDashboardSpotlight({
           <div className="dashboard-position-rank-block">
             <span>Full Roster Position Ranks</span>
             <div className={rankGridClassName}>
-              {positionRankCards.map(({ position, rank, tier }) => (
-                <span key={position} data-position={position}>
-                  <em>{position}</em>
-                  <strong>{formatDashboardRank(rank)}</strong>
-                  <b>{tier}</b>
-                </span>
-              ))}
+              {positionRankCards.map(({ position, rank, tier }) =>
+                renderDashboardRankCard({ position, rank, tier })
+              )}
             </div>
           </div>
           {starterRankGroups.length > 0 && (
             <div className="dashboard-starter-ranks">
               <span>Projected Starter Slot Ranks</span>
               <div className={rankGridClassName}>
-                {starterRankGroups.map(group => (
-                  <span key={group.key} data-position={group.position}>
-                    <em>{group.label}</em>
-                    <strong>{formatDashboardRank(group.rank)}</strong>
-                    <b>{group.tier}</b>
-                  </span>
-                ))}
+                {starterRankGroups.map(group =>
+                  renderDashboardRankCard({
+                    ...group,
+                    key: group.key,
+                  })
+                )}
               </div>
             </div>
           )}
@@ -141,7 +164,14 @@ export function ReportDashboardSpotlight({
       {spotlightConfig.chips.length > 0 && (
         <div className="dashboard-spotlight-chip-row">
           {spotlightConfig.chips.map(chip => (
-            <span key={chip}>{chip}</span>
+            <CompactTile
+              key={chip}
+              as="span"
+              title={chip}
+              tone="brand"
+              size="sm"
+              className="dashboard-spotlight-chip"
+            />
           ))}
         </div>
       )}
@@ -149,7 +179,15 @@ export function ReportDashboardSpotlight({
         <div className="dashboard-swap-signals">
           <span>Start/Sit Swap Signals</span>
           {swapSignals.slice(0, 2).map(signal => (
-            <p key={signal}>{signal}</p>
+            <StatTile
+              key={signal}
+              as="p"
+              tone="warning"
+              size="sm"
+              value={signal}
+              className="dashboard-swap-signal-item"
+              style={{ overflowWrap: "anywhere" }}
+            />
           ))}
         </div>
       )}
@@ -181,20 +219,22 @@ export function ReportDashboardSpotlight({
             aria-hidden="true"
           />
         </summary>
-        <div className="dashboard-spotlight-inline-body">
+        <CardTile as="div" className="dashboard-spotlight-inline-body">
           {spotlightBody}
-        </div>
+        </CardTile>
       </details>
     );
   }
 
   return (
-    <aside
+    <CardTile
+      as="aside"
       className={`report-dashboard-spotlight report-dashboard-spotlight-${variant}`}
+      tone="brand"
       aria-label="Manager spotlight"
     >
       {spotlightHeader}
       {spotlightBody}
-    </aside>
+    </CardTile>
   );
 }

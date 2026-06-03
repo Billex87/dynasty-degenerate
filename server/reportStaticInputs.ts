@@ -68,6 +68,30 @@ async function loadWeeklyBaselineValues(leagueValueProfileKey: string): Promise<
   return loadKTCValuesLastWeek();
 }
 
+async function loadDraftSharksScheduleContextForReportStatic(input: {
+  currentSeason: string;
+  forceRefresh?: boolean;
+}): Promise<Awaited<ReturnType<typeof loadDraftSharksScheduleContext>>> {
+  const snapshotContext = await loadDraftSharksScheduleContext({
+    season: input.currentSeason,
+    ...getUserLoadSnapshotOptions(),
+  });
+
+  if (snapshotContext.status === 'loaded') {
+    return snapshotContext;
+  }
+
+  if (snapshotContext.status === 'disabled' || snapshotContext.status === 'missing_config') {
+    return snapshotContext;
+  }
+
+  return loadDraftSharksScheduleContext({
+    season: input.currentSeason,
+    persistSnapshot: true,
+    forceRefresh: input.forceRefresh,
+  });
+}
+
 export async function loadReportStaticInputs(input: {
   leagueId: string;
   leagueValueOptions: ValueBlendOptions;
@@ -80,7 +104,12 @@ export async function loadReportStaticInputs(input: {
 
   if (!input.forceRefresh) {
     const cached = await findLeagueReportCache(cacheKey, getLeagueReportCacheTtlMs());
-    if (isReportStaticInputsPayload(cached)) {
+    if (
+      isReportStaticInputsPayload(cached) &&
+      (cached.draftSharksScheduleContext.status === 'loaded' ||
+        cached.draftSharksScheduleContext.status === 'disabled' ||
+        cached.draftSharksScheduleContext.status === 'missing_config')
+    ) {
       return {
         ...cached,
         cacheStatus: 'hit',
@@ -97,9 +126,9 @@ export async function loadReportStaticInputs(input: {
   ] = await Promise.all([
     loadBlendedKTCValues(input.leagueValueOptions, getUserLoadSnapshotOptions()),
     loadWeeklyBaselineValues(input.leagueValueProfileKey),
-    loadDraftSharksScheduleContext({
-      season: input.currentSeason,
-      ...getUserLoadSnapshotOptions(),
+    loadDraftSharksScheduleContextForReportStatic({
+      currentSeason: input.currentSeason,
+      forceRefresh: input.forceRefresh,
     }),
     loadProspectContext(),
     loadPlayerNewsBundle(getUserLoadSnapshotOptions()),

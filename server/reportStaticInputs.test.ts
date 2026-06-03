@@ -68,7 +68,7 @@ const cachedPayload = {
   generatedAt: '2026-05-15T00:00:00.000Z',
   ktcValues: { cached: { value: 100 } },
   ktcValuesLastWeek: { cached: { value: 90 } },
-  draftSharksScheduleContext: { source: 'cached-schedule' },
+  draftSharksScheduleContext: { status: 'loaded', source: 'cached-schedule' },
   prospectContext: { profiles: [] },
   playerNews: [],
   newsSourceCounts: { total: 0, fantasyPros: 0, sportsDataIo: 0 },
@@ -79,7 +79,7 @@ describe('report static inputs cache loading', () => {
     vi.clearAllMocks();
     mocks.findLeagueReportCache.mockResolvedValue(null);
     mocks.upsertLeagueReportCache.mockResolvedValue(undefined);
-    mocks.loadDraftSharksScheduleContext.mockResolvedValue({ source: 'fresh-schedule' });
+    mocks.loadDraftSharksScheduleContext.mockResolvedValue({ status: 'loaded', source: 'fresh-schedule' });
     mocks.loadPlayerNewsBundle.mockResolvedValue({
       items: [{ playerName: 'A Player' }],
       sourceCounts: { total: 1, fantasyPros: 0, sportsDataIo: 1 },

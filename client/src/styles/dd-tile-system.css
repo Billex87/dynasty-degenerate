@@ -213,6 +213,275 @@
     box-shadow: 0 0 14px rgba(65, 230, 255, 0.32);
   }
 
+  .dd-tile--compact,
+  .dd-tile--card,
+  .dd-tile--media,
+  .dd-tile--stat,
+  .dd-tile--action,
+  .dd-tile--hero {
+    position: relative;
+    isolation: isolate;
+    width: 100%;
+    display: block;
+    padding: 0.95rem 1rem;
+    border-radius: var(--dd-radius);
+  }
+
+  .dd-tile--compact {
+    padding: 0.6rem 0.8rem;
+    display: grid;
+    align-items: center;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.55rem;
+  }
+
+  .dd-tile--compact > .dd-tile__content {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  .dd-tile--compact .dd-tile__title {
+    font-size: 0.72rem;
+    line-height: 1.15;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .dd-tile--compact .dd-tile__subtitle {
+    color: var(--dd-text-muted);
+    font-size: 0.75rem;
+  }
+
+  .dd-tile--compact .dd-tile__meta {
+    margin-top: 0.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+
+  .dd-tile--compact .dd-tile__aside {
+    display: grid;
+    gap: 0.18rem;
+    justify-items: end;
+    text-align: right;
+    align-items: center;
+    min-width: max-content;
+  }
+
+  .dd-tile--card > .dd-tile__content {
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .dd-tile--media {
+    display: grid;
+    grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .dd-tile--media .dd-tile__media {
+    margin: 0;
+    aspect-ratio: var(--dd-media-ratio, 16 / 9);
+    border-radius: calc(var(--dd-radius) - 0.24rem);
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--dd-tile-accent) 25%, transparent);
+  }
+
+  .dd-tile--stat .dd-tile__label {
+    font-size: 0.73rem;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    font-family: var(--dd-font-ui);
+    color: var(--dd-text-muted);
+    white-space: normal;
+  }
+
+  .dd-tile--stat .dd-tile__value {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: clamp(1rem, 1rem + 0.45vw, 1.5rem);
+    font-family: var(--dd-font-ui);
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+
+  .dd-tile--stat .dd-tile__sub {
+    margin-top: 0.28rem;
+    display: block;
+    color: var(--dd-text-muted);
+    font-size: 0.74rem;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+  }
+
+  .dd-tile--stat .dd-tile__helper {
+    display: block;
+    margin-top: 0.4rem;
+    color: var(--dd-text-dim);
+    font-size: 0.73rem;
+    line-height: 1.3;
+  }
+
+  .dd-tile--stat {
+    display: grid;
+  }
+
+  .dd-tile--action {
+    cursor: pointer;
+    user-select: none;
+    text-align: left;
+  }
+
+  .dd-tile--action:where(:disabled, [disabled], [aria-disabled="true"]) {
+    cursor: not-allowed;
+  }
+
+  .dd-tile--hero {
+    background:
+      linear-gradient(135deg, rgba(6, 18, 35, 0.94), rgba(4, 9, 16, 0.98)),
+      radial-gradient(circle at 12% 0%, rgba(65, 230, 255, 0.15), transparent 32%);
+    border-width: 1.2px;
+  }
+
+  .dd-tile--hero .dd-tile__hero-header {
+    display: grid;
+    gap: 0.45rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .dd-tile--hero .dd-tile__hero-title {
+    font-size: clamp(1.1rem, 1rem + 1vw, 1.55rem);
+    margin: 0;
+    line-height: 1.05;
+  }
+
+  .dd-tile--hero .dd-tile__hero-subtitle {
+    margin: 0;
+    color: var(--dd-text-muted);
+    font-size: 0.84rem;
+  }
+
+  .dd-tile--hero .dd-tile__hero-description {
+    margin: 0;
+    color: var(--dd-text-dim);
+    font-size: 0.92rem;
+    max-width: 70ch;
+  }
+
+  .dd-tile__icon {
+    width: 1.95rem;
+    height: 1.95rem;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--dd-tile-accent) 40%, transparent);
+    font-size: 0.7rem;
+    line-height: 1;
+    font-family: var(--dd-font-ui);
+    font-weight: 800;
+    color: var(--dd-text);
+    background: rgba(8, 17, 34, 0.72);
+  }
+
+  .dd-tile__content {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .dd-tile__body {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .dd-tile__meta {
+    display: inline-flex;
+    gap: 0.25rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .dd-tile--stat.is-sm {
+    min-block-size: 3.8rem;
+  }
+
+  .dd-tile--stat.is-md {
+    min-block-size: 4.8rem;
+  }
+
+  .dd-tile--stat.is-lg {
+    min-block-size: 5.7rem;
+  }
+
+  .dd-tile.is-sm {
+    padding: 0.72rem 0.84rem;
+  }
+
+  .dd-tile.is-md {
+    padding: 0.88rem 1rem;
+  }
+
+  .dd-tile.is-lg {
+    padding: 1.08rem 1.18rem;
+  }
+
+  .dd-tile[data-dd-selected="true"],
+  .dd-tile--action[aria-pressed="true"] {
+    border-color: color-mix(in srgb, var(--dd-tile-accent) 58%, rgba(255, 255, 255, 0.2));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+      0 18px 44px rgba(0, 0, 0, 0.34),
+      0 0 24px rgba(var(--dd-tile-accent-rgb), 0.18);
+  }
+
+  .dd-tile[data-dd-disabled="true"],
+  .dd-tile[aria-disabled="true"] {
+    opacity: 0.75;
+    filter: saturate(0.68);
+    cursor: not-allowed;
+  }
+
+  .dd-tile[data-dd-disabled="true"]:is(:hover, [data-state="hover"]),
+  .dd-tile[aria-disabled="true"]:is(:hover, [data-state="hover"]) {
+    transform: none;
+    border-color: color-mix(in srgb, var(--dd-tile-accent) 32%, rgba(255, 255, 255, 0.12));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      0 10px 24px rgba(0, 0, 0, 0.22),
+      0 0 14px rgba(var(--dd-tile-accent-rgb), 0.055);
+  }
+
+  .dd-tile-grid {
+    display: grid;
+    gap: var(--dd-space-4);
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    align-items: stretch;
+  }
+
+  .dd-tile-grid.is-dashboard {
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  }
+
+  .dd-tile-grid.is-balanced {
+    justify-content: center;
+  }
+
+  @media (min-width: 40rem) {
+    .dd-tile-grid {
+      grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .dd-tile-grid.is-dashboard {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
   @media (hover: hover) and (pointer: fine) {
     .dd-tile:is(:hover, [data-state="hover"]) {
       transform: translateY(-2px);
