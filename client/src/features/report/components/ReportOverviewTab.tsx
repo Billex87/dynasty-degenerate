@@ -160,8 +160,8 @@ export function ReportOverviewTab({
   ).length;
   const playerHoardSection = orderedUserLeagues.length > 0 ? (
     <CollapsibleReportSection
-      title="Player Hoard"
-      kicker="Cross-league exposure, roster overlap, and stash risk"
+      title="Cross League Exposure"
+      kicker="Roster overlap and stash risk across every saved league"
       previewAccessory={
         <span className="home-portfolio-open-chip">Open portfolio</span>
       }
@@ -172,6 +172,7 @@ export function ReportOverviewTab({
           icon: <Users size={13} />,
           value: homePortfolioRows.length || 0,
           tone: homePortfolioRows.length ? "info" : "neutral",
+          className: "home-portfolio-preview-chip",
         },
         {
           label: "Overlap",
@@ -179,6 +180,7 @@ export function ReportOverviewTab({
           icon: <Layers2 size={13} />,
           value: portfolioOverlapCount,
           tone: portfolioOverlapCount ? "warn" : "neutral",
+          className: "home-portfolio-preview-chip",
         },
         {
           label: "Leagues",
@@ -186,6 +188,7 @@ export function ReportOverviewTab({
           icon: <Shield size={13} />,
           value: orderedUserLeagues.length,
           tone: orderedUserLeagues.length > 1 ? "good" : "neutral",
+          className: "home-portfolio-preview-chip",
         },
       ]}
     >

@@ -1743,7 +1743,42 @@ test.describe("command center feature surfaces", () => {
     await reloadedPage.close();
   });
 
-  test("shows Player Hoard on regular Overview with cross-league filters", async ({
+  test("keeps Owner Intel pills readable on mobile", async ({ page }) => {
+    const cachedReport = createCachedCommandCenterReport("owner-intel-mobile-pills");
+    await loadCachedReport(page, cachedReport, "#overview", { admin: false });
+
+    const ownerIntelSection = await openReportSection(page, "Owner Intel Lab");
+    await expect(ownerIntelSection.getByText(/Thanos|You Better Win|Elite Value/i).first()).toBeVisible();
+    const clippedOwnerPills = await ownerIntelSection
+      .locator(
+        [
+          ".command-depth-subtitle",
+          ".command-depth-badges .command-mini-badge",
+          ".owner-intel-score-strip strong",
+          ".owner-intel-score-strip em",
+        ].join(", ")
+      )
+      .evaluateAll(nodes =>
+        nodes
+          .filter(node => {
+            const element = node as HTMLElement;
+            const rect = element.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0 && Boolean(element.textContent?.trim());
+          })
+          .map(node => {
+            const element = node as HTMLElement;
+            return {
+              text: element.textContent?.replace(/\s+/g, " ").trim(),
+              clippedWidth: element.scrollWidth - element.clientWidth,
+              clippedHeight: element.scrollHeight - element.clientHeight,
+            };
+          })
+          .filter(item => item.clippedWidth > 1 || item.clippedHeight > 1)
+      );
+    expect(clippedOwnerPills).toEqual([]);
+  });
+
+  test("shows Cross League Exposure on regular Overview with cross-league filters", async ({
     page,
   }) => {
     const cachedReport = createCachedCommandCenterReport("player-hoard-overview");
@@ -1847,12 +1882,16 @@ test.describe("command center feature surfaces", () => {
       "true"
     );
     await expect(page.getByText("Pick The Target")).toHaveCount(0);
-    const playerHoard = await openReportSection(page, "Player Hoard");
-    await expect(playerHoard).toContainText("Cross-league exposure");
+    const playerHoard = await openReportSection(page, "Cross League Exposure");
+    await expect(playerHoard).toContainText("Roster overlap and stash risk");
+    const playerHoardSummary = playerHoard.locator("summary");
+    await expect(playerHoardSummary.getByText("Players", { exact: true })).toBeVisible();
+    await expect(playerHoardSummary.getByText("Overlap", { exact: true })).toBeVisible();
+    await expect(playerHoardSummary.getByText("Leagues", { exact: true })).toBeVisible();
     await expect(playerHoard.getByText("Shared Quarterback")).toBeVisible();
     const leagueNames = playerHoard.locator(".home-portfolio-league-names");
-    await expect(leagueNames.filter({ hasText: "Beta Exposure" }).first()).toBeVisible();
-    await expect(leagueNames.filter({ hasText: "Gamma Exposure" }).first()).toBeVisible();
+    await expect(leagueNames.filter({ hasText: "Beta Exposure" }).first()).toContainText("Beta Exposure");
+    await expect(leagueNames.filter({ hasText: "Gamma Exposure" }).first()).toContainText("Gamma Exposure");
 
     await playerHoard
       .getByLabel("Sort portfolio players")
