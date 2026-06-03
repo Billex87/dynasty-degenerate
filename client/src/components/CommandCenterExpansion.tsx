@@ -46,6 +46,7 @@ import {
   getDraftCapitalScore as getBlueprintDraftCapitalScore,
   getOverallGrade,
 } from '@/lib/blueprint/rosterAggregates';
+import { buildLeagueComparatives, summarizeManagerRoster } from '@/lib/blueprint/leagueComparatives';
 import { isPlaceholderManagerName } from '@/lib/managerDisplay';
 import { getManagerProfileLabel } from '@/lib/managerProfileLabels';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
@@ -1272,6 +1273,41 @@ export function MonthlyTeamBlueprint({
   const leaguePowerRanks = [...(data.powerRankings || [])].sort((a, b) => a.rank - b.rank).slice(0, 12);
   const trueRankRows = gradedRoster.slice(0, 20);
 
+  // League-relative standing: roll every manager's roster up so the focused team
+  // can be placed against the field (value/production share, percentile, build rarity).
+  const leagueRollups = managerOptions.map((rosterManager) => {
+    const rosterIntel = getIntel(data, rosterManager);
+    const rosterCounts = data.managerPositionCounts?.find((row) => row.manager === rosterManager) || null;
+    const rosterStarters = (rosterCounts?.starterPlayers || []) as ManagerIntelPlayer[];
+    const pool = uniqueBlueprintPlayers([...rosterStarters, ...getManagerPlayerPool(rosterIntel)]);
+    return summarizeManagerRoster({
+      manager: rosterManager,
+      players: pool,
+      buildLabel: rosterIntel?.identity || null,
+      valueMode: blueprintValueMode,
+    });
+  });
+  const leagueComparatives = buildLeagueComparatives(leagueRollups, manager);
+
+  // 2-year outlook arrow framing from the returned dynasty timeline.
+  const outlookFrom = timeline?.label || intel.timeline || intel.identity || 'Current';
+  const outlookContending = (timeline?.contenderScore ?? 0) >= (timeline?.rebuildScore ?? 0);
+  const outlookTo = isRedraft
+    ? 'Win Now'
+    : outlookContending
+      ? 'Contend'
+      : (timeline?.outlook2027 ?? 0) >= 55
+        ? 'Contend'
+        : 'Reload';
+
+  // Draft strategy posture from the returned pick portfolio.
+  const draftPosture = draftCapitalScore >= 6.5 ? 'Loaded' : draftCapitalScore >= 4 ? 'Adequate' : 'Thin';
+  const draftStrategyNote = draftPosture === 'Loaded'
+    ? 'Pick bank is deep. Use surplus capital to buy proven value or consolidate into a starter.'
+    : draftPosture === 'Adequate'
+      ? 'Hold current picks and target more at a discount while you can.'
+      : 'Capital is light. Protect remaining picks and avoid trading future value for marginal upgrades.';
+
   const priorityText = topPriorities[0] || intel.tradePlan?.summary || 'No urgent roster action was returned.';
   const pressureTitle = needPosition ? `${needPosition} depth` : 'Roster construction';
   const ageRows = POSITIONS.map((position) => {
@@ -1595,9 +1631,9 @@ export function MonthlyTeamBlueprint({
                   <em>Value Archetype</em>
                   <strong>{intel.identity || 'Returned identity'}</strong>
                 </span>
-                <span>
-                  <em>Roster Window</em>
-                  <strong>{timeline ? timeline.label : intel.timeline || '-'}</strong>
+                <span className="team-blueprint-outlook">
+                  <em>2-Year Outlook</em>
+                  <strong>{outlookFrom} <i aria-hidden="true">→</i> {outlookTo}</strong>
                 </span>
                 <span>
                   <em>Draft Capital</em>
@@ -1612,6 +1648,32 @@ export function MonthlyTeamBlueprint({
                     <small>avg age</small>
                   </span>
                 ))}
+              </div>
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-standing-panel">
+              <h4>League Standing</h4>
+              <div className="team-blueprint-standing-grid">
+                <span>
+                  <em>Value Share</em>
+                  <strong>{leagueComparatives.valueShare !== null ? `${leagueComparatives.valueShare}%` : '-'}</strong>
+                  <small>{leagueComparatives.valueShareRank ? `League rank #${leagueComparatives.valueShareRank}` : 'No league context'}</small>
+                </span>
+                <span>
+                  <em>Production Share</em>
+                  <strong>{leagueComparatives.productionShare !== null ? `${leagueComparatives.productionShare}%` : '-'}</strong>
+                  <small>{leagueComparatives.productionShareRank ? `League rank #${leagueComparatives.productionShareRank}` : 'No returned production'}</small>
+                </span>
+                <span>
+                  <em>Blueprint Percentile</em>
+                  <strong>{leagueComparatives.percentile !== null ? `${leagueComparatives.percentile}th` : '-'}</strong>
+                  <small>By overall grade vs {leagueComparatives.teamCount} teams</small>
+                </span>
+                <span>
+                  <em>Build Rarity</em>
+                  <strong>{leagueComparatives.buildRarity !== null ? `${leagueComparatives.buildRarity}%` : '-'}</strong>
+                  <small>{leagueComparatives.buildLabel ? `Teams sharing "${leagueComparatives.buildLabel}"` : 'Build not classified'}</small>
+                </span>
               </div>
             </section>
 
@@ -1922,6 +1984,11 @@ export function MonthlyTeamBlueprint({
                     </span>
                   ) : null}
                   <p>Total capital: {formatCompactValue(pickPortfolio.totalValue)}{pickPortfolio.projectedSlots?.length ? ` · ${pickPortfolio.projectedSlots.slice(0, 3).join(', ')}` : ''}</p>
+                  <div className={`team-blueprint-draft-strategy team-blueprint-draft-strategy-${draftPosture.toLowerCase()}`}>
+                    <span>Draft Strategy</span>
+                    <strong>{draftPosture}</strong>
+                    <small>{draftStrategyNote}</small>
+                  </div>
                 </div>
               ) : (
                 <p className="command-module-empty-copy">Draft-pick portfolio was not returned.</p>

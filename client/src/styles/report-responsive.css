@@ -7815,6 +7815,88 @@
   text-overflow: ellipsis;
 }
 
+.team-blueprint-standing-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.team-blueprint-standing-grid span {
+  display: grid;
+  gap: 0.16rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 0.7rem;
+  background: rgba(2, 6, 23, 0.46);
+}
+
+.team-blueprint-standing-grid em {
+  color: rgba(148, 163, 184, 0.82);
+  font-size: 0.5rem;
+  font-weight: 950;
+  font-style: normal;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.team-blueprint-standing-grid strong {
+  color: #67e8f9;
+  font-size: 1.25rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.team-blueprint-standing-grid small {
+  color: rgba(148, 163, 184, 0.78);
+  font-size: 0.54rem;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.team-blueprint-outlook strong i {
+  color: #67e8f9;
+  font-size: 0.9rem;
+  font-style: normal;
+  padding: 0 0.18rem;
+}
+
+.team-blueprint-draft-strategy {
+  display: grid;
+  gap: 0.12rem;
+  margin-top: 0.5rem;
+  padding: 0.42rem 0.55rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--blueprint-strategy-color, rgba(148, 163, 184, 0.22));
+  background: color-mix(in srgb, var(--blueprint-strategy-color, #64748b) 12%, rgba(2, 6, 23, 0.5));
+}
+
+.team-blueprint-draft-strategy-loaded { --blueprint-strategy-color: #22c55e; }
+.team-blueprint-draft-strategy-adequate { --blueprint-strategy-color: #fb923c; }
+.team-blueprint-draft-strategy-thin { --blueprint-strategy-color: #ef233c; }
+
+.team-blueprint-draft-strategy span {
+  color: rgba(148, 163, 184, 0.82);
+  font-size: 0.48rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.team-blueprint-draft-strategy strong {
+  color: var(--blueprint-strategy-color, #e2e8f0);
+  font-size: 0.86rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.team-blueprint-draft-strategy small {
+  color: rgba(203, 213, 225, 0.82);
+  font-size: 0.56rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
 .team-blueprint-room-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -10001,6 +10083,10 @@
 
   .team-blueprint-overall-grade {
     justify-self: start;
+  }
+
+  .team-blueprint-standing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .team-blueprint-factor-row {
