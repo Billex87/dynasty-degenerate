@@ -252,6 +252,55 @@
     justify-content: center;
   }
 
+  .report-shell .waiver-intel-grid.balanced-tile-grid {
+    width: min(100%, 82rem);
+    align-items: stretch;
+  }
+
+  .report-shell .waiver-intel-grid.balanced-tile-grid > .waiver-intel-card {
+    flex: 0 1 var(--dd-balanced-grid-active-item-width, min(100%, 15rem));
+    min-width: min(100%, 13.5rem);
+    max-width: 100%;
+    height: auto !important;
+    align-self: stretch;
+  }
+
+  .report-shell .waiver-intel-card {
+    min-height: clamp(8.35rem, 12vw, 10.2rem) !important;
+    height: auto !important;
+    padding: clamp(0.72rem, 1.2vw, 1rem) !important;
+  }
+
+  .report-shell .waiver-intel-card-open {
+    display: grid;
+    grid-template-rows: auto auto auto !important;
+    min-height: 100%;
+    gap: clamp(0.48rem, 0.9vw, 0.68rem);
+  }
+
+  .report-shell .waiver-intel-main {
+    margin-top: 0 !important;
+    align-self: start;
+  }
+
+  .report-shell .waiver-intel-pills {
+    min-height: 0 !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  @media (max-width: 639px) {
+    .report-shell .waiver-intel-grid.balanced-tile-grid > .waiver-intel-card {
+      min-width: min(100%, 18rem);
+      align-self: start;
+    }
+
+    .report-shell .waiver-intel-card,
+    .report-shell .waiver-intel-card-open {
+      min-height: 0 !important;
+    }
+  }
+
   :is(.report-shell, .player-detail-modal)
     :is(
       .player-team-tile,

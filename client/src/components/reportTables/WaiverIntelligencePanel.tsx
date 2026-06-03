@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import type {
   ManagerIntelPlayer,
   PlayerDetails,
@@ -2563,7 +2563,10 @@ export default function WaiverIntelligencePanel({
       )}
       <div
         className="player-tile-grid waiver-intel-grid balanced-tile-grid"
-        style={getBalancedGridStyle(cards.length)}
+        style={{
+          ...getBalancedGridStyle(cards.length),
+          "--dd-balanced-grid-item-width-xs": "min(100%, 20rem)",
+        } as CSSProperties}
       >
         {cards.map(({ label, player }) => {
           const details = getWaiverPlayerDetails(player, playerDetailsById);

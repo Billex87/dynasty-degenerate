@@ -2134,6 +2134,28 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Waiver Intelligence")).toBeVisible();
     await openReportSection(page, "Waiver Intelligence");
     await expect(page.getByText("Waiver Receiver").first()).toBeVisible();
+    const waiverGrid = page.locator(".waiver-intel-grid").first();
+    const waiverCards = waiverGrid.locator(".waiver-intel-card");
+    await expect(waiverCards.first()).toBeVisible();
+    const waiverGridBox = await waiverGrid.boundingBox();
+    const nextSectionBox = await page
+      .locator("details.report-disclosure")
+      .filter({ hasText: "Recent Transactions" })
+      .first()
+      .boundingBox();
+    expect(waiverGridBox?.height || 0).toBeGreaterThan(120);
+    if (waiverGridBox && nextSectionBox) {
+      expect(waiverGridBox.y + waiverGridBox.height).toBeLessThanOrEqual(
+        nextSectionBox.y
+      );
+    }
+    if ((page.viewportSize()?.width || 0) < 640) {
+      const firstCardBox = await waiverCards.first().boundingBox();
+      const secondCardBox = await waiverCards.nth(1).boundingBox();
+      if (firstCardBox && secondCardBox) {
+        expect(secondCardBox.y).toBeGreaterThan(firstCardBox.y);
+      }
+    }
 
     await page.getByRole("tab", { name: "Trade History" }).click();
     await expect(page.getByText("Trade Market Radar")).toBeVisible();
