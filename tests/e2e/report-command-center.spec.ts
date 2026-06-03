@@ -279,14 +279,41 @@ function installBrowserConsoleAudit(
 ) {
   const auditedInfo = testInfo as ConsoleAuditedTestInfo;
   const browserConsoleIssues: string[] = [];
+  let ignoredSnapshotCoveragePermissionErrors = 0;
   auditedInfo.browserConsoleIssues = browserConsoleIssues;
+
+  page.on("response", response => {
+    if (
+      /snapshotCoverage/i.test(response.url()) &&
+      response.status() === 403
+    ) {
+      ignoredSnapshotCoveragePermissionErrors += 1;
+    }
+  });
 
   page.on("console", message => {
     if (message.type() !== "error") return;
+    if (
+      /snapshotCoverage/i.test(message.text()) &&
+      /403|Forbidden|required permission/i.test(message.text())
+    ) {
+      return;
+    }
     const location = message.location();
     const source = location.url
       ? ` (${location.url}:${location.lineNumber}:${location.columnNumber})`
       : "";
+    if (/snapshotCoverage/i.test(source) && /403|Forbidden/i.test(message.text())) {
+      return;
+    }
+    if (
+      ignoredSnapshotCoveragePermissionErrors > 0 &&
+      /\[API Query Error\]/i.test(message.text()) &&
+      /required permission \(10002\)/i.test(message.text())
+    ) {
+      ignoredSnapshotCoveragePermissionErrors -= 1;
+      return;
+    }
     browserConsoleIssues.push(`console.error: ${message.text()}${source}`);
   });
 
@@ -533,7 +560,7 @@ test.describe("command center feature surfaces", () => {
     await expect(
       page
         .locator(".team-breakdown-recon .ai-read-panel-desktop")
-        .locator(".ai-read-trace-kicker", { hasText: "Why" })
+        .locator(".ai-read-trace-kicker", { hasText: "What fired" })
     ).toBeVisible();
     const ownerIntelSection = await openReportSection(page, "Owner Intel Lab");
     await ownerIntelSection.locator(".command-depth-tile").filter({ hasText: "Tester" }).click();
@@ -553,7 +580,7 @@ test.describe("command center feature surfaces", () => {
       page
         .locator(".owner-intel-read-grid .ai-read-panel-desktop")
         .first()
-        .locator(".ai-read-trace-kicker", { hasText: "Why" })
+        .locator(".ai-read-trace-kicker", { hasText: "What fired" })
     ).toBeVisible();
     const ownerSuggestionCards = ownerPcbSystem.locator(".owner-intel-ai-card.ai-read-panel-desktop");
     await expect(ownerSuggestionCards.first().getByText("Don't get cute yet")).toBeVisible();
@@ -600,8 +627,8 @@ test.describe("command center feature surfaces", () => {
         .locator(".manager-command-swap-player .interactive-identity-name")
         .filter({ hasText: "Sample Tight End" })
     ).toBeVisible();
-    await expect(swapRead.getByText("Why", { exact: true }).first()).toBeVisible();
-    await swapRead.getByText("Why", { exact: true }).first().click();
+    await expect(swapRead.getByText("What fired", { exact: true }).first()).toBeVisible();
+    await swapRead.getByText("What fired", { exact: true }).first().click();
     await expect(swapRead.getByText(/Stored weekly projection edge/i).first()).toBeVisible();
     await expect(
       swapRead.getByRole("button", { name: /Copy swap/i })
@@ -1129,7 +1156,11 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByRole("tab", { name: "AI Autopilot" })).toBeVisible();
     const overviewRead = page.locator(".overview-ai-pulse.ai-read-panel-desktop");
     await expect(overviewRead).toBeVisible();
+    await expect(overviewRead.getByText("Evidence band")).toBeVisible();
+    await expect(overviewRead.getByText("What fired")).toBeVisible();
+    await expect(overviewRead.getByText("What could be wrong")).toBeVisible();
     await expect(overviewRead.getByText("Where to verify")).toBeVisible();
+    await expect(overviewRead.getByText("What changes this")).toBeVisible();
     await expect(page.locator(".admin-premium-section")).toHaveCount(5);
 
     await page.getByRole("tab", { name: "Rankings" }).click();
@@ -1174,6 +1205,40 @@ test.describe("command center feature surfaces", () => {
         .getByText("Trade browser read")
     ).toBeVisible();
     await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
+  });
+
+  test("keeps one active AI action owner across report tabs", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport();
+    await loadCachedReport(page, cachedReport);
+
+    const activeActionQueueCount = () =>
+      page
+        .locator('.report-tab-content[data-state="active"]')
+        .locator(".ai-action-queue")
+        .count();
+
+    await expect.poll(activeActionQueueCount).toBeLessThanOrEqual(1);
+
+    await page.getByRole("tab", { name: "AI Autopilot" }).click();
+    await expect.poll(activeActionQueueCount).toBeLessThanOrEqual(1);
+    await expect(page.getByText("What fired").first()).toBeVisible();
+    await expect(page.getByText("What could be wrong").first()).toBeVisible();
+    await expect(page.getByText("Where to verify").first()).toBeVisible();
+    await expect(page.getByText("What changes this").first()).toBeVisible();
+
+    await page.getByRole("tab", { name: "Weekly Momentum" }).click();
+    await expect.poll(activeActionQueueCount).toBeLessThanOrEqual(1);
+    const waiverSection = await openReportSection(page, "Waiver Intelligence");
+    await expect(waiverSection.getByText("Do this", { exact: true })).toHaveCount(0);
+
+    await page.getByRole("tab", { name: "Rankings" }).click();
+    await expect.poll(activeActionQueueCount).toBeLessThanOrEqual(1);
+
+    await page.getByRole("tab", { name: "Trade History" }).click();
+    await expect.poll(activeActionQueueCount).toBeLessThanOrEqual(1);
+    await expect(page.getByText("Trade Market Radar")).toBeVisible();
   });
 
   test("shows Schedule Edge table to regular viewers when stored DraftSharks SOS snapshots are healthy", async ({
@@ -1375,6 +1440,11 @@ test.describe("command center feature surfaces", () => {
     await expect(matchupSection.getByText("Range", { exact: true })).toHaveCount(0);
     await expect(matchupSection.getByText("Playoffs", { exact: true })).toHaveCount(0);
     await expect(matchupSection.getByText("Read", { exact: true })).toHaveCount(0);
+
+    await page.getByRole("tab", { name: "Weekly Momentum" }).click();
+    const waiverSection = await openReportSection(page, "Waiver Intelligence");
+    await expect(waiverSection.getByText("Waiver Receiver").first()).toBeVisible();
+    await expect(waiverSection.getByText(/Next 3: W2 @ MIA 4\*/i).first()).toBeVisible();
   });
 
   test("shows insufficient DraftSharks Schedule Edge state when SOS rows are missing", async ({
@@ -1940,6 +2010,9 @@ test.describe("command center feature surfaces", () => {
     const actionQueue = page.locator(".ai-action-queue").first();
     await expect(actionQueue).toBeVisible();
     await expect(actionQueue.getByText("Daily AI Verdict")).toBeVisible();
+    await expect(actionQueue.getByText("What fired")).toBeVisible();
+    await expect(actionQueue.getByText("What could be wrong")).toBeVisible();
+    await expect(actionQueue.getByText("What changes this")).toBeVisible();
     await expect(actionQueue.getByText("Roster domino")).toBeVisible();
     await expect(actionQueue.getByText("Where to verify")).toBeVisible();
     await expect(actionQueue.getByText("Source conflict check")).toBeVisible();
@@ -1967,6 +2040,8 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText(/Start Replacement Tight End over Sample Tight End/)).toHaveCount(0);
     await expect(page.getByText("AI Edge Review")).toBeVisible();
     await expect(page.getByText("Weekly AI report card")).toBeVisible();
+    await expect(page.getByText("Schedule and SOS context")).toBeVisible();
+    await expect(page.getByText("Strength of schedule")).toBeVisible();
     await expect(page.getByText("Bad idea alert")).toBeVisible();
     await expect(page.getByText("Market anomaly scan").first()).toBeVisible();
     await expect(page.getByText("Future Pick Market")).toBeVisible();
@@ -2055,9 +2130,13 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Recent Transactions")).toBeVisible();
     await expect(page.getByText("Market Movers")).toBeVisible();
     await expect(page.getByText("Trending")).toBeVisible();
+    await expect(page.getByText("Trade Market Radar")).toHaveCount(0);
     await expect(page.getByText("Waiver Intelligence")).toBeVisible();
     await openReportSection(page, "Waiver Intelligence");
     await expect(page.getByText("Waiver Receiver").first()).toBeVisible();
+
+    await page.getByRole("tab", { name: "Trade History" }).click();
+    await expect(page.getByText("Trade Market Radar")).toBeVisible();
   });
 
   test("shows waiver intelligence with the other weekly momentum sections for admins", async ({

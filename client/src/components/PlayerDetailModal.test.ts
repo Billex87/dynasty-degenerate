@@ -93,6 +93,97 @@ describe("buildPlayerAiRead", () => {
     expect(read).toBeNull();
   });
 
+  it("caps player-detail reads when attached source trace is stale", () => {
+    const read = buildPlayerAiRead({
+      playerName: "Stale Source Receiver",
+      position: "WR",
+      currentRank: "WR10",
+      currentValue: 7000,
+      valueMode: "redraft",
+      valueProfile: {
+        fantasyProsSeasonValue: 7000,
+        fantasyProsPositionRank: "WR10",
+        sources: ["FantasyPros", "FantasyCalc"],
+        fantasyProsSourceTrace: [{
+          source: "FantasyPros",
+          label: "FantasyPros WR weekly ECR",
+          status: "stale",
+          positionRank: "WR10",
+          fetchedAt: "2026-04-01T00:00:00.000Z",
+        }],
+      } as PlayerDetails["valueProfile"],
+      details: {
+        team: "DAL",
+        usageTrend: {
+          games: 3,
+          snapShare: 0.82,
+          routeShare: 0.88,
+          targetShare: 0.24,
+        },
+        playerCohort: {
+          calibration: {
+            evidenceGrade: "usable",
+            note: "Current role context is attached.",
+          },
+          trace: ["Cohort context attached."],
+        },
+      } as PlayerDetails,
+    });
+
+    expect(read).not.toBeNull();
+    expect(read?.evidenceRead.canAct).toBe(false);
+    expect(read?.evidenceRead.finalScore).toBeLessThanOrEqual(60);
+    expect(read?.evidenceRead.sourceTrace.some(trace => trace.status === "stale")).toBe(true);
+  });
+
+  it("keeps rostered player-detail reads as support context instead of add/drop/start commands", () => {
+    const read = buildPlayerAiRead({
+      playerName: "Rostered Receiver",
+      position: "WR",
+      currentRank: "WR14",
+      currentValue: 6400,
+      valueMode: "redraft",
+      valueProfile: {
+        fantasyProsSeasonValue: 6400,
+        fantasyProsPositionRank: "WR14",
+        sources: ["FantasyPros", "FantasyCalc"],
+        fantasyProsSourceTrace: [{
+          source: "FantasyPros",
+          label: "FantasyPros WR weekly ECR",
+          status: "loaded",
+          positionRank: "WR14",
+          fetchedAt: new Date().toISOString(),
+        }],
+      } as PlayerDetails["valueProfile"],
+      details: {
+        team: "DAL",
+        rosterStatus: "Active roster",
+        usageTrend: {
+          games: 3,
+          snapShare: 0.78,
+          routeShare: 0.84,
+          targetShare: 0.22,
+        },
+        playerCohort: {
+          calibration: {
+            evidenceGrade: "usable",
+            note: "Current role context is attached.",
+          },
+          trace: ["Cohort context attached."],
+        },
+      } as PlayerDetails,
+    });
+
+    const visibleCopy = [
+      read?.readType,
+      read?.body,
+      ...(read?.traceItems || []),
+    ].join(" ");
+
+    expect(read).not.toBeNull();
+    expect(visibleCopy).not.toMatch(/\b(add|pickup|drop|start)\b/i);
+  });
+
   it("caps source-thin player-detail reads instead of making them actionable", () => {
     const read = buildPlayerAiRead({
       playerName: "Source Thin Receiver",
@@ -134,6 +225,7 @@ describe("buildPlayerAiRead", () => {
       } as PlayerDetails["valueProfile"],
       details: {
         team: "DAL",
+        isStarter: false,
       } as PlayerDetails,
     });
 

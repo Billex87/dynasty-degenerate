@@ -3679,6 +3679,7 @@ function buildPlayerAiEvidenceRead(input: {
       injuryStatus: input.details?.injuryStatus || null,
       nflStatus: input.details?.status || null,
       weeklyProjectionStatus: input.details?.weeklyProjection?.status || null,
+      isStarter: input.details?.isStarter ?? null,
       hasByeWeek:
         input.details?.weeklyProjection?.homeAway === 'bye' ||
         input.details?.weeklyProjection?.status === 'bye',

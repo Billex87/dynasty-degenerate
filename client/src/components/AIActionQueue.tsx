@@ -48,6 +48,16 @@ function getActionQueueTronTheme(tone: AIActionQueueItem['tone']): AITronTheme {
   return 'cyan';
 }
 
+function getActionQueueEvidenceBand(item: AIActionQueueItem) {
+  if (item.decision === 'blocked' || item.blockers.length) return 'Blocked';
+  if (item.missingEvidence.length || item.sourceHealth.some(row => /stale|missing|error|limited|unavailable|unverified/i.test(row))) {
+    return 'Source-limited';
+  }
+  if (item.confidence >= 78) return 'Strong';
+  if (item.confidence >= 46) return 'Watch';
+  return 'Thin';
+}
+
 function getSecondaryQueueDetail(item: AIActionQueueItem): { label: string; detail: string } | null {
   if (item.missingEvidence[0]) {
     return {
@@ -74,7 +84,17 @@ function QueueReceipts({
   const receipts = compact ? item.receipts.slice(0, 2) : item.receipts.slice(0, 3);
   const sourceHealth = compact ? item.sourceHealth.slice(0, 2) : item.sourceHealth.slice(0, 3);
   const changeTriggers = compact ? item.changeTriggers.slice(0, 2) : item.changeTriggers.slice(0, 3);
+  const visibleChangeTriggers = changeTriggers.length
+    ? changeTriggers
+    : ['A roster move, lineup update, injury report, source refresh, or format change can move this read.'];
   const dominoEffects = compact ? (item.dominoEffects || []).slice(0, 2) : (item.dominoEffects || []).slice(0, 3);
+  const riskRows = [
+    ...item.blockers.map(blocker => `Could block this read: ${blocker}`),
+    ...item.missingEvidence.map(missing => `Missing proof: ${missing}`),
+  ].slice(0, compact ? 2 : 3);
+  const visibleRiskRows = riskRows.length
+    ? riskRows
+    : ['Roster, injury, transaction, or source updates can still change this read.'];
   const verificationRows = sourceHealth.length
     ? sourceHealth
     : ['Verify current roster, availability, league format, and source freshness before acting.'];
@@ -83,7 +103,7 @@ function QueueReceipts({
     <div className="ai-action-queue-receipts">
       {receipts.length > 0 && (
         <div>
-          <span>Why</span>
+          <span>What fired</span>
           <ul>
             {receipts.map((receipt) => (
               <li key={receipt}>{receipt}</li>
@@ -91,11 +111,21 @@ function QueueReceipts({
           </ul>
         </div>
       )}
-      {changeTriggers.length > 0 && (
+      {visibleRiskRows.length > 0 && (
+        <div>
+          <span>What could be wrong</span>
+          <ul>
+            {visibleRiskRows.map((risk) => (
+              <li key={risk}>{risk}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {visibleChangeTriggers.length > 0 && (
         <div className="ai-action-queue-change-mind">
           <span>What changes this</span>
           <ul>
-            {changeTriggers.map((trigger) => (
+            {visibleChangeTriggers.map((trigger) => (
               <li key={trigger}>{trigger}</li>
             ))}
           </ul>
@@ -308,6 +338,7 @@ export function AIActionQueue({
   const tronTheme = getActionQueueTronTheme(primary.tone);
   const voicedSubtitle = getVoicedAIActionQueueSubtitle(subtitle);
   const suppressedCopy = getVoicedSuppressedAIActionsCopy(suppressed.length);
+  const primaryBand = getActionQueueEvidenceBand(primary);
   const tronRouteKey = [
     resolvedMemoryKey,
     primary.decision,
@@ -344,8 +375,12 @@ export function AIActionQueue({
             <strong>{primary.action}: {primary.target}</strong>
             <p>{getVoicedAIActionDetail(primary.detail, primary.decision)}</p>
           </div>
-          <div className="ai-action-summary-score" aria-label={`${primary.confidence}% confidence`}>
-            <strong>{primary.confidence}%</strong>
+          <div
+            className="ai-action-summary-score"
+            aria-label={`AI evidence band ${primaryBand}`}
+            title={`Score: ${primary.confidence}%`}
+          >
+            <strong>{primaryBand}</strong>
             <span>{primary.source}</span>
           </div>
         </div>
@@ -385,7 +420,7 @@ export function AIActionQueue({
             <Icon className="h-4 w-4" aria-hidden="true" />
             {getDecisionCopy(primary.decision)}
           </span>
-          <strong>{primary.confidence}%</strong>
+          <strong title={`Score: ${primary.confidence}%`}>{primaryBand}</strong>
         </div>
         <div className="ai-action-queue-main">
           <span>{getVoicedAIActionLabel(primary.label, primary.decision)}</span>

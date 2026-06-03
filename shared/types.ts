@@ -1081,6 +1081,7 @@ export interface PlayerDetails {
   injuryStatus?: string | null;
   rosterStatus?: 'IR' | 'Taxi' | string | null;
   displayStatus?: string | null;
+  isStarter?: boolean | null;
   depthChartPosition?: string | null;
   depthChartOrder?: number | null;
   sleeperDepthChartPosition?: string | null;

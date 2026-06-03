@@ -359,8 +359,6 @@ export function ReportDashboardContent({
                 leagueId={leagueId}
                 leagueLogo={leagueLogo}
                 effectiveViewerManager={effectiveViewerManager}
-                showTradeMarketRadar={showTradeMarketRadar}
-                TradeMarketRadar={TradeMarketRadar}
                 WaiverIntelligencePanel={WaiverIntelligencePanel}
                 RecentTransactionsPanel={RecentTransactionsPanel}
                 WeeklyMomentumTable={WeeklyMomentumTable}
@@ -422,7 +420,9 @@ export function ReportDashboardContent({
                   effectiveViewerManager={effectiveViewerManager}
                   rankingsForReport={rankingsForReport}
                   tradeWarKicker={tradeWarKicker}
+                  showTradeMarketRadar={showTradeMarketRadar}
                   TradeBrowserRead={TradeBrowserRead}
+                  TradeMarketRadar={TradeMarketRadar}
                   TradeProposalSignalsTable={TradeProposalSignalsTable}
                   TradeWarRoom={TradeWarRoom}
                   TradeProfitLeaderboardTable={TradeProfitLeaderboardTable}

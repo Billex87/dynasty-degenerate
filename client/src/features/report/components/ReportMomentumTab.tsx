@@ -14,8 +14,6 @@ type ReportMomentumTabProps = {
   leagueId: string;
   leagueLogo: string | null;
   effectiveViewerManager: string | null;
-  showTradeMarketRadar: boolean;
-  TradeMarketRadar: ComponentType<any>;
   WaiverIntelligencePanel: ComponentType<any>;
   RecentTransactionsPanel: ComponentType<any>;
   WeeklyMomentumTable: ComponentType<any>;
@@ -29,8 +27,6 @@ export function ReportMomentumTab({
   leagueId,
   leagueLogo,
   effectiveViewerManager,
-  showTradeMarketRadar,
-  TradeMarketRadar,
   WaiverIntelligencePanel,
   RecentTransactionsPanel,
   WeeklyMomentumTable,
@@ -38,28 +34,6 @@ export function ReportMomentumTab({
 }: ReportMomentumTabProps) {
   return (
     <div className="report-command-section-stack space-y-6 sm:space-y-8">
-      {showTradeMarketRadar && (
-        <CollapsibleReportSection
-          title="Trade Market Radar"
-          kicker={
-            isRedraftReport
-              ? "Current-season buy and sell signals"
-              : "Buy and sell signals"
-          }
-          previewMetrics={buildMomentumPreviewMetrics(reportData)}
-        >
-          <TradeMarketRadar
-            risers={reportData.weeklyRisers}
-            fallers={reportData.weeklyFallers}
-            managerAvatars={reportData.managerAvatars}
-            playerDetailsById={reportData.playerDetailsById}
-            leagueId={leagueId}
-            leagueLogo={leagueLogo}
-            viewerManager={effectiveViewerManager}
-            leagueValueMode={leagueValueMode}
-          />
-        </CollapsibleReportSection>
-      )}
       <CollapsibleReportSection
         title="Waiver Intelligence"
         kicker={

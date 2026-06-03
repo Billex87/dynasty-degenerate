@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import { ModalReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import type { ReportData } from "@shared/types";
+import { buildMomentumPreviewMetrics } from "@/features/report/lib/reportOverviewPreview";
 import { buildTradeProposalPreviewMetrics } from "@/features/report/lib/reportOverviewPreview";
 import { buildTradePreviewMetrics } from "@/features/report/lib/reportOverviewPreview";
 
@@ -17,7 +18,9 @@ type ReportTradesTabProps = {
   effectiveViewerManager: string | null;
   rankingsForReport?: ReportData["rankings"];
   tradeWarKicker: string;
+  showTradeMarketRadar: boolean;
   TradeBrowserRead: ComponentType<{ data: ReportData }>;
+  TradeMarketRadar: ComponentType<any>;
   TradeProposalSignalsTable: ComponentType<{
     data: NonNullable<ReportData["tradeProposalSignals"]>;
     managerAvatars?: ReportData["managerAvatars"];
@@ -107,7 +110,9 @@ export function ReportTradesTab({
   effectiveViewerManager,
   rankingsForReport,
   tradeWarKicker,
+  showTradeMarketRadar,
   TradeBrowserRead,
+  TradeMarketRadar,
   TradeProposalSignalsTable,
   TradeWarRoom,
   TradeProfitLeaderboardTable,
@@ -116,6 +121,28 @@ export function ReportTradesTab({
 }: ReportTradesTabProps) {
   return (
     <div className="trade-sections report-command-section-stack space-y-6 sm:space-y-8">
+      {showTradeMarketRadar && (
+        <CollapsibleReportSection
+          title="Trade Market Radar"
+          kicker={
+            leagueValueMode === "redraft"
+              ? "Current-season buy and sell signals"
+              : "Buy and sell signals"
+          }
+          previewMetrics={buildMomentumPreviewMetrics(reportData)}
+        >
+          <TradeMarketRadar
+            risers={reportData.weeklyRisers}
+            fallers={reportData.weeklyFallers}
+            managerAvatars={reportData.managerAvatars}
+            playerDetailsById={reportData.playerDetailsById}
+            leagueId={leagueId}
+            leagueLogo={leagueLogo}
+            viewerManager={effectiveViewerManager}
+            leagueValueMode={leagueValueMode}
+          />
+        </CollapsibleReportSection>
+      )}
       {canViewAdminFeatureExpansion && <TradeBrowserRead data={reportDataForView} />}
       {canViewAdminFeatureExpansion && (
         <CollapsibleReportSection
