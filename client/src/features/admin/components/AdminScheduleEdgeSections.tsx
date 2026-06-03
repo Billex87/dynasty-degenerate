@@ -100,7 +100,6 @@ export function AdminScheduleEdgeSection({
           />
         ) : undefined
       }
-      premium
       defaultOpen
     >
       <div className="admin-schedule-edge">

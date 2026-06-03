@@ -358,7 +358,6 @@ export function ReportDashboardContent({
                 isRedraftReport={isRedraftReport}
                 leagueId={leagueId}
                 leagueLogo={leagueLogo}
-                canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
                 effectiveViewerManager={effectiveViewerManager}
                 showTradeMarketRadar={showTradeMarketRadar}
                 TradeMarketRadar={TradeMarketRadar}

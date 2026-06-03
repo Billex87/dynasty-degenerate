@@ -1176,7 +1176,7 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Hidden Sleeper Data Import")).toHaveCount(0);
   });
 
-  test("shows Schedule Edge table when stored DraftSharks SOS snapshots are healthy", async ({
+  test("shows Schedule Edge table to regular viewers when stored DraftSharks SOS snapshots are healthy", async ({
     page,
   }) => {
     const cachedReport = createCachedCommandCenterReport();
@@ -1327,7 +1327,7 @@ test.describe("command center feature surfaces", () => {
       },
     ];
 
-    await loadCachedReport(page, cachedReport, "#rankings");
+    await loadCachedReport(page, cachedReport, "#rankings", { admin: false });
 
     await expect(page.getByText("Schedule Edge Table")).toBeVisible();
     await expect
@@ -1401,7 +1401,7 @@ test.describe("command center feature surfaces", () => {
       cachedReport.reportData.waiverIntelligence.weeklyEcrTargets = [];
     }
 
-    await loadCachedReport(page, cachedReport, "#rankings");
+    await loadCachedReport(page, cachedReport, "#rankings", { admin: false });
 
     const scheduleSection = await openReportSection(page, "Schedule Edge Table");
     await expect(scheduleSection.getByText("No DraftSharks SOS rows yet")).toBeVisible();
@@ -1867,7 +1867,6 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByRole("button", { name: /View as/i })).toHaveCount(0);
     await expect(page.getByText("Monthly Team Blueprint")).toHaveCount(0);
     await expect(page.getByText("League Power Rankings")).toHaveCount(0);
-    await expect(page.getByText("Schedule Edge Table")).toHaveCount(0);
     await expect(
       page.getByText("Trade Finder, Partners & League Exploits")
     ).toHaveCount(0);
@@ -2041,7 +2040,7 @@ test.describe("command center feature surfaces", () => {
     );
   });
 
-  test("keeps weekly momentum public while hiding waiver intelligence from regular viewers", async ({
+  test("shows waiver intelligence with the other weekly momentum sections for regular viewers", async ({
     page,
   }) => {
     const cachedReport = createCachedCommandCenterReport();
@@ -2054,15 +2053,11 @@ test.describe("command center feature surfaces", () => {
       new RegExp(`leagueId=${cachedReport.leagueId}#momentum$`)
     );
     await expect(page.getByText("Recent Transactions")).toBeVisible();
-    await expect(page.getByText("Top 10 Weekly Risers")).toBeVisible();
-    await expect(page.getByText("Top 10 Weekly Fallers")).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Trending Adds" })
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Trending Drops" })
-    ).toBeVisible();
-    await expect(page.getByText("Waiver Intelligence")).toHaveCount(0);
+    await expect(page.getByText("Market Movers")).toBeVisible();
+    await expect(page.getByText("Trending")).toBeVisible();
+    await expect(page.getByText("Waiver Intelligence")).toBeVisible();
+    await openReportSection(page, "Waiver Intelligence");
+    await expect(page.getByText("Waiver Receiver").first()).toBeVisible();
   });
 
   test("shows waiver intelligence with the other weekly momentum sections for admins", async ({
@@ -2100,14 +2095,8 @@ test.describe("command center feature surfaces", () => {
       page.getByText("No active NFL team on the Sleeper player record.")
     ).toBeVisible();
     await expect(page.getByText("Recent Transactions")).toBeVisible();
-    await expect(page.getByText("Top 10 Weekly Risers")).toBeVisible();
-    await expect(page.getByText("Top 10 Weekly Fallers")).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Trending Adds" })
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Trending Drops" })
-    ).toBeVisible();
+    await expect(page.getByText("Market Movers")).toBeVisible();
+    await expect(page.getByText("Trending")).toBeVisible();
   });
 
   test("opens added transaction players with the current roster owner", async ({

@@ -167,9 +167,7 @@ export function ReportRankingsTab({
           </div>
         )}
       </CollapsibleReportSection>
-      {canViewAdminFeatureExpansion ? (
-        <AdminScheduleEdgeSection reportData={reportDataForView} />
-      ) : null}
+      <AdminScheduleEdgeSection reportData={reportDataForView} />
       {!isRedraftReport && (
         <CollapsibleReportSection
           title="College Rankings"

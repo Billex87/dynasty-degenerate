@@ -13,7 +13,6 @@ type ReportMomentumTabProps = {
   isRedraftReport: boolean;
   leagueId: string;
   leagueLogo: string | null;
-  canViewAdminFeatureExpansion: boolean;
   effectiveViewerManager: string | null;
   showTradeMarketRadar: boolean;
   TradeMarketRadar: ComponentType<any>;
@@ -29,7 +28,6 @@ export function ReportMomentumTab({
   isRedraftReport,
   leagueId,
   leagueLogo,
-  canViewAdminFeatureExpansion,
   effectiveViewerManager,
   showTradeMarketRadar,
   TradeMarketRadar,
@@ -62,35 +60,32 @@ export function ReportMomentumTab({
           />
         </CollapsibleReportSection>
       )}
-      {canViewAdminFeatureExpansion && (
-        <CollapsibleReportSection
-          title="Waiver Intelligence"
-          kicker={
-            isRedraftReport
-              ? "Opportunity, usage, and roster need"
-              : "Available value"
-          }
-          previewMetrics={buildMomentumPreviewMetrics(reportData)}
-          premium
-        >
-          <WaiverIntelligencePanel
-            data={reportData.waiverIntelligence}
-            managerAvatars={reportData.managerAvatars}
-            playerDetailsById={reportData.playerDetailsById}
-            leagueId={leagueId}
-            leagueLogo={leagueLogo}
-            viewerManager={effectiveViewerManager}
-            managerRosterIntelligence={reportData.managerRosterIntelligence}
-            managerPositionCounts={reportData.managerPositionCounts}
-            positionDepth={reportData.positionDepth}
-            leagueDiagnostics={reportData.leagueDiagnostics}
-            recentTransactions={reportData.recentTransactions}
-            leagueValueMode={leagueValueMode}
-            scheduleEdgeTargets={reportData.scheduleEdgeTargets}
-            calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
-          />
-        </CollapsibleReportSection>
-      )}
+      <CollapsibleReportSection
+        title="Waiver Intelligence"
+        kicker={
+          isRedraftReport
+            ? "Opportunity, usage, and roster need"
+            : "Available value"
+        }
+        previewMetrics={buildMomentumPreviewMetrics(reportData)}
+      >
+        <WaiverIntelligencePanel
+          data={reportData.waiverIntelligence}
+          managerAvatars={reportData.managerAvatars}
+          playerDetailsById={reportData.playerDetailsById}
+          leagueId={leagueId}
+          leagueLogo={leagueLogo}
+          viewerManager={effectiveViewerManager}
+          managerRosterIntelligence={reportData.managerRosterIntelligence}
+          managerPositionCounts={reportData.managerPositionCounts}
+          positionDepth={reportData.positionDepth}
+          leagueDiagnostics={reportData.leagueDiagnostics}
+          recentTransactions={reportData.recentTransactions}
+          leagueValueMode={leagueValueMode}
+          scheduleEdgeTargets={reportData.scheduleEdgeTargets}
+          calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
+        />
+      </CollapsibleReportSection>
       <CollapsibleReportSection
         title="Recent Transactions"
         kicker={
