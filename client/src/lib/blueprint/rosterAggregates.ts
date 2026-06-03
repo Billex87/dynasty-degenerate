@@ -60,7 +60,7 @@ export function buildValueProportion(
     byPosition.set(pos, (byPosition.get(pos) || 0) + Math.max(0, player.value || 0));
   }
 
-  const playerTotal = [...byPosition.values()].reduce((sum, value) => sum + value, 0);
+  const playerTotal = Array.from(byPosition.values()).reduce((sum, value) => sum + value, 0);
   const total = playerTotal + Math.max(0, draftCapitalValue);
   if (total <= 0) return [];
 
