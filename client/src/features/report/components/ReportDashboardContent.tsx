@@ -373,7 +373,6 @@ export function ReportDashboardContent({
               <ReportRankingsTab
                 reportData={reportData}
                 reportDataForView={reportDataForView}
-                canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
                 canViewAdminDiagnostics={canViewAdminDiagnostics}
                 isRedraftReport={isRedraftReport}
                 leagueValueMode={leagueValueMode}
@@ -411,7 +410,6 @@ export function ReportDashboardContent({
                 <ReportTradesTab
                   reportData={reportData}
                   reportDataForView={reportDataForView}
-                  canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
                   showManagerPersonalityIntel={canViewAdminDiagnostics}
                   onScoutLeaguemates={onScoutLeaguemates}
                   leagueId={leagueId}

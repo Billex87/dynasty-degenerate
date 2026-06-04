@@ -9,7 +9,6 @@ import { buildTradePreviewMetrics } from "@/features/report/lib/reportOverviewPr
 type ReportTradesTabProps = {
   reportData: ReportData;
   reportDataForView: ReportData;
-  canViewAdminFeatureExpansion: boolean;
   showManagerPersonalityIntel: boolean;
   onScoutLeaguemates: () => void;
   leagueId: string;
@@ -101,7 +100,6 @@ type ReportTradesTabProps = {
 export function ReportTradesTab({
   reportData,
   reportDataForView,
-  canViewAdminFeatureExpansion,
   showManagerPersonalityIntel,
   onScoutLeaguemates,
   leagueId,
@@ -143,25 +141,23 @@ export function ReportTradesTab({
           />
         </CollapsibleReportSection>
       )}
-      {canViewAdminFeatureExpansion && <TradeBrowserRead data={reportDataForView} />}
-      {canViewAdminFeatureExpansion && (
-        <CollapsibleReportSection
-          title="Pending Trade Offers"
-          kicker="Pending, declined, rejected, and cancelled Sleeper transactions"
-          previewMetrics={buildTradeProposalPreviewMetrics(reportData)}
-          premium
-          defaultOpen
-        >
-          <TradeProposalSignalsTable
-            data={
-              reportData.adminTradeProposalSignals ||
-              reportData.tradeProposalSignals ||
-              []
-            }
-            managerAvatars={reportData.managerAvatars}
-          />
-        </CollapsibleReportSection>
-      )}
+      <TradeBrowserRead data={reportDataForView} />
+      <CollapsibleReportSection
+        title="Pending Trade Offers"
+        kicker="Pending, declined, rejected, and cancelled Sleeper transactions"
+        previewMetrics={buildTradeProposalPreviewMetrics(reportData)}
+        premium
+        defaultOpen
+      >
+        <TradeProposalSignalsTable
+          data={
+            reportData.adminTradeProposalSignals ||
+            reportData.tradeProposalSignals ||
+            []
+          }
+          managerAvatars={reportData.managerAvatars}
+        />
+      </CollapsibleReportSection>
       <CollapsibleReportSection
         title="Trade War Room"
         kicker={tradeWarKicker}
