@@ -15730,11 +15730,6 @@
     max-width: none;
   }
 
-  .report-shell .analysis-preview-chip-manager-preview .analysis-preview-manager-name,
-  .report-shell .analysis-preview-chip-starter-room .analysis-preview-manager-name {
-    max-width: 6.4rem;
-  }
-
   .weekly-momentum-section h4,
   .trending-section h4 {
     text-align: center;
