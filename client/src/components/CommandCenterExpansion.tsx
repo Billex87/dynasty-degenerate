@@ -1146,6 +1146,30 @@ export function MonthlyTeamBlueprint({
   const monthlyConfidence = getMonthlyConfidence(data, manager, hasPartialHistory);
   const isRedraft = isRedraftReportData(data);
   const isPreDraftRedraft = isRedraft && !hasCurrentSeasonMainDraft(data);
+  const blueprintValueMode: LeagueValueMode = isRedraft ? 'redraft' : 'dynasty';
+
+  // League-wide roster rollup grades every manager's roster, so memoize it —
+  // otherwise unrelated re-renders (e.g. share-status changes) regrade the field.
+  const leagueRollups = useMemo(
+    () =>
+      managerOptions.map((rosterManager) => {
+        const rosterIntel = getIntel(data, rosterManager);
+        const rosterCounts =
+          data.managerPositionCounts?.find((row) => row.manager === rosterManager) || null;
+        const rosterStarters = (rosterCounts?.starterPlayers || []) as ManagerIntelPlayer[];
+        const pool = uniqueBlueprintPlayers([
+          ...rosterStarters,
+          ...getManagerPlayerPool(rosterIntel),
+        ]);
+        return summarizeManagerRoster({
+          manager: rosterManager,
+          players: pool,
+          buildLabel: rosterIntel?.identity || null,
+          valueMode: blueprintValueMode,
+        });
+      }),
+    [managerOptions, data, blueprintValueMode],
+  );
 
   if (!managerOptions.length || !intel) {
     return (
@@ -1246,7 +1270,7 @@ export function MonthlyTeamBlueprint({
 
   // Enhanced blueprint analytics: three-factor player grades + roster rollups,
   // all derived client-side from the roster pool already assembled above.
-  const blueprintValueMode: LeagueValueMode = isRedraft ? 'redraft' : 'dynasty';
+  // (blueprintValueMode + leagueRollups are memoized above the early returns.)
   const gradedRoster = gradeRoster(rosterPool, blueprintValueMode);
   const draftCapitalValue = pickPortfolio?.totalValue || 0;
   const valueProportion = buildValueProportion(rosterPool, draftCapitalValue);
@@ -1274,20 +1298,7 @@ export function MonthlyTeamBlueprint({
   const leaguePowerRanks = [...(data.powerRankings || [])].sort((a, b) => a.rank - b.rank).slice(0, 12);
   const trueRankRows = gradedRoster.slice(0, 20);
 
-  // League-relative standing: roll every manager's roster up so the focused team
-  // can be placed against the field (value/production share, percentile, build rarity).
-  const leagueRollups = managerOptions.map((rosterManager) => {
-    const rosterIntel = getIntel(data, rosterManager);
-    const rosterCounts = data.managerPositionCounts?.find((row) => row.manager === rosterManager) || null;
-    const rosterStarters = (rosterCounts?.starterPlayers || []) as ManagerIntelPlayer[];
-    const pool = uniqueBlueprintPlayers([...rosterStarters, ...getManagerPlayerPool(rosterIntel)]);
-    return summarizeManagerRoster({
-      manager: rosterManager,
-      players: pool,
-      buildLabel: rosterIntel?.identity || null,
-      valueMode: blueprintValueMode,
-    });
-  });
+  // League-relative standing from the memoized rollup above.
   const leagueComparatives = buildLeagueComparatives(leagueRollups, manager);
 
   // 2-year outlook arrow framing from the returned dynasty timeline.
