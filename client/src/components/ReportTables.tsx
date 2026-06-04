@@ -2252,92 +2252,10 @@ export function LeagueCommandCenter({
             hideNumber
             hideHeader={section !== "all"}
           >
-            {section === "taxi" ? (
-              <div className="manager-command-taxi-overview-list">
-                {taxiDepth.map(row => {
-                  const taxiItems = sortTaxiTriageItems(
-                    row.taxiTriage.items || []
-                  );
-
-                  return (
-                    <section
-                      key={row.manager}
-                      className="manager-command-taxi-overview-group"
-                    >
-                      <ManagerDepthTile
-                        manager={row.manager}
-                        avatarUrl={managerAvatars?.[row.manager]}
-                        className={`taxi-triage-depth-tile ${viewerOwnedHighlightClass(
-                          row.manager,
-                          viewerManager
-                        )}`}
-                        subtitle={
-                          row.taxiTriage.counts["Promote Now"]
-                            ? `${row.taxiTriage.counts["Promote Now"]} promote`
-                            : null
-                        }
-                        subtitleTone="balanced"
-                        badges={[
-                          {
-                            label: `${row.taxiTriage.items.length} taxi`,
-                            tone: "neutral",
-                          },
-                          ...(row.taxiTriage.counts["Keep Parked"]
-                            ? [
-                                {
-                                  label: `${row.taxiTriage.counts["Keep Parked"]} stash`,
-                                  tone: "future" as const,
-                                },
-                              ]
-                            : []),
-                          ...(row.taxiTriage.counts["Taxi Risk"]
-                            ? [
-                                {
-                                  label: `${row.taxiTriage.counts["Taxi Risk"]} risk`,
-                                  tone: "warn" as const,
-                                },
-                              ]
-                            : []),
-                          ...(row.taxiTriage.counts.Cuttable
-                            ? [
-                                {
-                                  label: `${row.taxiTriage.counts.Cuttable} cuts`,
-                                  tone: "danger" as const,
-                                },
-                              ]
-                            : []),
-                        ]}
-                        onClick={() => openManager(row.manager)}
-                      />
-                      <div
-                        className="manager-command-taxi-overview-player-grid manager-command-tile-grid balanced-tile-grid balanced-centered-tile-grid"
-                        style={getBalancedGridStyle(
-                          Math.max(taxiItems.length, 2),
-                          2
-                        )}
-                      >
-                        {taxiItems.map(player => (
-                          <CommandPlayerTile
-                            key={player.player_id}
-                            label={getTaxiDisplayAction(player.taxiAction)}
-                            note={player.taxiReason}
-                            player={player}
-                            showValueStack
-                            onClick={() =>
-                              openCommandPlayerForManager(row.manager, player)
-                            }
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  );
-                })}
-              </div>
-            ) : (
-              <div
-                className="command-depth-grid balanced-tile-grid"
-                style={getBalancedGridStyle(taxiDepth.length)}
-              >
+            <div
+              className="command-depth-grid balanced-tile-grid"
+              style={getBalancedGridStyle(taxiDepth.length)}
+            >
                 {taxiDepth.map(row => (
                   <ManagerDepthTile
                     key={row.manager}
@@ -2386,8 +2304,7 @@ export function LeagueCommandCenter({
                     onClick={() => openManager(row.manager)}
                   />
                 ))}
-              </div>
-            )}
+            </div>
           </FeatureCard>
         ) : null}
       </div>
