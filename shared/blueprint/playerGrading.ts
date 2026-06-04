@@ -1,4 +1,4 @@
-import type { LeagueValueMode, ManagerIntelPlayer } from '@shared/types';
+import type { LeagueValueMode, ManagerIntelPlayer } from '../types';
 
 /**
  * Blueprint player grading engine ("Domain True Ranks").

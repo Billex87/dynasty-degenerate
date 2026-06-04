@@ -1,6 +1,6 @@
 import type { LeagueValueMode, ManagerIntelPlayer } from '@shared/types';
-import { gradeRoster } from './playerGrading';
-import { getOverallGrade } from './rosterAggregates';
+import { gradeRoster } from '@shared/blueprint/playerGrading';
+import { getOverallGrade } from '@shared/blueprint/rosterAggregates';
 
 /**
  * League-relative blueprint stats. The per-roster engine (playerGrading.ts) reads

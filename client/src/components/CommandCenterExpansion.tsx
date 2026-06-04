@@ -38,14 +38,14 @@ import { TeamLogoPill } from './TeamLogoPill';
 import { normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 import { getDraftSignalPicks } from '@/lib/draftDashboardMetrics';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
-import { gradeRoster } from '@/lib/blueprint/playerGrading';
+import { gradeRoster } from '@shared/blueprint/playerGrading';
 import {
   buildAverageAge,
   buildRosterMakeup,
   buildValueProportion,
   getDraftCapitalScore as getBlueprintDraftCapitalScore,
   getOverallGrade,
-} from '@/lib/blueprint/rosterAggregates';
+} from '@shared/blueprint/rosterAggregates';
 import { buildLeagueComparatives, summarizeManagerRoster } from '@/lib/blueprint/leagueComparatives';
 import { isPlaceholderManagerName } from '@/lib/managerDisplay';
 import { getManagerProfileLabel } from '@/lib/managerProfileLabels';
@@ -1251,6 +1251,7 @@ export function MonthlyTeamBlueprint({
   const draftCapitalValue = pickPortfolio?.totalValue || 0;
   const valueProportion = buildValueProportion(rosterPool, draftCapitalValue);
   const rosterMakeup = buildRosterMakeup(gradedRoster);
+  const topMakeupArchetype = rosterMakeup[0]?.archetype || 'Mixed archetypes';
   const overallEnhancedGrade = getOverallGrade(gradedRoster);
   const starterAges = buildAverageAge(starterPlayers.length ? starterPlayers : rosterPool);
   const draftCapitalScore = getBlueprintDraftCapitalScore({
@@ -1331,9 +1332,13 @@ export function MonthlyTeamBlueprint({
   })));
   const overallGradeTrendPoints = buildTrendPoints(managerHistory.map((snapshot) => ({
     month: snapshot.snapshotMonth,
-    value: toFiniteNumber(snapshot.powerRanking?.score) !== null
-      ? Math.round((toFiniteNumber(snapshot.powerRanking?.score) || 0) / 10)
-      : null,
+    // Prefer the stored three-factor grade; fall back to the legacy power-derived
+    // grade for snapshots captured before the engine started persisting it.
+    value: toFiniteNumber(snapshot.overallGrade) !== null
+      ? toFiniteNumber(snapshot.overallGrade)
+      : toFiniteNumber(snapshot.powerRanking?.score) !== null
+        ? Math.round((toFiniteNumber(snapshot.powerRanking?.score) || 0) / 10)
+        : null,
   })));
   const trendCards = [
     {
@@ -1354,7 +1359,7 @@ export function MonthlyTeamBlueprint({
     },
     {
       label: 'Overall Grade',
-      value: String(overallGrade),
+      value: overallEnhancedGrade.toFixed(1),
       points: overallGradeTrendPoints,
       delta: getTrendDelta(overallGradeTrendPoints),
       suffix: '',
@@ -1383,6 +1388,13 @@ export function MonthlyTeamBlueprint({
       label: 'This month',
       title: marketPosture,
       body: `${buyPct}% buy, ${holdPct}% hold, and ${sellPct}% sell from returned roster signals. Trade partner specifics live in the trade finder.`,
+    },
+    {
+      label: 'Roster grade',
+      title: `Overall ${overallEnhancedGrade.toFixed(1)} · ${topMakeupArchetype}`,
+      body: leagueComparatives.percentile !== null
+        ? `The three-factor engine grades this roster ${overallEnhancedGrade.toFixed(1)}/10 — ${leagueComparatives.percentile}th percentile in the league${leagueComparatives.valueShareRank ? `, #${leagueComparatives.valueShareRank} in value share` : ''}. Make-up leans ${topMakeupArchetype.toLowerCase()}.`
+        : `The three-factor engine grades this roster ${overallEnhancedGrade.toFixed(1)}/10. Make-up leans ${topMakeupArchetype.toLowerCase()}.`,
     },
   ];
   const handlePrintBlueprint = () => {
@@ -1682,10 +1694,10 @@ export function MonthlyTeamBlueprint({
               <div className="team-blueprint-factor-table" role="table">
                 <div className="team-blueprint-factor-row team-blueprint-factor-head" role="row">
                   <span role="columnheader">Pos</span>
-                  <span role="columnheader">Insulation</span>
-                  <span role="columnheader">Production</span>
-                  <span role="columnheader">Situational</span>
-                  <span role="columnheader">Composite</span>
+                  <span role="columnheader" title="Asset security: age curve, durability, role lock, and positional value floor.">Insulation</span>
+                  <span role="columnheader" title="Recent on-field output vs a positional starter baseline (PPG, availability, rank, started share).">Production</span>
+                  <span role="columnheader" title="Environment and trajectory: strength of schedule, value trend, and depth-chart competition.">Situational</span>
+                  <span role="columnheader" title="Weighted blend of the three factors (dynasty leans Insulation, redraft leans Production).">Composite</span>
                 </div>
                 {factorByPosition.map((row) => (
                   <div className="team-blueprint-factor-row" role="row" key={row.position}>
@@ -1757,11 +1769,11 @@ export function MonthlyTeamBlueprint({
                 <div className="team-blueprint-true-table" role="table">
                   <div className="team-blueprint-true-row team-blueprint-true-head" role="row">
                     <span role="columnheader">Player</span>
-                    <span role="columnheader">Ins</span>
-                    <span role="columnheader">Prod</span>
-                    <span role="columnheader">Sit</span>
+                    <span role="columnheader" title="Insulation — asset security: age curve, durability, role lock, and positional value floor.">Ins</span>
+                    <span role="columnheader" title="Production — recent on-field output vs a positional starter baseline (PPG, availability, rank, started share).">Prod</span>
+                    <span role="columnheader" title="Situational — environment and trajectory: strength of schedule, value trend, and depth-chart competition.">Sit</span>
                     <span role="columnheader">Archetype</span>
-                    <span role="columnheader">Pos</span>
+                    <span role="columnheader" title="Composite position rank within this roster (best composite first).">Pos</span>
                   </div>
                   {trueRankRows.map((entry) => (
                     <div className="team-blueprint-true-row" role="row" key={entry.player.player_id}>
@@ -2093,10 +2105,21 @@ export function MonthlyTeamBlueprint({
               severity={monthlyConfidence >= 78 && !hasPartialHistory ? 'good' : hasPartialHistory ? 'warn' : 'info'}
               chips={[
                 monthLabel,
-                intel.timeline || intel.identity,
+                { label: `Grade ${overallEnhancedGrade.toFixed(1)}`, tone: overallEnhancedGrade >= 7 ? 'good' : overallEnhancedGrade <= 4 ? 'warn' : undefined },
+                topMakeupArchetype,
                 hasPartialHistory ? { label: 'Partial history', tone: 'warn' } : { label: 'History loaded', tone: 'good' },
               ]}
-              body={`${manager} profiles as ${intel.identity}. The ${monthLabel} priority is ${topPriorities[0] || intel.tradePlan?.summary || 'to keep value insulated until a clear roster-fit deal appears'}.`}
+              body={`${manager} profiles as ${intel.identity}, graded ${overallEnhancedGrade.toFixed(1)}/10 by the three-factor engine${leagueComparatives.percentile !== null ? ` (${leagueComparatives.percentile}th percentile)` : ''} and leaning ${topMakeupArchetype.toLowerCase()}. The ${monthLabel} priority is ${topPriorities[0] || intel.tradePlan?.summary || 'to keep value insulated until a clear roster-fit deal appears'}.`}
+              traceItems={[
+                `Overall grade ${overallEnhancedGrade.toFixed(1)}/10 from returned three-factor player grades.`,
+                leagueComparatives.valueShare !== null
+                  ? `Value share ${leagueComparatives.valueShare}%${leagueComparatives.valueShareRank ? ` (league #${leagueComparatives.valueShareRank})` : ''}.`
+                  : 'League value share not available from returned data.',
+                trueRankRows[0]
+                  ? `Top graded asset: ${trueRankRows[0].player.name} (${trueRankRows[0].compositePositionRank}, composite ${trueRankRows[0].composite}).`
+                  : 'No graded assets returned.',
+                `Make-up leans ${topMakeupArchetype.toLowerCase()} across ${gradedRoster.length} graded players.`,
+              ]}
               backgroundVariant="monthly"
               className="team-blueprint-ai"
             />

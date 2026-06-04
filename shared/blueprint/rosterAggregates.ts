@@ -1,4 +1,4 @@
-import type { ManagerIntelPlayer } from '@shared/types';
+import type { ManagerIntelPlayer } from '../types';
 import type { GradedPlayer, PlayerArchetype } from './playerGrading';
 
 /**

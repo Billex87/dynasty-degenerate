@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ManagerIntelPlayer } from '@shared/types';
-import { gradePlayer, gradeRoster } from './playerGrading';
+import { gradePlayer, gradeRoster } from '@shared/blueprint/playerGrading';
 
 function makePlayer(overrides: Partial<ManagerIntelPlayer> & { player_id: string; pos: string }): ManagerIntelPlayer {
   return {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ManagerIntelPlayer } from '@shared/types';
-import { gradeRoster } from './playerGrading';
+import { gradeRoster } from '@shared/blueprint/playerGrading';
 import {
   buildAverageAge,
   buildPositionValueShare,
@@ -8,7 +8,7 @@ import {
   buildValueProportion,
   getDraftCapitalScore,
   getOverallGrade,
-} from './rosterAggregates';
+} from '@shared/blueprint/rosterAggregates';
 
 function makePlayer(overrides: Partial<ManagerIntelPlayer> & { player_id: string; pos: string; value: number }): ManagerIntelPlayer {
   return { name: overrides.name || overrides.player_id, ...overrides } as ManagerIntelPlayer;

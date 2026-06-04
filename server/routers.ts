@@ -53,6 +53,8 @@ import {
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import { buildPlayerSituationDeltas } from "./playerSituationDelta";
 import { filterCompletedFuturePickPortfolios } from "../shared/pickPortfolioFilters";
+import { gradeRoster } from "../shared/blueprint/playerGrading";
+import { getOverallGrade } from "../shared/blueprint/rosterAggregates";
 import { assertCanUseFeature, canUseFeature, getUserBillingPlan, loadPersistedFeatureAccess } from "./featureEntitlements";
 import { buildLeaguePlayoffWeeks, buildMatchupWindowSet, getShortTermMatchupOutlook } from "../shared/matchupWindows";
 import {
@@ -2541,8 +2543,36 @@ function buildMonthlyBlueprintSnapshots(input: {
   const powerByManager = new Map((reportData.powerRankings || []).map((row: any) => [row.manager, row]));
   const picksByManager = new Map((reportData.pickPortfolios || []).map((row: any) => [row.manager, row]));
   const tradesByManager = new Map((reportData.tradeTendencies || []).map((row: any) => [row.manager, row]));
+  const blueprintValueMode = reportData.leagueDiagnostics?.valueMode === 'redraft' || reportData.leagueValueMode === 'redraft'
+    ? 'redraft' as const
+    : 'dynasty' as const;
 
-  return (reportData.managerRosterIntelligence || []).map((row: any) => ({
+  return (reportData.managerRosterIntelligence || []).map((row: any) => {
+    // Assemble the same roster pool the client grades, so the stored grade matches the UI.
+    const counts: any = positionCountsByManager.get(row.manager) || null;
+    const pool = [
+      ...((counts?.starterPlayers as any[]) || []),
+      ...((row.rosterPlayers as any[]) || []),
+      ...((row.benchPlayers as any[]) || []),
+      ...((row.untouchablePlayers as any[]) || []),
+      row.buyTarget,
+      row.sellCandidate,
+      row.tradeChip,
+      row.youngCorePlayer,
+      row.oldestPlayer,
+    ].filter(Boolean);
+    const seen = new Set<string>();
+    const uniquePool = pool.filter((player: any) => {
+      const key = player?.player_id || `${player?.name}-${player?.pos}`;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const overallGrade = uniquePool.length
+      ? getOverallGrade(gradeRoster(uniquePool, blueprintValueMode))
+      : null;
+
+    return {
     manager: row.manager,
     payload: {
       leagueId: input.leagueId,
@@ -2561,6 +2591,7 @@ function buildMonthlyBlueprintSnapshots(input: {
       starterValuePct: row.starterValuePct,
       avgAge: row.avgAge,
       avgAgeByPosition: row.avgAgeByPosition || null,
+      overallGrade,
       positionGrades: row.positionGrades || null,
       pressurePoints: row.pressurePoints || [],
       ageFlags: row.ageFlags || [],
@@ -2579,7 +2610,8 @@ function buildMonthlyBlueprintSnapshots(input: {
       pickPortfolio: picksByManager.get(row.manager) || null,
       tradeTendency: tradesByManager.get(row.manager) || null,
     },
-  }));
+    };
+  });
 }
 
 async function readMonthlyBlueprintHistory(leagueId: string): Promise<ReportData['monthlyBlueprintHistory']> {
@@ -2608,6 +2640,7 @@ async function readMonthlyBlueprintHistory(leagueId: string): Promise<ReportData
           starterValuePct: Number.isFinite(Number(snapshot.starterValuePct)) ? Number(snapshot.starterValuePct) : null,
           avgAge: Number.isFinite(Number(snapshot.avgAge)) ? Number(snapshot.avgAge) : null,
           avgAgeByPosition: snapshot.avgAgeByPosition || undefined,
+          overallGrade: Number.isFinite(Number(snapshot.overallGrade)) ? Number(snapshot.overallGrade) : null,
           positionGrades: snapshot.positionGrades || null,
           pressurePoints: Array.isArray(snapshot.pressurePoints) ? snapshot.pressurePoints.slice(0, 8) : [],
           ageFlags: Array.isArray(snapshot.ageFlags) ? snapshot.ageFlags.slice(0, 8) : [],

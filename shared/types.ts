@@ -1904,6 +1904,8 @@ export interface MonthlyBlueprintHistorySnapshot {
   starterValuePct?: number | null;
   avgAge?: number | null;
   avgAgeByPosition?: Record<'QB' | 'RB' | 'WR' | 'TE', number | null>;
+  /** Three-factor engine composite grade (0-10) at capture time; enables grade trend over months. */
+  overallGrade?: number | null;
   positionGrades?: Record<'QB' | 'RB' | 'WR' | 'TE', {
     rank: number | null;
     grade: string;
