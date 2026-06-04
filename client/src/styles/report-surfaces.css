@@ -7122,7 +7122,7 @@ body {
   gap: 0.5rem;
 }
 
-.report-overview-hero h1 {
+.report-overview-hero h2 {
   display: grid;
   margin: 0;
   color: #f8fafc;
@@ -7134,11 +7134,11 @@ body {
   text-transform: uppercase;
 }
 
-.report-overview-hero h1 span {
+.report-overview-hero h2 span {
   white-space: nowrap;
 }
 
-.report-overview-hero h1 span:last-child {
+.report-overview-hero h2 span:last-child {
   background: var(--dd-orange-title-gradient);
   -webkit-background-clip: text;
   background-clip: text;
@@ -8894,12 +8894,12 @@ body {
     align-self: start;
   }
 
-  .report-overview-hero h1 {
+  .report-overview-hero h2 {
     font-size: clamp(1.95rem, 9.2vw, 2.35rem);
     line-height: 1;
   }
 
-  .report-overview-hero h1 span {
+  .report-overview-hero h2 span {
     white-space: normal;
   }
 

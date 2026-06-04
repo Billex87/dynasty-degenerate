@@ -16667,7 +16667,7 @@
     margin-inline: auto !important;
   }
 
-  .report-shell .report-overview-hero-copy h1 {
+  .report-shell .report-overview-hero-copy h2 {
     justify-content: center !important;
     filter:
       drop-shadow(0 1px 1px rgba(0, 0, 0, 0.98))
@@ -18498,7 +18498,7 @@
   text-align: left !important;
 }
 
-.report-shell .report-overview-hero-copy h1 {
+.report-shell .report-overview-hero-copy h2 {
   justify-content: start !important;
 }
 
@@ -18554,7 +18554,7 @@
     text-align: center !important;
   }
 
-  .report-shell .report-overview-hero-copy h1 {
+  .report-shell .report-overview-hero-copy h2 {
     justify-content: center !important;
   }
 

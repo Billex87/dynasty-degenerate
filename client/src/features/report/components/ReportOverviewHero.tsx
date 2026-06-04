@@ -32,11 +32,11 @@ export function ReportOverviewHero({
       data-dashboard-tab={activeTab}
     >
       <div className="report-overview-hero-copy">
-        <h1>
+        <h2>
           {heroCopy.headline.split("\n").map(line => (
             <span key={line}>{line}</span>
           ))}
-        </h1>
+        </h2>
         <p className="report-overview-hero-subline">{heroCopy.subline}</p>
         <p>{heroCopy.body}</p>
       </div>
