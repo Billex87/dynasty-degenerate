@@ -86,6 +86,12 @@ type HomeReportExperienceProps = {
   rankingsForReport: ReportData["rankings"];
   rankingsQueryIsLoading: boolean;
   onAnalyze: () => void;
+  onImportSleeperTradeCenter: (authToken: string) => Promise<{
+    transactionCount: number;
+    tradeCount: number;
+    waiverCount: number;
+  }>;
+  isImportingSleeperTradeCenter: boolean;
   onScoutLeaguemates: () => void;
   currentReportDeltaSnapshot: ReportDeltaSnapshot | null;
   previousReportDeltaSnapshot: ReportDeltaSnapshot | null;
@@ -118,6 +124,7 @@ export function HomeReportExperience({
   isAdminPassphraseVerifiedForSession,
   isChangeLeagueModalOpen,
   isHomePortfolioLoading,
+  isImportingSleeperTradeCenter,
   isLoadingRevealPhase,
   leagueFormat,
   leagueFormatPills,
@@ -133,6 +140,7 @@ export function HomeReportExperience({
   onAnalyzeAnotherLeague,
   onChangeLeagueOpenChange,
   onHeaderLeagueClick,
+  onImportSleeperTradeCenter,
   onLeagueRosterScannerModeChange,
   onOwnerIntelSortModeChange,
   onPortfolioExposureFilterChange,
@@ -257,6 +265,8 @@ export function HomeReportExperience({
             leagueRosterScannerMode={leagueRosterScannerMode}
             leagueValueMode={leagueValueMode}
             onAnalyze={onAnalyze}
+            onImportSleeperTradeCenter={onImportSleeperTradeCenter}
+            isImportingSleeperTradeCenter={isImportingSleeperTradeCenter}
             onOwnerIntelSortModeChange={onOwnerIntelSortModeChange}
             onScoutLeaguemates={onScoutLeaguemates}
             ownerIntelSortMode={ownerIntelSortMode}

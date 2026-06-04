@@ -167,6 +167,12 @@ type ReportDashboardContentProps = {
   rankingsForReport: ReportData["rankings"];
   rankingsQueryIsLoading: boolean;
   onAnalyze: () => void;
+  onImportSleeperTradeCenter: (authToken: string) => Promise<{
+    transactionCount: number;
+    tradeCount: number;
+    waiverCount: number;
+  }>;
+  isImportingSleeperTradeCenter: boolean;
   onScoutLeaguemates: () => void;
   tradeWarKicker: string;
   previousSavedAt?: number | null;
@@ -191,6 +197,8 @@ export function ReportDashboardContent({
   dashboardViewerManager,
   isRedraftReport,
   leagueFormat,
+  isImportingSleeperTradeCenter,
+  onImportSleeperTradeCenter,
   leagueId,
   leagueLogo,
   leagueName,
@@ -415,6 +423,8 @@ export function ReportDashboardContent({
                   leagueId={leagueId}
                   leagueLogo={leagueLogo}
                   leagueValueMode={leagueValueMode}
+                  isImportingSleeperTradeCenter={isImportingSleeperTradeCenter}
+                  onImportSleeperTradeCenter={onImportSleeperTradeCenter}
                   effectiveViewerManager={effectiveViewerManager}
                   rankingsForReport={rankingsForReport}
                   tradeWarKicker={tradeWarKicker}
