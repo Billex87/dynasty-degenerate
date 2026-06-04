@@ -25,6 +25,7 @@ import { buildRankingsBoard } from "./rankingsBoard";
 import { attachLeagueAiConfidence, loadRecentLeagueAiConfidenceSnapshots, persistLeagueAiConfidenceSnapshot } from "./leagueAiConfidence";
 import { fetchEspnDepthChartsForPlayersWithDiagnostics, type EspnDepthChartEntry } from "./espnDepthCharts";
 import { buildMatchupPreviews, buildSchedulePlanningSummary } from "./schedulePlanning";
+import { buildLineupStrength } from "./lineupStrength";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
 import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadResponse, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
@@ -2819,6 +2820,31 @@ function stripWeeklyProjectionFromWaiverTarget<T extends { player?: any }>(targe
   };
 }
 
+function stripWeeklyProjectionFromLineupStrength(lineupStrength: ReportData['lineupStrength']): ReportData['lineupStrength'] {
+  if (!lineupStrength) return lineupStrength;
+  return {
+    ...lineupStrength,
+    projectionStatus: 'blocked',
+    status: lineupStrength.status === 'ready' ? 'partial' : lineupStrength.status,
+    note: 'Stored weekly projections are disabled, so lineup strength is served with value/rank context only.',
+    rows: (lineupStrength.rows || []).map((row) => ({
+      ...row,
+      projectionPoints: null,
+      projectionScore: 0,
+      status: row.status === 'ready' ? 'partial' : row.status,
+      confidenceCapReason: row.confidenceCapReason || 'Weekly projections are disabled for this response.',
+      topStarter: stripWeeklyProjectionFromPlayer(row.topStarter as any) || null,
+      weakestStarter: stripWeeklyProjectionFromPlayer(row.weakestStarter as any) || null,
+      benchAlternatives: (row.benchAlternatives || []).map((alternative) => ({
+        ...alternative,
+        starter: stripWeeklyProjectionFromPlayer(alternative.starter as any),
+        alternative: stripWeeklyProjectionFromPlayer(alternative.alternative as any),
+        projectionDelta: null,
+      })),
+    })),
+  };
+}
+
 function stripWeeklyProjectionContextFromReportData(reportData: ReportData): ReportData {
   return {
     ...reportData,
@@ -2851,6 +2877,7 @@ function stripWeeklyProjectionContextFromReportData(reportData: ReportData): Rep
         players: stripWeeklyProjectionFromPlayerArray(group.players) || [],
       })),
     })),
+    lineupStrength: stripWeeklyProjectionFromLineupStrength(reportData.lineupStrength),
     matchupPreviews: (reportData.matchupPreviews || []).filter((preview) => !/stored weekly projection/i.test(preview.source || '')),
     waiverIntelligence: reportData.waiverIntelligence
       ? {
@@ -9179,6 +9206,12 @@ export const appRouter = router({
             scheduleEdgeTargets,
             schedulePlanning,
             matchupPreviews,
+            lineupStrength: buildLineupStrength({
+              ...reportData,
+              playerDetailsById: playerDetailsWithSituationById,
+              weeklyProjectionDiagnostics,
+              matchupPreviews,
+            }),
             recentTransactions: allRecentTransactions,
             transactionBackfillDiagnostics,
             adminTradeProposalSignals,

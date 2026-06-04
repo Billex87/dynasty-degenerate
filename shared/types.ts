@@ -385,6 +385,55 @@ export interface ManagerStarterGroup {
   players: ManagerStarterPlayer[];
 }
 
+export interface LineupStrengthBenchAlternative {
+  starter: ManagerStarterPlayer;
+  alternative: ManagerStarterPlayer;
+  scoreDelta: number;
+  projectionDelta: number | null;
+  valueDelta: number;
+  note: string;
+}
+
+export interface LineupStrengthPositionEdge {
+  position: string;
+  managerScore: number;
+  opponentScore: number | null;
+  edge: number | null;
+  note: string;
+}
+
+export interface LineupStrengthManagerRead {
+  manager: string;
+  opponentManager: string | null;
+  status: 'ready' | 'value-only' | 'partial';
+  starterSource?: 'Sleeper' | 'Projected';
+  starterCount: number;
+  valueScore: number;
+  projectionPoints: number | null;
+  projectionScore: number;
+  scheduleScore: number | null;
+  totalScore: number;
+  opponentTotalScore: number | null;
+  edge: number | null;
+  confidence: number;
+  confidenceCapReason: string | null;
+  summary: string;
+  topStarter: ManagerStarterPlayer | null;
+  weakestStarter: ManagerStarterPlayer | null;
+  benchAlternatives: LineupStrengthBenchAlternative[];
+  positionEdges: LineupStrengthPositionEdge[];
+}
+
+export interface LineupStrengthSummary {
+  status: 'ready' | 'partial' | 'value-only';
+  source: 'stored-report-lineup';
+  projectionStatus: 'ready' | 'blocked' | 'warning' | 'missing';
+  scheduleStatus: 'ready' | 'partial' | 'missing';
+  generatedAt: string;
+  rows: LineupStrengthManagerRead[];
+  note: string;
+}
+
 export interface ManagerIntelPlayer {
   player_id: string;
   name: string;
@@ -2078,6 +2127,7 @@ export interface ReportData {
   pickPortfolios?: PickPortfolio[];
   waiverIntelligence?: WaiverIntelligence;
   scheduleEdgeTargets?: WaiverWeeklyEcrTarget[];
+  lineupStrength?: LineupStrengthSummary;
   matchupPreviews?: MatchupPreview[];
   schedulePlanning?: SchedulePlanningSummary;
   recentTransactions?: RecentTransaction[];
