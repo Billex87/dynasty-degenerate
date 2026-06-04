@@ -7,6 +7,12 @@
       "includeFiles": "{dist/vercelApp.js,server/ktc-static/*.json,server/prospect-snapshots/*.json,server/rookie-values/*.json,server/model-calibration/*.json}"
     }
   },
+  "rewrites": [
+    {
+      "source": "/:path((?!api/).*)",
+      "destination": "/"
+    }
+  ],
   "headers": [
     {
       "source": "/api/:path*",
