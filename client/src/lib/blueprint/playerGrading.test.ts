@@ -87,6 +87,22 @@ describe('gradePlayer', () => {
     expect(grade.archetype).toBe('Upside Shot');
   });
 
+  it('reads seasonSOS as a 0-100 difficulty (easier schedule grades higher)', () => {
+    const base = {
+      pos: 'WR',
+      lastSeasonPointsPerGame: 12,
+      lastSeasonGames: 16,
+      currentPositionRank: 'WR20',
+    } as const;
+    const easy = gradePlayer(makePlayer({ player_id: 'wr-easy', ...base, playerDetails: { age: 25, isStarter: true, schedule: { seasonSOS: 20 } } }), 'dynasty')!;
+    const hard = gradePlayer(makePlayer({ player_id: 'wr-hard', ...base, playerDetails: { age: 25, isStarter: true, schedule: { seasonSOS: 85 } } }), 'dynasty')!;
+    const neutral = gradePlayer(makePlayer({ player_id: 'wr-neu', ...base, playerDetails: { age: 25, isStarter: true, schedule: { seasonSOS: 50 } } }), 'dynasty')!;
+    expect(easy.situational).toBeGreaterThan(neutral.situational);
+    expect(neutral.situational).toBeGreaterThan(hard.situational);
+    // A neutral SOS of 50 must not collapse the situational score toward zero.
+    expect(neutral.situational).toBeGreaterThan(3);
+  });
+
   it('returns null for non-graded positions', () => {
     expect(gradePlayer(makePlayer({ player_id: 'k1', pos: 'K' }), 'dynasty')).toBeNull();
     expect(gradePlayer(makePlayer({ player_id: 'def1', pos: 'DEF' }), 'dynasty')).toBeNull();

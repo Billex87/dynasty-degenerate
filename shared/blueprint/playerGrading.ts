@@ -178,12 +178,13 @@ function scoreSituational(player: ManagerIntelPlayer, position: Position): numbe
   const details = player.playerDetails;
   const parts: number[] = [];
 
-  // Strength of schedule: lower SOS rank (easier) is better. seasonSOS is treated
-  // as a 0-1 difficulty where lower is easier when present.
+  // Strength of schedule: seasonSOS is a 0-100 difficulty percentage where 50 is
+  // neutral and higher is harder (matches schedulePlanning / PlayerDetailModal).
+  // Easier schedule -> higher score. Accept a legacy 0-1 difficulty too.
   const sos = details?.schedule?.seasonSOS ?? null;
   if (sos !== null) {
-    const normalized = sos > 1 ? sos / 32 : sos; // accept rank (1-32) or 0-1 difficulty
-    parts.push(clamp(10 - normalized * 10));
+    const difficulty = sos > 1 ? Math.max(0, Math.min(100, sos)) / 100 : Math.max(0, Math.min(1, sos));
+    parts.push(clamp(10 - difficulty * 10));
   }
   const tier = String(details?.schedule?.scheduleTier || '').toLowerCase();
   if (tier) {
@@ -281,27 +282,18 @@ export function gradeRoster(players: ManagerIntelPlayer[], valueMode?: LeagueVal
     .map((player) => gradePlayer(player, valueMode))
     .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 
+  // Rank inline in sorted order so ranks are correct even when player_id is
+  // missing or duplicated (an id-keyed map would collide on those).
   const positionCounters = new Map<string, number>();
   const byPositionSorted = [...graded].sort((a, b) => b.composite - a.composite);
-  const compositeRankById = new Map<string, { positionRank: number; label: string }>();
-
-  for (const entry of byPositionSorted) {
-    const pos = normalizePosition(entry.player.pos);
-    if (!pos) continue;
-    const next = (positionCounters.get(pos) || 0) + 1;
-    positionCounters.set(pos, next);
-    compositeRankById.set(entry.player.player_id, {
-      positionRank: next,
-      label: `${pos}${next}`,
-    });
-  }
 
   return byPositionSorted.map((entry) => {
-    const rankInfo = compositeRankById.get(entry.player.player_id);
-    return {
-      ...entry,
-      positionRank: rankInfo?.positionRank ?? 0,
-      compositePositionRank: rankInfo?.label ?? entry.player.pos,
-    };
+    const pos = normalizePosition(entry.player.pos);
+    if (!pos) {
+      return { ...entry, positionRank: 0, compositePositionRank: entry.player.pos };
+    }
+    const next = (positionCounters.get(pos) || 0) + 1;
+    positionCounters.set(pos, next);
+    return { ...entry, positionRank: next, compositePositionRank: `${pos}${next}` };
   });
 }
