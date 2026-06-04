@@ -29,7 +29,7 @@ export function MediaTile({
   children,
   className = "",
   ...rest
-}: React.HTMLAttributes<HTMLElement> & MediaTileProps) {
+}: Omit<React.HTMLAttributes<HTMLElement>, "title"> & MediaTileProps) {
   return (
     <article
       className={buildTileClassName({

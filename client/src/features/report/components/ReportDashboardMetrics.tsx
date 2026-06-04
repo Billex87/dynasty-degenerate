@@ -76,7 +76,7 @@ export function DashboardMetricCard({
 }: {
   label: string;
   value: ReactNode;
-  subLabel?: string;
+  subLabel?: ReactNode;
   tone?: DashboardMetricTone;
   className?: string;
   helper?: ReactNode;
@@ -101,10 +101,10 @@ export function DashboardRingMetric({
   tone = "good",
   helper,
 }: {
-  title: string;
+  title: ReactNode;
   value?: ReactNode;
   score: number | null;
-  label: string;
+  label: ReactNode;
   tone?: "info" | "good" | "warn" | "danger";
   helper?: ReactNode;
 }) {
@@ -167,7 +167,7 @@ export function DashboardMeterMetric({
 }: {
   label: string;
   value: ReactNode;
-  subLabel?: string;
+  subLabel?: ReactNode;
   score: number | null;
   tone?: "info" | "good" | "warn" | "danger";
   helper?: ReactNode;

@@ -37,7 +37,7 @@ export function CompactTile({
   className = "",
   children,
   ...rest
-}: React.HTMLAttributes<HTMLElement> & CompactTileVariantProps) {
+}: Omit<React.HTMLAttributes<HTMLElement>, "title"> & CompactTileVariantProps) {
   const Tag = as;
 
   return (

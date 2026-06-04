@@ -29,7 +29,7 @@ export function HeroTile({
   children,
   className = "",
   ...rest
-}: React.HTMLAttributes<HTMLElement> & HeroTileProps) {
+}: Omit<React.HTMLAttributes<HTMLElement>, "title"> & HeroTileProps) {
   return (
     <section
       className={buildTileClassName({
