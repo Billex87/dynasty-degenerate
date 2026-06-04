@@ -11467,6 +11467,20 @@
   flex: 1 1 100% !important;
 }
 
+/* Owner Intel Lab "TRUTH/TRASH" manager chips cap each chip at ~50% of the
+   row, so a worst-case-long username (e.g. "MyNameIsBillex") overruns its box
+   by a few px and gets hard-cut. Mirror the collapsed-summary treatment in the
+   expanded preview rows so the name truncates with a clean ellipsis instead. */
+.report-shell .report-disclosure-preview-row .analysis-preview-chip.analysis-preview-chip-manager-preview .analysis-preview-manager-value .analysis-preview-manager-name,
+.report-shell .report-disclosure-preview-row .analysis-preview-chip.analysis-preview-chip-starter-room .analysis-preview-manager-value .analysis-preview-manager-name {
+  display: inline-block !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+}
+
 .report-shell .report-disclosure-summary .report-disclosure-preview-row.report-disclosure-preview-row-middle .report-disclosure-preview-slot .analysis-preview-chip-row-single {
   display: flex !important;
   width: 100% !important;

@@ -7984,6 +7984,29 @@ body {
   overflow: hidden;
 }
 
+/* Keep the "#8" rank badge on a single line — in the narrower cards the "#"
+   and the digit were breaking onto two lines. */
+.dashboard-position-ranks .dd-tile__aside,
+.dashboard-starter-ranks .dd-tile__aside,
+.dashboard-position-ranks .dd-tile__aside > strong,
+.dashboard-starter-ranks .dd-tile__aside > strong {
+  white-space: nowrap;
+}
+
+/* On phones, 3 rank cards per row leaves the position label + rank badge
+   fighting for ~110px, which clipped the badge. Drop to 2 per row so the
+   single-line badge has room (matches the 2-col layout used elsewhere).
+   Both the Full Roster and Projected Starter grids share these card styles. */
+@media (max-width: 767px) {
+  .dashboard-position-rank-block .dashboard-position-ranks span,
+  .dashboard-starter-ranks .dashboard-position-ranks span,
+  .dashboard-position-ranks span,
+  .dashboard-starter-ranks span {
+    flex: 0 1 calc((100% - 0.45rem) / 2) !important;
+    max-width: calc((100% - 0.45rem) / 2) !important;
+  }
+}
+
 .dashboard-position-ranks span[data-position="QB"] {
   border-color: rgba(168, 85, 247, 0.28);
   background:
@@ -11664,9 +11687,9 @@ body {
 
   .home-footer-slot .support-button {
     position: relative;
-    width: min(9.5rem, 30vw);
+    width: min(10.25rem, 33vw);
     min-height: 2rem;
-    max-width: min(9.5rem, 30vw);
+    max-width: min(10.25rem, 33vw);
     justify-content: center;
     gap: 0;
     padding-inline: 0.54rem;
@@ -11675,9 +11698,9 @@ body {
 
   .home-footer-slot .feedback-button.feedback-button-compact {
     position: relative;
-    width: min(9.5rem, 30vw);
+    width: min(10.25rem, 33vw);
     min-height: 2rem;
-    max-width: min(9.5rem, 30vw);
+    max-width: min(10.25rem, 33vw);
     justify-content: center;
     gap: 0;
     padding-inline: 0.54rem;
@@ -11688,7 +11711,9 @@ body {
     display: block;
     width: 100%;
     text-align: center;
-    white-space: pre-line;
+    /* pre (not pre-line) keeps the intended "Buy Me A" / "Coffee" split while
+       preventing the first line from collapsing into a 3rd wrapped line. */
+    white-space: pre;
   }
 
   .home-footer-slot .feedback-button .feedback-button-copy {

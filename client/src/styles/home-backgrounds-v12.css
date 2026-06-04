@@ -574,6 +574,22 @@
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    /* Fade the leading/trailing cards so the auto-scroll reads as an
+       intentional marquee instead of a hard-cropped row. */
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 0,
+      #000 4%,
+      #000 96%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0,
+      #000 4%,
+      #000 96%,
+      transparent 100%
+    );
   }
 
   .home-shell .home-hero-dashboard .home-feature-carousel-window::-webkit-scrollbar {
@@ -914,17 +930,16 @@
 
   .home-shell .home-hero-dashboard .home-feature-grid {
     --home-feature-gap: 0.75rem;
-    display: flex !important;
+    display: grid !important;
     width: 100% !important;
     max-width: none !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 0.75rem !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: visible;
-    grid-template-columns: none !important;
-    transform: translate3d(0, 0, 0);
-    animation: home-feature-carousel-step 24s ease-in-out infinite;
-    will-change: transform;
+    transform: none !important;
+    animation: none !important;
   }
 
   .home-shell .home-hero-dashboard .home-feature-card {
@@ -932,16 +947,17 @@
     isolation: isolate;
     overflow: hidden;
     display: grid;
-    flex: 0 0 calc((100% - var(--home-feature-gap)) / 2);
-    width: calc((100% - var(--home-feature-gap)) / 2) !important;
+    width: auto !important;
     min-height: 10.45rem;
     align-content: start;
     gap: 0.34rem;
     padding: 0.78rem 0.9rem 0.92rem !important;
   }
 
+  /* All six weapons are scannable in a static 2-col grid on mobile, so the
+     duplicated marquee clones are not needed. */
   .home-shell .home-hero-dashboard .home-feature-card-clone {
-    display: grid !important;
+    display: none !important;
   }
 
   .home-shell .home-hero-dashboard .home-feature-heading {
@@ -1042,47 +1058,6 @@
   }
 
   88%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes home-feature-carousel-step {
-  0%,
-  11% {
-    transform: translate3d(0, 0, 0);
-  }
-
-  15%,
-  26% {
-    transform: translate3d(calc(-50% - (var(--home-feature-gap) / 2)), 0, 0);
-  }
-
-  30%,
-  41% {
-    transform: translate3d(calc(-100% - var(--home-feature-gap)), 0, 0);
-  }
-
-  45%,
-  56% {
-    transform: translate3d(calc(-150% - var(--home-feature-gap) - (var(--home-feature-gap) / 2)), 0, 0);
-  }
-
-  60%,
-  71% {
-    transform: translate3d(calc(-200% - var(--home-feature-gap) - var(--home-feature-gap)), 0, 0);
-  }
-
-  75%,
-  86% {
-    transform: translate3d(calc(-250% - var(--home-feature-gap) - var(--home-feature-gap) - (var(--home-feature-gap) / 2)), 0, 0);
-  }
-
-  90%,
-  99.9% {
-    transform: translate3d(calc(-300% - var(--home-feature-gap) - var(--home-feature-gap) - var(--home-feature-gap)), 0, 0);
-  }
-
   100% {
     transform: translate3d(0, 0, 0);
   }
