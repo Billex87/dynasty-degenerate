@@ -1150,9 +1150,11 @@ export function MonthlyTeamBlueprint({
 
   // League-wide roster rollup grades every manager's roster, so memoize it —
   // otherwise unrelated re-renders (e.g. share-status changes) regrade the field.
+  // Keyed on `data` (the true input); getManagerOptions returns a fresh array each
+  // call, so depending on it directly would defeat the memo.
   const leagueRollups = useMemo(
     () =>
-      managerOptions.map((rosterManager) => {
+      getManagerOptions(data).map((rosterManager) => {
         const rosterIntel = getIntel(data, rosterManager);
         const rosterCounts =
           data.managerPositionCounts?.find((row) => row.manager === rosterManager) || null;
@@ -1168,7 +1170,7 @@ export function MonthlyTeamBlueprint({
           valueMode: blueprintValueMode,
         });
       }),
-    [managerOptions, data, blueprintValueMode],
+    [data, blueprintValueMode],
   );
 
   if (!managerOptions.length || !intel) {
