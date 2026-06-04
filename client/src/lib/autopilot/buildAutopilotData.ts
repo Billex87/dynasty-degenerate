@@ -66,6 +66,7 @@ type AutopilotRosterOwnerLookup = {
 };
 
 type ScheduleStreamerCandidate = NonNullable<NonNullable<ReportData['schedulePlanning']>['streamerCandidates']>[number];
+type RedraftValuationRead = NonNullable<NonNullable<ReportData['redraftValuation']>['rows']>[number];
 
 type AutopilotBuildInput = {
   reportData?: ReportData;
@@ -419,6 +420,59 @@ function findBestProjectionSwap(
   return best;
 }
 
+function findBestRedraftValuationSwap(
+  data: ReportData,
+  managerRow: ReportData['managerPositionCounts'][number] | null | undefined,
+): { starter: AutopilotPlayerLike; candidate: AutopilotPlayerLike; starterRead: RedraftValuationRead; candidateRead: RedraftValuationRead; edge: number } | null {
+  if (!managerRow || data.redraftValuation?.status === 'value-only') return null;
+  const lookup = buildRedraftValuationLookup(data);
+  if (!lookup.size) return null;
+  const starters = managerRow.starterPlayers || [];
+  const starterKeys = new Set(starters.map(getPlayerIdentityKey).filter(Boolean));
+  const candidates = (managerRow.lineupPlayers?.length ? managerRow.lineupPlayers : managerRow.rosterPlayers || [])
+    .filter((player) => !starterKeys.has(getPlayerIdentityKey(player)))
+    .filter(isAutopilotLineupCandidateAvailable);
+  let best: { starter: AutopilotPlayerLike; candidate: AutopilotPlayerLike; starterRead: RedraftValuationRead; candidateRead: RedraftValuationRead; edge: number } | null = null;
+  for (const starter of starters) {
+    const starterRead = getRedraftValuationRead(lookup, starter);
+    if (!isProjectionBackedRedraftValuation(data, starterRead)) continue;
+    for (const candidate of candidates) {
+      if (!canReplaceStarterInKnownSlot({ candidate, starter, managerRow })) continue;
+      const candidateRead = getRedraftValuationRead(lookup, candidate);
+      if (!isProjectionBackedRedraftValuation(data, candidateRead)) continue;
+      const edge = Math.round(candidateRead.finalValue - starterRead.finalValue);
+      if (edge < 700) continue;
+      if (!best || edge > best.edge) best = { starter, candidate, starterRead, candidateRead, edge };
+    }
+  }
+  return best;
+}
+
+type LineupStrengthRowRead = NonNullable<ReportData['lineupStrength']>['rows'][number];
+type LineupStrengthAlternativeRead = LineupStrengthRowRead['benchAlternatives'][number];
+
+function findBestLineupStrengthAlternative(
+  data: ReportData,
+  manager?: string | null,
+): { row: LineupStrengthRowRead; alternative: LineupStrengthAlternativeRead } | null {
+  const row = data.lineupStrength?.rows.find((item) => sameManager(item.manager, manager))
+    || data.lineupStrength?.rows[0]
+    || null;
+  if (!row?.benchAlternatives?.length) return null;
+
+  const candidate = row.benchAlternatives
+    .filter((alternative) => alternative.decision === 'upgrade' || alternative.decision === 'close-call')
+    .sort((left, right) => {
+      const leftPriority = left.decision === 'upgrade' && row.status !== 'value-only' ? 2 : 1;
+      const rightPriority = right.decision === 'upgrade' && row.status !== 'value-only' ? 2 : 1;
+      return rightPriority - leftPriority
+        || right.confidence - left.confidence
+        || right.scoreDelta - left.scoreDelta;
+    })[0] || null;
+
+  return candidate ? { row, alternative: candidate } : null;
+}
+
 function getPlayerAge(player?: AutopilotPlayerLike | null): number | null {
   return safeNumber(player?.age ?? player?.playerDetails?.age);
 }
@@ -457,6 +511,84 @@ function getAutopilotPlayerRank(player?: AutopilotPlayerLike | null, mode: Autop
     mode,
     context: mode === 'redraft' ? 'starter' : 'rankings',
   });
+}
+
+function getRedraftValuationLookupKeys(player?: AutopilotPlayerLike | null): string[] {
+  if (!player) return [];
+  const playerId = String(player.player_id || '').trim();
+  const nameKey = normalizeAutopilotLookupValue(player.name || player.playerDetails?.fullName);
+  const position = normalizeAutopilotPosition(getPlayerPosition(player));
+  return [
+    playerId ? `id:${playerId}` : null,
+    nameKey && position ? `name-position:${nameKey}:${position}` : null,
+    nameKey ? `name:${nameKey}` : null,
+  ].filter((key): key is string => Boolean(key));
+}
+
+function buildRedraftValuationLookup(data: ReportData): Map<string, RedraftValuationRead> {
+  const lookup = new Map<string, RedraftValuationRead>();
+  for (const row of data.redraftValuation?.rows || []) {
+    const finalValue = safeNumber(row.finalValue);
+    if (finalValue === null || finalValue <= 0) continue;
+    const rowLike: AutopilotPlayerLike = {
+      player_id: row.playerId,
+      name: row.name,
+      position: row.position,
+    };
+    for (const key of getRedraftValuationLookupKeys(rowLike)) {
+      if (!lookup.has(key)) lookup.set(key, row);
+    }
+  }
+  return lookup;
+}
+
+function getRedraftValuationRead(
+  lookup: Map<string, RedraftValuationRead> | null | undefined,
+  player?: AutopilotPlayerLike | null,
+): RedraftValuationRead | null {
+  if (!lookup?.size || !player) return null;
+  for (const key of getRedraftValuationLookupKeys(player)) {
+    const row = lookup.get(key);
+    if (row) return row;
+  }
+  return null;
+}
+
+function getAutopilotPlayerValueWithRedraftRead(
+  player: AutopilotPlayerLike,
+  mode: AutopilotMode,
+  redraftRead?: RedraftValuationRead | null,
+) {
+  const redraftValue = mode === 'redraft' ? safeNumber(redraftRead?.finalValue) : null;
+  return redraftValue && redraftValue > 0
+    ? redraftValue
+    : getAutopilotPlayerValue(player, mode);
+}
+
+function isProjectionBackedRedraftValuation(
+  data: ReportData,
+  row?: RedraftValuationRead | null,
+): row is RedraftValuationRead {
+  if (!row || row.status === 'value-only') return false;
+  const summary = data.redraftValuation;
+  if (!summary || summary.status === 'value-only') return false;
+  return summary.projectionStatus === 'ready' || summary.projectionStatus === 'warning';
+}
+
+function getRedraftValuationSignal(data: ReportData, row?: RedraftValuationRead | null) {
+  return isProjectionBackedRedraftValuation(data, row)
+    ? 'Blended redraft value'
+    : row
+      ? 'Stored redraft value'
+      : null;
+}
+
+function getRedraftValuationEvidenceLabel(data: ReportData, row?: RedraftValuationRead | null) {
+  return isProjectionBackedRedraftValuation(data, row)
+    ? 'blended redraft valuation'
+    : row
+      ? 'stored redraft valuation'
+      : null;
 }
 
 function describePlayer(player?: AutopilotPlayerLike | null, mode: AutopilotMode = 'dynasty') {
@@ -1251,6 +1383,12 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
   const bestStarter = getBestStarter(managerPositionRow, mode);
   const cards: AutopilotRecommendation[] = [];
   const projectionSwap = findBestProjectionSwap(managerPositionRow);
+  const lineupStrengthAlternative = !projectionSwap
+    ? findBestLineupStrengthAlternative(data, manager)
+    : null;
+  const redraftValuationSwap = !projectionSwap && !lineupStrengthAlternative && mode === 'redraft'
+    ? findBestRedraftValuationSwap(data, managerPositionRow)
+    : null;
 
   if (projectionSwap) {
     const candidateRead = formatWeeklyProjectionRead(projectionSwap.candidate);
@@ -1284,6 +1422,108 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
         expectedLineupChange: `${getPlayerName(projectionSwap.candidate)} should start over ${getPlayerName(projectionSwap.starter)}.`,
         source: 'autopilot',
         reason: `Stored weekly projection edge is ${projectionSwap.edge.toFixed(1)} points.`,
+      },
+      tone: 'good',
+    });
+  }
+
+  if (lineupStrengthAlternative) {
+    const { row: strengthRow, alternative: strengthAlternative } = lineupStrengthAlternative;
+    const isDirectUpgrade = strengthAlternative.decision === 'upgrade' && strengthRow.status !== 'value-only';
+    const alternativeName = getPlayerName(strengthAlternative.alternative);
+    const starterName = getPlayerName(strengthAlternative.starter);
+    const projectionCopy = strengthAlternative.projectionDelta === null
+      ? 'No trusted projection edge is attached.'
+      : `${strengthAlternative.projectionDelta >= 0 ? '+' : ''}${strengthAlternative.projectionDelta.toFixed(1)} point projection edge is attached.`;
+    cards.push({
+      id: `lineup-strength-${isDirectUpgrade ? 'upgrade' : 'close-call'}-${strengthAlternative.alternative.player_id || strengthAlternative.alternative.name}-${strengthAlternative.starter.player_id || strengthAlternative.starter.name}`,
+      type: isDirectUpgrade ? 'Start/Sit' : 'Lineup review',
+      playerId: strengthAlternative.alternative.player_id || null,
+      player: alternativeName,
+      secondaryPlayerId: strengthAlternative.starter.player_id || null,
+      secondary: isDirectUpgrade ? `over ${starterName}` : `vs ${starterName}`,
+      action: isDirectUpgrade ? 'Start' : 'Review starter slot',
+      confidence: recommendationConfidence(strengthAlternative.confidence, [
+        strengthAlternative.scoreDelta,
+        strengthAlternative.projectionDelta,
+        strengthAlternative.closeCallReason,
+      ]),
+      risk: isDirectUpgrade && strengthAlternative.confidence >= 76 ? 'Low' : 'Medium',
+      upside: strengthAlternative.scoreDelta >= 12 ? 'High' : 'Medium',
+      summary: isDirectUpgrade
+        ? `${alternativeName} clears ${starterName} by ${strengthAlternative.scoreDelta} lineup-strength points.`
+        : `${alternativeName} versus ${starterName} is a lineup-strength close call, not an automatic start.`,
+      reasons: dedupeStrings([
+        strengthAlternative.note,
+        projectionCopy,
+        strengthAlternative.closeCallReason,
+        strengthRow.confidenceCapReason,
+        strengthRow.projectedWinProbability
+          ? `Projected win probability read: ${strengthRow.projectedWinProbability.probability.toFixed(1)}%.`
+          : null,
+        strengthRow.projectionRange
+          ? `Derived projection range: ${strengthRow.projectionRange.floorPoints.toFixed(1)}-${strengthRow.projectionRange.ceilingPoints.toFixed(1)} points.`
+          : null,
+      ], 4),
+      signals: dedupeStrings([
+        'Lineup strength',
+        strengthAlternative.decision === 'upgrade' && strengthRow.status !== 'value-only' ? 'Upgrade' : 'Close call',
+        strengthAlternative.projectionDelta !== null ? 'Projection edge' : null,
+        strengthRow.status === 'value-only' ? 'Value-only guard' : null,
+      ], 4),
+      expectedAction: isDirectUpgrade
+        ? {
+          type: 'swap_starter',
+          playerIn: toRecommendationPlayerRef(strengthAlternative.alternative),
+          playerOut: toRecommendationPlayerRef(strengthAlternative.starter),
+          playersInvolved: [toRecommendationPlayerRef(strengthAlternative.alternative), toRecommendationPlayerRef(strengthAlternative.starter)].filter(Boolean) as RecommendationPlayerRef[],
+          expectedLineupChange: `${alternativeName} should start over ${starterName}.`,
+          source: 'autopilot',
+          reason: strengthAlternative.note,
+        }
+        : {
+          type: 'hold',
+          playersInvolved: [toRecommendationPlayerRef(strengthAlternative.alternative), toRecommendationPlayerRef(strengthAlternative.starter)].filter(Boolean) as RecommendationPlayerRef[],
+          expectedLineupChange: `No automatic lineup change: review ${alternativeName} against ${starterName} after fresh lock/news context.`,
+          source: 'autopilot',
+          reason: strengthAlternative.closeCallReason || strengthRow.confidenceCapReason || 'Lineup-strength edge is not strong enough for a direct swap.',
+        },
+      tone: isDirectUpgrade ? 'good' : 'warn',
+    });
+  }
+
+  if (redraftValuationSwap) {
+    const edgeLabel = formatCompactValue(redraftValuationSwap.edge);
+    cards.push({
+      id: `lineup-redraft-valuation-swap-${redraftValuationSwap.candidate.player_id || redraftValuationSwap.candidate.name}-${redraftValuationSwap.starter.player_id || redraftValuationSwap.starter.name}`,
+      type: 'Start/Sit',
+      playerId: redraftValuationSwap.candidate.player_id || null,
+      player: getPlayerName(redraftValuationSwap.candidate),
+      secondaryPlayerId: redraftValuationSwap.starter.player_id || null,
+      secondary: `over ${getPlayerName(redraftValuationSwap.starter)}`,
+      action: 'Start',
+      confidence: recommendationConfidence(
+        Math.min(86, 70 + redraftValuationSwap.edge / 350),
+        [redraftValuationSwap.candidateRead, redraftValuationSwap.starterRead],
+      ),
+      risk: redraftValuationSwap.edge >= 1600 ? 'Low' : 'Medium',
+      upside: redraftValuationSwap.edge >= 1600 ? 'High' : 'Medium',
+      summary: `${getPlayerName(redraftValuationSwap.candidate)} has a ${edgeLabel} stored redraft valuation edge over ${getPlayerName(redraftValuationSwap.starter)}.`,
+      reasons: dedupeStrings([
+        `${getPlayerName(redraftValuationSwap.candidate)} is eligible for ${getPlayerName(redraftValuationSwap.starter)}'s current starter slot.`,
+        `${formatCompactValue(redraftValuationSwap.candidateRead.finalValue)} projection-backed redraft valuation is loaded for ${getPlayerName(redraftValuationSwap.candidate)}.`,
+        `${formatCompactValue(redraftValuationSwap.starterRead.finalValue)} projection-backed redraft valuation is loaded for ${getPlayerName(redraftValuationSwap.starter)}.`,
+        'No stronger stored weekly projection swap was available, so this stays on the valuation-backed redraft path.',
+      ], 4),
+      signals: dedupeStrings(['Blended redraft value', `${edgeLabel} value edge`, getPlayerLineupPosition(redraftValuationSwap.candidate), 'Season lens'], 4),
+      expectedAction: {
+        type: 'swap_starter',
+        playerIn: toRecommendationPlayerRef(redraftValuationSwap.candidate),
+        playerOut: toRecommendationPlayerRef(redraftValuationSwap.starter),
+        playersInvolved: [toRecommendationPlayerRef(redraftValuationSwap.candidate), toRecommendationPlayerRef(redraftValuationSwap.starter)].filter(Boolean) as RecommendationPlayerRef[],
+        expectedLineupChange: `${getPlayerName(redraftValuationSwap.candidate)} should start over ${getPlayerName(redraftValuationSwap.starter)}.`,
+        source: 'autopilot',
+        reason: `Stored redraft valuation edge is ${edgeLabel}.`,
       },
       tone: 'good',
     });
@@ -2606,7 +2846,12 @@ function buildFuturePickTrajectory(data: ReportData, manager: string): FuturePic
   };
 }
 
-function collectWaiverCandidates(data: ReportData, mode: AutopilotMode, intel?: ManagerRosterIntelligence | null): TrendingPlayer[] {
+function collectWaiverCandidates(
+  data: ReportData,
+  mode: AutopilotMode,
+  intel?: ManagerRosterIntelligence | null,
+  redraftValuationLookup?: Map<string, RedraftValuationRead> | null,
+): TrendingPlayer[] {
   const waiver = data.waiverIntelligence;
   if (!waiver) return [];
   const rosterOwnerLookup = buildAutopilotRosterOwnerLookup(data);
@@ -2638,11 +2883,17 @@ function collectWaiverCandidates(data: ReportData, mode: AutopilotMode, intel?: 
       seen.add(key);
       return true;
     })
-    .sort((a, b) => scoreWaiverCandidate(b, mode, intel) - scoreWaiverCandidate(a, mode, intel));
+    .sort((a, b) => scoreWaiverCandidate(b, mode, intel, redraftValuationLookup) - scoreWaiverCandidate(a, mode, intel, redraftValuationLookup));
 }
 
-function scoreWaiverCandidate(player: TrendingPlayer, mode: AutopilotMode, intel?: ManagerRosterIntelligence | null) {
-  const value = getAutopilotPlayerValue(player, mode) || 0;
+function scoreWaiverCandidate(
+  player: TrendingPlayer,
+  mode: AutopilotMode,
+  intel?: ManagerRosterIntelligence | null,
+  redraftValuationLookup?: Map<string, RedraftValuationRead> | null,
+) {
+  const redraftRead = mode === 'redraft' ? getRedraftValuationRead(redraftValuationLookup, player) : null;
+  const value = getAutopilotPlayerValueWithRedraftRead(player, mode, redraftRead) || 0;
   const rank = parsePositionRankValue(getAutopilotPlayerRank(player, mode));
   const age = getPlayerAge(player);
   const position = getPlayerPosition(player);
@@ -2779,14 +3030,18 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
     managerRow,
   });
   const dropCandidate = dropCandidateProof.candidate;
-  const rawCandidates = collectWaiverCandidates(data, mode, intel);
+  const redraftValuationLookup = mode === 'redraft' ? buildRedraftValuationLookup(data) : null;
+  const rawCandidates = collectWaiverCandidates(data, mode, intel, redraftValuationLookup);
   if (!rawCandidates.length) return fallback;
 
   const candidates = rawCandidates
     .map((player) => {
-      const score = scoreWaiverCandidate(player, mode, intel);
+      const redraftValuationRead = mode === 'redraft' ? getRedraftValuationRead(redraftValuationLookup, player) : null;
+      const redraftValuationLabel = getRedraftValuationEvidenceLabel(data, redraftValuationRead);
+      const redraftValuationSignal = getRedraftValuationSignal(data, redraftValuationRead);
+      const score = scoreWaiverCandidate(player, mode, intel, redraftValuationLookup);
       const rank = getAutopilotPlayerRank(player, mode);
-      const value = getAutopilotPlayerValue(player, mode) || 0;
+      const value = getAutopilotPlayerValueWithRedraftRead(player, mode, redraftValuationRead) || 0;
       const weeklyEcrRead = formatWaiverWeeklyEcrRead(player);
       const weeklyEcrTraceRead = formatWaiverWeeklyEcrTraceRead(player);
       const weeklyProjection = getWeeklyProjection(player);
@@ -2796,10 +3051,11 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       const matchupOutlook = isScheduleWindowSignal(player.weeklyEcr)
         ? getShortTermMatchupOutlook(player.weeklyEcr.matchupWindows)
         : null;
-      const sourceCount = getAutopilotValueSourceCount(player);
+      const sourceCount = getAutopilotValueSourceCount(player) + (redraftValuationRead ? 1 : 0);
       const hasCurrentSeasonValue = Boolean(
         player.playerDetails?.valueProfile?.seasonValue ||
         player.playerDetails?.valueProfile?.fantasyProsSeasonValue ||
+        redraftValuationRead ||
         player.weeklyEcr ||
         weeklyProjectionRead
       );
@@ -2829,6 +3085,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         baseScore: score,
         evidence: dedupeStrings([
           rank ? `${rank} rank is attached to this waiver action.` : null,
+          redraftValuationLabel ? `${formatCompactValue(value)} ${redraftValuationLabel} is attached.` : null,
           value > 0 ? `${formatCompactValue(value)} ${mode === 'redraft' ? 'season' : 'market'} value is attached.` : null,
           player.count ? `${formatCompactValue(player.count)} add/drop trend signal in the feed.` : null,
           weeklyProjectionRead,
@@ -2844,6 +3101,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         sourceTrace: [
           ...dedupeStrings([
             sourceCount ? `${sourceCount} value/schedule source${sourceCount === 1 ? '' : 's'} attached.` : null,
+            redraftValuationRead ? 'Stored redraft valuation attached.' : null,
             weeklyProjectionRead ? 'Stored weekly projection attached.' : null,
             weeklyEcrTraceRead,
           ], 8),
@@ -2879,14 +3137,14 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         calibrationManager: manager,
         calibrationLeagueId: leagueId,
       });
-      return { player, score, rank, weeklyEcrRead, weeklyEcrTraceRead, weeklyProjectionRead, evidenceRead };
+      return { player, score, rank, weeklyEcrRead, weeklyEcrTraceRead, weeklyProjectionRead, redraftValuationRead, redraftValuationLabel, redraftValuationSignal, evidenceRead };
     })
     .filter(({ evidenceRead }) => evidenceRead.shouldRender && evidenceRead.label !== 'thin')
     .sort((a, b) => b.evidenceRead.finalScore - a.evidenceRead.finalScore)
     .slice(0, 2);
   if (!candidates.length) return [];
 
-  return candidates.map(({ player, score, rank, weeklyEcrRead, weeklyEcrTraceRead, weeklyProjectionRead, evidenceRead }, index) => {
+  return candidates.map(({ player, score, rank, weeklyEcrRead, weeklyEcrTraceRead, weeklyProjectionRead, redraftValuationRead, redraftValuationLabel, redraftValuationSignal, evidenceRead }, index) => {
     const confidence = Math.min(
       evidenceRead.finalScore,
       clampPercent(56 + score * 0.35 + (dropCandidate ? 5 : 0))
@@ -2920,12 +3178,13 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         rank ? `${rank} rank gives this more than a blind trend-chase case.` : null,
         weeklyProjectionRead,
         weeklyEcrRead,
+        redraftValuationLabel ? `${formatCompactValue(redraftValuationRead?.finalValue)} ${redraftValuationLabel} is loaded.` : null,
         matchupGuard.reason,
         weeklyEcrTraceRead,
         intel?.tradePlan?.needPosition === getPlayerPosition(player) ? `Matches ${manager}'s ${getPlayerPosition(player)} need.` : null,
         dropCandidate ? `${dropCandidate.name} is a usable drop candidate if a roster spot is needed.` : null,
       ], 4),
-      signals: dedupeStrings([evidenceRead.label, 'Available', rank, weeklyProjectionRead ? 'Stored projection' : null, matchupGuard.signal, weeklyEcrTraceRead ? 'Stored schedule trace' : weeklyEcrRead ? 'Schedule edge' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null, ...receiptItems.slice(0, 1)], 4),
+      signals: dedupeStrings([evidenceRead.label, 'Available', rank, redraftValuationSignal, weeklyProjectionRead ? 'Stored projection' : null, matchupGuard.signal, weeklyEcrTraceRead ? 'Stored schedule trace' : weeklyEcrRead ? 'Schedule edge' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null, ...receiptItems.slice(0, 1)], 4),
       evidenceRead,
       expectedAction: clearsWaiverActionThreshold
         ? {

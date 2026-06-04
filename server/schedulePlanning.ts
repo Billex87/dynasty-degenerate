@@ -12,6 +12,13 @@ type WeeklyProjectionReadiness = {
   reason?: string | null;
 };
 
+type ProjectionPointsResult = {
+  points: number;
+  coveredPlayerCount: number;
+  totalPlayerCount: number;
+  fullCoverage: boolean;
+} | null;
+
 type SchedulePlayer = {
   player_id?: string;
   full_name?: string;
@@ -335,9 +342,11 @@ function getProjectionPointsForPlayers(
   playerIds: string[],
   week: number,
   weeklyProjectionByPlayerId?: Record<string, WeeklyProjectionContext | null | undefined>,
-): number | null {
+): ProjectionPointsResult {
   if (!weeklyProjectionByPlayerId) return null;
-  const values = playerIds
+  const uniqueIds = uniquePlayerIds(playerIds);
+  if (!uniqueIds.length) return null;
+  const values = uniqueIds
     .map((playerId) => weeklyProjectionByPlayerId[playerId])
     .filter((projection): projection is WeeklyProjectionContext => Boolean(
       projection
@@ -347,7 +356,12 @@ function getProjectionPointsForPlayers(
     ))
     .map((projection) => projection.projectedFantasyPoints);
   if (!values.length) return null;
-  return Math.round(values.reduce((sum, value) => sum + value, 0) * 10) / 10;
+  return {
+    points: Math.round(values.reduce((sum, value) => sum + value, 0) * 10) / 10,
+    coveredPlayerCount: values.length,
+    totalPlayerCount: uniqueIds.length,
+    fullCoverage: values.length === uniqueIds.length,
+  };
 }
 
 function isWeeklyProjectionReadinessEnabled(readiness?: WeeklyProjectionReadiness | null): boolean {
@@ -454,14 +468,22 @@ export function buildMatchupPreviews(input: {
       const opponentStarterIds = uniquePlayerIds(opponent.starters?.length ? opponent.starters : fallbackOpponentRoster?.starters || fallbackOpponentRoster?.players || []);
       const actualPoints = Number(row.points);
       const actualOpponentPoints = Number(opponent.points);
+      const starterProjectionResult = getProjectionPointsForPlayers(starterIds, input.week, weeklyProjectionByPlayerId);
+      const opponentProjectionResult = getProjectionPointsForPlayers(opponentStarterIds, input.week, weeklyProjectionByPlayerId);
+      const matchupUsesWeeklyProjectionTotals = Boolean(
+        starterProjectionResult?.fullCoverage &&
+        opponentProjectionResult?.fullCoverage
+      );
       const projectedPoints = Number.isFinite(actualPoints) && actualPoints > 0
         ? Math.round(actualPoints * 10) / 10
-        : getProjectionPointsForPlayers(starterIds, input.week, weeklyProjectionByPlayerId)
-          ?? getMatchupProjection({ playerIds: starterIds, players: input.players, ktcValues: input.ktcValues, playerSchedules: input.playerSchedules });
+        : matchupUsesWeeklyProjectionTotals
+          ? starterProjectionResult?.points ?? null
+          : getMatchupProjection({ playerIds: starterIds, players: input.players, ktcValues: input.ktcValues, playerSchedules: input.playerSchedules });
       const opponentProjectedPoints = Number.isFinite(actualOpponentPoints) && actualOpponentPoints > 0
         ? Math.round(actualOpponentPoints * 10) / 10
-        : getProjectionPointsForPlayers(opponentStarterIds, input.week, weeklyProjectionByPlayerId)
-          ?? getMatchupProjection({ playerIds: opponentStarterIds, players: input.players, ktcValues: input.ktcValues, playerSchedules: input.playerSchedules });
+        : matchupUsesWeeklyProjectionTotals
+          ? opponentProjectionResult?.points ?? null
+          : getMatchupProjection({ playerIds: opponentStarterIds, players: input.players, ktcValues: input.ktcValues, playerSchedules: input.playerSchedules });
       const edge = projectedPoints !== null && opponentProjectedPoints !== null
         ? Math.round((projectedPoints - opponentProjectedPoints) * 10) / 10
         : null;
@@ -492,15 +514,15 @@ export function buildMatchupPreviews(input: {
             managerProjected: Math.round(managerProjected * 10) / 10,
             opponentProjected: Math.round(opponentProjected * 10) / 10,
             edge: Math.round((managerProjected - opponentProjected) * 10) / 10,
-            note: `${position} edge from submitted lineup context${canUseWeeklyProjectionContext ? ' and stored weekly projections' : input.playerSchedules ? ' and stored bye/SOS profiles' : ''}.`,
+            note: `${position} edge from submitted lineup context${matchupUsesWeeklyProjectionTotals ? ' and stored weekly projections' : input.playerSchedules ? ' and stored bye/SOS profiles' : ''}.`,
           };
         }).filter((row) => row.managerProjected || row.opponentProjected),
         howToWin: edge === null
           ? `Sleeper returned matchup ${row.matchup_id || ''}, but lineup projection inputs are still thin.`
           : edge >= 0
-            ? `Protect the ${edge.toFixed(1)} point schedule/value edge against ${opponentManager}; use stored bye/SOS context before taking streamer risk.`
-            : `Close a ${Math.abs(edge).toFixed(1)} point schedule/value gap against ${opponentManager} through lineup upgrades, streamer checks, and stored bye/SOS context.`,
-        source: canUseWeeklyProjectionContext ? 'Submitted lineup + stored weekly projection model' : 'Sleeper + Dynasty Degenerates schedule model',
+            ? `Protect the ${edge.toFixed(1)} point ${matchupUsesWeeklyProjectionTotals ? 'stored projection' : 'schedule/value'} edge against ${opponentManager}; use stored bye/SOS context before taking streamer risk.`
+            : `Close a ${Math.abs(edge).toFixed(1)} point ${matchupUsesWeeklyProjectionTotals ? 'stored projection' : 'schedule/value'} gap against ${opponentManager} through lineup upgrades, streamer checks, and stored bye/SOS context.`,
+        source: matchupUsesWeeklyProjectionTotals ? 'Submitted lineup + stored weekly projection model' : 'Sleeper + Dynasty Degenerates schedule model',
         updatedAt: new Date().toISOString(),
       });
     }

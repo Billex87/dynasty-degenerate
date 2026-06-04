@@ -77,6 +77,14 @@ function includeFantasyProsProjectionSnapshots(): boolean {
   ]);
 }
 
+function includeFantasyProsTargetSnapshots(): boolean {
+  return envFlag('ENABLE_FANTASYPROS_TARGETS_SNAPSHOTS');
+}
+
+function includeFantasyProsArticleSnapshots(): boolean {
+  return envFlag('ENABLE_FANTASYPROS_ARTICLES_SNAPSHOTS');
+}
+
 function includeSleeperProjectionSnapshots(): boolean {
   return envFlag('ENABLE_SLEEPER_PROJECTION_SNAPSHOTS') || isAnyProjectionTypeEnabled('sleeper', ['weekly']);
 }
@@ -361,6 +369,8 @@ export async function refreshFantasyProsEndpointSnapshotRefresh(options: {
     scoring: 'PPR',
     includeProjections: includeFantasyProsProjectionSnapshots(),
     includeExpanded: expanded,
+    includeTargets: includeFantasyProsTargetSnapshots(),
+    includeArticles: includeFantasyProsArticleSnapshots(),
     currentWeek: snapshotWindow.currentWeek,
     weekWindow: snapshotWindow.weekWindow,
     requestDelayMs: envNumber('FANTASYPROS_SNAPSHOT_REQUEST_DELAY_MS', envNumber('FANTASYPROS_HEALTH_REQUEST_DELAY_MS', 750)),
@@ -414,6 +424,8 @@ export async function refreshRankingSourceSnapshots() {
     scoring: 'PPR',
     includeProjections: includeFantasyProsProjectionSnapshots(),
     includeExpanded: fantasyProsExpandedHealth,
+    includeTargets: includeFantasyProsTargetSnapshots(),
+    includeArticles: includeFantasyProsArticleSnapshots(),
     currentWeek: fantasyProsSnapshotWindow.currentWeek,
     weekWindow: fantasyProsSnapshotWindow.weekWindow,
     requestDelayMs: envNumber('FANTASYPROS_HEALTH_REQUEST_DELAY_MS', 750),

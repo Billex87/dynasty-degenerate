@@ -53,6 +53,7 @@
     "check:fantasypros": "node scripts/check-fantasypros.mjs",
     "probe:external-sources": "node scripts/probe-external-sources.mjs",
     "probe:projection-sos-readiness": "tsx scripts/probe-projection-sos-readiness.ts",
+    "verify:projection-sos-rollout": "tsx scripts/verify-projection-sos-rollout.ts",
     "audit:neon-transfer": "node scripts/audit-neon-transfer.mjs",
     "audit:report-payload": "node scripts/audit-report-payload.mjs",
     "audit:report-hotspots": "node scripts/audit-report-hotspots.mjs",

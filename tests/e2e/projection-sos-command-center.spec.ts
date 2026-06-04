@@ -139,6 +139,47 @@ function stripWeeklyProjectionContext(report: CachedCommandCenterReport) {
     (preview: { source?: string | null }) =>
       !/stored weekly projection/i.test(preview.source || "")
   );
+  if (reportData.lineupStrength) {
+    reportData.lineupStrength = {
+      ...reportData.lineupStrength,
+      status: reportData.lineupStrength.status === "ready" ? "partial" : reportData.lineupStrength.status,
+      projectionStatus: "blocked",
+      note: "Stored weekly projections are disabled, so lineup strength is served with value/rank context only.",
+      rows: (reportData.lineupStrength.rows || []).map((row: any) => ({
+        ...row,
+        projectionPoints: null,
+        projectionScore: 0,
+        projectedWinProbability: null,
+        benchAlternatives: (row.benchAlternatives || []).map((alternative: any) => ({
+          ...alternative,
+          projectionDelta: null,
+          decision: alternative.decision === "upgrade" ? "close-call" : alternative.decision,
+          note: "Projection-disabled lineup alternative requires manual review.",
+        })),
+      })),
+    };
+  }
+  if (reportData.redraftValuation) {
+    reportData.redraftValuation = {
+      ...reportData.redraftValuation,
+      status: "value-only",
+      projectionStatus: "blocked",
+      scheduleStatus: "blocked",
+      note: "Stored weekly projections are disabled, so redraft valuation is served with base value only.",
+      rows: (reportData.redraftValuation.rows || []).map((row: any) => ({
+        ...row,
+        projectionValue: 0,
+        scheduleAdjustment: 0,
+        byeAdjustment: 0,
+        roleAdjustment: 0,
+        injuryAdjustment: 0,
+        replacementAdjustment: 0,
+        finalValue: row.baseValue,
+        valueDelta: 0,
+        status: "value-only",
+      })),
+    };
+  }
   reportData.weeklyProjectionDiagnostics = {
     status: "blocked",
     source: "stored-weekly-projection",
@@ -151,6 +192,156 @@ function stripWeeklyProjectionContext(report: CachedCommandCenterReport) {
     attachedPlayerCount: 0,
     note: "Stored weekly projections are disabled in this smoke fixture.",
     warnings: ["Projection feature flags are disabled."],
+  };
+}
+
+function attachProjectionBackedReportMechanics(report: CachedCommandCenterReport) {
+  const reportData = report.reportData as any;
+  const testerCounts = reportData.managerPositionCounts?.find(
+    (row: { manager?: string }) => row.manager === "Tester"
+  );
+  const starter = testerCounts?.starterPlayers?.find(
+    (player: { player_id?: string }) => player.player_id === "te1"
+  );
+  const alternative = testerCounts?.benchPlayers?.find(
+    (player: { player_id?: string }) => player.player_id === "te2"
+  ) || testerCounts?.rosterPlayers?.find(
+    (player: { player_id?: string }) => player.player_id === "te2"
+  );
+  const mustStart = testerCounts?.starterPlayers?.find(
+    (player: { player_id?: string }) => player.player_id === "wr1"
+  );
+  const fetchedAt = "2026-06-04T17:45:00.000Z";
+
+  reportData.weeklyProjectionDiagnostics = {
+    status: "ready",
+    source: "stored-weekly-projection",
+    provider: "sleeper",
+    season: "2026",
+    week: 1,
+    scoringProfile: "PPR",
+    rowCount: 492,
+    rosteredCoveragePct: 100,
+    attachedPlayerCount: 7,
+    note: "Stored Sleeper weekly projections are attached to the smoke fixture.",
+    warnings: [],
+  };
+  reportData.matchupPreviews = [
+    {
+      manager: "Tester",
+      opponentManager: "Rival",
+      week: 1,
+      source: "stored weekly projection",
+      projectedPoints: 123.4,
+      opponentProjectedPoints: 112.1,
+      winProbability: 0.62,
+      mustStarts: mustStart ? [mustStart] : [],
+      vulnerableSpots: starter ? [starter] : [],
+      boomBustRisks: starter ? [starter] : [],
+      howToWin: [
+        "Projection Scout: stored weekly projection math gives Tester a narrow matchup edge.",
+      ],
+      positionEdges: [
+        {
+          position: "TE",
+          managerPoints: 8.3,
+          opponentPoints: 6.1,
+          edge: 2.2,
+          winner: "Tester",
+        },
+      ],
+    },
+  ];
+  reportData.lineupStrength = {
+    status: "ready",
+    source: "stored-report-lineup",
+    projectionStatus: "ready",
+    scheduleStatus: "ready",
+    generatedAt: fetchedAt,
+    note: "Projection Scout lineup-strength fixture.",
+    rows: [
+      {
+        manager: "Tester",
+        opponentManager: "Rival",
+        status: "ready",
+        starterSource: "Sleeper",
+        starterCount: 4,
+        valueScore: 79,
+        projectionPoints: 61.7,
+        projectionScore: 82,
+        scheduleScore: 4,
+        totalScore: 165,
+        opponentTotalScore: 151,
+        edge: 14,
+        confidence: 84,
+        confidenceCapReason: null,
+        summary: "Tester has a projection-backed lineup edge.",
+        topStarter: mustStart,
+        weakestStarter: starter,
+        projectedWinProbability: {
+          managerProjectedPoints: 123.4,
+          opponentProjectedPoints: 112.1,
+          winProbability: 0.62,
+          source: "stored weekly projection",
+          status: "ready",
+        },
+        benchAlternatives: starter && alternative ? [
+          {
+            starter,
+            alternative,
+            scoreDelta: 4.1,
+            projectionDelta: 4.1,
+            valueDelta: 1450,
+            decision: "upgrade",
+            confidence: 88,
+            closeCallReason: null,
+            note: "Replacement Tight End grades 4.1 points ahead of Sample Tight End.",
+          },
+        ] : [],
+        positionEdges: [
+          {
+            position: "TE",
+            managerScore: 8.3,
+            opponentScore: 6.1,
+            edge: 2.2,
+            confidence: 82,
+            note: "Projection-backed TE edge.",
+          },
+        ],
+      },
+    ],
+  };
+  reportData.redraftValuation = {
+    status: "ready",
+    source: "stored-redraft-valuation",
+    projectionStatus: "ready",
+    scheduleStatus: "ready",
+    generatedAt: fetchedAt,
+    note: "Stored redraft valuation fixture.",
+    rows: [
+      {
+        playerId: "waiver1",
+        playerName: "Waiver Receiver",
+        position: "WR",
+        team: "NYJ",
+        rosterStatus: "available",
+        baseValue: 3400,
+        projectionValue: 1070,
+        scheduleAdjustment: 240,
+        byeAdjustment: 0,
+        roleAdjustment: 180,
+        injuryAdjustment: 0,
+        replacementAdjustment: 220,
+        finalValue: 5110,
+        valueDelta: 1710,
+        confidence: 78,
+        status: "ready",
+        components: [
+          { key: "base-value", label: "Base value", value: 3400, weight: 1, note: "Fixture base value." },
+          { key: "projection", label: "Stored projection", value: 1070, weight: 1, note: "10.7 stored projected points." },
+        ],
+      },
+    ],
   };
 }
 
@@ -270,10 +461,34 @@ function attachSpecialTeamsStreamerTarget(report: CachedCommandCenterReport) {
 test.describe("projection/SOS command center smoke", () => {
   test("projection and SOS enabled report shows source-backed special-teams schedule mechanics", async ({ page }) => {
     const report = createCachedCommandCenterReport("projection-sos-enabled-smoke");
+    attachProjectionBackedReportMechanics(report);
     attachSpecialTeamsStreamerTarget(report);
 
-    await loadCachedReport(page, report, "#rankings");
+    await loadCachedReport(page, report, "#autopilot");
 
+    const assistantSection = await openReportSection(page, "Assistant Feature Radar");
+    await expect(assistantSection.getByText("Waiver Assistant").first()).toBeVisible();
+    await expect(assistantSection.getByText("10.7 stored projection pts").first()).toBeVisible();
+    const matchupCard = assistantSection
+      .locator(".assistant-feature-card")
+      .filter({ hasText: "Matchup Preview" })
+      .first();
+    await expect(matchupCard).toBeVisible();
+    await expect(matchupCard.getByText("Rival")).toBeVisible();
+    await expect(matchupCard.getByText("123.4")).toBeVisible();
+    await expect(matchupCard.getByText(/62/)).toBeVisible();
+
+    const rosterBoardSection = await openReportSection(page, "Projected Roster Board");
+    await rosterBoardSection
+      .locator(".command-depth-tile")
+      .filter({ hasText: "Tester" })
+      .click();
+    const swapRead = page.locator(".manager-command-swap-read");
+    await expect(swapRead.getByText("Start/Sit Swap Signals")).toBeVisible();
+    await expect(swapRead.getByText("Replacement Tight End").first()).toBeVisible();
+    await expect(swapRead.getByText(/\+4\.1 pts/).first()).toBeVisible();
+
+    await loadCachedReport(page, report, "#rankings");
     const scheduleSection = await openReportSection(page, "Schedule Edge Table");
     await expect(scheduleSection.getByText("Streaming Kicker").first()).toBeVisible();
     await expect(scheduleSection.getByText("DraftSharks SOS windows")).toBeVisible();
@@ -287,9 +502,14 @@ test.describe("projection/SOS command center smoke", () => {
 
   test("projection-disabled report hides projection claims but keeps waiver fallback content", async ({ page }) => {
     const report = createCachedCommandCenterReport("projection-disabled-command-smoke");
+    attachProjectionBackedReportMechanics(report);
     stripWeeklyProjectionContext(report);
 
     await loadCachedReport(page, report, "#momentum");
+
+    await expect(page.getByText("10.7 stored projection pts")).toHaveCount(0);
+    await expect(page.getByText("Projection Scout")).toHaveCount(0);
+    await expect(page.getByText("123.4")).toHaveCount(0);
 
     const waiverSection = await openReportSection(page, "Waiver Intelligence");
     await expect(waiverSection.getByText("Waiver Receiver").first()).toBeVisible();

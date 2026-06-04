@@ -59,6 +59,8 @@ interface RefreshOptions {
   scoring?: FantasyProsScoring;
   includeProjections?: boolean;
   includeExpanded?: boolean;
+  includeTargets?: boolean;
+  includeArticles?: boolean;
   currentWeek?: number;
   weekWindow?: number;
   weeklyEcrPositions?: FantasyProsWeeklyEcrPosition[];
@@ -368,6 +370,8 @@ export async function refreshFantasyProsEndpointSnapshots(options: RefreshOption
     scoring,
     includeProjections: options.includeProjections,
     includeExpanded: options.includeExpanded,
+    includeTargets: options.includeTargets,
+    includeArticles: options.includeArticles,
     currentWeek: options.currentWeek,
     weekWindow: options.weekWindow,
     weeklyEcrPositions: options.weeklyEcrPositions,

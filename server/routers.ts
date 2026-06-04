@@ -26,6 +26,7 @@ import { attachLeagueAiConfidence, loadRecentLeagueAiConfidenceSnapshots, persis
 import { fetchEspnDepthChartsForPlayersWithDiagnostics, type EspnDepthChartEntry } from "./espnDepthCharts";
 import { buildMatchupPreviews, buildSchedulePlanningSummary } from "./schedulePlanning";
 import { buildLineupStrength } from "./lineupStrength";
+import { buildRedraftValuation } from "./redraftValuation";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
 import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadResponse, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
@@ -2840,7 +2841,34 @@ function stripWeeklyProjectionFromLineupStrength(lineupStrength: ReportData['lin
         starter: stripWeeklyProjectionFromPlayer(alternative.starter as any),
         alternative: stripWeeklyProjectionFromPlayer(alternative.alternative as any),
         projectionDelta: null,
+        decision: alternative.decision === 'upgrade' ? 'close-call' : alternative.decision,
+        confidence: Math.min(alternative.confidence, 56),
+        closeCallReason: alternative.closeCallReason || 'Weekly projections are disabled for this response, so this alternative is review-only.',
       })),
+    })),
+  };
+}
+
+function stripWeeklyProjectionFromRedraftValuation(redraftValuation: ReportData['redraftValuation']): ReportData['redraftValuation'] {
+  if (!redraftValuation) return redraftValuation;
+  return {
+    ...redraftValuation,
+    status: 'value-only',
+    projectionStatus: 'blocked',
+    note: 'Stored weekly projections are disabled, so redraft valuation is served with current-season value fallback only.',
+    rows: (redraftValuation.rows || []).map((row) => ({
+      ...row,
+      projectionValue: null,
+      scheduleAdjustment: 0,
+      byeAdjustment: 0,
+      roleAdjustment: 0,
+      injuryAdjustment: 0,
+      replacementAdjustment: 0,
+      finalValue: row.baseValue,
+      valueDelta: 0,
+      status: 'value-only' as const,
+      components: row.components.filter((component) => component.key === 'base-value'),
+      note: 'Projection readiness failed; using existing current-season value fallback.',
     })),
   };
 }
@@ -2878,6 +2906,7 @@ function stripWeeklyProjectionContextFromReportData(reportData: ReportData): Rep
       })),
     })),
     lineupStrength: stripWeeklyProjectionFromLineupStrength(reportData.lineupStrength),
+    redraftValuation: stripWeeklyProjectionFromRedraftValuation(reportData.redraftValuation),
     matchupPreviews: (reportData.matchupPreviews || []).filter((preview) => !/stored weekly projection/i.test(preview.source || '')),
     waiverIntelligence: reportData.waiverIntelligence
       ? {
@@ -8950,6 +8979,13 @@ export const appRouter = router({
             ...buildTradeProposalSignals(allTransactions, rosterUserMap, players),
             ...historicalTransactionContexts.flatMap((context) => buildTradeProposalSignals(context.transactions, context.rosterUserMap, players)),
           ].slice(0, 80);
+          const publicWaiverSignals = buildSleeperWaiverClaimSignals(
+            allTransactions,
+            rosterUserMap,
+            players,
+            userMap,
+            40
+          );
           const transactionBackfillDiagnostics = buildTransactionBackfillDiagnostics(historicalTransactionContexts);
           markAnalyzeStep('derived report tables');
           const prospectLookup = buildProspectLookup(prospectContext.profiles);
@@ -9212,10 +9248,19 @@ export const appRouter = router({
               weeklyProjectionDiagnostics,
               matchupPreviews,
             }),
+            redraftValuation: buildRedraftValuation({
+              ...reportData,
+              playerDetailsById: playerDetailsWithSituationById,
+              weeklyProjectionDiagnostics,
+              waiverIntelligence,
+            }, {
+              currentWeek: currentScheduleWeek,
+            }),
             recentTransactions: allRecentTransactions,
             transactionBackfillDiagnostics,
             adminTradeProposalSignals,
             tradeProposalSignals,
+            adminSleeperWaiverSignals: publicWaiverSignals,
             draftPicks: draftAnalysis.draftPicks,
             draftStats: draftAnalysis.draftStats,
           };

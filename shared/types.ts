@@ -391,6 +391,9 @@ export interface LineupStrengthBenchAlternative {
   scoreDelta: number;
   projectionDelta: number | null;
   valueDelta: number;
+  decision: 'upgrade' | 'close-call' | 'hold';
+  confidence: number;
+  closeCallReason: string | null;
   note: string;
 }
 
@@ -399,6 +402,24 @@ export interface LineupStrengthPositionEdge {
   managerScore: number;
   opponentScore: number | null;
   edge: number | null;
+  note: string;
+}
+
+export interface LineupStrengthProjectionRange {
+  floorPoints: number;
+  ceilingPoints: number;
+  spread: number;
+  confidence: number;
+  source: 'derived-weekly-projection';
+  note: string;
+}
+
+export interface LineupStrengthWinProbabilityRead {
+  probability: number;
+  projectionPointEdge: number;
+  confidence: number;
+  confidenceLabel: 'high' | 'medium' | 'low';
+  source: 'derived-weekly-projection';
   note: string;
 }
 
@@ -411,10 +432,12 @@ export interface LineupStrengthManagerRead {
   valueScore: number;
   projectionPoints: number | null;
   projectionScore: number;
+  projectionRange: LineupStrengthProjectionRange | null;
   scheduleScore: number | null;
   totalScore: number;
   opponentTotalScore: number | null;
   edge: number | null;
+  projectedWinProbability: LineupStrengthWinProbabilityRead | null;
   confidence: number;
   confidenceCapReason: string | null;
   summary: string;
@@ -431,6 +454,44 @@ export interface LineupStrengthSummary {
   scheduleStatus: 'ready' | 'partial' | 'missing';
   generatedAt: string;
   rows: LineupStrengthManagerRead[];
+  note: string;
+}
+
+export interface RedraftValuationComponent {
+  key: 'base-value' | 'weekly-projection' | 'schedule-sos' | 'bye-context' | 'role-trend' | 'injury-news' | 'replacement-level';
+  label: string;
+  value: number;
+  note: string;
+}
+
+export interface RedraftValuationRow {
+  playerId: string;
+  name: string;
+  position: string;
+  team: string | null;
+  owner: string | null;
+  baseValue: number;
+  projectionValue: number | null;
+  scheduleAdjustment: number;
+  byeAdjustment: number;
+  roleAdjustment: number;
+  injuryAdjustment?: number;
+  replacementAdjustment?: number;
+  finalValue: number;
+  valueDelta: number;
+  confidence: number;
+  status: 'ready' | 'partial' | 'value-only';
+  sourceCount: number;
+  components: RedraftValuationComponent[];
+  note: string;
+}
+
+export interface RedraftValuationSummary {
+  status: 'ready' | 'partial' | 'value-only';
+  source: 'stored-redraft-valuation';
+  projectionStatus: 'ready' | 'blocked' | 'warning' | 'missing';
+  generatedAt: string;
+  rows: RedraftValuationRow[];
   note: string;
 }
 
@@ -2128,6 +2189,7 @@ export interface ReportData {
   waiverIntelligence?: WaiverIntelligence;
   scheduleEdgeTargets?: WaiverWeeklyEcrTarget[];
   lineupStrength?: LineupStrengthSummary;
+  redraftValuation?: RedraftValuationSummary;
   matchupPreviews?: MatchupPreview[];
   schedulePlanning?: SchedulePlanningSummary;
   recentTransactions?: RecentTransaction[];

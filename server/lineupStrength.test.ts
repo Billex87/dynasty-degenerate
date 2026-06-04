@@ -163,16 +163,33 @@ describe("buildLineupStrength", () => {
       opponentManager: "Beta",
       projectionPoints: 40,
       projectionScore: 160,
+      projectionRange: {
+        floorPoints: 34.3,
+        ceilingPoints: 45.7,
+        spread: 11.4,
+        confidence: 72,
+        source: "derived-weekly-projection",
+      },
       scheduleScore: 8,
       valueScore: 122,
       opponentTotalScore: 234,
       edge: 56,
+      projectedWinProbability: {
+        probability: 66.8,
+        projectionPointEdge: 7,
+        confidence: 75,
+        confidenceLabel: "medium",
+        source: "derived-weekly-projection",
+      },
       status: "ready",
     });
     expect(alpha?.benchAlternatives[0]).toMatchObject({
       starter: { name: "Alpha QB" },
       alternative: { name: "Alpha Bench QB" },
       projectionDelta: 1,
+      decision: "close-call",
+      confidence: 60,
+      closeCallReason: "Projection edge is under two points or the composite score edge is thin.",
     });
     expect(alpha?.positionEdges.find(edge => edge.position === "QB")).toMatchObject({
       opponentScore: 130,
@@ -206,9 +223,30 @@ describe("buildLineupStrength", () => {
       status: "value-only",
       projectionPoints: null,
       projectionScore: 0,
+      projectionRange: null,
+      projectedWinProbability: null,
       valueScore: 122,
       confidenceCapReason: "Weekly projection readiness failed, so lineup strength is value/rank first.",
     });
     expect(alpha?.benchAlternatives[0]?.projectionDelta).toBeNull();
+    expect(alpha?.benchAlternatives[0]).toMatchObject({
+      decision: "close-call",
+      confidence: 56,
+      closeCallReason: "Projection edge is unavailable, so the positive value/SOS score stays review-only.",
+    });
+  });
+
+  it("does not emit projection range or win probability when starter projection coverage is partial", () => {
+    const report = reportWithLineups();
+    const alphaStarter = report.managerPositionCounts?.[0]?.starterPlayers?.find(player => player.player_id === "alpha-rb");
+    if (alphaStarter) alphaStarter.weeklyProjection = null;
+
+    const result = buildLineupStrength(report);
+    const alpha = result.rows.find(row => row.manager === "Alpha");
+
+    expect(result.status).toBe("ready");
+    expect(alpha?.projectionPoints).toBe(24);
+    expect(alpha?.projectionRange).toBeNull();
+    expect(alpha?.projectedWinProbability).toBeNull();
   });
 });
