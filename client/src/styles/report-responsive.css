@@ -11474,15 +11474,6 @@
   max-width: none !important;
 }
 
-.report-shell .report-disclosure-summary .report-disclosure-preview-row.report-disclosure-preview-row-middle .analysis-preview-chip.analysis-preview-chip-manager-preview .analysis-preview-manager-value .analysis-preview-manager-name {
-  display: inline-block !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-  overflow-wrap: normal !important;
-  word-break: normal !important;
-}
-
 .report-shell .report-disclosure-summary .report-disclosure-preview-row.report-disclosure-preview-row-middle .analysis-preview-chip-row-single .analysis-preview-chip.analysis-preview-chip-manager-preview {
   width: 100% !important;
   max-width: none !important;
