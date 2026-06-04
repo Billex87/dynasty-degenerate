@@ -6708,10 +6708,7 @@
 }
 
 .ai-read-body p {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  overflow: visible;
 }
 
 .ai-read-confidence {
@@ -6839,6 +6836,39 @@
 .ai-read-decision-thin strong,
 .ai-read-decision-stop strong {
   color: #fecdd3;
+}
+
+.ai-read-context-tag {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 0.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.46);
+  padding: 0.16rem 0.5rem;
+  color: rgba(203, 213, 225, 0.74);
+  font-size: 0.52rem;
+  font-weight: 950;
+  letter-spacing: 0.13em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ai-read-context-tag-watch {
+  border-color: rgba(251, 146, 60, 0.24);
+  color: rgba(253, 186, 116, 0.82);
+}
+
+.ai-read-context-tag-stop,
+.ai-read-context-tag-thin {
+  border-color: rgba(251, 113, 133, 0.24);
+  color: rgba(253, 164, 175, 0.82);
+}
+
+.ai-read-context-tag-go {
+  border-color: rgba(52, 211, 153, 0.24);
+  color: rgba(134, 239, 172, 0.82);
 }
 
 .ai-read-confidence small {
@@ -7485,6 +7515,387 @@
 .team-blueprint-position-fl,
 .team-blueprint-position-flex { --blueprint-pos-color: #a3e635; --blueprint-pos-soft: rgba(163, 230, 53, 0.16); }
 .team-blueprint-position-sf { --blueprint-pos-color: #a855f7; --blueprint-pos-soft: rgba(168, 85, 247, 0.17); }
+.team-blueprint-position-dc { --blueprint-pos-color: #fb923c; --blueprint-pos-soft: rgba(251, 146, 60, 0.17); }
+
+/* ---- Enhanced blueprint analytics (3-factor engine surfaces) ---- */
+.team-blueprint-grade-strip {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.85rem 1.1rem;
+}
+
+.team-blueprint-overall-grade {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-width: 6.2rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid rgba(34, 211, 238, 0.26);
+  border-radius: 0.9rem;
+  background: radial-gradient(circle at 50% 18%, rgba(34, 211, 238, 0.16), rgba(2, 6, 23, 0.6) 70%);
+}
+
+.team-blueprint-overall-grade span {
+  color: rgba(165, 243, 252, 0.8);
+  font-size: 0.5rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.team-blueprint-overall-grade strong {
+  color: #e0f2fe;
+  font-size: 2.1rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.team-blueprint-overall-grade small {
+  margin-top: 0.18rem;
+  max-width: 9rem;
+  color: rgba(148, 163, 184, 0.78);
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.team-blueprint-grade-strip-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.2rem;
+}
+
+.team-blueprint-grade-strip-meta span {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.team-blueprint-grade-strip-meta em {
+  color: rgba(148, 163, 184, 0.8);
+  font-size: 0.5rem;
+  font-weight: 950;
+  font-style: normal;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.team-blueprint-grade-strip-meta strong {
+  color: #f1f5f9;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.team-blueprint-grade-strip-meta strong i {
+  color: rgba(148, 163, 184, 0.7);
+  font-size: 0.6rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.team-blueprint-age-strip {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.team-blueprint-age-strip span {
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
+  padding: 0.34rem;
+  border: 1px solid var(--blueprint-pos-soft, rgba(148, 163, 184, 0.16));
+  border-radius: 0.6rem;
+  background: rgba(2, 6, 23, 0.44);
+}
+
+.team-blueprint-age-strip em {
+  color: var(--blueprint-pos-color, #94a3b8);
+  font-size: 0.56rem;
+  font-weight: 950;
+  font-style: normal;
+  letter-spacing: 0.1em;
+}
+
+.team-blueprint-age-strip strong {
+  color: #f1f5f9;
+  font-size: 1.04rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.team-blueprint-age-strip small {
+  color: rgba(148, 163, 184, 0.7);
+  font-size: 0.48rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.team-blueprint-factor-table,
+.team-blueprint-true-table {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.team-blueprint-factor-row {
+  display: grid;
+  grid-template-columns: 2.4rem repeat(4, minmax(0, 1fr));
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.34rem 0.5rem;
+  border-radius: 0.5rem;
+  background: rgba(2, 6, 23, 0.4);
+  color: #e2e8f0;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.team-blueprint-factor-row span:not(:first-child),
+.team-blueprint-true-row span:not(.team-blueprint-true-name) {
+  text-align: center;
+}
+
+.team-blueprint-factor-row span:first-child {
+  color: var(--blueprint-pos-color, #cbd5e1);
+  font-weight: 950;
+}
+
+.team-blueprint-factor-head,
+.team-blueprint-true-head {
+  background: transparent;
+  color: rgba(148, 163, 184, 0.82);
+  font-size: 0.54rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.team-blueprint-factor-row strong { color: #67e8f9; }
+
+.team-blueprint-makeup-list,
+.team-blueprint-proportion-list {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.team-blueprint-makeup-row,
+.team-blueprint-proportion-row {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, auto) 1fr 2.6rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.team-blueprint-makeup-row em,
+.team-blueprint-proportion-row em {
+  color: #cbd5e1;
+  font-size: 0.62rem;
+  font-weight: 850;
+  font-style: normal;
+}
+
+.team-blueprint-proportion-row em { color: var(--blueprint-pos-color, #cbd5e1); }
+
+.team-blueprint-makeup-row i,
+.team-blueprint-proportion-row i {
+  display: block;
+  height: 0.46rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.7);
+  overflow: hidden;
+}
+
+.team-blueprint-makeup-row i b,
+.team-blueprint-proportion-row i b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--blueprint-pos-color, #38bdf8), color-mix(in srgb, var(--blueprint-pos-color, #38bdf8) 50%, #e0f2fe));
+}
+
+.team-blueprint-makeup-row strong,
+.team-blueprint-proportion-row strong {
+  color: #f1f5f9;
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-align: right;
+}
+
+.team-blueprint-archetype-foundational { --blueprint-pos-color: #a855f7; }
+.team-blueprint-archetype-cornerstone { --blueprint-pos-color: #ef233c; }
+.team-blueprint-archetype-mainstay { --blueprint-pos-color: #0ea5e9; }
+.team-blueprint-archetype-serviceable { --blueprint-pos-color: #f97316; }
+.team-blueprint-archetype-upside-shot { --blueprint-pos-color: #22c55e; }
+.team-blueprint-archetype-jag-insurance { --blueprint-pos-color: #64748b; }
+.team-blueprint-archetype-jag-developmental { --blueprint-pos-color: #94a3b8; }
+
+.team-blueprint-power-list {
+  display: grid;
+  gap: 0.26rem;
+}
+
+.team-blueprint-power-list span {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.45rem;
+  border-radius: 0.45rem;
+  background: rgba(2, 6, 23, 0.4);
+}
+
+.team-blueprint-power-list i {
+  color: rgba(148, 163, 184, 0.8);
+  font-size: 0.68rem;
+  font-weight: 950;
+  font-style: normal;
+  text-align: center;
+}
+
+.team-blueprint-power-list strong {
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-blueprint-power-list em {
+  color: rgba(148, 163, 184, 0.78);
+  font-size: 0.54rem;
+  font-weight: 900;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.team-blueprint-power-active {
+  background: rgba(34, 211, 238, 0.12) !important;
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.3);
+}
+
+.team-blueprint-power-active strong { color: #67e8f9; }
+
+.team-blueprint-true-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) repeat(3, 2.1rem) minmax(5.5rem, 1.1fr) 2.8rem;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.5rem;
+  background: rgba(2, 6, 23, 0.4);
+  color: #e2e8f0;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.team-blueprint-true-name { min-width: 0; }
+
+.team-blueprint-true-row strong { color: #67e8f9; font-weight: 950; }
+
+.team-blueprint-archetype-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--blueprint-pos-color, #64748b) 50%, transparent);
+  background: color-mix(in srgb, var(--blueprint-pos-color, #64748b) 16%, transparent);
+  color: #f1f5f9;
+  font-size: 0.5rem;
+  font-weight: 950;
+  font-style: normal;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-blueprint-standing-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.team-blueprint-standing-grid span {
+  display: grid;
+  gap: 0.16rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  border-radius: 0.7rem;
+  background: rgba(2, 6, 23, 0.46);
+}
+
+.team-blueprint-standing-grid em {
+  color: rgba(148, 163, 184, 0.82);
+  font-size: 0.5rem;
+  font-weight: 950;
+  font-style: normal;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.team-blueprint-standing-grid strong {
+  color: #67e8f9;
+  font-size: 1.25rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.team-blueprint-standing-grid small {
+  color: rgba(148, 163, 184, 0.78);
+  font-size: 0.54rem;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.team-blueprint-outlook strong i {
+  color: #67e8f9;
+  font-size: 0.9rem;
+  font-style: normal;
+  padding: 0 0.18rem;
+}
+
+.team-blueprint-draft-strategy {
+  display: grid;
+  gap: 0.12rem;
+  margin-top: 0.5rem;
+  padding: 0.42rem 0.55rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--blueprint-strategy-color, rgba(148, 163, 184, 0.22));
+  background: color-mix(in srgb, var(--blueprint-strategy-color, #64748b) 12%, rgba(2, 6, 23, 0.5));
+}
+
+.team-blueprint-draft-strategy-loaded { --blueprint-strategy-color: #22c55e; }
+.team-blueprint-draft-strategy-adequate { --blueprint-strategy-color: #fb923c; }
+.team-blueprint-draft-strategy-thin { --blueprint-strategy-color: #ef233c; }
+
+.team-blueprint-draft-strategy span {
+  color: rgba(148, 163, 184, 0.82);
+  font-size: 0.48rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.team-blueprint-draft-strategy strong {
+  color: var(--blueprint-strategy-color, #e2e8f0);
+  font-size: 0.86rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.team-blueprint-draft-strategy small {
+  color: rgba(203, 213, 225, 0.82);
+  font-size: 0.56rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
 
 .team-blueprint-room-grid {
   display: grid;
@@ -9535,153 +9946,12 @@
 }
 
 @media (max-width: 760px) {
-  .ai-read-panel-desktop {
-    display: none;
-  }
-
-  .ai-read-panel-mobile {
-    display: block;
-  }
-
   .ai-read-panel {
     --ai-grid-size: 20px;
     --ai-grid-size-strong: 72px;
     width: min(100%, 34rem);
     border-radius: 0.74rem;
     padding: 0.6rem 0.62rem;
-  }
-
-  .ai-read-panel-mobile-compact {
-    --ai-grid-size: 17px;
-    --ai-grid-size-strong: 58px;
-    min-height: auto !important;
-    padding: 0.48rem 0.54rem !important;
-  }
-
-  .ai-read-mobile-summary {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: center;
-    gap: 0.58rem;
-    min-height: 0;
-    cursor: pointer;
-    list-style: none;
-  }
-
-  .ai-read-mobile-summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .ai-read-mobile-summary-main {
-    display: grid;
-    min-width: 0;
-    gap: 0.26rem;
-  }
-
-  .ai-read-mobile-title-row {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    min-width: 0;
-    align-items: center;
-    gap: 0.42rem;
-  }
-
-  .ai-read-mobile-title {
-    min-width: 0;
-    overflow: hidden;
-    color: #f8fafc;
-    font-size: 0.86rem;
-    font-weight: 950;
-    line-height: 1.1;
-    overflow-wrap: break-word;
-    word-break: normal;
-  }
-
-  .ai-read-mobile-meta {
-    display: flex;
-    min-width: 0;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.26rem;
-  }
-
-  .ai-read-mobile-meta .ai-read-type,
-  .ai-read-mobile-meta .ai-read-badge {
-    max-width: min(100%, 12rem);
-    white-space: nowrap;
-  }
-
-  .ai-read-mobile-confidence {
-    display: inline-flex;
-    width: fit-content;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.54);
-    padding: 0.18rem 0.42rem;
-    color: rgba(226, 232, 240, 0.76);
-    font-size: 0.56rem;
-    font-weight: 900;
-    line-height: 1;
-  }
-
-  .ai-read-mobile-takeaway {
-    display: -webkit-box;
-    min-width: 0;
-    overflow: hidden;
-    color: #cbd5e1;
-    font-size: 0.7rem;
-    font-weight: 760;
-    line-height: 1.22;
-    overflow-wrap: break-word;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
-  }
-
-  .ai-read-mobile-toggle {
-    align-self: start;
-    justify-self: start;
-    border: 1px solid color-mix(in srgb, var(--ai-read-accent) 34%, transparent);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--ai-read-accent) 10%, rgba(15, 23, 42, 0.54));
-    padding: 0.24rem 0.48rem;
-    color: #e0f2fe;
-    font-size: 0.58rem;
-    font-weight: 950;
-    letter-spacing: 0.08em;
-    line-height: 1;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
-  .ai-read-panel-mobile[open] .ai-read-mobile-toggle {
-    color: #f8fafc;
-  }
-
-  .ai-read-panel-mobile[open] .ai-read-mobile-toggle::before {
-    content: "Hide";
-  }
-
-  .ai-read-panel-mobile[open] .ai-read-mobile-toggle {
-    font-size: 0;
-  }
-
-  .ai-read-panel-mobile[open] .ai-read-mobile-toggle::before {
-    font-size: 0.58rem;
-  }
-
-  .ai-read-panel-mobile[open] .ai-read-mobile-summary {
-    margin-bottom: 0.48rem;
-    padding-bottom: 0.44rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--ai-read-border) 44%, rgba(255, 255, 255, 0.06));
-  }
-
-  .ai-read-mobile-expanded {
-    display: grid;
-    gap: 0.44rem;
-  }
-
-  .ai-read-mobile-expanded .ai-read-panel-head {
-    display: none;
   }
 
   .ai-read-panel-head {
@@ -9804,6 +10074,38 @@
 
   .team-blueprint-grades-panel .team-blueprint-grade-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .team-blueprint-grade-strip {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+  }
+
+  .team-blueprint-overall-grade {
+    justify-self: start;
+  }
+
+  .team-blueprint-standing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .team-blueprint-factor-row {
+    grid-template-columns: 2rem repeat(4, minmax(0, 1fr));
+    gap: 0.25rem;
+    font-size: 0.66rem;
+  }
+
+  .team-blueprint-true-row {
+    grid-template-columns: minmax(0, 1.5fr) repeat(3, 1.7rem) 2.4rem;
+    gap: 0.3rem;
+    font-size: 0.62rem;
+  }
+
+  /* Hide the long archetype label column on small screens; the composite rank
+     and factor scores carry the read, and the archetype shows in Roster Make-Up. */
+  .team-blueprint-true-head span:nth-child(5),
+  .team-blueprint-true-row span:nth-child(5) {
+    display: none;
   }
 
   .team-blueprint-split-list {
@@ -10451,6 +10753,28 @@
   border-color: rgba(34, 211, 238, 0.42);
   color: #f8fafc;
   transform: translateY(-1px);
+}
+
+/* Visible keyboard focus indicators (WCAG 2.4.7). The report tabs, section
+   disclosures, league switcher, and segmented filters had no clear focus
+   ring; reuse the cyan focus token used by the landing controls. */
+.report-tab:focus-visible,
+.report-league-lockup:focus-visible,
+.report-disclosure-summary:focus-visible,
+.dashboard-spotlight-inline-summary:focus-visible,
+.owner-intel-sort-button:focus-visible,
+.trade-war-mode-tab:focus-visible {
+  outline: 2px solid rgba(103, 232, 249, 0.9) !important;
+  outline-offset: 2px !important;
+}
+
+/* Larger tap target on phones for the persona filter pills, which were only
+   ~25px tall (toward the 44px guideline, without changing their visual look).
+   Phone-only so desktop is unaffected. */
+@media (max-width: 767px) {
+  .owner-intel-sort-button {
+    min-height: 2rem !important;
+  }
 }
 
 .owner-intel-sort-button-active {
@@ -11163,6 +11487,20 @@
   width: 100% !important;
   max-width: none !important;
   flex: 1 1 100% !important;
+}
+
+/* Owner Intel Lab "TRUTH/TRASH" manager chips cap each chip at ~50% of the
+   row, so a worst-case-long username (e.g. "MyNameIsBillex") overruns its box
+   by a few px and gets hard-cut. Mirror the collapsed-summary treatment in the
+   expanded preview rows so the name truncates with a clean ellipsis instead. */
+.report-shell .report-disclosure-preview-row .analysis-preview-chip.analysis-preview-chip-manager-preview .analysis-preview-manager-value .analysis-preview-manager-name,
+.report-shell .report-disclosure-preview-row .analysis-preview-chip.analysis-preview-chip-starter-room .analysis-preview-manager-value .analysis-preview-manager-name {
+  display: inline-block !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
 }
 
 .report-shell .report-disclosure-summary .report-disclosure-preview-row.report-disclosure-preview-row-middle .report-disclosure-preview-slot .analysis-preview-chip-row-single {
@@ -13703,11 +14041,8 @@
 }
 
 .report-shell .ai-read-panel-r3f .ai-read-body p {
-  display: -webkit-box !important;
-  overflow: hidden !important;
-  -webkit-box-orient: vertical !important;
-  -webkit-line-clamp: 3 !important;
-  line-clamp: 3 !important;
+  display: block !important;
+  overflow: visible !important;
 }
 
 .report-shell .ai-read-panel-r3f .ai-read-confidence {
@@ -13777,8 +14112,36 @@
   letter-spacing: 0.08em;
 }
 
+.report-shell .ai-read-trace-body {
+  display: grid;
+  gap: 0.62rem;
+  padding: 0.1rem 0.7rem 0.62rem;
+  border-top: 1px solid rgba(34, 211, 238, 0.1);
+}
+
+.report-shell .ai-read-trace-group {
+  display: grid;
+  gap: 0.24rem;
+}
+
+.report-shell .ai-read-trace-group-label {
+  margin: 0;
+  color: rgba(125, 211, 252, 0.78);
+  font-size: 0.56rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .report-shell .ai-read-trace-list {
-  padding: 0 0.85rem 0.62rem 1.6rem;
+  padding: 0 0 0 1rem;
+}
+
+.report-shell .ai-read-trace-list li {
+  color: rgba(203, 213, 225, 0.82);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.34;
 }
 
 .report-shell .ai-read-chip-row .ai-read-chip:nth-child(n + 5),
@@ -15367,11 +15730,6 @@
     max-width: none;
   }
 
-  .report-shell .analysis-preview-chip-manager-preview .analysis-preview-manager-name,
-  .report-shell .analysis-preview-chip-starter-room .analysis-preview-manager-name {
-    max-width: 6.4rem;
-  }
-
   .weekly-momentum-section h4,
   .trending-section h4 {
     text-align: center;
@@ -16304,7 +16662,7 @@
     margin-inline: auto !important;
   }
 
-  .report-shell .report-overview-hero-copy h1 {
+  .report-shell .report-overview-hero-copy h2 {
     justify-content: center !important;
     filter:
       drop-shadow(0 1px 1px rgba(0, 0, 0, 0.98))
@@ -18135,7 +18493,7 @@
   text-align: left !important;
 }
 
-.report-shell .report-overview-hero-copy h1 {
+.report-shell .report-overview-hero-copy h2 {
   justify-content: start !important;
 }
 
@@ -18191,7 +18549,7 @@
     text-align: center !important;
   }
 
-  .report-shell .report-overview-hero-copy h1 {
+  .report-shell .report-overview-hero-copy h2 {
     justify-content: center !important;
   }
 

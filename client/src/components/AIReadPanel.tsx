@@ -52,6 +52,13 @@ export interface AIReadPanelProps {
   confidence?: number | null;
   confidenceNote?: string | null;
   decision?: string | AIReadDecision | null;
+  /**
+   * How prominently to surface the decision:
+   * - 'verdict' (default): the full colored decision pill — reserve for panels that own an action.
+   * - 'context': a quiet inline tag so supporting reads don't compete with the real verdict.
+   * - 'none': no decision element at all.
+   */
+  decisionDisplay?: 'verdict' | 'context' | 'none';
   evidenceRead?: AIEvidenceResult | null;
   hideDecision?: boolean;
   traceLabel?: string;
@@ -492,6 +499,7 @@ function AIReadPanelContent({
   confidence,
   confidenceNote,
   decision,
+  decisionDisplay = 'verdict',
   evidenceRead,
   hideDecision = false,
   traceLabel = 'Why',
@@ -575,7 +583,7 @@ function AIReadPanelContent({
         )}
       </div>
 
-      {voicedDecision && (
+      {voicedDecision && decisionDisplay === 'verdict' && (
         <div className={cn('ai-read-decision', `ai-read-decision-${voicedDecision.tone || 'watch'}`)}>
           <span>{voicedDecision.status || 'Decision'}</span>
           <strong>{voicedDecision.label}</strong>
@@ -583,25 +591,26 @@ function AIReadPanelContent({
         </div>
       )}
 
+      {voicedDecision && decisionDisplay === 'context' && (
+        <span
+          className={cn('ai-read-context-tag', `ai-read-context-tag-${voicedDecision.tone || 'watch'}`)}
+        >
+          {voicedDecision.label}
+        </span>
+      )}
+
       {chips?.length ? <div className="ai-read-chip-row">{chips.map(renderChip)}</div> : null}
 
       <div className="ai-read-body">{typeof body === 'string' ? <p>{body}</p> : body}</div>
 
-      {firedTraceItems.length ? (
-        <AIReadTrace label={traceLabel === 'Why' ? 'What fired' : traceLabel} items={firedTraceItems} />
-      ) : null}
-
-      {riskTraceItems.length ? (
-        <AIReadTrace label="What could be wrong" items={riskTraceItems} />
-      ) : null}
-
-      {verificationTraceItems.length ? (
-        <AIReadTrace label="Where to verify" items={verificationTraceItems} />
-      ) : null}
-
-      {changeTraceItems.length ? (
-        <AIReadTrace label="What changes this" items={changeTraceItems} />
-      ) : null}
+      <AIReadTrace
+        groups={[
+          { label: traceLabel === 'Why' ? 'What fired' : traceLabel, items: firedTraceItems },
+          { label: 'What could be wrong', items: riskTraceItems },
+          { label: 'Where to verify', items: verificationTraceItems },
+          { label: 'What changes this', items: changeTraceItems },
+        ]}
+      />
 
       {actions?.length ? (
         <div className="ai-read-actions">
@@ -621,14 +630,17 @@ function AIReadPanelContent({
   );
 }
 
-function AIReadTrace({
-  label,
-  items,
-}: {
+type AIReadTraceGroup = {
   label: string;
   items: string[];
-}) {
+};
+
+function AIReadTrace({ groups }: { groups: AIReadTraceGroup[] }) {
   const [isOpen, setIsOpen] = useState(false);
+  const visibleGroups = groups.filter(group => group.items.length);
+  const totalSignals = visibleGroups.reduce((sum, group) => sum + group.items.length, 0);
+
+  if (!visibleGroups.length) return null;
 
   return (
     <details
@@ -637,14 +649,21 @@ function AIReadTrace({
       onToggle={event => setIsOpen(event.currentTarget.open)}
     >
       <summary className="ai-read-trace-kicker">
-        {label} <span>{items.length} signals</span>
+        Why / Signals <span>{totalSignals} signal{totalSignals === 1 ? '' : 's'}</span>
       </summary>
       {isOpen && (
-        <ul className="ai-read-trace-list">
-          {items.map(item => (
-            <li key={item}>{item}</li>
+        <div className="ai-read-trace-body">
+          {visibleGroups.map(group => (
+            <div className="ai-read-trace-group" key={group.label}>
+              <p className="ai-read-trace-group-label">{group.label}</p>
+              <ul className="ai-read-trace-list">
+                {group.items.map(item => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </details>
   );
@@ -841,6 +860,7 @@ export function AIReadPanel({
     backgroundVariant === 'monthly';
   const circuitKey = `${props.title}-${backgroundVariant}-${severity}`;
 
+  const decisionDisplay = props.decisionDisplay ?? 'verdict';
   const rootClassName = cn(
     'ai-read-panel',
     'ai-surface-r3f',
@@ -848,6 +868,7 @@ export function AIReadPanel({
     compact && 'ai-read-panel-compact',
     `ai-read-panel-${backgroundVariant}`,
     `ai-read-panel-severity-${severity}`,
+    decisionDisplay === 'context' ? 'ai-read-panel-context' : 'ai-read-panel-verdict',
     className,
   );
 

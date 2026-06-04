@@ -68,7 +68,7 @@ const cachedPayload = {
   generatedAt: '2026-05-15T00:00:00.000Z',
   ktcValues: { cached: { value: 100 } },
   ktcValuesLastWeek: { cached: { value: 90 } },
-  draftSharksScheduleContext: { source: 'cached-schedule' },
+  draftSharksScheduleContext: { status: 'loaded', source: 'cached-schedule' },
   prospectContext: { profiles: [] },
   playerNews: [],
   newsSourceCounts: { total: 0, fantasyPros: 0, sportsDataIo: 0 },
@@ -79,7 +79,7 @@ describe('report static inputs cache loading', () => {
     vi.clearAllMocks();
     mocks.findLeagueReportCache.mockResolvedValue(null);
     mocks.upsertLeagueReportCache.mockResolvedValue(undefined);
-    mocks.loadDraftSharksScheduleContext.mockResolvedValue({ source: 'fresh-schedule' });
+    mocks.loadDraftSharksScheduleContext.mockResolvedValue({ status: 'loaded', source: 'fresh-schedule' });
     mocks.loadPlayerNewsBundle.mockResolvedValue({
       items: [{ playerName: 'A Player' }],
       sourceCounts: { total: 1, fantasyPros: 0, sportsDataIo: 1 },
@@ -130,6 +130,30 @@ describe('report static inputs cache loading', () => {
         ktcValuesLastWeek: { fresh: { value: 95 } },
       }),
     });
+  });
+
+  it('does not repair missing DraftSharks snapshots with live provider calls during report loads', async () => {
+    mocks.loadDraftSharksScheduleContext.mockResolvedValue({
+      status: 'error',
+      source: 'DraftSharks SOS',
+      profiles: {},
+      message: 'Stored DraftSharks SOS snapshot is unavailable.',
+    });
+
+    const result = await loadReportStaticInputs({ ...input, forceRefresh: true });
+
+    expect(result.draftSharksScheduleContext).toMatchObject({
+      status: 'error',
+      message: 'Stored DraftSharks SOS snapshot is unavailable.',
+    });
+    expect(mocks.loadDraftSharksScheduleContext).toHaveBeenCalledTimes(1);
+    expect(mocks.loadDraftSharksScheduleContext).toHaveBeenCalledWith({
+      season: '2026',
+      sourceMode: 'snapshot',
+    });
+    expect(mocks.loadDraftSharksScheduleContext).not.toHaveBeenCalledWith(expect.objectContaining({
+      persistSnapshot: true,
+    }));
   });
 
   it('bypasses the cached row when force refresh is requested', async () => {

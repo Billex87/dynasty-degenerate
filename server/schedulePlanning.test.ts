@@ -263,6 +263,93 @@ describe('schedule planning', () => {
     expect(bill?.positionEdges?.[0]?.note).toContain('stored weekly projections');
   });
 
+  it('falls back to schedule/value matchup totals when stored weekly projection coverage is partial', () => {
+    const previews = buildMatchupPreviews({
+      season: '2026',
+      week: 1,
+      rosters: [
+        { roster_id: 1, players: ['phiQb', 'carRb'], starters: ['phiQb', 'carRb'] },
+        { roster_id: 2, players: ['detWr', 'kcRb'], starters: ['detWr', 'kcRb'] },
+      ],
+      rosterMap: { 1: 'Bill', 2: 'Opponent' },
+      players,
+      ktcValues,
+      weeklyProjectionByPlayerId: {
+        phiQb: {
+          source: 'stored-weekly-projection',
+          provider: 'sleeper',
+          season: '2026',
+          week: 1,
+          scoringProfile: 'PPR',
+          projectedFantasyPoints: 21.5,
+          status: 'ready',
+          note: 'Stored weekly projection fixture.',
+        },
+      },
+      matchups: [
+        { roster_id: 1, matchup_id: 10, starters: ['phiQb', 'carRb'], points: 0 },
+        { roster_id: 2, matchup_id: 10, starters: ['detWr', 'kcRb'], points: 0 },
+      ],
+    });
+
+    const bill = previews.find((preview) => preview.manager === 'Bill');
+    expect(bill?.source).toBe('Sleeper + Dynasty Degenerates schedule model');
+    expect(bill?.projectedPoints).not.toBe(21.5);
+    expect(bill?.projectedPoints || 0).toBeGreaterThan(21.5);
+    expect(bill?.positionEdges?.[0]?.note).not.toContain('stored weekly projections');
+    expect(bill?.howToWin).toContain('schedule/value');
+  });
+
+  it('ignores stored weekly projections when projection readiness is blocked', () => {
+    const previews = buildMatchupPreviews({
+      season: '2026',
+      week: 1,
+      rosters: [
+        { roster_id: 1, players: ['phiQb', 'carRb'], starters: ['phiQb', 'carRb'] },
+        { roster_id: 2, players: ['detWr', 'kcRb'], starters: ['detWr', 'kcRb'] },
+      ],
+      rosterMap: { 1: 'Bill', 2: 'Opponent' },
+      players,
+      ktcValues,
+      weeklyProjectionReadiness: {
+        enabled: false,
+        reason: 'Projection readiness blocked by schedule snapshot missing.',
+      },
+      weeklyProjectionByPlayerId: {
+        phiQb: {
+          source: 'stored-weekly-projection',
+          provider: 'sleeper',
+          season: '2026',
+          week: 1,
+          scoringProfile: 'PPR',
+          projectedFantasyPoints: 21.5,
+          status: 'ready',
+          note: 'Stored weekly projection fixture.',
+        },
+        carRb: {
+          source: 'stored-weekly-projection',
+          provider: 'sleeper',
+          season: '2026',
+          week: 1,
+          scoringProfile: 'PPR',
+          projectedFantasyPoints: 14.2,
+          status: 'ready',
+          note: 'Stored weekly projection fixture.',
+        },
+      },
+      matchups: [
+        { roster_id: 1, matchup_id: 10, starters: ['phiQb', 'carRb'], points: 0 },
+        { roster_id: 2, matchup_id: 10, starters: ['detWr', 'kcRb'], points: 0 },
+      ],
+    });
+
+    const bill = previews.find((preview) => preview.manager === 'Bill');
+    expect(bill?.source).toBe('Sleeper + Dynasty Degenerates schedule model');
+    expect(bill?.projectedPoints).not.toBe(35.7);
+    expect(bill?.mustStarts?.[0]?.weeklyProjection).toBeNull();
+    expect(bill?.positionEdges?.[0]?.note).not.toContain('stored weekly projections');
+  });
+
   it('does not claim stored weekly projections when the attached projection map is empty', () => {
     const previews = buildMatchupPreviews({
       season: '2026',

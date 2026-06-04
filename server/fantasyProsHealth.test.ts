@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildFantasyProsSourceHealthEvents, checkFantasyProsApiHealth } from './fantasyProsHealth';
+import { buildFantasyProsSourceHealthEvents, checkFantasyProsApiHealth, getFantasyProsEndpointDefinitions } from './fantasyProsHealth';
 
 describe('FantasyPros API health checks', () => {
   afterEach(() => {
@@ -160,8 +160,8 @@ describe('FantasyPros API health checks', () => {
     expect(rows.find((row) => row.key === 'fantasypros-weekly-ecr-k-week-4')).toMatchObject({ status: 'loaded' });
     expect(rows.find((row) => row.key === 'fantasypros-weekly-ecr-dst-week-4')).toMatchObject({ status: 'loaded' });
     expect(rows.find((row) => row.key === 'fantasypros-ww')).toMatchObject({ status: 'loaded' });
-    expect(rows.find((row) => row.key === 'fantasypros-targets')).toMatchObject({ status: 'loaded' });
-    expect(rows.find((row) => row.key === 'fantasypros-articles')).toMatchObject({ status: 'loaded' });
+    expect(rows.find((row) => row.key === 'fantasypros-targets')).toBeUndefined();
+    expect(rows.find((row) => row.key === 'fantasypros-articles')).toBeUndefined();
     expect(rows.find((row) => row.key === 'fantasypros-compare-players')).toMatchObject({
       status: 'loaded',
       rowCount: 2,
@@ -171,5 +171,29 @@ describe('FantasyPros API health checks', () => {
       expect.stringContaining('/nfl/2026/consensus-rankings?position=RB&scoring=PPR&week=3'),
       expect.any(Object),
     );
+  });
+
+  it('keeps entitlement-gated expanded endpoints opt-in', () => {
+    const defaultRows = getFantasyProsEndpointDefinitions({
+      season: '2026',
+      scoring: 'PPR',
+      includeExpanded: true,
+      currentWeek: 1,
+      weekWindow: 1,
+    });
+    const entitledRows = getFantasyProsEndpointDefinitions({
+      season: '2026',
+      scoring: 'PPR',
+      includeExpanded: true,
+      includeTargets: true,
+      includeArticles: true,
+      currentWeek: 1,
+      weekWindow: 1,
+    });
+
+    expect(defaultRows.some((row) => row.key === 'fantasypros-targets')).toBe(false);
+    expect(defaultRows.some((row) => row.key === 'fantasypros-articles')).toBe(false);
+    expect(entitledRows.some((row) => row.key === 'fantasypros-targets')).toBe(true);
+    expect(entitledRows.some((row) => row.key === 'fantasypros-articles')).toBe(true);
   });
 });

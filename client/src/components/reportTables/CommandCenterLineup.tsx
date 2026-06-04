@@ -327,6 +327,16 @@ function getManagerMatchupPreview(data: ReportData, manager?: string | null) {
   );
 }
 
+function getManagerLineupStrengthRead(data: ReportData, manager?: string | null) {
+  if (!manager) return null;
+  const normalized = normalizeManagerName(manager);
+  return (
+    data.lineupStrength?.rows?.find(
+      row => normalizeManagerName(row.manager) === normalized
+    ) || null
+  );
+}
+
 export function buildLineupSwapRecommendations({
   data,
   manager,
@@ -351,10 +361,12 @@ export function buildLineupSwapRecommendations({
   if (!benchPlayers.length) return [];
 
   const matchup = getManagerMatchupPreview(data, manager);
+  const lineupStrength = getManagerLineupStrengthRead(data, manager);
   const vulnerableIds = new Set(
     [
       ...(matchup?.vulnerableSpots || []),
       ...(matchup?.boomBustRisks || []),
+      lineupStrength?.weakestStarter,
       selectedIntel?.weakestStarter,
       selectedIntel?.starterAvailability?.riskiestStarter,
     ]
@@ -371,12 +383,44 @@ export function buildLineupSwapRecommendations({
     group.players.forEach(starter => {
       if (mustStartIds.has(starter.player_id)) return;
       if (getCommandPlayerGameLockState(starter).isLocked) return;
+      const lineupStrengthAlternatives = (lineupStrength?.benchAlternatives || [])
+        .filter(alternative => alternative.starter.player_id === starter.player_id)
+        .filter(alternative => isLineupSwapEligible(group, alternative.alternative))
+        .filter(alternative => !getCommandPlayerGameLockState(alternative.alternative).isLocked)
+        .map((alternative): LineupSwapOption => {
+          const projectionEdge = alternative.projectionDelta;
+          const confidencePct = clampPercentValue(
+            62 +
+              Math.max(-10, Math.min(20, alternative.scoreDelta * 2.4)) +
+              (projectionEdge !== null ? Math.max(-8, Math.min(18, projectionEdge * 4.5)) : 0)
+          );
+          const projectedPointCopy = formatProjectedPointEdge(projectionEdge);
+          return {
+            player: alternative.alternative,
+            confidencePct,
+            scoreEdge: Math.round(alternative.scoreDelta * 100),
+            projectedPointEdge: projectionEdge,
+            fitLabel,
+            reason: `${alternative.note} ${
+              projectedPointCopy
+                ? `${projectedPointCopy} weekly projection edge.`
+                : ""
+            }`.trim(),
+            reasonBullets: [
+              `Lineup strength edge: ${alternative.note}`,
+              projectedPointCopy
+                ? `Stored weekly projection edge: ${alternative.alternative.name} is ${projectedPointCopy} ahead of ${starter.name}.`
+                : `No ready stored weekly projection edge is attached for this specific swap.`,
+              `Value delta: ${formatCompactValue(alternative.valueDelta)}.`,
+            ],
+          };
+        });
 
       const starterScore = getCommandPlayerSeasonScore(starter);
       const starterProjection = getCommandPlayerProjectionRead(starter);
       const starterIsFlagged = vulnerableIds.has(starter.player_id);
 
-      const options = benchPlayers
+      const localOptions = benchPlayers
         .filter(
           candidate =>
             candidate.player_id !== starter.player_id &&
@@ -477,6 +521,33 @@ export function buildLineupSwapRecommendations({
           (a, b) =>
             b.confidencePct - a.confidencePct || b.scoreEdge - a.scoreEdge
         )
+        .slice(0, 3);
+      const options = [...lineupStrengthAlternatives, ...localOptions]
+        .filter(
+          option =>
+            option.scoreEdge >= 125 ||
+            (option.projectedPointEdge !== null &&
+              option.projectedPointEdge >= 0.8) ||
+            (starterIsFlagged && option.confidencePct >= 62)
+        )
+        .sort(
+          (a, b) =>
+            b.confidencePct - a.confidencePct || b.scoreEdge - a.scoreEdge
+        )
+        .reduce<LineupSwapOption[]>((deduped, option) => {
+          const existingIndex = deduped.findIndex(
+            current => current.player.player_id === option.player.player_id
+          );
+          if (existingIndex === -1) {
+            deduped.push(option);
+          } else if (
+            (deduped[existingIndex].projectedPointEdge === null && option.projectedPointEdge !== null) ||
+            option.confidencePct > deduped[existingIndex].confidencePct
+          ) {
+            deduped[existingIndex] = option;
+          }
+          return deduped;
+        }, [])
         .slice(0, 3)
         .reduce<LineupSwapOption[]>((adjusted, option, index) => {
           const previousConfidence =

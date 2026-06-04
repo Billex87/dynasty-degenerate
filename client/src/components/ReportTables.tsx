@@ -2252,92 +2252,10 @@ export function LeagueCommandCenter({
             hideNumber
             hideHeader={section !== "all"}
           >
-            {section === "taxi" ? (
-              <div className="manager-command-taxi-overview-list">
-                {taxiDepth.map(row => {
-                  const taxiItems = sortTaxiTriageItems(
-                    row.taxiTriage.items || []
-                  );
-
-                  return (
-                    <section
-                      key={row.manager}
-                      className="manager-command-taxi-overview-group"
-                    >
-                      <ManagerDepthTile
-                        manager={row.manager}
-                        avatarUrl={managerAvatars?.[row.manager]}
-                        className={`taxi-triage-depth-tile ${viewerOwnedHighlightClass(
-                          row.manager,
-                          viewerManager
-                        )}`}
-                        subtitle={
-                          row.taxiTriage.counts["Promote Now"]
-                            ? `${row.taxiTriage.counts["Promote Now"]} promote`
-                            : null
-                        }
-                        subtitleTone="balanced"
-                        badges={[
-                          {
-                            label: `${row.taxiTriage.items.length} taxi`,
-                            tone: "neutral",
-                          },
-                          ...(row.taxiTriage.counts["Keep Parked"]
-                            ? [
-                                {
-                                  label: `${row.taxiTriage.counts["Keep Parked"]} stash`,
-                                  tone: "future" as const,
-                                },
-                              ]
-                            : []),
-                          ...(row.taxiTriage.counts["Taxi Risk"]
-                            ? [
-                                {
-                                  label: `${row.taxiTriage.counts["Taxi Risk"]} risk`,
-                                  tone: "warn" as const,
-                                },
-                              ]
-                            : []),
-                          ...(row.taxiTriage.counts.Cuttable
-                            ? [
-                                {
-                                  label: `${row.taxiTriage.counts.Cuttable} cuts`,
-                                  tone: "danger" as const,
-                                },
-                              ]
-                            : []),
-                        ]}
-                        onClick={() => openManager(row.manager)}
-                      />
-                      <div
-                        className="manager-command-taxi-overview-player-grid manager-command-tile-grid balanced-tile-grid balanced-centered-tile-grid"
-                        style={getBalancedGridStyle(
-                          Math.max(taxiItems.length, 2),
-                          2
-                        )}
-                      >
-                        {taxiItems.map(player => (
-                          <CommandPlayerTile
-                            key={player.player_id}
-                            label={getTaxiDisplayAction(player.taxiAction)}
-                            note={player.taxiReason}
-                            player={player}
-                            showValueStack
-                            onClick={() =>
-                              openCommandPlayerForManager(row.manager, player)
-                            }
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  );
-                })}
-              </div>
-            ) : (
-              <div
-                className="command-depth-grid balanced-tile-grid"
-                style={getBalancedGridStyle(taxiDepth.length)}
-              >
+            <div
+              className="command-depth-grid balanced-tile-grid"
+              style={getBalancedGridStyle(taxiDepth.length)}
+            >
                 {taxiDepth.map(row => (
                   <ManagerDepthTile
                     key={row.manager}
@@ -2386,8 +2304,7 @@ export function LeagueCommandCenter({
                     onClick={() => openManager(row.manager)}
                   />
                 ))}
-              </div>
-            )}
+            </div>
           </FeatureCard>
         ) : null}
       </div>
@@ -3394,12 +3311,11 @@ export function OwnerIntelMatrix({
                       title={isRedraft ? "Roster Read" : "Dynasty Roster Read"}
                       body={selectedRosterRead}
                       decision={{
-                        label: "Watch",
-                        detail:
-                          "Roster shape is context for the actual move; do not treat it as a transaction by itself.",
+                        label: "Context read",
                         tone: "watch",
                         status: "Context read",
                       }}
+                      decisionDisplay="context"
                       traceLabel="Why"
                       traceItems={selectedRosterTraceItems}
                       backgroundVariant="roster"
@@ -3412,7 +3328,6 @@ export function OwnerIntelMatrix({
                       body={selectedBestMove}
                       decision={{
                         label: "Do this",
-                        detail: selectedBestMove,
                         tone: "go",
                         status: "Primary move",
                       }}
@@ -3427,12 +3342,11 @@ export function OwnerIntelMatrix({
                       }
                       body={selectedTradeDraftProfile}
                       decision={{
-                        label: "Watch",
-                        detail:
-                          "Use this as deal context; the Best Move panel owns the action call.",
+                        label: "Deal context",
                         tone: "watch",
                         status: "Context read",
                       }}
+                      decisionDisplay="context"
                       traceLabel="Why"
                       traceItems={selectedMarketTraceItems}
                       backgroundVariant="market"
@@ -3473,20 +3387,17 @@ export function OwnerIntelMatrix({
                         card.tone === "danger"
                           ? {
                               label: "Do not force it",
-                              detail: card.copy,
                               tone: "stop" as const,
                               status: "Guardrail",
                             }
                           : card.tone === "warn"
                             ? {
                                 label: "Watch",
-                                detail: card.copy,
                                 tone: "watch" as const,
                                 status: "Caution",
                               }
                             : {
                                 label: "Support read",
-                                detail: card.copy,
                                 tone: "watch" as const,
                                 status: "Context read",
                               };
@@ -3497,6 +3408,7 @@ export function OwnerIntelMatrix({
                           title={card.title}
                           body={card.copy}
                           decision={cardDecision}
+                          decisionDisplay={card.tone === "danger" ? "verdict" : "context"}
                           traceLabel="Why"
                           traceItems={[
                             `Owner profile: ${selectedRow.identity || 'returned owner identity'}.`,
@@ -3519,6 +3431,7 @@ export function OwnerIntelMatrix({
                         title={isRedraft ? "Lineup Notes" : "Dynasty AI Notes"}
                         backgroundVariant="monthly"
                         severity="info"
+                        decisionDisplay="context"
                         className={getAiNeuralSurfaceClass(
                           "neutral",
                           "owner-intel-wild-notes"

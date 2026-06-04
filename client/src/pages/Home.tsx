@@ -84,6 +84,69 @@ const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
 const REPORT_LOADING_TIMEOUT_MS = 10_000;
 const SHOW_LEGACY_LEAGUE_ID_LOGIN = true;
 
+type SleeperTradeCenterImportSummary = {
+  transactionCount: number;
+  tradeCount: number;
+  waiverCount: number;
+};
+
+type SleeperSignalWithIdentity = {
+  id?: string | number | null;
+  date?: string | null;
+};
+
+function extractSleeperAuthorizationToken(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  const lines = trimmed
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+  const authorizationLineIndex = lines.findIndex(line =>
+    /^authorization(?::|\s*$)/i.test(line)
+  );
+
+  if (authorizationLineIndex >= 0) {
+    const authorizationLine = lines[authorizationLineIndex];
+    const headerValue = authorizationLine.includes(":")
+      ? authorizationLine.split(":").slice(1).join(":").trim()
+      : lines[authorizationLineIndex + 1]?.trim();
+
+    if (headerValue) return headerValue;
+  }
+
+  return trimmed.replace(/^authorization:\s*/i, "").trim();
+}
+
+function mergeSleeperSignalLists<TSignal extends SleeperSignalWithIdentity>(
+  current: TSignal[] | undefined,
+  imported: TSignal[] | undefined
+): TSignal[] {
+  const byId = new Map<string, TSignal>();
+  const fallbackKeys = new WeakMap<TSignal, string>();
+
+  [...(current || []), ...(imported || [])].forEach((signal, index) => {
+    const explicitId = signal.id === null || signal.id === undefined
+      ? ""
+      : String(signal.id).trim();
+    const fallbackKey =
+      fallbackKeys.get(signal) ||
+      `${signal.date || "unknown-date"}:${index}`;
+    fallbackKeys.set(signal, fallbackKey);
+    byId.set(explicitId || fallbackKey, signal);
+  });
+
+  return Array.from(byId.values()).sort((a, b) => {
+    const aTime = Date.parse(a.date || "");
+    const bTime = Date.parse(b.date || "");
+    if (Number.isFinite(aTime) && Number.isFinite(bTime)) return bTime - aTime;
+    if (Number.isFinite(aTime)) return -1;
+    if (Number.isFinite(bTime)) return 1;
+    return 0;
+  });
+}
+
 export default function Home() {
   const authQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
@@ -563,6 +626,54 @@ export default function Home() {
     prefetchDebounceMs: REPORT_CACHE_PREFETCH_DEBOUNCE_MS,
     onRefreshReport: refreshReportInBackground,
   });
+  const importSleeperTradeCenterMutation =
+    trpc.league.importSleeperTradeCenter.useMutation();
+  const handleImportSleeperTradeCenter = async (
+    authToken: string
+  ): Promise<SleeperTradeCenterImportSummary> => {
+    const normalizedLeagueId = leagueId.trim();
+    const normalizedAuthToken = extractSleeperAuthorizationToken(authToken);
+
+    if (!normalizedLeagueId) {
+      throw new Error("Run a league report before importing Sleeper activity.");
+    }
+
+    if (!normalizedAuthToken) {
+      throw new Error("Paste the Sleeper authorization value first.");
+    }
+
+    const result = await importSleeperTradeCenterMutation.mutateAsync({
+      leagueId: normalizedLeagueId,
+      authToken: normalizedAuthToken,
+      sharedBy: viewerUsername || sleeperUsername || null,
+    });
+
+    setReportData(current => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        adminSleeperTradeProposalSignals: mergeSleeperSignalLists(
+          current.adminSleeperTradeProposalSignals,
+          result.tradeProposalSignals
+        ),
+        adminSleeperWaiverSignals: mergeSleeperSignalLists(
+          current.adminSleeperWaiverSignals,
+          result.waiverSignals
+        ),
+        sleeperHiddenLeagueSnapshot: result.sleeperHiddenLeagueSnapshot,
+      };
+    });
+    setReportDataCacheVersion(
+      `sleeper-hidden:${result.leagueId}:${result.sleeperHiddenLeagueSnapshot.sharedAt}`
+    );
+
+    return {
+      transactionCount: result.transactionCount,
+      tradeCount: result.tradeCount,
+      waiverCount: result.waiverCount,
+    };
+  };
   const { handleReportTabChange, handleScoutLeaguemates } =
     useHomeReportTabActions({
       activeTab,
@@ -576,7 +687,6 @@ export default function Home() {
       resolvedActiveTab,
       setRosterScannerFocusKey,
     });
-
   const homeDialogs = (
     <HomeDialogsContainer
       isLeaguePickerOpen={isLeaguePickerOpen}
@@ -653,6 +763,10 @@ export default function Home() {
         rankingsForReport={rankingsForReport}
         rankingsQueryIsLoading={rankingsQueryIsLoading}
         onAnalyze={() => handleAnalyze()}
+        onImportSleeperTradeCenter={handleImportSleeperTradeCenter}
+        isImportingSleeperTradeCenter={
+          importSleeperTradeCenterMutation.isPending
+        }
         onScoutLeaguemates={handleScoutLeaguemates}
         currentReportDeltaSnapshot={currentReportDeltaSnapshot}
         previousReportDeltaSnapshot={previousReportDeltaSnapshot}

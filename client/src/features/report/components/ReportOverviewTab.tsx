@@ -211,7 +211,8 @@ export function ReportOverviewTab({
 
   return (
     <div className="dashboard-overview-section-stack space-y-6 sm:space-y-8">
-      {canViewAdminFeatureExpansion && (
+      {/* Previously gated behind canViewAdminFeatureExpansion; ungated for all viewers. */}
+      {(
         <>
           <OverviewAIPulse data={reportDataForView} />
           {playerHoardSection}
@@ -383,7 +384,6 @@ export function ReportOverviewTab({
           )}
         </>
       )}
-      {!canViewAdminFeatureExpansion ? playerHoardSection : null}
       <CollapsibleReportSection
         title={ownerTitle}
         kicker={ownerKicker}

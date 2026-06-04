@@ -1,6 +1,6 @@
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { HeaderCssLights } from "@/components/HeaderCssLights";
-import { LegalLinks } from "@/components/LegalLinks";
+import { LegalFooterLink } from "@/components/LegalLinks";
 import { SupportButton } from "@/components/SupportButton";
 
 const DYNASTY_LOGO_SRC =
@@ -94,7 +94,7 @@ export function HomeFooterChrome({ showBrand = true }: { showBrand?: boolean }) 
       {showBrand && (
         <div className="flex flex-col items-center gap-1">
           <HomeBrandLockup />
-          <LegalLinks />
+          <LegalFooterLink />
         </div>
       )}
       <div className="home-footer-slot home-footer-slot-right">

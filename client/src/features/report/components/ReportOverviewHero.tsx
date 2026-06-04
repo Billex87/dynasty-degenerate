@@ -1,4 +1,5 @@
 import { DashboardVisualMetric, type DashboardHeroMetric } from "@/features/report/components/ReportDashboardMetrics";
+import { HeroTile } from "@/components/tiles";
 
 export type ReportDashboardHeroCopy = {
   headline: string;
@@ -26,13 +27,16 @@ export function ReportOverviewHero({
   heroConfig,
 }: ReportOverviewHeroProps) {
   return (
-    <section className="report-overview-hero" data-dashboard-tab={activeTab}>
+    <HeroTile
+      className="report-overview-hero"
+      data-dashboard-tab={activeTab}
+    >
       <div className="report-overview-hero-copy">
-        <h1>
+        <h2>
           {heroCopy.headline.split("\n").map(line => (
             <span key={line}>{line}</span>
           ))}
-        </h1>
+        </h2>
         <p className="report-overview-hero-subline">{heroCopy.subline}</p>
         <p>{heroCopy.body}</p>
       </div>
@@ -45,6 +49,6 @@ export function ReportOverviewHero({
           <DashboardVisualMetric key={metric.key} metric={metric} />
         ))}
       </div>
-    </section>
+    </HeroTile>
   );
 }

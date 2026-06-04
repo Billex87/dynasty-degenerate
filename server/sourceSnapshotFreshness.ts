@@ -58,6 +58,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   'sportsdataio-news-v1': 'SportsDataIO/RotoBaller news snapshot',
   'espn-depth-charts-v1': 'ESPN depth-chart snapshot',
   'draftsharks-sos-v1': 'DraftSharks SOS snapshot',
+  'nfl-schedule-games-v1': 'Normalized NFL schedule snapshot',
   'sleeper-weekly-projections-v1': 'Stored weekly projection snapshot',
   'player-props-opticodds-v1': 'OpticOdds player props snapshot',
   'nflverse-draft-capital-v1': 'nflverse draft-capital snapshot',
@@ -66,6 +67,10 @@ const PROVIDER_LABELS: Record<string, string> = {
   'nflverse-combine-v1': 'nflverse combine snapshot',
   'nflverse-contracts-v1': 'nflverse contracts snapshot',
 };
+
+const RETIRED_SNAPSHOT_SOURCE_PREFIXES = [
+  'fantasypros-matchup-calendar-v1:',
+];
 
 function envFlag(name: string): boolean {
   return ENABLED_VALUES.has(String(process.env[name] || '').trim().toLowerCase());
@@ -77,6 +82,15 @@ function isDisabledEnvValue(name: string): boolean {
 
 function hasEnvValue(name: string): boolean {
   return Boolean(String(process.env[name] || '').trim());
+}
+
+function isRetiredSnapshotSourceKey(sourceKey: string): boolean {
+  return RETIRED_SNAPSHOT_SOURCE_PREFIXES.some((prefix) => sourceKey.startsWith(prefix));
+}
+
+function isUnselectedDevySourceSnapshot(metadata: StoredSnapshotMetadata, expectedBySource: Map<string, ExpectedSnapshotSource>): boolean {
+  return metadata.sourceKey.startsWith('devy-source-snapshot:')
+    && !expectedBySource.has(metadata.sourceKey);
 }
 
 function fantasyProsNewsMissingLevel(): SourceSnapshotFreshnessDiagnostic['level'] {
@@ -230,6 +244,9 @@ export function buildSourceSnapshotFreshnessDiagnostics(input: BuildInput): Sour
   const latestProblemHealth = latestProblemHealthBySource(input.healthEvents);
 
   for (const metadata of input.metadata) {
+    if (isRetiredSnapshotSourceKey(metadata.sourceKey)) continue;
+    if (isUnselectedDevySourceSnapshot(metadata, expectedBySource)) continue;
+
     if (!expectedBySource.has(metadata.sourceKey)) {
       expectedBySource.set(metadata.sourceKey, {
         sourceKey: metadata.sourceKey,
@@ -347,6 +364,13 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       tableName: 'providerDataSnapshots',
       staleAfterHours: WEEKLY_STALE_HOURS,
       missingLevel: envFlag('ENABLE_DRAFTSHARKS_SOS') ? 'warn' : 'info',
+    },
+    {
+      sourceKey: 'nfl-schedule-games-v1',
+      source: PROVIDER_LABELS['nfl-schedule-games-v1'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: WEEKLY_STALE_HOURS,
+      missingLevel: 'warn',
     },
     ...['PPR', 'HALF_PPR', 'STD'].map((scoringProfile) => ({
       sourceKey: `player-projection-snapshots-v1:sleeper:${scoringProfile}:weekly`,

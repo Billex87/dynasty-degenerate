@@ -668,17 +668,49 @@ export function buildTradeProposalPreviewMetrics(
   reportData: ReportData
 ): PreviewMetric[] {
   const signals = [
-    ...(reportData.adminTradeProposalSignals || reportData.tradeProposalSignals || []),
-  ].sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
-  const latestSignal = signals[0] || null;
+    ...(reportData.adminTradeProposalSignals || []),
+    ...(reportData.tradeProposalSignals || []),
+    ...(reportData.adminSleeperTradeProposalSignals || []),
+    ...(reportData.adminSleeperWaiverSignals || []).map(signal => ({
+      id: signal.id,
+      date: signal.date,
+      status: signal.status,
+      managers: signal.managers,
+      playerIds: [
+        ...(signal.playerIds || []),
+        ...(signal.dropPlayerIds || []),
+      ],
+      playerNames: [
+        ...(signal.playerNames || []),
+        ...(signal.dropPlayerNames || []),
+      ],
+      pickLabels: [],
+      note: signal.note,
+    })),
+  ];
+  const dedupedSignals = new Map<
+    string,
+    NonNullable<ReportData["tradeProposalSignals"]>[number]
+  >();
 
-  if (!signals.length) return [];
+  signals.forEach((signal) => {
+    const key = `${signal.id || ""}|${signal.date || ""}|${signal.status || ""}|${signal.playerIds.join(",")}|${signal.managers.join(",")}`;
+    dedupedSignals.set(key, signal);
+  });
+
+  const sortedSignals = Array.from(dedupedSignals.values()).sort(
+    (a, b) => Date.parse(b.date) - Date.parse(a.date)
+  );
+
+  const latestSignal = sortedSignals[0] || null;
+
+  if (!sortedSignals.length) return [];
 
   return [
     {
       label: "Signals",
-      value: signals.length,
-      tone: signals.length ? "info" : "warn",
+      value: sortedSignals.length,
+      tone: sortedSignals.length ? "info" : "warn",
     },
     {
       label: "Latest",

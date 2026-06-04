@@ -223,4 +223,27 @@ describe("billing router", () => {
       }
     }
   });
+
+  it("checks billing persistence before customer lookup or Stripe provider calls", () => {
+    const routeChecks = [
+      {
+        name: "createCheckoutSession",
+        source: extractSource("createCheckoutSession: protectedProcedure", "\n    createCustomerPortalSession: protectedProcedure"),
+        workMarkers: ["findBillingCustomerForUser(ctx.user.openId)", "createStripeCheckoutSession({"],
+      },
+      {
+        name: "createCustomerPortalSession",
+        source: extractSource("createCustomerPortalSession: protectedProcedure", "\n  }),\n\n  actionPlans: router"),
+        workMarkers: ["findBillingCustomerForUser(ctx.user.openId)", "createStripeCustomerPortalSession({"],
+      },
+    ];
+
+    for (const route of routeChecks) {
+      const persistenceIndex = route.source.indexOf("assertBillingPersistenceConfigured()");
+      expect(persistenceIndex, route.name).toBeGreaterThan(0);
+      for (const marker of route.workMarkers) {
+        expect(route.source.indexOf(marker), `${route.name}:${marker}`).toBeGreaterThan(persistenceIndex);
+      }
+    }
+  });
 });

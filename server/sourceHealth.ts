@@ -83,8 +83,34 @@ function getWebhookMinLevel(): SourceHealthEventInput['level'] {
   return configured === 'danger' ? 'danger' : configured === 'info' ? 'info' : 'warn';
 }
 
+export function resolveSourceHealthAlertWebhookUrl(input: {
+  webhookUrl?: string | null;
+  nodeEnv?: string | null;
+} = {}): string | null {
+  const configured = String(input.webhookUrl ?? process.env.SOURCE_HEALTH_ALERT_WEBHOOK_URL ?? '').trim();
+  if (!configured) return null;
+
+  try {
+    const url = new URL(configured);
+    const host = url.hostname.toLowerCase();
+    const isProduction = (input.nodeEnv ?? process.env.NODE_ENV) === 'production';
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+    const isPrivateHost =
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
+
+    if (!['http:', 'https:'].includes(url.protocol)) return null;
+    if (isProduction && url.protocol !== 'https:') return null;
+    if (isProduction && (isLocalHost || isPrivateHost)) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 async function sendSourceHealthAlertWebhook(events: SourceHealthEventInput[]) {
-  const webhookUrl = process.env.SOURCE_HEALTH_ALERT_WEBHOOK_URL;
+  const webhookUrl = resolveSourceHealthAlertWebhookUrl();
   if (!webhookUrl || process.env.NODE_ENV === 'test' || process.env.VITEST === 'true') return;
 
   const minLevel = getWebhookMinLevel();

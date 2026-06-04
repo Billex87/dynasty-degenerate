@@ -1,17 +1,42 @@
 import { expect, test } from '@playwright/test';
 import { createCachedRedraftReport, REPORT_CACHE_KEY } from './fixtures/cachedReports';
 
+function getPerLeagueReportCacheKey(leagueId: string) {
+  return `${REPORT_CACHE_KEY}:${leagueId}`;
+}
+
 async function loadCachedReport(page: import('@playwright/test').Page, leagueId: string, hash: string) {
   const cachedReport = createCachedRedraftReport(leagueId);
   await page.addInitScript(
-    ({ key, value }) => window.localStorage.setItem(key, JSON.stringify(value)),
-    { key: REPORT_CACHE_KEY, value: cachedReport },
+    ({ globalKey, leagueKey, value }) => {
+      window.localStorage.setItem(globalKey, JSON.stringify(value));
+      window.localStorage.setItem(leagueKey, JSON.stringify(value));
+    },
+    {
+      globalKey: REPORT_CACHE_KEY,
+      leagueKey: getPerLeagueReportCacheKey(cachedReport.leagueId),
+      value: cachedReport,
+    },
   );
   await page.goto(`/?leagueId=${cachedReport.leagueId}${hash}`, { waitUntil: 'domcontentloaded' });
 }
 
 async function openFullRosterRankings(page: import('@playwright/test').Page) {
-  await page.locator('.report-disclosure-summary').filter({ hasText: 'Full Roster Rankings' }).click();
+  const section = page.locator('details.report-disclosure').filter({ hasText: 'Full Roster Rankings' }).first();
+  await expect(section).toBeVisible();
+  if (!(await section.evaluate(node => node.open))) {
+    await section.locator('summary.report-disclosure-summary').click();
+  }
+  await expect(section).toHaveAttribute('open', '');
+}
+
+async function openDraftYear(page: import('@playwright/test').Page, title: string) {
+  const section = page.locator('details.report-disclosure').filter({ hasText: title }).first();
+  await expect(section).toBeVisible();
+  if (!(await section.evaluate(node => node.open))) {
+    await section.locator('summary.report-disclosure-summary').click();
+  }
+  await expect(section).toHaveAttribute('open', '');
 }
 
 test.describe('redraft value consistency', () => {
@@ -19,8 +44,9 @@ test.describe('redraft value consistency', () => {
     await loadCachedReport(page, 'value-consistency-rankings-redraft', '#rankings');
     await openFullRosterRankings(page);
 
-    const rankingRow = page.getByRole('button', { name: /#1 .*Bijan Robinson/ });
+    const rankingRow = page.locator('.value-board__row').filter({ hasText: 'Bijan Robinson' }).first();
     await expect(rankingRow).toBeVisible();
+    await expect(rankingRow).toContainText('#1');
     await expect(rankingRow).toContainText('5,000');
 
     await rankingRow.click();
@@ -33,9 +59,10 @@ test.describe('redraft value consistency', () => {
   test('uses current-season value consistently between draft row and draft player modal', async ({ page }) => {
     await loadCachedReport(page, 'value-consistency-draft-redraft', '#draft');
 
-    await page.locator('.report-disclosure-summary').filter({ hasText: '2026 Main Draft' }).click();
-    const draftRow = page.getByRole('button', { name: /#1 Bijan Robinson/ });
+    await openDraftYear(page, '2026 Main Draft');
+    const draftRow = page.locator('.rookie-draft-row').filter({ hasText: 'Bijan Robinson' }).first();
     await expect(draftRow).toBeVisible();
+    await expect(draftRow).toContainText('#1');
     await expect(draftRow).toContainText('5,000');
 
     await draftRow.click();

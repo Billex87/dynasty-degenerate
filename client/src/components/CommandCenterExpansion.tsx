@@ -21,7 +21,7 @@ import {
   Target,
   Users,
 } from 'lucide-react';
-import type { DraftPick, ManagerIntelPlayer, ManagerStarterPlayer, PlayerDetails, PlayerInfo, RankingPlayer, ReportData, TrendingPlayer, WeeklyMomentum } from '@shared/types';
+import type { DraftPick, LeagueValueMode, ManagerIntelPlayer, ManagerStarterPlayer, PlayerDetails, PlayerInfo, RankingPlayer, ReportData, TrendingPlayer, WeeklyMomentum } from '@shared/types';
 import {
   evaluateAIEvidence,
   getAIEvidenceLeagueContextFromDiagnostics,
@@ -38,6 +38,15 @@ import { TeamLogoPill } from './TeamLogoPill';
 import { normalizeLeagueValueMode } from '@/lib/leagueValueMode';
 import { getDraftSignalPicks } from '@/lib/draftDashboardMetrics';
 import { getBalancedGridStyle } from '@/lib/balancedGrid';
+import { gradeRoster } from '@shared/blueprint/playerGrading';
+import {
+  buildAverageAge,
+  buildRosterMakeup,
+  buildValueProportion,
+  getDraftCapitalScore as getBlueprintDraftCapitalScore,
+  getOverallGrade,
+} from '@shared/blueprint/rosterAggregates';
+import { buildLeagueComparatives, summarizeManagerRoster } from '@/lib/blueprint/leagueComparatives';
 import { isPlaceholderManagerName } from '@/lib/managerDisplay';
 import { getManagerProfileLabel } from '@/lib/managerProfileLabels';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
@@ -1137,6 +1146,32 @@ export function MonthlyTeamBlueprint({
   const monthlyConfidence = getMonthlyConfidence(data, manager, hasPartialHistory);
   const isRedraft = isRedraftReportData(data);
   const isPreDraftRedraft = isRedraft && !hasCurrentSeasonMainDraft(data);
+  const blueprintValueMode: LeagueValueMode = isRedraft ? 'redraft' : 'dynasty';
+
+  // League-wide roster rollup grades every manager's roster, so memoize it —
+  // otherwise unrelated re-renders (e.g. share-status changes) regrade the field.
+  // Keyed on `data` (the true input); getManagerOptions returns a fresh array each
+  // call, so depending on it directly would defeat the memo.
+  const leagueRollups = useMemo(
+    () =>
+      getManagerOptions(data).map((rosterManager) => {
+        const rosterIntel = getIntel(data, rosterManager);
+        const rosterCounts =
+          data.managerPositionCounts?.find((row) => row.manager === rosterManager) || null;
+        const rosterStarters = (rosterCounts?.starterPlayers || []) as ManagerIntelPlayer[];
+        const pool = uniqueBlueprintPlayers([
+          ...rosterStarters,
+          ...getManagerPlayerPool(rosterIntel),
+        ]);
+        return summarizeManagerRoster({
+          manager: rosterManager,
+          players: pool,
+          buildLabel: rosterIntel?.identity || null,
+          valueMode: blueprintValueMode,
+        });
+      }),
+    [data, blueprintValueMode],
+  );
 
   if (!managerOptions.length || !intel) {
     return (
@@ -1234,6 +1269,59 @@ export function MonthlyTeamBlueprint({
   ].filter(Boolean) as string[];
   const needPosition = getNeedPosition(data, manager);
   const surplusPosition = getSurplusPosition(data, manager);
+
+  // Enhanced blueprint analytics: three-factor player grades + roster rollups,
+  // all derived client-side from the roster pool already assembled above.
+  // (blueprintValueMode + leagueRollups are memoized above the early returns.)
+  const gradedRoster = gradeRoster(rosterPool, blueprintValueMode);
+  const draftCapitalValue = pickPortfolio?.totalValue || 0;
+  const valueProportion = buildValueProportion(rosterPool, draftCapitalValue);
+  const rosterMakeup = buildRosterMakeup(gradedRoster);
+  const topMakeupArchetype = rosterMakeup[0]?.archetype || 'Mixed archetypes';
+  const overallEnhancedGrade = getOverallGrade(gradedRoster);
+  const starterAges = buildAverageAge(starterPlayers.length ? starterPlayers : rosterPool);
+  const draftCapitalScore = getBlueprintDraftCapitalScore({
+    totalValue: draftCapitalValue,
+    leagueRank: power ? power.rank : null,
+    leagueSize,
+  });
+  const factorByPosition = (['QB', 'RB', 'WR', 'TE'] as const).map((position) => {
+    const entries = gradedRoster.filter((entry) => entry.player.pos?.toUpperCase() === position);
+    const avg = (selector: (entry: (typeof entries)[number]) => number) =>
+      entries.length ? Math.round((entries.reduce((sum, entry) => sum + selector(entry), 0) / entries.length) * 10) / 10 : null;
+    return {
+      position,
+      insulation: avg((entry) => entry.insulation),
+      production: avg((entry) => entry.production),
+      situational: avg((entry) => entry.situational),
+      composite: avg((entry) => entry.composite),
+    };
+  });
+  const leaguePowerRanks = [...(data.powerRankings || [])].sort((a, b) => a.rank - b.rank).slice(0, 12);
+  const trueRankRows = gradedRoster.slice(0, 20);
+
+  // League-relative standing from the memoized rollup above.
+  const leagueComparatives = buildLeagueComparatives(leagueRollups, manager);
+
+  // 2-year outlook arrow framing from the returned dynasty timeline.
+  const outlookFrom = timeline?.label || intel.timeline || intel.identity || 'Current';
+  const outlookContending = (timeline?.contenderScore ?? 0) >= (timeline?.rebuildScore ?? 0);
+  const outlookTo = isRedraft
+    ? 'Win Now'
+    : outlookContending
+      ? 'Contend'
+      : (timeline?.outlook2027 ?? 0) >= 55
+        ? 'Contend'
+        : 'Reload';
+
+  // Draft strategy posture from the returned pick portfolio.
+  const draftPosture = draftCapitalScore >= 6.5 ? 'Loaded' : draftCapitalScore >= 4 ? 'Adequate' : 'Thin';
+  const draftStrategyNote = draftPosture === 'Loaded'
+    ? 'Pick bank is deep. Use surplus capital to buy proven value or consolidate into a starter.'
+    : draftPosture === 'Adequate'
+      ? 'Hold current picks and target more at a discount while you can.'
+      : 'Capital is light. Protect remaining picks and avoid trading future value for marginal upgrades.';
+
   const priorityText = topPriorities[0] || intel.tradePlan?.summary || 'No urgent roster action was returned.';
   const pressureTitle = needPosition ? `${needPosition} depth` : 'Roster construction';
   const ageRows = POSITIONS.map((position) => {
@@ -1257,9 +1345,13 @@ export function MonthlyTeamBlueprint({
   })));
   const overallGradeTrendPoints = buildTrendPoints(managerHistory.map((snapshot) => ({
     month: snapshot.snapshotMonth,
-    value: toFiniteNumber(snapshot.powerRanking?.score) !== null
-      ? Math.round((toFiniteNumber(snapshot.powerRanking?.score) || 0) / 10)
-      : null,
+    // Prefer the stored three-factor grade; fall back to the legacy power-derived
+    // grade for snapshots captured before the engine started persisting it.
+    value: toFiniteNumber(snapshot.overallGrade) !== null
+      ? toFiniteNumber(snapshot.overallGrade)
+      : toFiniteNumber(snapshot.powerRanking?.score) !== null
+        ? Math.round((toFiniteNumber(snapshot.powerRanking?.score) || 0) / 10)
+        : null,
   })));
   const trendCards = [
     {
@@ -1280,7 +1372,7 @@ export function MonthlyTeamBlueprint({
     },
     {
       label: 'Overall Grade',
-      value: String(overallGrade),
+      value: overallEnhancedGrade.toFixed(1),
       points: overallGradeTrendPoints,
       delta: getTrendDelta(overallGradeTrendPoints),
       suffix: '',
@@ -1309,6 +1401,13 @@ export function MonthlyTeamBlueprint({
       label: 'This month',
       title: marketPosture,
       body: `${buyPct}% buy, ${holdPct}% hold, and ${sellPct}% sell from returned roster signals. Trade partner specifics live in the trade finder.`,
+    },
+    {
+      label: 'Roster grade',
+      title: `Overall ${overallEnhancedGrade.toFixed(1)} · ${topMakeupArchetype}`,
+      body: leagueComparatives.percentile !== null
+        ? `The three-factor engine grades this roster ${overallEnhancedGrade.toFixed(1)}/10 — ${leagueComparatives.percentile}th percentile in the league${leagueComparatives.valueShareRank ? `, #${leagueComparatives.valueShareRank} in value share` : ''}. Make-up leans ${topMakeupArchetype.toLowerCase()}.`
+        : `The three-factor engine grades this roster ${overallEnhancedGrade.toFixed(1)}/10. Make-up leans ${topMakeupArchetype.toLowerCase()}.`,
     },
   ];
   const handlePrintBlueprint = () => {
@@ -1546,6 +1645,175 @@ export function MonthlyTeamBlueprint({
               </div>
             </section>
 
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-grade-strip">
+              <div className="team-blueprint-overall-grade">
+                <span>Overall Grade</span>
+                <strong>{overallEnhancedGrade.toFixed(1)}</strong>
+                <small>Composite of returned three-factor player grades</small>
+              </div>
+              <div className="team-blueprint-grade-strip-meta">
+                <span>
+                  <em>Value Archetype</em>
+                  <strong>{intel.identity || 'Returned identity'}</strong>
+                </span>
+                <span className="team-blueprint-outlook">
+                  <em>2-Year Outlook</em>
+                  <strong>{outlookFrom} <i aria-hidden="true">→</i> {outlookTo}</strong>
+                </span>
+                <span>
+                  <em>Draft Capital</em>
+                  <strong>{draftCapitalScore.toFixed(1)}<i>/10</i></strong>
+                </span>
+              </div>
+              <div className="team-blueprint-age-strip">
+                {(['QB', 'RB', 'WR', 'TE'] as const).map((position) => (
+                  <span key={position} className={`team-blueprint-position-${position.toLowerCase()}`}>
+                    <em>{position}</em>
+                    <strong>{starterAges[position] !== null ? starterAges[position]!.toFixed(1) : '-'}</strong>
+                    <small>avg age</small>
+                  </span>
+                ))}
+              </div>
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-standing-panel">
+              <h4>League Standing</h4>
+              <div className="team-blueprint-standing-grid">
+                <span>
+                  <em>Value Share</em>
+                  <strong>{leagueComparatives.valueShare !== null ? `${leagueComparatives.valueShare}%` : '-'}</strong>
+                  <small>{leagueComparatives.valueShareRank ? `League rank #${leagueComparatives.valueShareRank}` : 'No league context'}</small>
+                </span>
+                <span>
+                  <em>Production Share</em>
+                  <strong>{leagueComparatives.productionShare !== null ? `${leagueComparatives.productionShare}%` : '-'}</strong>
+                  <small>{leagueComparatives.productionShareRank ? `League rank #${leagueComparatives.productionShareRank}` : 'No returned production'}</small>
+                </span>
+                <span>
+                  <em>Blueprint Percentile</em>
+                  <strong>{leagueComparatives.percentile !== null ? `${leagueComparatives.percentile}th` : '-'}</strong>
+                  <small>By overall grade vs {leagueComparatives.teamCount} teams</small>
+                </span>
+                <span>
+                  <em>Build Rarity</em>
+                  <strong>{leagueComparatives.buildRarity !== null ? `${leagueComparatives.buildRarity}%` : '-'}</strong>
+                  <small>{leagueComparatives.buildLabel ? `Teams sharing "${leagueComparatives.buildLabel}"` : 'Build not classified'}</small>
+                </span>
+              </div>
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-factor-panel">
+              <h4>3-Factor Analysis</h4>
+              <div className="team-blueprint-factor-table" role="table">
+                <div className="team-blueprint-factor-row team-blueprint-factor-head" role="row">
+                  <span role="columnheader">Pos</span>
+                  <span role="columnheader" title="Asset security: age curve, durability, role lock, and positional value floor.">Insulation</span>
+                  <span role="columnheader" title="Recent on-field output vs a positional starter baseline (PPG, availability, rank, started share).">Production</span>
+                  <span role="columnheader" title="Environment and trajectory: strength of schedule, value trend, and depth-chart competition.">Situational</span>
+                  <span role="columnheader" title="Weighted blend of the three factors (dynasty leans Insulation, redraft leans Production).">Composite</span>
+                </div>
+                {factorByPosition.map((row) => (
+                  <div className="team-blueprint-factor-row" role="row" key={row.position}>
+                    <span role="cell" className={`team-blueprint-position-${row.position.toLowerCase()}`}>{row.position}</span>
+                    <span role="cell">{row.insulation ?? '-'}</span>
+                    <span role="cell">{row.production ?? '-'}</span>
+                    <span role="cell">{row.situational ?? '-'}</span>
+                    <span role="cell"><strong>{row.composite ?? '-'}</strong></span>
+                  </div>
+                ))}
+              </div>
+              <p className="team-blueprint-panel-note">Insulation = asset security · Production = recent output vs starter baseline · Situational = schedule, trajectory, and depth competition. Averaged across returned players per position.</p>
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-makeup-panel">
+              <h4>Roster Make-Up</h4>
+              {rosterMakeup.length ? (
+                <div className="team-blueprint-makeup-list">
+                  {rosterMakeup.map((row) => (
+                    <span key={row.archetype} className={`team-blueprint-makeup-row team-blueprint-archetype-${row.archetype.toLowerCase().replace(/[^a-z]+/g, '-')}`}>
+                      <em>{row.archetype}</em>
+                      <i aria-hidden="true"><b style={{ width: `${row.share}%` }} /></i>
+                      <strong>{row.share}%</strong>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="command-module-empty-copy">No gradeable players returned.</p>
+              )}
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-proportion-panel">
+              <h4>Value Proportion</h4>
+              {valueProportion.length ? (
+                <div className="team-blueprint-proportion-list">
+                  {valueProportion.map((slice) => (
+                    <span key={slice.key} className={`team-blueprint-proportion-row team-blueprint-position-${slice.key.toLowerCase()}`}>
+                      <em>{slice.key}</em>
+                      <i aria-hidden="true"><b style={{ width: `${slice.share}%` }} /></i>
+                      <strong>{slice.share}%</strong>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="command-module-empty-copy">No roster value returned.</p>
+              )}
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-power-panel">
+              <h4>League Power Ranks</h4>
+              {leaguePowerRanks.length ? (
+                <div className="team-blueprint-power-list">
+                  {leaguePowerRanks.map((row) => (
+                    <span key={row.manager} className={row.manager === manager ? 'team-blueprint-power-active' : undefined}>
+                      <i>{row.rank}</i>
+                      <strong>{row.manager}</strong>
+                      <em>{row.tier}</em>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="command-module-empty-copy">League power rankings were not returned.</p>
+              )}
+            </section>
+
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-true-ranks">
+              <h4>Domain True Ranks</h4>
+              {trueRankRows.length ? (
+                <div className="team-blueprint-true-table" role="table">
+                  <div className="team-blueprint-true-row team-blueprint-true-head" role="row">
+                    <span role="columnheader">Player</span>
+                    <span role="columnheader" title="Insulation — asset security: age curve, durability, role lock, and positional value floor.">Ins</span>
+                    <span role="columnheader" title="Production — recent on-field output vs a positional starter baseline (PPG, availability, rank, started share).">Prod</span>
+                    <span role="columnheader" title="Situational — environment and trajectory: strength of schedule, value trend, and depth-chart competition.">Sit</span>
+                    <span role="columnheader">Archetype</span>
+                    <span role="columnheader" title="Composite position rank within this roster (best composite first).">Pos</span>
+                  </div>
+                  {trueRankRows.map((entry) => (
+                    <div className="team-blueprint-true-row" role="row" key={entry.player.player_id}>
+                      <span role="cell" className="team-blueprint-true-name">
+                        <PlayerIdentityRow
+                          playerId={entry.player.player_id}
+                          playerName={entry.player.name}
+                          team={entry.player.playerDetails?.team}
+                          position={entry.player.pos}
+                          hideMeta
+                        />
+                      </span>
+                      <span role="cell">{entry.insulation}</span>
+                      <span role="cell">{entry.production}</span>
+                      <span role="cell">{entry.situational}</span>
+                      <span role="cell">
+                        <em className={`team-blueprint-archetype-pill team-blueprint-archetype-${entry.archetype.toLowerCase().replace(/[^a-z]+/g, '-')}`}>{entry.archetype}</em>
+                      </span>
+                      <span role="cell"><strong>{entry.compositePositionRank}</strong></span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="command-module-empty-copy">No gradeable players returned for true ranks.</p>
+              )}
+            </section>
+
             <section className="team-blueprint-panel">
               <h4>Starting Lineup Signals</h4>
               {starterPlayers.length ? (
@@ -1741,6 +2009,11 @@ export function MonthlyTeamBlueprint({
                     </span>
                   ) : null}
                   <p>Total capital: {formatCompactValue(pickPortfolio.totalValue)}{pickPortfolio.projectedSlots?.length ? ` · ${pickPortfolio.projectedSlots.slice(0, 3).join(', ')}` : ''}</p>
+                  <div className={`team-blueprint-draft-strategy team-blueprint-draft-strategy-${draftPosture.toLowerCase()}`}>
+                    <span>Draft Strategy</span>
+                    <strong>{draftPosture}</strong>
+                    <small>{draftStrategyNote}</small>
+                  </div>
                 </div>
               ) : (
                 <p className="command-module-empty-copy">Draft-pick portfolio was not returned.</p>
@@ -1845,10 +2118,21 @@ export function MonthlyTeamBlueprint({
               severity={monthlyConfidence >= 78 && !hasPartialHistory ? 'good' : hasPartialHistory ? 'warn' : 'info'}
               chips={[
                 monthLabel,
-                intel.timeline || intel.identity,
+                { label: `Grade ${overallEnhancedGrade.toFixed(1)}`, tone: overallEnhancedGrade >= 7 ? 'good' : overallEnhancedGrade <= 4 ? 'warn' : undefined },
+                topMakeupArchetype,
                 hasPartialHistory ? { label: 'Partial history', tone: 'warn' } : { label: 'History loaded', tone: 'good' },
               ]}
-              body={`${manager} profiles as ${intel.identity}. The ${monthLabel} priority is ${topPriorities[0] || intel.tradePlan?.summary || 'to keep value insulated until a clear roster-fit deal appears'}.`}
+              body={`${manager} profiles as ${intel.identity}, graded ${overallEnhancedGrade.toFixed(1)}/10 by the three-factor engine${leagueComparatives.percentile !== null ? ` (${leagueComparatives.percentile}th percentile)` : ''} and leaning ${topMakeupArchetype.toLowerCase()}. The ${monthLabel} priority is ${topPriorities[0] || intel.tradePlan?.summary || 'to keep value insulated until a clear roster-fit deal appears'}.`}
+              traceItems={[
+                `Overall grade ${overallEnhancedGrade.toFixed(1)}/10 from returned three-factor player grades.`,
+                leagueComparatives.valueShare !== null
+                  ? `Value share ${leagueComparatives.valueShare}%${leagueComparatives.valueShareRank ? ` (league #${leagueComparatives.valueShareRank})` : ''}.`
+                  : 'League value share not available from returned data.',
+                trueRankRows[0]
+                  ? `Top graded asset: ${trueRankRows[0].player.name} (${trueRankRows[0].compositePositionRank}, composite ${trueRankRows[0].composite}).`
+                  : 'No graded assets returned.',
+                `Make-up leans ${topMakeupArchetype.toLowerCase()} across ${gradedRoster.length} graded players.`,
+              ]}
               backgroundVariant="monthly"
               className="team-blueprint-ai"
             />

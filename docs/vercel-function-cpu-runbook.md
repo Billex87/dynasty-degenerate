@@ -65,18 +65,25 @@ backup UTC entries do not all do expensive work.
 
 ## Post-Deploy Check
 
+Latest production usage note:
+
+- 2026-06-04: see [vercel-usage-review-2026-06-04.md](vercel-usage-review-2026-06-04.md). Production alias was Ready and served `HTTP/2 200`; env names and cron schedule were checked without printing secrets. `vercel usage` and `vercel logs` did not return output before a bounded guard stopped them, so dashboard-only CPU/log evidence remains open.
+
 After deploying the patch, wait for at least one scheduled cron window and one
 normal report-viewing session, then check Vercel usage.
 
 First run the local DB/cache audit:
 
 ```bash
+pnpm audit:ops-security
 pnpm audit:league-report-cache
 pnpm audit:source-freshness
 ```
 
 Record:
 
+- operations security pass/warn/blocker counts
+- whether source-health alert delivery is configured or intentionally deferred
 - cache rows, fresh rows, and stale rows
 - stored payload bytes
 - latest cache update age
@@ -149,6 +156,7 @@ Cache cleanup thresholds:
 Use these when validating a CPU-focused change:
 
 ```bash
+pnpm audit:ops-security
 pnpm test server/leagueReportCacheDecision.test.ts server/pacificCronWindows.test.ts server/leagueReportCachePolicy.test.ts server/fantasyProsEndpointSnapshotSchedule.test.ts
 pnpm test server/sourceFreshnessSummary.test.ts server/sourceSnapshotFreshness.test.ts
 pnpm run check

@@ -5,7 +5,7 @@ import {
   findLeagueReportCachePayload,
   listLeagueReportCacheMetadata,
 } from './db';
-import { loadDraftSharksScheduleContext } from './draftSharksSchedule';
+import { refreshDraftSharksPublicSosSnapshot } from './draftSharksPublicSosSnapshot';
 import { warmEspnDepthChartsForTeams } from './espnDepthCharts';
 import { refreshFantasyProsEndpointSnapshots } from './fantasyProsEndpointSnapshots';
 import { buildFantasyProsSourceHealthEvents, checkFantasyProsApiHealth } from './fantasyProsHealth';
@@ -75,6 +75,14 @@ function includeFantasyProsProjectionSnapshots(): boolean {
     'kicker',
     'injuryAdjusted',
   ]);
+}
+
+function includeFantasyProsTargetSnapshots(): boolean {
+  return envFlag('ENABLE_FANTASYPROS_TARGETS_SNAPSHOTS');
+}
+
+function includeFantasyProsArticleSnapshots(): boolean {
+  return envFlag('ENABLE_FANTASYPROS_ARTICLES_SNAPSHOTS');
 }
 
 function includeSleeperProjectionSnapshots(): boolean {
@@ -361,6 +369,8 @@ export async function refreshFantasyProsEndpointSnapshotRefresh(options: {
     scoring: 'PPR',
     includeProjections: includeFantasyProsProjectionSnapshots(),
     includeExpanded: expanded,
+    includeTargets: includeFantasyProsTargetSnapshots(),
+    includeArticles: includeFantasyProsArticleSnapshots(),
     currentWeek: snapshotWindow.currentWeek,
     weekWindow: snapshotWindow.weekWindow,
     requestDelayMs: envNumber('FANTASYPROS_SNAPSHOT_REQUEST_DELAY_MS', envNumber('FANTASYPROS_HEALTH_REQUEST_DELAY_MS', 750)),
@@ -414,6 +424,8 @@ export async function refreshRankingSourceSnapshots() {
     scoring: 'PPR',
     includeProjections: includeFantasyProsProjectionSnapshots(),
     includeExpanded: fantasyProsExpandedHealth,
+    includeTargets: includeFantasyProsTargetSnapshots(),
+    includeArticles: includeFantasyProsArticleSnapshots(),
     currentWeek: fantasyProsSnapshotWindow.currentWeek,
     weekWindow: fantasyProsSnapshotWindow.weekWindow,
     requestDelayMs: envNumber('FANTASYPROS_HEALTH_REQUEST_DELAY_MS', 750),
@@ -519,11 +531,19 @@ export async function refreshReportEnrichmentSnapshots(options: {
   const rosterRoomPreviousSeason = season === currentSeason ? previousSeason : season;
   const [playerNews, draftSharksSchedule, depthChartWarmCache, sleeperSeasonStats, sleeperProjectionStats, playerProps, nflverseDraftCapital, nflversePlayerContext] = await Promise.all([
     loadPlayerNewsBundle({ persistSnapshot: true, forceRefresh: true }),
-    loadDraftSharksScheduleContext({
+    refreshDraftSharksPublicSosSnapshot({
       season: String(new Date().getFullYear()),
+      sourceVersion: `public-${new Date().getFullYear()}-${now.toISOString().slice(0, 10)}`,
       persistSnapshot: true,
-      forceRefresh: true,
-    }),
+    })
+      .then((result) => result.context)
+      .catch((error) => ({
+        status: 'error' as const,
+        source: 'DraftSharks SOS',
+        updatedAt: null,
+        profiles: {},
+        message: getErrorMessage(error),
+      })),
     warmDepthChartCacheFromCachedReports({
       limit: options.backfillLimit || 100,
     }),

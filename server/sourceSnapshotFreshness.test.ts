@@ -115,4 +115,80 @@ describe('source snapshot freshness diagnostics', () => {
 
     expect(diagnostic.rowCount).toBe(999);
   });
+
+  it('tracks normalized NFL schedule snapshots as projection-readiness inputs', () => {
+    const [diagnostic] = buildSourceSnapshotFreshnessDiagnostics({
+      now,
+      metadata: [metadata({
+        sourceKey: 'nfl-schedule-games-v1',
+        source: 'raw-provider-label',
+        snapshotKey: '2026:official-v1',
+      })],
+      rowCounts: [{
+        sourceKey: 'nfl-schedule-games-v1',
+        rowCount: 272,
+      }],
+      expectedSources: [{
+        sourceKey: 'nfl-schedule-games-v1',
+        source: 'Normalized NFL schedule snapshot',
+        tableName: 'providerDataSnapshots',
+        staleAfterHours: 168,
+        missingLevel: 'warn',
+      }],
+    });
+
+    expect(diagnostic).toMatchObject({
+      sourceKey: 'nfl-schedule-games-v1',
+      source: 'Normalized NFL schedule snapshot',
+      status: 'loaded',
+      level: 'info',
+      rowCount: 272,
+      snapshotKey: '2026:official-v1',
+    });
+  });
+
+  it('ignores retired FantasyPros matchup calendar snapshots from generic freshness fallback', () => {
+    const diagnostics = buildSourceSnapshotFreshnessDiagnostics({
+      now,
+      metadata: [metadata({
+        sourceKey: 'fantasypros-matchup-calendar-v1:2026:QB',
+        source: 'FantasyPros matchup calendar QB',
+        updatedAt: new Date('2026-05-01T00:00:00.000Z'),
+      })],
+      expectedSources: [],
+    });
+
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('ignores stale devy source snapshot variants that are not the selected devy profile', () => {
+    const diagnostics = buildSourceSnapshotFreshnessDiagnostics({
+      now,
+      metadata: [
+        metadata({
+          sourceKey: 'devy-source-snapshot:devy_sf_ppr',
+          source: 'Devy source snapshot: devy_sf_ppr',
+        }),
+        metadata({
+          sourceKey: 'devy-source-snapshot:devy_one_qb_ppr',
+          source: 'Devy source snapshot: devy_one_qb_ppr',
+          updatedAt: new Date('2026-05-01T00:00:00.000Z'),
+        }),
+      ],
+      expectedSources: [{
+        sourceKey: 'devy-source-snapshot:devy_sf_ppr',
+        source: 'Devy source snapshot: devy_sf_ppr',
+        tableName: 'devySourceSnapshots',
+        staleAfterHours: 168,
+      }],
+    });
+
+    expect(diagnostics.map((diagnostic) => diagnostic.sourceKey)).toEqual([
+      'devy-source-snapshot:devy_sf_ppr',
+    ]);
+    expect(diagnostics[0]).toMatchObject({
+      status: 'loaded',
+      level: 'info',
+    });
+  });
 });

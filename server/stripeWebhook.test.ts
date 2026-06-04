@@ -445,6 +445,65 @@ describe("Stripe webhook signature verification", () => {
     }));
   });
 
+  it("uses deterministic upsert keys when duplicate league-pass checkout webhooks are delivered", async () => {
+    const payload = JSON.stringify({
+      id: "evt_checkout_league_pass",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_league_pass",
+          customer: "cus_test",
+          customer_email: "sample@example.com",
+          mode: "payment",
+          metadata: {
+            userOpenId: "email:user",
+            productKey: "league-pass-season",
+            leagueId: "123456789012345678",
+          },
+        },
+      },
+    });
+
+    await handleStripeWebhookPayload({
+      payload,
+      signatureHeader: signedHeader(payload),
+      secret,
+      now,
+    });
+    await handleStripeWebhookPayload({
+      payload,
+      signatureHeader: signedHeader(payload),
+      secret,
+      now,
+    });
+
+    expect(mockedUpsertLeaguePass).toHaveBeenCalledTimes(2);
+    expect(mockedUpsertLeaguePass).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      stripeCheckoutSessionId: "cs_league_pass",
+      metadata: expect.objectContaining({
+        stripeEventId: "evt_checkout_league_pass",
+        checkoutSessionId: "cs_league_pass",
+      }),
+    }));
+    expect(mockedUpsertLeaguePass).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      stripeCheckoutSessionId: "cs_league_pass",
+      metadata: expect.objectContaining({
+        stripeEventId: "evt_checkout_league_pass",
+        checkoutSessionId: "cs_league_pass",
+      }),
+    }));
+
+    const sourceIds = mockedUpsertFeatureEntitlement.mock.calls.map(([input]) => input.sourceId);
+    expect(sourceIds).toEqual([
+      "cs_league_pass:source-trace-details",
+      "cs_league_pass:ai-confidence-history",
+      "cs_league_pass:exports",
+      "cs_league_pass:source-trace-details",
+      "cs_league_pass:ai-confidence-history",
+      "cs_league_pass:exports",
+    ]);
+  });
+
   it("persists draft-kit checkout completions into user entitlements", async () => {
     const payload = JSON.stringify({
       id: "evt_checkout_draft_kit",
@@ -480,6 +539,53 @@ describe("Stripe webhook signature verification", () => {
       source: "stripe",
       sourceId: "cs_rookie_kit:rookie-draft-kit",
       status: "active",
+    }));
+  });
+
+  it("uses deterministic entitlement source IDs for duplicate draft-kit checkout webhooks", async () => {
+    const payload = JSON.stringify({
+      id: "evt_checkout_draft_kit",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_rookie_kit",
+          customer: "cus_test",
+          mode: "payment",
+          metadata: {
+            userOpenId: "email:user",
+            productKey: "rookie-draft-kit",
+          },
+        },
+      },
+    });
+
+    await handleStripeWebhookPayload({
+      payload,
+      signatureHeader: signedHeader(payload),
+      secret,
+      now,
+    });
+    await handleStripeWebhookPayload({
+      payload,
+      signatureHeader: signedHeader(payload),
+      secret,
+      now,
+    });
+
+    expect(mockedUpsertFeatureEntitlement).toHaveBeenCalledTimes(2);
+    expect(mockedUpsertFeatureEntitlement).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      sourceId: "cs_rookie_kit:rookie-draft-kit",
+      metadata: expect.objectContaining({
+        stripeEventId: "evt_checkout_draft_kit",
+        checkoutSessionId: "cs_rookie_kit",
+      }),
+    }));
+    expect(mockedUpsertFeatureEntitlement).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      sourceId: "cs_rookie_kit:rookie-draft-kit",
+      metadata: expect.objectContaining({
+        stripeEventId: "evt_checkout_draft_kit",
+        checkoutSessionId: "cs_rookie_kit",
+      }),
     }));
   });
 

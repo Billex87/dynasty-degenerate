@@ -58,6 +58,8 @@ describe('FantasyPros endpoint snapshots', () => {
       rowCount: 2,
       persisted: true,
     });
+    expect(results.find((row) => row.endpointKey === 'fantasypros-targets')).toBeUndefined();
+    expect(results.find((row) => row.endpointKey === 'fantasypros-articles')).toBeUndefined();
     expect(upsertSpy).toHaveBeenCalledWith(expect.objectContaining({
       sourceKey: getFantasyProsEndpointSnapshotSourceKey({
         endpointKey: 'fantasypros-weekly-ecr',

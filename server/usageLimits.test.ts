@@ -127,6 +127,25 @@ describe("persisted usage limits", () => {
     expect(mockedCountUsageEvents).not.toHaveBeenCalled();
   });
 
+  it("denies source-trace, export, and anomaly-alert usage before recording events when not entitled", async () => {
+    for (const featureKey of ["source-trace-view", "export", "anomaly-alert"] as const) {
+      await expect(assertAndRecordLimitedUsage({
+        user,
+        featureKey,
+        leagueId: "123456789012345678",
+        source: `test.${featureKey}`,
+        idempotencyKey: `deny:${featureKey}`,
+        paidFeaturesEnabled: true,
+        now,
+      })).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+    }
+
+    expect(mockedCountUsageEvents).not.toHaveBeenCalled();
+    expect(mockedRecordUsageEvent).not.toHaveBeenCalled();
+  });
+
   it("requires a signed-in user for user-scoped persisted limits", async () => {
     await expect(assertPersistedUsageLimit({
       user: null,
@@ -184,6 +203,29 @@ describe("persisted usage limits", () => {
       used: 9,
       remaining: 0,
     });
+  });
+
+  it("enforces paid source-trace view quotas before recording usage", async () => {
+    mockedListBillingSubscriptionsForUser.mockResolvedValue([{
+      plan: "pro",
+      status: "active",
+      currentPeriodEnd: new Date("2026-07-02T00:00:00.000Z"),
+    }]);
+    mockedCountUsageEvents.mockResolvedValueOnce(25);
+
+    await expect(assertAndRecordLimitedUsage({
+      user,
+      featureKey: "source-trace-view",
+      leagueId: "123456789012345678",
+      source: "league.analyze.sourceTrace",
+      idempotencyKey: "trace:view:over-limit",
+      paidFeaturesEnabled: true,
+      now,
+    })).rejects.toMatchObject({
+      code: "TOO_MANY_REQUESTS",
+    });
+
+    expect(mockedRecordUsageEvent).not.toHaveBeenCalled();
   });
 
   it("records limited usage with scoped, idempotent event keys", async () => {

@@ -6,7 +6,6 @@ import type { ReportData } from "@shared/types";
 type ReportRankingsTabProps = {
   reportData: ReportData;
   reportDataForView: ReportData;
-  canViewAdminFeatureExpansion: boolean;
   canViewAdminDiagnostics: boolean;
   isRedraftReport: boolean;
   leagueId: string;
@@ -66,7 +65,6 @@ type ReportRankingsTabProps = {
 export function ReportRankingsTab({
   reportData,
   reportDataForView,
-  canViewAdminFeatureExpansion,
   canViewAdminDiagnostics,
   isRedraftReport,
   leagueId,
@@ -147,9 +145,7 @@ export function ReportRankingsTab({
           <div className="rankings-empty-state">Loading league-matched rankings...</div>
         ) : (
           <div className="space-y-4 sm:space-y-5">
-            {canViewAdminFeatureExpansion ? (
-              <RankingsMarketRead data={reportDataForView} />
-            ) : null}
+            <RankingsMarketRead data={reportDataForView} />
             <RankingsBoard
               rankings={rankingsForReport}
               playerDetailsById={reportData.playerDetailsById}
@@ -162,7 +158,7 @@ export function ReportRankingsTab({
               leagueValueMode={leagueValueMode}
               leagueDiagnostics={reportData.leagueDiagnostics}
               calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
-              showAIReads={canViewAdminFeatureExpansion}
+              showAIReads
             />
           </div>
         )}
@@ -195,7 +191,7 @@ export function ReportRankingsTab({
               leagueValueMode={leagueValueMode}
               leagueDiagnostics={reportData.leagueDiagnostics}
               calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
-              showAIReads={canViewAdminFeatureExpansion}
+              showAIReads
             />
           )}
         </CollapsibleReportSection>

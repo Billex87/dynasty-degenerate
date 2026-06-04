@@ -18,9 +18,10 @@ These items should wait until the required external data/auth paths are availabl
 
 ## Dynamic Data Operations
 
+- Run `pnpm audit:ops-security` before production launch checks and after any env-store change; it reports env names and pass/warn/blocker status without printing secret values.
 - Keep `/api/cron/dynamic-data-refresh` enabled in production with `CRON_SECRET`; it refreshes ranking sources, records source-health alerts, and backfills league AI confidence snapshots from cached reports.
 - Configure `LEAGUE_REPORT_WARM_LEAGUE_IDS` for the leagues we want warmed automatically; that existing cron refreshes league reports, depth/news/matchup context, rankings, and confidence snapshots for those leagues.
-- Set `SOURCE_HEALTH_ALERT_WEBHOOK_URL` when we want critical source-health alerts pushed outside the app. `SOURCE_HEALTH_ALERT_WEBHOOK_MIN_LEVEL` defaults to `warn`; use `danger` if we only want outage-level notifications.
+- Set `SOURCE_HEALTH_ALERT_WEBHOOK_URL` when we want critical source-health alerts pushed outside the app. Production webhook URLs must be valid HTTPS URLs and cannot target localhost/private-network hosts. `SOURCE_HEALTH_ALERT_WEBHOOK_MIN_LEVEL` defaults to `warn`; use `danger` if we only want outage-level notifications.
 - Use `ENABLE_SOURCE_HEALTH_BACKFILL=true` for one-off source-alert history backfills from cached reports. Leave it off for normal cron runs unless we intentionally want cached-report alert rows written again.
 - Calibrate source-trust and league-confidence thresholds against real 2026 in-season outcomes once enough trades, waivers, injuries, lineup decisions, and standings movement exist.
 - Set `NFL_SEASON_START_DATE` once the official season date is final, so calibration status switches from pending to collecting at the right time.

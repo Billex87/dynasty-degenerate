@@ -776,6 +776,32 @@
   min-width: 0;
 }
 
+/* Verdict panels own an action — give them a left accent rail so the eye lands there first. */
+.ai-read-panel-verdict.ai-read-panel-r3f {
+  border-left-width: 2px !important;
+  border-left-color: color-mix(in srgb, var(--ai-read-accent) 60%, transparent) !important;
+}
+
+/* Context panels are supporting reads — dial the title back so they don't compete with the verdict. */
+.ai-read-panel-context .ai-read-title-row .ai-read-title-icon {
+  width: 1.78rem !important;
+  height: 1.78rem !important;
+  opacity: 0.82 !important;
+}
+
+.ai-read-panel-context .ai-read-title-row .ai-read-title-icon svg {
+  width: 1.36rem !important;
+  height: 1.36rem !important;
+}
+
+.ai-read-panel-context.ai-read-panel-r3f .ai-read-panel-head h4,
+.ai-read-panel-context .ai-read-title-row h4 {
+  font-size: clamp(0.92rem, 0.9vw, 1.12rem) !important;
+  color: rgba(204, 224, 242, 0.9) !important;
+  text-shadow:
+    0 0 6px rgba(var(--ai-board-cyan), 0.22) !important;
+}
+
 .ai-read-title-icon {
   display: inline-flex !important;
   width: 2.05rem !important;

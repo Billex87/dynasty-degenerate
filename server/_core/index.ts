@@ -10,6 +10,18 @@ import { serveStatic, setupVite } from "./vite";
 import { initializeScheduledJobs } from "../scheduledJobs";
 import { handleStripeWebhookPayload } from "../stripeWebhook";
 
+// Dev resilience: keep the watch server alive through runtime errors instead of
+// letting an unhandled exception/rejection tear the process down mid-session.
+// Scoped to development so production still fails fast and restarts cleanly.
+if (process.env.NODE_ENV === "development") {
+  process.on("uncaughtException", error => {
+    console.error("[dev] Uncaught exception (server kept alive):", error);
+  });
+  process.on("unhandledRejection", reason => {
+    console.error("[dev] Unhandled rejection (server kept alive):", reason);
+  });
+}
+
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
     const server = net.createServer();

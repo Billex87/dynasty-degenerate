@@ -20,6 +20,8 @@
 - `CRON_SECRET=` present in `.env.example`.
 - `SOURCE_HEALTH_ALERT_WEBHOOK_URL=` present in `.env.example`.
 - `SOURCE_HEALTH_ALERT_WEBHOOK_MIN_LEVEL=` present in `.env.example`.
+- `pnpm audit:ops-security` now provides a repeatable env/security readiness check without printing secret values.
+- `pnpm audit:operations-readiness` now includes the operations security readiness summary.
 - `server/auth.logout.test.ts` covers secure logout cookie clearing, valid admin login cookie options, invalid passphrase rejection, production `JWT_SECRET` precondition, and required admin-password configuration.
 - `server/auth.logout.test.ts` also covers anonymous public request context creation without logging a missing-cookie warning.
 - `server/leagueReportCachePolicy.test.ts` covers the Vercel/serverless file-cache skip policy.
@@ -55,6 +57,7 @@
 - Post-`18:40` Pacific cron-window checks found no `/var/task`, league-report file-cache, missing-cookie, `500`, or error-level entries in the checked window, but cron execution itself was inconclusive because production redeployed commit `35f3377` as `dpl_JAzH9xMCBNR6c9VdN1cn8TsiTFdL` at `18:40:37` Pacific, overlapping the configured `dynamic-data-refresh` cron minute.
 
 ## Production Follow-up (manual)
+- Run `pnpm audit:ops-security` after any production env change and record blocker/warn counts in the active readiness note.
 - Configure `SOURCE_HEALTH_ALERT_WEBHOOK_URL` and, if desired, `SOURCE_HEALTH_ALERT_WEBHOOK_MIN_LEVEL` in the production secret store.
 - Validate webhook target receives a warning/danger alert path test when forced (or at minimum a config validation dry run).
 - Confirm cron invocations in logs return expected cheap `202` responses outside configured Pacific windows.
@@ -64,3 +67,9 @@
 ## Decision
 - The critical auth and cron production env names are present in Vercel and the deployed code fails closed if they are missing.
 - The operations/security gate remains open because source-health alert delivery still needs a real production webhook target, a clean non-overlapped cron window still needs to be checked, and dashboard-level usage/CPU evidence is still unavailable from the current CLI plan.
+
+## 2026-06-04 Follow-up
+
+- Added [operations-security-readiness-pass-2026-06-04.md](operations-security-readiness-pass-2026-06-04.md) as the current repeatable backend/ops security run note.
+- Local `pnpm audit:ops-security` reported `pass=11`, `warn=1`, `blocker=0`; the remaining warning is the unconfigured local `SOURCE_HEALTH_ALERT_WEBHOOK_URL`.
+- Source-health alert webhook delivery now rejects malformed, non-HTTPS production, localhost, and private-network URLs before posting.

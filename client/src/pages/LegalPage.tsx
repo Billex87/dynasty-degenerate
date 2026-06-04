@@ -1,4 +1,4 @@
-import { LegalLinks } from "@/components/LegalLinks";
+import { LegalTabs } from "@/components/LegalLinks";
 import { Button } from "@/components/ui/button";
 import { HomeFooterChrome } from "@/features/home/components/HomeChrome";
 import { ArrowLeft } from "lucide-react";
@@ -203,7 +203,7 @@ export default function LegalPage({ section }: { section: LegalSectionKey }) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8">
+        <div className="mb-6">
           <Button asChild variant="ghost" className="text-slate-200 hover:bg-slate-900 hover:text-cyan-100">
             <Link href="/">
               <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -211,6 +211,8 @@ export default function LegalPage({ section }: { section: LegalSectionKey }) {
             </Link>
           </Button>
         </div>
+
+        <LegalTabs active={`/${section}`} className="mb-8" />
 
         <header className="mb-8 border-b border-cyan-400/20 pb-6">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-300">{content.eyebrow}</p>
@@ -220,8 +222,6 @@ export default function LegalPage({ section }: { section: LegalSectionKey }) {
           <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">{content.intro}</p>
           <p className="mt-4 text-sm font-semibold text-slate-400">Last updated: {UPDATED_AT}</p>
         </header>
-
-        <LegalLinks className="mb-8 justify-start text-slate-300" />
 
         <div className="grid gap-5">
           {content.rows.map((row) => (

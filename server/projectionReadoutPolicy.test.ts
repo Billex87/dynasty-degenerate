@@ -246,7 +246,7 @@ describe('projection readout policy', () => {
 
     const read = buildProjectionReadoutPolicy({
       surface: 'player-detail',
-      action: 'start',
+      action: 'hold',
       leagueValueMode: 'redraft',
       row: fixture.row,
       projectionSnapshot: fixture.projections,

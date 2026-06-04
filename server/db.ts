@@ -2829,7 +2829,7 @@ export async function listLatestSnapshotMetadata(): Promise<StoredSnapshotMetada
         octet_length(COALESCE(payload, '')) AS "payloadSizeBytes",
         'providerDataSnapshots'::text AS "tableName"
       FROM "providerDataSnapshots"
-      ORDER BY "sourceKey", "snapshotKey" DESC
+      ORDER BY "sourceKey", "updatedAt" DESC NULLS LAST, "snapshotKey" DESC
     )
     SELECT * FROM latest_ktc
     UNION ALL SELECT * FROM latest_prospects

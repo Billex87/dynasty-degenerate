@@ -42,6 +42,7 @@ FantasyPros matchup pages are retired from the active SOS pipeline. They must no
 - `server/projectionReleaseGates.ts` codifies the admin-only -> internal leagues -> limited production -> general availability rollout rules.
 - `server/sourceSnapshotFreshness.ts` includes `draftsharks-sos-v1`, `player-props-opticodds-v1`, FantasyPros news, SportsDataIO/RotoBaller news, ESPN depth charts, redraft source snapshots, and Sleeper season-stat snapshots in report freshness diagnostics.
 - `server/fantasyProsHealth.ts` emits endpoint-level health rows for FantasyPros API coverage without printing payloads or secrets.
+- Retired FantasyPros matchup-calendar snapshots are ignored by freshness fallback diagnostics so old stored rows do not keep acting like active SOS debt.
 
 ## Projection Rollout Flags
 
@@ -59,6 +60,13 @@ Any of these kill switches blocks projection paths even when the enabling flags 
 - `DISABLE_PROJECTION_JOINS=true`
 
 The FantasyPros endpoint snapshot refresh now requires the FantasyPros source flag plus at least one projection-type flag before it includes projection payloads.
+Expanded FantasyPros snapshots include weekly ECR, waiver-wire, and compare-player probes. Targets and articles require separate entitlement flags: `ENABLE_FANTASYPROS_TARGETS_SNAPSHOTS=true` and `ENABLE_FANTASYPROS_ARTICLES_SNAPSHOTS=true`.
+
+Sleeper weekly projection snapshots can refresh without enabling public projection claims by setting `ENABLE_SLEEPER_PROJECTION_SNAPSHOTS=true`. User-facing projection mechanics still require the full rollout set: `ENABLE_PROJECTION_FEATURES=true`, `ENABLE_SLEEPER_PROJECTIONS=true`, and at least one projection-type flag such as `ENABLE_WEEKLY_PROJECTIONS=true`.
+
+Use `pnpm run verify:projection-sos-rollout` before enabling shared projection QA. It verifies both expected modes without editing env files: projection-off must fail closed while stored DraftSharks SOS, schedule, and Sleeper projection data are ready, and projection-on must pass with temporary enablement flags.
+
+Use `docs/projection-sos-preview-rollout.md` for the Preview/staging rollout checklist before enabling projection-backed mechanics in production.
 
 Readouts must also pass projection readiness:
 
