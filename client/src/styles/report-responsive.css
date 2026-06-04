@@ -10755,6 +10755,28 @@
   transform: translateY(-1px);
 }
 
+/* Visible keyboard focus indicators (WCAG 2.4.7). The report tabs, section
+   disclosures, league switcher, and segmented filters had no clear focus
+   ring; reuse the cyan focus token used by the landing controls. */
+.report-tab:focus-visible,
+.report-league-lockup:focus-visible,
+.report-disclosure-summary:focus-visible,
+.dashboard-spotlight-inline-summary:focus-visible,
+.owner-intel-sort-button:focus-visible,
+.trade-war-mode-tab:focus-visible {
+  outline: 2px solid rgba(103, 232, 249, 0.9) !important;
+  outline-offset: 2px !important;
+}
+
+/* Larger tap target on phones for the persona filter pills, which were only
+   ~25px tall (toward the 44px guideline, without changing their visual look).
+   Phone-only so desktop is unaffected. */
+@media (max-width: 767px) {
+  .owner-intel-sort-button {
+    min-height: 2rem !important;
+  }
+}
+
 .owner-intel-sort-button-active {
   border-color: rgba(251, 146, 60, 0.74);
   background: linear-gradient(135deg, rgba(249, 115, 22, 0.88), rgba(234, 179, 8, 0.84));
