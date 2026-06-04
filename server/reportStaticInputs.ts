@@ -70,25 +70,10 @@ async function loadWeeklyBaselineValues(leagueValueProfileKey: string): Promise<
 
 async function loadDraftSharksScheduleContextForReportStatic(input: {
   currentSeason: string;
-  forceRefresh?: boolean;
 }): Promise<Awaited<ReturnType<typeof loadDraftSharksScheduleContext>>> {
-  const snapshotContext = await loadDraftSharksScheduleContext({
-    season: input.currentSeason,
-    ...getUserLoadSnapshotOptions(),
-  });
-
-  if (snapshotContext.status === 'loaded') {
-    return snapshotContext;
-  }
-
-  if (snapshotContext.status === 'disabled' || snapshotContext.status === 'missing_config') {
-    return snapshotContext;
-  }
-
   return loadDraftSharksScheduleContext({
     season: input.currentSeason,
-    persistSnapshot: true,
-    forceRefresh: input.forceRefresh,
+    ...getUserLoadSnapshotOptions(),
   });
 }
 
@@ -128,7 +113,6 @@ export async function loadReportStaticInputs(input: {
     loadWeeklyBaselineValues(input.leagueValueProfileKey),
     loadDraftSharksScheduleContextForReportStatic({
       currentSeason: input.currentSeason,
-      forceRefresh: input.forceRefresh,
     }),
     loadProspectContext(),
     loadPlayerNewsBundle(getUserLoadSnapshotOptions()),

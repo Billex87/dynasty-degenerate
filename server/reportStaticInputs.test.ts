@@ -132,6 +132,30 @@ describe('report static inputs cache loading', () => {
     });
   });
 
+  it('does not repair missing DraftSharks snapshots with live provider calls during report loads', async () => {
+    mocks.loadDraftSharksScheduleContext.mockResolvedValue({
+      status: 'error',
+      source: 'DraftSharks SOS',
+      profiles: {},
+      message: 'Stored DraftSharks SOS snapshot is unavailable.',
+    });
+
+    const result = await loadReportStaticInputs({ ...input, forceRefresh: true });
+
+    expect(result.draftSharksScheduleContext).toMatchObject({
+      status: 'error',
+      message: 'Stored DraftSharks SOS snapshot is unavailable.',
+    });
+    expect(mocks.loadDraftSharksScheduleContext).toHaveBeenCalledTimes(1);
+    expect(mocks.loadDraftSharksScheduleContext).toHaveBeenCalledWith({
+      season: '2026',
+      sourceMode: 'snapshot',
+    });
+    expect(mocks.loadDraftSharksScheduleContext).not.toHaveBeenCalledWith(expect.objectContaining({
+      persistSnapshot: true,
+    }));
+  });
+
   it('bypasses the cached row when force refresh is requested', async () => {
     mocks.findLeagueReportCache.mockResolvedValue(cachedPayload);
 

@@ -2789,14 +2789,44 @@ export async function generateReport(
     }
     return redraftOnlyValueCache.get(pid) || 0;
   };
+  const getWeeklyProjectionLineupValue = (pid: string): number => {
+    const projection = currentSeasonData.weeklyProjectionByPlayerId?.[pid];
+    if (
+      !projection
+      || projection.status !== 'ready'
+      || projection.week !== currentSeasonData.currentWeek
+      || !Number.isFinite(projection.projectedFantasyPoints)
+    ) {
+      return 0;
+    }
+    const position = normalizeSeasonLineupPosition(allPlayers[pid]?.position);
+    const multiplier = position === 'QB'
+      ? 255
+      : position === 'RB'
+        ? 360
+        : position === 'WR'
+          ? 340
+          : position === 'TE'
+            ? 370
+            : position === 'K' || position === 'DEF'
+              ? 190
+              : 320;
+    return Math.round(Math.max(0, Math.min(9800, projection.projectedFantasyPoints * multiplier)));
+  };
+  const blendWeeklyProjectionLineupValue = (baseValue: number, projectionValue: number): number => {
+    if (projectionValue <= 0) return baseValue;
+    if (baseValue <= 0) return projectionValue;
+    return Math.round((baseValue * 0.84) + (projectionValue * 0.16));
+  };
   const getCachedSeasonLineupValue = (pid: string) => {
     if (!seasonLineupValueCache.has(pid)) {
       const rankFallback = seasonPositionRankById[pid]
         || lastSeasonPositionRanks[pid]?.positionRank
         || getPlayerKtcRank(pid, allPlayers, ktcValues);
-      const value = getCachedRedraftOnlyValue(pid)
+      const baseValue = getCachedRedraftOnlyValue(pid)
         || getLastSeasonLineupValue(lastSeasonPositionRanks[pid])
         || getRankBasedSeasonLineupValue(rankFallback);
+      const value = blendWeeklyProjectionLineupValue(baseValue, getWeeklyProjectionLineupValue(pid));
       seasonLineupValueCache.set(pid, value);
     }
     return seasonLineupValueCache.get(pid) || 0;

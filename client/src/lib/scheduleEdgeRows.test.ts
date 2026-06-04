@@ -863,6 +863,114 @@ describe("schedule edge rows", () => {
     });
   });
 
+  it("summarizes DraftSharks trace health from special-teams streamer targets", () => {
+    const rows = buildScheduleSnapshotHealthRows(
+      makeReport({
+        specialTeamsStreamerTargets: [
+          {
+            player: makePlayer({
+              player_id: "stream-defense",
+              name: "Streaming Defense",
+              pos: "DST",
+            }),
+            signal: makeSignal({
+              signalType: "draftsharks-sos",
+              playerId: "stream-defense",
+              name: "Streaming Defense",
+              position: "DST",
+              sourceTrace: [
+                makeTrace({
+                  sourceKey: "draftsharks-sos-v1",
+                  endpointKey: "draftsharks-sos-def-week-1",
+                  endpointLabel: "DraftSharks DEF SOS Week 1",
+                  position: "DEF",
+                  week: 1,
+                  rowCount: 32,
+                }),
+              ],
+            }),
+            score: 91,
+          },
+        ],
+      })
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].cells.DEF).toMatchObject({
+      label: "Loaded",
+      tone: "good",
+      rowCount: 32,
+    });
+  });
+
+  it("includes special-teams streamer targets in schedule edge rows", () => {
+    const signal = makeSignal({
+      signalType: "draftsharks-sos",
+      playerId: "stream-kicker",
+      name: "Streaming Kicker",
+      position: "K",
+      team: "LV",
+      bestRankEcr: 7,
+      bestPositionRank: "K7",
+      note: "DraftSharks streamer window.",
+      weeks: [
+        {
+          week: 1,
+          rankEcr: 7,
+          positionRank: "K7",
+          bestRank: null,
+          worstRank: null,
+          averageRank: 7,
+          rankStdDev: null,
+          lastUpdated: "2026-09-08T18:00:00.000Z",
+          opponent: "DEN",
+          homeAway: "home",
+          opponentRank: 28,
+          matchupStars: 5,
+          matchupTier: "easy",
+          isBye: false,
+        },
+      ],
+      sourceTrace: [
+        makeTrace({
+          sourceKey: "draftsharks-sos-v1",
+          endpointKey: "draftsharks-sos-k-week-1",
+          endpointLabel: "DraftSharks K SOS Week 1",
+          position: "K",
+          week: 1,
+          rowCount: 32,
+        }),
+      ],
+    });
+
+    const rows = buildScheduleEdgeRows(
+      makeReport({
+        specialTeamsStreamerTargets: [
+          {
+            player: makePlayer({
+              player_id: "stream-kicker",
+              name: "Streaming Kicker",
+              pos: "K",
+              team: "LV",
+            }),
+            signal,
+            score: 94,
+          },
+        ],
+      }),
+      { now: NOW }
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: "stream-kicker",
+      position: "K",
+      action: "Streamer target",
+      targetScore: 94,
+      note: "DraftSharks streamer window.",
+    });
+  });
+
   it("includes attached waiver candidates and sorts target score before rank", () => {
     const highScoreSignal = makeSignal({
       playerId: "target-hi",

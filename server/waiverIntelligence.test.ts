@@ -338,6 +338,111 @@ describe("buildWaiverIntelligence", () => {
     expect(result.weeklyEcrTargets?.[0]?.signal.source).toBe("DraftSharks");
     expect(result.weeklyEcrTargets?.[0]?.signal.signalType).toBe("draftsharks-sos");
     expect(result.weeklyEcrTargets?.[0]?.signal.matchupWindows?.next3.easyWeeks).toBe(3);
+    expect(result.specialTeamsStreamerTargets?.[0]?.player.name).toBe("Streaming Defense");
+    expect(result.specialTeamsStreamerTargets?.[0]?.signal.matchupWindows?.next3.easyWeeks).toBe(3);
     expect(result.weeklyEcrTargets?.find(target => target.player.name === "Los Angeles Rams")).toBeUndefined();
+  });
+
+  it("boosts special-teams streamers that cover rostered Week 1-3 rough spots", () => {
+    const players = {
+      rosteredk: {
+        first_name: "Rostered",
+        last_name: "Kicker",
+        position: "K",
+        team: "LAR",
+        active: true,
+        fantasy_positions: ["K"],
+      },
+      complementk: {
+        first_name: "Complement",
+        last_name: "Kicker",
+        position: "K",
+        team: "LV",
+        active: true,
+        fantasy_positions: ["K"],
+      },
+      goodk: {
+        first_name: "Good",
+        last_name: "Kicker",
+        position: "K",
+        team: "KC",
+        active: true,
+        fantasy_positions: ["K"],
+      },
+    };
+    const draftSharksScheduleContext = {
+      status: "loaded",
+      source: "DraftSharks SOS",
+      updatedAt: "2026-09-01T18:00:00.000Z",
+      profiles: {
+        "LAR:K": {
+          team: "LAR",
+          position: "K",
+          seasonSOS: null,
+          remainingSOS: -16,
+          scheduleTier: "hard",
+          streamerWeeks: [],
+          avoidWeeks: [1, 2],
+          weeklyMatchups: [
+            { week: 1, opponent: "SF", homeAway: "home", matchupPercent: -18, matchupTier: "hard" },
+            { week: 2, opponent: "NYG", homeAway: "home", matchupPercent: -12, matchupTier: "hard" },
+            { week: 3, opponent: "DEN", homeAway: "home", matchupPercent: 2, matchupTier: "neutral" },
+          ],
+          source: "DraftSharks SOS",
+          updatedAt: "2026-09-01T18:00:00.000Z",
+        },
+        "LV:K": {
+          team: "LV",
+          position: "K",
+          seasonSOS: null,
+          remainingSOS: 11,
+          scheduleTier: "easy",
+          streamerWeeks: [1, 2],
+          avoidWeeks: [],
+          weeklyMatchups: [
+            { week: 1, opponent: "TEN", homeAway: "home", matchupPercent: 13, matchupTier: "easy" },
+            { week: 2, opponent: "NYG", homeAway: "home", matchupPercent: 10, matchupTier: "easy" },
+            { week: 3, opponent: "CAR", homeAway: "home", matchupPercent: 0, matchupTier: "neutral" },
+          ],
+          source: "DraftSharks SOS",
+          updatedAt: "2026-09-01T18:00:00.000Z",
+        },
+        "KC:K": {
+          team: "KC",
+          position: "K",
+          seasonSOS: null,
+          remainingSOS: 12,
+          scheduleTier: "easy",
+          streamerWeeks: [3],
+          avoidWeeks: [],
+          weeklyMatchups: [
+            { week: 1, opponent: "DEN", homeAway: "home", matchupPercent: 1, matchupTier: "neutral" },
+            { week: 2, opponent: "LAC", homeAway: "home", matchupPercent: 2, matchupTier: "neutral" },
+            { week: 3, opponent: "LV", homeAway: "home", matchupPercent: 20, matchupTier: "easy" },
+          ],
+          source: "DraftSharks SOS",
+          updatedAt: "2026-09-01T18:00:00.000Z",
+        },
+      },
+    };
+
+    const result = buildWaiverIntelligence(
+      [],
+      [],
+      players,
+      {},
+      { rosteredk: "Bill" },
+      {},
+      "redraft",
+      undefined,
+      {
+        rosterPositions: ["QB", "RB", "WR", "TE", "FLEX", "K", "BN"],
+        draftSharksScheduleContext: draftSharksScheduleContext as any,
+        currentWeek: 1,
+      }
+    );
+
+    expect(result.specialTeamsStreamerTargets?.[0]?.player.name).toBe("Complement Kicker");
+    expect(result.specialTeamsStreamerTargets?.[0]?.player.weeklyEcr?.note).toContain("Covers rostered K rough Week 1/2");
   });
 });

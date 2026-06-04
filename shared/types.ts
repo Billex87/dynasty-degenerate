@@ -629,6 +629,7 @@ export interface WaiverIntelligence {
   bestTaxiStashes: TrendingPlayer[];
   recentlyDroppedValuable: TrendingPlayer[];
   weeklyEcrTargets?: WaiverWeeklyEcrTarget[];
+  specialTeamsStreamerTargets?: WaiverWeeklyEcrTarget[];
   defensePairingTargets?: WaiverWeeklyEcrTarget[];
   omittedCandidates?: WaiverOmittedCandidate[];
 }

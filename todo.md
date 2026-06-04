@@ -3,6 +3,10 @@
 - Canonical item-by-item execution prompt: [docs/todo-list-execution-prompt.md](docs/todo-list-execution-prompt.md)
 - Latest one-pass execution notes: [docs/todo-execution-notes-2026-05-16.md](docs/todo-execution-notes-2026-05-16.md)
 
+## Priority — Next Up
+
+- [ ] **[HIGH] Verify SOS → blueprint Situational factor end-to-end, then tune weights.** The blueprint three-factor engine's Situational score (`shared/blueprint/playerGrading.ts` `scoreSituational`) reads `playerDetails.schedule.seasonSOS`, which is now wired through `buildPlayerScheduleProfiles` (`server/schedulePlanning.ts:185`) → `reportPlayerEnrichment.ts:143`. As of last check (Jun 1 cached reports, pre-SOS) `seasonSOS` coverage was **0%**, so Situational collapsed to a flat ~9 for starters (depth-chart-only signal). After the DraftSharks SOS refresh scripts have run in the target env (`scripts/refresh-draftsharks-sos-snapshot.ts`, `scripts/refresh-nfl-schedule-snapshot.ts`), **force-generate a fresh report** and re-run the offline grade check (decode a `.cache/league-reports/*.json` via gzip-base64 → run `gradeRoster` from `@shared/blueprint`) to confirm: (1) `seasonSOS` coverage jumps above 0%, (2) Situational scores actually differentiate players rather than sitting at 9. If grades skew after real SOS lands, tune the centralized `WEIGHTS`/`POSITION_BASELINES` in `playerGrading.ts`. Context: PR #2 (`ai-readout-overhaul`).
+
 ## Launch Audit Closeout
 
 - [x] Close the launch-audit blocker pass from `docs/launch-audit/`: `R-001` league switching/loading, `R-002` league context, `R-003` redraft separation, `R-004` pre-draft gating, `R-005` mobile usability, and `R-006` accessibility basics were implemented and verified on Vercel deployment `4c1af13`.
@@ -630,7 +634,8 @@
 - [ ] Confirm the approved full NFL schedule source before using it in production: prefer an official or licensed endpoint that returns season, week, game date/time, home team, away team, venue, neutral-site flag, game status, and source update timestamp.
 - [ ] Confirm the approved weekly player projection source before using projections in public reports: FantasyPros, DraftSharks, SportsDataIO, Fantasy Nerds, or another licensed provider is acceptable only after production terms, rate limits, redistribution rules, and freshness guarantees are documented.
 - [x] Retire FantasyPros matchup-calendar access from active SOS jobs/source traces; do not use FantasyPros ECR or matchup rows as public SOS recommendation inputs.
-- [ ] Keep normal user-triggered report loads snapshot-backed for full schedule and projection data; live calls during login/report generation should remain limited to Sleeper current league state.
+- [x] Keep normal user-triggered report loads snapshot-backed for full schedule and projection data; live calls during login/report generation should remain limited to Sleeper current league state.
+  - 2026-06-04 verification: `probe:projection-sos-readiness` passed with DraftSharks SOS, normalized NFL schedule, and Sleeper weekly projection snapshots loaded; `validate:report` passed without requiring live provider calls beyond normal Sleeper league-state behavior.
 - [x] Add feature flags for each projection source and projection type: weekly, rest-of-season, preseason, playoff weeks, position-specific projections, team defense projections, kicker projections, and injury-adjusted projections.
 - [x] Add source policy docs for projection display language so the UI never labels internal estimates as provider projections and never implies unavailable provider data is present.
 - [x] Add rollout kill switches so bad projection snapshots, stale schedules, or broken source mappings can disable projection-influenced reads without breaking base reports.
@@ -678,8 +683,10 @@
 - [ ] Add dynasty contention context that separates "start now", "hold through development", "sell on projection spike", "buy before role growth", and "do not panic because draft capital buys runway".
 - [ ] Add rookie and sophomore development reads that explicitly account for draft position, NFL team investment, early usage, depth-chart barriers, and how long similar players usually get opportunities.
 - [ ] Add waiver-wire priority changes based on upcoming schedule, projected usage, bye coverage, injury fill-in windows, and whether the role has multi-week staying power.
-- [ ] Add a first-three-week D/ST and kicker streamer planner that scores available options by DraftSharks Week 1-3 SOS percentages, current roster fit, and complement coverage; it should recommend pairings such as keeping one defense while adding another that covers its hard Week 1 or Week 3 matchup.
-- [ ] Add a Rankings-tab Schedule Edge table after DraftSharks SOS snapshots are approved: filter by position and week range, show all positions by default, include quick D/ST and K streamer filters for Week 1-3 planning, and show current rank/value, owner/availability, weekly DraftSharks percentage ratings, average/worst matchup, complement fit with rostered options, confidence, source freshness, and recommended action.
+- [x] Add a first-three-week D/ST and kicker streamer planner that scores available options by DraftSharks Week 1-3 SOS percentages, current roster fit, and complement coverage; it should recommend pairings such as keeping one defense while adding another that covers its hard Week 1 or Week 3 matchup.
+  - 2026-06-04 implementation: `specialTeamsStreamerTargets` now scores K/DST candidates from DraftSharks Week 1-3 SOS windows, filters rough-only streamers, boosts complement coverage for rostered K/DST rough weeks, preserves the data through projection-off payload stripping, and feeds Schedule Edge/source-health surfaces.
+- [x] Add a Rankings-tab Schedule Edge table after DraftSharks SOS snapshots are approved: filter by position and week range, show all positions by default, include quick D/ST and K streamer filters for Week 1-3 planning, and show current rank/value, owner/availability, weekly DraftSharks percentage ratings, average/worst matchup, complement fit with rostered options, confidence, source freshness, and recommended action.
+  - 2026-06-04 verification: command-center Playwright smoke covers a DraftSharks-backed special-teams schedule row, target score, week/opponent/star chips, snapshot coverage, and projection-disabled fallback behavior.
 - [ ] Add trade recommendation context that distinguishes projected short-term points from dynasty value, playoff schedule leverage, contender/rebuilder fit, and fragile projection spikes.
 - [ ] Add Autopilot actions that can say exactly why to start, bench, claim, stash, trade for, trade away, or hold a player based on the joined schedule/projection context.
 - [ ] Add player-detail projection cards for weekly outlook, ROS outlook, schedule stretch, opponent notes, role security, draft-capital runway, confidence, and source freshness.
@@ -706,6 +713,7 @@
 - [x] Add source accuracy backtests after games finish: projected vs actual by source, position, week, home/away, opponent strength, rookie status, and draft-capital bucket.
 - [x] Add regression tests for schedule parsing, team-code normalization, projection normalization, identity matching, scoring conversion, stale-source fallback, and user-load provider guards.
 - [ ] Add Playwright coverage for Overview, Matchup Preview, Player Detail, Autopilot, Rankings, waiver, trade, and playoff schedule surfaces with projection-enabled and projection-disabled states.
+  - 2026-06-04 partial coverage added: `tests/e2e/projection-sos-command-center.spec.ts` covers projection/SOS enabled Schedule Edge, projection-disabled Waiver fallback, and regular-viewer raw SOS source-trace suppression in the command-center flow.
 - [x] Add data seeding fixtures for one normal week, one bye-heavy week, one injury-heavy week, one rookies-heavy roster, and one playoff matchup week.
 - [x] Add performance budgets so projection joins do not slow report generation; prefer precomputed static sections and cached projection contexts over per-user recomputation.
 - [x] Add cache-version bumps when projection or schedule display semantics change so users do not see stale local report cards; DraftSharks-only SOS bumped both client report cache payloads and server league report cache after retiring FantasyPros matchup-calendar reads.

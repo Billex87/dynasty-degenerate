@@ -342,6 +342,7 @@ function getWaiverWeeklyEcrSignalForPlayer(
   const nameKey = normalizeWaiverDefenseLookup(player.name);
   const targets = [
     ...(data?.weeklyEcrTargets || []),
+    ...(data?.specialTeamsStreamerTargets || []),
     ...(data?.defensePairingTargets || []),
     ...scheduleEdgeTargets,
   ];
@@ -835,6 +836,7 @@ function buildWaiverDefenseCandidates({
   };
 
   data.defensePairingTargets?.forEach(target => addAvailable(target.player));
+  data.specialTeamsStreamerTargets?.forEach(target => addAvailable(target.player));
   data.weeklyEcrTargets?.forEach(target => addAvailable(target.player));
   addAvailable(data.bestAvailableByPosition.DEF);
   data.availableTrendingAdds.forEach(addAvailable);

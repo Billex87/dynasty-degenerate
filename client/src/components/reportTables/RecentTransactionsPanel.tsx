@@ -110,6 +110,7 @@ function collectWaiverCandidates(
   data.availableTrendingAdds.forEach(addPlayer);
   data.recentlyDroppedValuable.forEach(addPlayer);
   data.weeklyEcrTargets?.forEach(target => addPlayer(target.player));
+  data.specialTeamsStreamerTargets?.forEach(target => addPlayer(target.player));
 
   return Array.from(byId.values());
 }

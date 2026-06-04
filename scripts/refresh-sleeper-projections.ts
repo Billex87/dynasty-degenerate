@@ -1,5 +1,6 @@
 #!/usr/bin/env tsx
 
+import '../server/_core/env';
 import {
   refreshSleeperProjectionSnapshotSet,
   type SleeperProjectionScoringProfile,

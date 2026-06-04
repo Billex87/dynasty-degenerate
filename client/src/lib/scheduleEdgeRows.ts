@@ -664,6 +664,8 @@ export function buildScheduleSnapshotHealthRows(
 
   const targets = [
     ...(reportData.waiverIntelligence?.weeklyEcrTargets || []),
+    ...(reportData.waiverIntelligence?.specialTeamsStreamerTargets || []),
+    ...(reportData.waiverIntelligence?.defensePairingTargets || []),
     ...(reportData.scheduleEdgeTargets || []),
   ];
   for (const target of targets) {
@@ -1129,6 +1131,8 @@ export function buildScheduleEdgeRows(
         : Date.now();
   const weeklyTargets = [
     ...(waiver?.weeklyEcrTargets || []).filter(target => isDraftSharksScheduleSignal(target.signal)),
+    ...(waiver?.specialTeamsStreamerTargets || []).filter(target => isDraftSharksScheduleSignal(target.signal)),
+    ...(waiver?.defensePairingTargets || []).filter(target => isDraftSharksScheduleSignal(target.signal)),
     ...scheduleTargets.filter(target => isDraftSharksScheduleSignal(target.signal)),
   ];
   const targetScores = new Map(

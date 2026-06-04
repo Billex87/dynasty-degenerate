@@ -115,4 +115,35 @@ describe('source snapshot freshness diagnostics', () => {
 
     expect(diagnostic.rowCount).toBe(999);
   });
+
+  it('tracks normalized NFL schedule snapshots as projection-readiness inputs', () => {
+    const [diagnostic] = buildSourceSnapshotFreshnessDiagnostics({
+      now,
+      metadata: [metadata({
+        sourceKey: 'nfl-schedule-games-v1',
+        source: 'raw-provider-label',
+        snapshotKey: '2026:official-v1',
+      })],
+      rowCounts: [{
+        sourceKey: 'nfl-schedule-games-v1',
+        rowCount: 272,
+      }],
+      expectedSources: [{
+        sourceKey: 'nfl-schedule-games-v1',
+        source: 'Normalized NFL schedule snapshot',
+        tableName: 'providerDataSnapshots',
+        staleAfterHours: 168,
+        missingLevel: 'warn',
+      }],
+    });
+
+    expect(diagnostic).toMatchObject({
+      sourceKey: 'nfl-schedule-games-v1',
+      source: 'Normalized NFL schedule snapshot',
+      status: 'loaded',
+      level: 'info',
+      rowCount: 272,
+      snapshotKey: '2026:official-v1',
+    });
+  });
 });
