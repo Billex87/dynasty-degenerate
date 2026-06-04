@@ -8,6 +8,7 @@ import { loadSourceSnapshotFreshnessDiagnostics } from '../server/sourceSnapshot
 import { buildSourceCoverageMatrix } from '../server/sourceCoverageMatrix';
 import { buildSourceFreshnessSummary } from '../server/sourceFreshnessSummary';
 import { listSourceHealthEventsSince } from '../server/db';
+import { evaluateOperationsSecurityReadiness } from '../server/operationsSecurityReadiness';
 import type { SourceSnapshotFreshnessDiagnostic } from '../shared/types';
 
 type ApiTelemetryEvent = {
@@ -197,6 +198,13 @@ async function main() {
   console.log(`Lookback days: ${LOOKBACK_DAYS}`);
   console.log(`Season: ${process.env.READINESS_AUDIT_SEASON || currentSeason}`);
   console.log(`Profile: ${process.env.READINESS_AUDIT_VALUE_PROFILE_KEY || '12_sf_ppr_base'}`);
+
+  const securityReadiness = evaluateOperationsSecurityReadiness();
+  console.log('\n## Operations Security Readiness');
+  console.log(`Checks: pass=${securityReadiness.totals.pass} warn=${securityReadiness.totals.warn} blocker=${securityReadiness.totals.blocker}`);
+  for (const check of securityReadiness.checks.filter((item) => item.status !== 'pass')) {
+    console.log(`- ${check.status.toUpperCase()} ${check.id} [${check.envNames.join(', ')}]: ${check.message}`);
+  }
 
   console.log('\n## Source Freshness Summary');
   console.log(`Sources: ${freshnessSummary.totals.sources}`);

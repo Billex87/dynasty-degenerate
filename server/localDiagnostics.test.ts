@@ -7,7 +7,7 @@ import {
 } from './apiProviderTelemetry';
 import { insertSourceHealthEvents } from './db';
 import { saveLocalKtcSnapshot } from './ktcLoader';
-import { recordSourceHealthEvents } from './sourceHealth';
+import { recordSourceHealthEvents, resolveSourceHealthAlertWebhookUrl } from './sourceHealth';
 
 vi.mock('./db', () => ({
   findKtcSnapshotOnOrBefore: vi.fn(),
@@ -70,5 +70,20 @@ describe('local diagnostics in serverless runtimes', () => {
     expect(mkdirSpy).not.toHaveBeenCalled();
     expect(appendSpy).not.toHaveBeenCalled();
     expect(insertSourceHealthEvents).toHaveBeenCalledOnce();
+  });
+
+  it('rejects unsafe production source-health webhook URLs before delivery', () => {
+    expect(resolveSourceHealthAlertWebhookUrl({
+      nodeEnv: 'production',
+      webhookUrl: 'http://hooks.example.com/source-health',
+    })).toBeNull();
+    expect(resolveSourceHealthAlertWebhookUrl({
+      nodeEnv: 'production',
+      webhookUrl: 'https://127.0.0.1/source-health',
+    })).toBeNull();
+    expect(resolveSourceHealthAlertWebhookUrl({
+      nodeEnv: 'production',
+      webhookUrl: 'https://hooks.example.com/source-health',
+    })).toBe('https://hooks.example.com/source-health');
   });
 });
