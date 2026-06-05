@@ -135,6 +135,7 @@ type TradeProposalSignal = NonNullable<ReportData["tradeProposalSignals"]>[numbe
 const SLEEPER_HELPER_APP_SOURCE = "dynasty-degens-app";
 const SLEEPER_HELPER_EXTENSION_SOURCE = "dynasty-degens-sleeper-helper";
 const CURRENT_PENDING_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const SLEEPER_HELPER_IMPORT_TIMEOUT_MS = 60 * 1000;
 
 function isPendingSleeperSignalStatus(status?: string | null): boolean {
   const normalized = String(status || "").trim().toLowerCase();
@@ -213,9 +214,41 @@ const DEFENSE_TEAM_BY_NAME: Record<string, string> = {
   "washington commanders": "WAS",
 };
 
+const DEFENSE_NAME_BY_TEAM = Object.entries(DEFENSE_TEAM_BY_NAME).reduce<Record<string, string>>(
+  (map, [name, team]) => {
+    map[team] = name.replace(/\b[a-z]/g, letter => letter.toUpperCase());
+    return map;
+  },
+  {}
+);
+
 function getDefenseTeamFromName(playerName?: string | null): string | null {
   const normalized = String(playerName || "").trim().toLowerCase();
   return DEFENSE_TEAM_BY_NAME[normalized] || null;
+}
+
+function getDefenseNameFromTeam(team?: string | null): string | null {
+  const normalized = String(team || "").trim().toUpperCase();
+  return DEFENSE_NAME_BY_TEAM[normalized] || null;
+}
+
+function getPendingAssetDisplayName(
+  playerId: string | null | undefined,
+  playerName: string | null | undefined,
+  playerDetailsById?: ReportData["playerDetailsById"]
+): string {
+  const name = String(playerName || "").trim();
+  if (name) return name;
+
+  const id = String(playerId || "").trim();
+  if (!id) return "";
+
+  const details = playerDetailsById?.[id];
+  const fallbackName =
+    details && typeof (details as { name?: unknown }).name === "string"
+      ? (details as { name: string }).name
+      : null;
+  return details?.fullName || fallbackName || getDefenseNameFromTeam(id) || id;
 }
 
 function ManagerActivityChip({
@@ -603,10 +636,19 @@ function PendingPlayerAssetGrid({
   rankings?: ReportData["rankings"];
   onSelectPlayer: (player: PlayerModalData) => void;
 }) {
-  const playerItems = playerNames.map((playerName, index) => ({
-    playerName,
-    playerId: playerIds[index] || null,
-  }));
+  const playerItemCount = Math.max(playerNames.length, playerIds.length);
+  const playerItems = Array.from({ length: playerItemCount }, (_, index) => {
+    const playerId = playerIds[index] || null;
+    const playerName = getPendingAssetDisplayName(
+      playerId,
+      playerNames[index],
+      playerDetailsById
+    );
+    return {
+      playerName,
+      playerId,
+    };
+  }).filter(item => item.playerName);
 
   return (
     <div className="space-y-2">
@@ -1013,6 +1055,7 @@ export function ReportTradesTab({
     useState<PlayerModalData | null>(null);
   const tradeWarRoomRef = useRef<HTMLDivElement | null>(null);
   const autoImportPendingRef = useRef(false);
+  const helperImportTimeoutRef = useRef<number | null>(null);
   const hasImportedSleeperActivity =
     Boolean(reportData.sleeperHiddenLeagueSnapshot) ||
     Boolean(reportData.adminSleeperTradeProposalSignals?.length) ||
@@ -1056,11 +1099,31 @@ export function ReportTradesTab({
     helperSnapshot?.transactions.filter(transaction => transaction.type === "waiver")
       .length ?? 0;
 
+  const clearHelperImportTimeout = useCallback(() => {
+    if (helperImportTimeoutRef.current === null) return;
+    window.clearTimeout(helperImportTimeoutRef.current);
+    helperImportTimeoutRef.current = null;
+  }, []);
+
+  const startHelperImportTimeout = useCallback(() => {
+    clearHelperImportTimeout();
+    helperImportTimeoutRef.current = window.setTimeout(() => {
+      helperImportTimeoutRef.current = null;
+      autoImportPendingRef.current = false;
+      setIsHelperCaptureRunning(false);
+      setHelperStatus(null);
+      setHelperError(
+        "Still waiting on Sleeper. Refresh the Sleeper Trades and Players/Waivers tabs, then click Import Pending Transactions again."
+      );
+    }, SLEEPER_HELPER_IMPORT_TIMEOUT_MS);
+  }, [clearHelperImportTimeout]);
+
   const importCapturedSnapshot = useCallback(
     async (
       snapshot: SleeperExtensionTradeCenterSnapshot,
       options: { automatic?: boolean } = {}
     ) => {
+      clearHelperImportTimeout();
       setHelperError(null);
       setHelperStatus(
         options.automatic
@@ -1086,7 +1149,7 @@ export function ReportTradesTab({
         setIsHelperCaptureRunning(false);
       }
     },
-    [onImportSleeperTradeCenterSnapshot]
+    [clearHelperImportTimeout, onImportSleeperTradeCenterSnapshot]
   );
 
   useEffect(() => {
@@ -1106,6 +1169,7 @@ export function ReportTradesTab({
         setHelperDetected(true);
         const payload = message.payload as { status?: string; detail?: string } | null;
         if (payload?.status === "error") {
+          clearHelperImportTimeout();
           autoImportPendingRef.current = false;
           setIsHelperCaptureRunning(false);
           setHelperStatus(null);
@@ -1127,11 +1191,17 @@ export function ReportTradesTab({
         payload.source !== "chrome-extension" ||
         !Array.isArray(payload.transactions)
       ) {
+        clearHelperImportTimeout();
+        autoImportPendingRef.current = false;
+        setIsHelperCaptureRunning(false);
         setHelperError("The Chrome Helper sent an invalid snapshot.");
         return;
       }
 
       if (payload.leagueId !== leagueId) {
+        clearHelperImportTimeout();
+        autoImportPendingRef.current = false;
+        setIsHelperCaptureRunning(false);
         setHelperSnapshot(null);
         setHelperError(
           `Chrome Helper captured league ${payload.leagueId}, but this report is ${leagueId}.`
@@ -1142,6 +1212,7 @@ export function ReportTradesTab({
       setHelperSnapshot(payload);
       setHelperDetected(true);
       setHelperError(null);
+      clearHelperImportTimeout();
 
       if (autoImportPendingRef.current) {
         autoImportPendingRef.current = false;
@@ -1166,8 +1237,11 @@ export function ReportTradesTab({
       window.location.origin
     );
 
-    return () => window.removeEventListener("message", handleHelperMessage);
-  }, [importCapturedSnapshot, leagueId]);
+    return () => {
+      window.removeEventListener("message", handleHelperMessage);
+      clearHelperImportTimeout();
+    };
+  }, [clearHelperImportTimeout, importCapturedSnapshot, leagueId]);
 
   const importHelperSnapshot = async () => {
     if (!helperDetected) {
@@ -1181,6 +1255,7 @@ export function ReportTradesTab({
     setHelperError(null);
     setIsHelperCaptureRunning(true);
     setHelperStatus("Opening Sleeper and importing pending transactions...");
+    startHelperImportTimeout();
     window.postMessage(
       {
         source: SLEEPER_HELPER_APP_SOURCE,
@@ -1269,7 +1344,7 @@ export function ReportTradesTab({
                     ? `${helperTradeCount} trades, ${helperWaiverCount} waiver claims captured ${new Date(helperSnapshot.capturedAt).toLocaleString()}.`
                     : helperDetected
                       ? "Ready. The helper will open Sleeper, refresh the right pages, and import the latest pending snapshot."
-                      : "Install or reload the Chrome Helper from /sleeper-helper, then click this button again."}
+                      : "Install or reload the Chrome Helper in Chrome Extensions, then click this button again."}
                 </p>
               </div>
               <Button
@@ -1292,7 +1367,11 @@ export function ReportTradesTab({
               </p>
             ) : null}
             {helperError ? (
-              <p className="mt-3 rounded-xl border border-rose-300/20 bg-rose-950/30 px-3 py-2 text-sm font-semibold text-rose-200">
+              <p className={`mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ${
+                helperError.startsWith("Still waiting")
+                  ? "border-amber-300/20 bg-amber-950/30 text-amber-100"
+                  : "border-rose-300/20 bg-rose-950/30 text-rose-200"
+              }`}>
                 {helperError}
               </p>
             ) : null}

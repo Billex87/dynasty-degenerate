@@ -2,11 +2,79 @@
   const APP_SOURCE = "dynasty-degens-app";
   const EXTENSION_SOURCE = "dynasty-degens-sleeper-helper";
 
+  function postStatus(payload) {
+    window.postMessage({
+      source: EXTENSION_SOURCE,
+      type: "DYNASTY_DEGENS_SLEEPER_HELPER_STATUS",
+      payload
+    }, window.location.origin);
+  }
+
+  function getRuntime() {
+    try {
+      if (typeof chrome === "undefined" || !chrome.runtime?.id) return null;
+      return chrome.runtime;
+    } catch {
+      return null;
+    }
+  }
+
+  function getRuntimeErrorMessage(error) {
+    const message = String(error?.message || error || "");
+    if (/context invalidated|extension context/i.test(message)) {
+      return "The Sleeper Helper was reloaded. Refresh this Dynasty Degens tab, then click Import Pending Transactions again.";
+    }
+    return "Could not reach the Sleeper Helper extension.";
+  }
+
+  function postRuntimeError(error) {
+    postStatus({
+      status: "error",
+      detail: getRuntimeErrorMessage(error)
+    });
+  }
+
   function postReady() {
     window.postMessage({
       source: EXTENSION_SOURCE,
       type: "DYNASTY_DEGENS_SLEEPER_HELPER_READY"
     }, window.location.origin);
+  }
+
+  function startSleeperImport(leagueId) {
+    const runtime = getRuntime();
+    if (!runtime?.sendMessage) {
+      postRuntimeError(new Error("Extension context invalidated."));
+      return;
+    }
+
+    try {
+      runtime.sendMessage({
+        type: "START_SLEEPER_CAPTURE_IMPORT",
+        leagueId
+      }, (response) => {
+        let lastError = null;
+        try {
+          lastError = runtime.lastError;
+        } catch (error) {
+          postRuntimeError(error);
+          return;
+        }
+
+        if (lastError) {
+          postRuntimeError(lastError);
+          return;
+        }
+
+        if (response?.ok) return;
+        postStatus({
+          status: "error",
+          detail: response?.error || "Could not start the Sleeper Helper import."
+        });
+      });
+    } catch (error) {
+      postRuntimeError(error);
+    }
   }
 
   window.addEventListener("message", (event) => {
@@ -18,33 +86,12 @@
       return;
     }
     if (message.type === "DYNASTY_DEGENS_START_SLEEPER_IMPORT") {
-      chrome.runtime.sendMessage({
-        type: "START_SLEEPER_CAPTURE_IMPORT",
-        leagueId: message.payload?.leagueId || ""
-      }).then((response) => {
-        if (response?.ok) return;
-        window.postMessage({
-          source: EXTENSION_SOURCE,
-          type: "DYNASTY_DEGENS_SLEEPER_HELPER_STATUS",
-          payload: {
-            status: "error",
-            detail: response?.error || "Could not start the Sleeper Helper import."
-          }
-        }, window.location.origin);
-      }).catch(() => {
-        window.postMessage({
-          source: EXTENSION_SOURCE,
-          type: "DYNASTY_DEGENS_SLEEPER_HELPER_STATUS",
-          payload: {
-            status: "error",
-            detail: "Could not reach the Sleeper Helper extension."
-          }
-        }, window.location.origin);
-      });
+      startSleeperImport(message.payload?.leagueId || "");
     }
   });
 
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  const runtime = getRuntime();
+  runtime?.onMessage?.addListener((message, _sender, sendResponse) => {
     if (message?.type === "DYNASTY_DEGENS_IMPORT_CAPTURED_SLEEPER_SNAPSHOT") {
       window.postMessage({
         source: EXTENSION_SOURCE,
