@@ -256,7 +256,7 @@ export function buildDepthChartRoleChangeSignals(input: {
   const current = indexRows(input.currentRows);
   const signals: DepthChartRoleChangeSignal[] = [];
 
-  for (const [key, currentRow] of current) {
+  for (const [key, currentRow] of Array.from(current.entries())) {
     const previousRow = previous.get(key) || null;
     if (!previousRow) {
       signals.push(buildSignal({ kind: 'newly-listed', direction: isStarter(currentRow.rank) ? 'boost' : 'neutral', previous: null, current: currentRow }));
@@ -266,7 +266,7 @@ export function buildDepthChartRoleChangeSignals(input: {
     if (signal && (signal.kind !== 'slot-changed' || input.includeNeutralSlotChanges)) signals.push(signal);
   }
 
-  for (const [key, previousRow] of previous) {
+  for (const [key, previousRow] of Array.from(previous.entries())) {
     if (current.has(key)) continue;
     signals.push(buildSignal({ kind: 'removed', direction: isStarter(previousRow.rank) ? 'risk' : 'neutral', previous: previousRow, current: null }));
   }

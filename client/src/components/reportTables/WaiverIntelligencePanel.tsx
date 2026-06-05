@@ -356,21 +356,23 @@ function shouldUseWaiverWeeklyEcrSignal(signal?: WaiverWeeklyEcrSignal | null): 
 }
 
 function getUsableWaiverWeeklyEcrWeeks(signal?: WaiverWeeklyEcrSignal | null): WaiverWeeklyEcrSignal["weeks"] {
-  if (!signal?.weeks?.length) return [];
-  if (isWaiverScheduleWindowSignal(signal)) return signal.weeks;
+  const weeks = signal?.weeks || [];
+  if (!signal || !weeks.length) return [];
+  if (isWaiverScheduleWindowSignal(signal)) return weeks;
   if (!isFantasyProsRankSignal(signal)) return [];
-  return signal.weeks.filter(
-    week =>
+  return weeks.filter(
+    (week: WaiverWeeklyEcrWeek) =>
       Boolean(week.positionRank || week.rankEcr) &&
       isUsableFantasyProsSignalStatus(week.sourceStatus, week.sourceRowCount)
   );
 }
 
 function getUsableWaiverWeeklyEcrSourceTrace(signal?: WaiverWeeklyEcrSignal | null): WaiverSourceTraceEntry[] {
-  if (!signal?.sourceTrace?.length) return [];
-  if (isWaiverScheduleWindowSignal(signal)) return signal.sourceTrace;
+  const sourceTrace = signal?.sourceTrace || [];
+  if (!signal || !sourceTrace.length) return [];
+  if (isWaiverScheduleWindowSignal(signal)) return sourceTrace;
   if (!isFantasyProsRankSignal(signal)) return [];
-  return signal.sourceTrace.filter(trace =>
+  return sourceTrace.filter((trace: WaiverSourceTraceEntry) =>
     isUsableFantasyProsSignalStatus(trace.status, trace.rowCount)
   );
 }
@@ -486,7 +488,7 @@ function formatWaiverWeeklyEcrWindow(
 ): string | null {
   const displayWeeks = getUsableWaiverWeeklyEcrWeeks(signal);
   if (!displayWeeks.length) return null;
-  const windowWeeks = signal.matchupWindows?.next3?.weeks || null;
+  const windowWeeks = signal?.matchupWindows?.next3?.weeks || null;
   const rows = windowWeeks?.length
     ? displayWeeks.filter(week => windowWeeks.includes(week.week))
     : displayWeeks.slice(0, 3);

@@ -379,21 +379,23 @@ function shouldUseWeeklyRankSignal(signal?: TrendingPlayer['weeklyEcr']): boolea
 }
 
 function getUsableWeeklyRankWeeks(signal?: WaiverWeeklyEcrSignal | null): WaiverWeeklyEcrSignal['weeks'] {
-  if (!signal?.weeks?.length) return [];
-  if (isScheduleWindowSignal(signal)) return signal.weeks;
+  const weeks = signal?.weeks || [];
+  if (!signal || !weeks.length) return [];
+  if (isScheduleWindowSignal(signal)) return weeks;
   if (!isFantasyProsRankSignal(signal)) return [];
-  return signal.weeks.filter(
-    week =>
+  return weeks.filter(
+    (week) =>
       Boolean(week.positionRank || week.rankEcr) &&
       isUsableFantasyProsSignalStatus(week.sourceStatus, week.sourceRowCount)
   );
 }
 
 function getUsableWeeklyRankSourceTrace(signal?: WaiverWeeklyEcrSignal | null): WaiverSourceTraceEntry[] {
-  if (!signal?.sourceTrace?.length) return [];
-  if (isScheduleWindowSignal(signal)) return signal.sourceTrace;
+  const sourceTrace = signal?.sourceTrace || [];
+  if (!signal || !sourceTrace.length) return [];
+  if (isScheduleWindowSignal(signal)) return sourceTrace;
   if (!isFantasyProsRankSignal(signal)) return [];
-  return signal.sourceTrace.filter(trace =>
+  return sourceTrace.filter((trace) =>
     isUsableFantasyProsSignalStatus(trace.status, trace.rowCount)
   );
 }
