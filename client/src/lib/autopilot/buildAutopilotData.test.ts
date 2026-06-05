@@ -514,12 +514,19 @@ describe('buildAutopilotData', () => {
             owner: 'Tester',
             baseValue: 4200,
             projectionValue: 4200,
+            restOfSeasonProjectionPoints: 180,
+            restOfSeasonValue: 4680,
+            restOfSeasonWeeks: 12,
             scheduleAdjustment: 0,
             byeAdjustment: 0,
             roleAdjustment: 0,
+            injuryAdjustment: 0,
+            replacementAdjustment: -150,
             finalValue: 4200,
             valueDelta: 0,
             confidence: 76,
+            confidenceReasons: ['Ready weekly projection is blended into the redraft value.'],
+            confidenceCapReason: null,
             status: 'ready',
             sourceCount: 3,
             components: [],
@@ -533,12 +540,22 @@ describe('buildAutopilotData', () => {
             owner: 'Tester',
             baseValue: 3200,
             projectionValue: 6200,
+            restOfSeasonProjectionPoints: 240,
+            restOfSeasonValue: 6240,
+            restOfSeasonWeeks: 12,
             scheduleAdjustment: 400,
             byeAdjustment: 0,
             roleAdjustment: 200,
+            injuryAdjustment: -125,
+            replacementAdjustment: 250,
             finalValue: 6800,
             valueDelta: 3600,
             confidence: 84,
+            confidenceReasons: [
+              'Ready weekly projection is blended into the redraft value.',
+              'Derived rest-of-season projection value is available.',
+            ],
+            confidenceCapReason: null,
             status: 'ready',
             sourceCount: 4,
             components: [],
@@ -560,7 +577,12 @@ describe('buildAutopilotData', () => {
       action: 'Start',
     });
     expect(data.lineup[0]?.signals).toContain('Blended redraft value');
+    expect(data.lineup[0]?.signals).toContain('ROS projection');
+    expect(data.lineup[0]?.signals).toContain('Injury/news risk');
+    expect(data.lineup[0]?.signals).toContain('Replacement pressure');
     expect(data.lineup[0]?.summary).toContain('stored redraft valuation edge');
+    expect(data.lineup[0]?.reasons.join(' ')).toContain('derived rest-of-season value');
+    expect(data.lineup[0]?.reasons.join(' ')).toContain('injury/news adjustment');
   });
 
   it('uses lineup-strength upgrade alternatives as direct start-sit actions', () => {
@@ -662,6 +684,11 @@ describe('buildAutopilotData', () => {
       expectedAction: { type: 'swap_starter' },
     });
     expect(data.lineup[0]?.signals).toContain('Upgrade');
+    expect(data.lineup[0]?.signals).toContain('Floor/ceiling range');
+    expect(data.lineup[0]?.signals).toContain('Schedule edge');
+    expect(data.lineup[0]?.signals).toContain('Win probability');
+    expect(data.lineup[0]?.reasons.join(' ')).toContain('Derived projection range');
+    expect(data.lineup[0]?.reasons.join(' ')).toContain('Projected win probability');
   });
 
   it('keeps lineup-strength close-call alternatives review-only', () => {

@@ -302,6 +302,12 @@ function formatCompactValue(value?: number | null): string {
   return `${Math.round(numeric)}`;
 }
 
+function formatSignedCompactValue(value?: number | null): string {
+  const numeric = safeNumber(value);
+  if (numeric === null) return '-';
+  return `${numeric > 0 ? '+' : ''}${formatCompactValue(numeric)}`;
+}
+
 function formatSignedPercent(value?: number | null): string {
   const numeric = safeNumber(value);
   if (numeric === null) return '0%';
@@ -589,6 +595,60 @@ function getRedraftValuationEvidenceLabel(data: ReportData, row?: RedraftValuati
     : row
       ? 'stored redraft valuation'
       : null;
+}
+
+function getRedraftValuationStartSitReasons(
+  row: RedraftValuationRead | null | undefined,
+  playerName: string,
+): string[] {
+  if (!row) return [];
+  return [
+    safeNumber(row.restOfSeasonValue) !== null && safeNumber(row.restOfSeasonProjectionPoints) !== null
+      ? `${playerName} carries ${formatCompactValue(row.restOfSeasonValue)} derived rest-of-season value from ${safeNumber(row.restOfSeasonProjectionPoints)?.toFixed(1)} projected points over ${row.restOfSeasonWeeks || '?'} week${row.restOfSeasonWeeks === 1 ? '' : 's'}.`
+      : null,
+    safeNumber(row.scheduleAdjustment)
+      ? `${playerName} schedule/SOS adjustment: ${formatSignedCompactValue(row.scheduleAdjustment)}.`
+      : null,
+    safeNumber(row.byeAdjustment)
+      ? `${playerName} bye timing adjustment: ${formatSignedCompactValue(row.byeAdjustment)}.`
+      : null,
+    safeNumber(row.roleAdjustment)
+      ? `${playerName} role-trend adjustment: ${formatSignedCompactValue(row.roleAdjustment)}.`
+      : null,
+    safeNumber(row.injuryAdjustment)
+      ? `${playerName} injury/news adjustment: ${formatSignedCompactValue(row.injuryAdjustment)}.`
+      : null,
+    safeNumber(row.replacementAdjustment)
+      ? `${playerName} replacement-level adjustment: ${formatSignedCompactValue(row.replacementAdjustment)}.`
+      : null,
+    ...(row.confidenceReasons || []).slice(0, 2),
+    row.confidenceCapReason ? `Confidence limit: ${row.confidenceCapReason}` : null,
+  ].filter((reason): reason is string => Boolean(reason));
+}
+
+function getRedraftValuationStartSitSignals(row?: RedraftValuationRead | null): string[] {
+  if (!row) return [];
+  return [
+    safeNumber(row.restOfSeasonValue) !== null ? 'ROS projection' : null,
+    safeNumber(row.injuryAdjustment) ? 'Injury/news risk' : null,
+    safeNumber(row.replacementAdjustment) ? 'Replacement pressure' : null,
+    safeNumber(row.roleAdjustment) ? 'Role trend' : null,
+    safeNumber(row.scheduleAdjustment) ? 'Schedule edge' : null,
+    row.confidenceCapReason ? 'Confidence cap' : null,
+  ].filter((signal): signal is string => Boolean(signal));
+}
+
+function getDraftCapitalPatienceReason(player?: AutopilotPlayerLike | null): string | null {
+  const details = player?.playerDetails;
+  if (!details) return null;
+  const round = safeNumber(details.nflDraftRound);
+  const pick = safeNumber(details.nflDraftPick);
+  const yearsExp = safeNumber(details.yearsExp);
+  const rookieYear = safeNumber(details.rookieYear);
+  const currentSeason = 2026;
+  const youngEnough = (yearsExp !== null && yearsExp <= 2) || (rookieYear !== null && rookieYear >= currentSeason - 2);
+  if (!youngEnough || round === null || round > 3) return null;
+  return `Draft-capital patience: ${getPlayerName(player)} was a Round ${round}${pick ? ` pick ${pick}` : ''} investment, so do not treat one thin weekly edge as a long-term value change.`;
 }
 
 function describePlayer(player?: AutopilotPlayerLike | null, mode: AutopilotMode = 'dynasty') {
@@ -1458,19 +1518,27 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
         projectionCopy,
         strengthAlternative.closeCallReason,
         strengthRow.confidenceCapReason,
+        strengthRow.scheduleScore !== null
+          ? `Schedule edge is included in lineup strength (${formatSignedCompactValue(strengthRow.scheduleScore)} score adjustment).`
+          : null,
         strengthRow.projectedWinProbability
           ? `Projected win probability read: ${strengthRow.projectedWinProbability.probability.toFixed(1)}%.`
           : null,
         strengthRow.projectionRange
           ? `Derived projection range: ${strengthRow.projectionRange.floorPoints.toFixed(1)}-${strengthRow.projectionRange.ceilingPoints.toFixed(1)} points.`
           : null,
-      ], 4),
+        getDraftCapitalPatienceReason(strengthAlternative.alternative),
+        getDraftCapitalPatienceReason(strengthAlternative.starter),
+      ], 6),
       signals: dedupeStrings([
         'Lineup strength',
         strengthAlternative.decision === 'upgrade' && strengthRow.status !== 'value-only' ? 'Upgrade' : 'Close call',
         strengthAlternative.projectionDelta !== null ? 'Projection edge' : null,
+        strengthRow.projectionRange ? 'Floor/ceiling range' : null,
+        strengthRow.scheduleScore !== null ? 'Schedule edge' : null,
+        strengthRow.projectedWinProbability ? 'Win probability' : null,
         strengthRow.status === 'value-only' ? 'Value-only guard' : null,
-      ], 4),
+      ], 6),
       expectedAction: isDirectUpgrade
         ? {
           type: 'swap_starter',
@@ -1494,13 +1562,15 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
 
   if (redraftValuationSwap) {
     const edgeLabel = formatCompactValue(redraftValuationSwap.edge);
+    const candidateName = getPlayerName(redraftValuationSwap.candidate);
+    const starterName = getPlayerName(redraftValuationSwap.starter);
     cards.push({
       id: `lineup-redraft-valuation-swap-${redraftValuationSwap.candidate.player_id || redraftValuationSwap.candidate.name}-${redraftValuationSwap.starter.player_id || redraftValuationSwap.starter.name}`,
       type: 'Start/Sit',
       playerId: redraftValuationSwap.candidate.player_id || null,
-      player: getPlayerName(redraftValuationSwap.candidate),
+      player: candidateName,
       secondaryPlayerId: redraftValuationSwap.starter.player_id || null,
-      secondary: `over ${getPlayerName(redraftValuationSwap.starter)}`,
+      secondary: `over ${starterName}`,
       action: 'Start',
       confidence: recommendationConfidence(
         Math.min(86, 70 + redraftValuationSwap.edge / 350),
@@ -1508,20 +1578,31 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
       ),
       risk: redraftValuationSwap.edge >= 1600 ? 'Low' : 'Medium',
       upside: redraftValuationSwap.edge >= 1600 ? 'High' : 'Medium',
-      summary: `${getPlayerName(redraftValuationSwap.candidate)} has a ${edgeLabel} stored redraft valuation edge over ${getPlayerName(redraftValuationSwap.starter)}.`,
+      summary: `${candidateName} has a ${edgeLabel} stored redraft valuation edge over ${starterName}.`,
       reasons: dedupeStrings([
-        `${getPlayerName(redraftValuationSwap.candidate)} is eligible for ${getPlayerName(redraftValuationSwap.starter)}'s current starter slot.`,
-        `${formatCompactValue(redraftValuationSwap.candidateRead.finalValue)} projection-backed redraft valuation is loaded for ${getPlayerName(redraftValuationSwap.candidate)}.`,
-        `${formatCompactValue(redraftValuationSwap.starterRead.finalValue)} projection-backed redraft valuation is loaded for ${getPlayerName(redraftValuationSwap.starter)}.`,
+        `${candidateName} is eligible for ${starterName}'s current starter slot.`,
+        `${formatCompactValue(redraftValuationSwap.candidateRead.finalValue)} projection-backed redraft valuation is loaded for ${candidateName}.`,
+        `${formatCompactValue(redraftValuationSwap.starterRead.finalValue)} projection-backed redraft valuation is loaded for ${starterName}.`,
+        ...getRedraftValuationStartSitReasons(redraftValuationSwap.candidateRead, candidateName),
+        ...getRedraftValuationStartSitReasons(redraftValuationSwap.starterRead, starterName),
+        getDraftCapitalPatienceReason(redraftValuationSwap.candidate),
+        getDraftCapitalPatienceReason(redraftValuationSwap.starter),
         'No stronger stored weekly projection swap was available, so this stays on the valuation-backed redraft path.',
-      ], 4),
-      signals: dedupeStrings(['Blended redraft value', `${edgeLabel} value edge`, getPlayerLineupPosition(redraftValuationSwap.candidate), 'Season lens'], 4),
+      ], 8),
+      signals: dedupeStrings([
+        'Blended redraft value',
+        `${edgeLabel} value edge`,
+        getPlayerLineupPosition(redraftValuationSwap.candidate),
+        'Season lens',
+        ...getRedraftValuationStartSitSignals(redraftValuationSwap.candidateRead),
+        ...getRedraftValuationStartSitSignals(redraftValuationSwap.starterRead),
+      ], 8),
       expectedAction: {
         type: 'swap_starter',
         playerIn: toRecommendationPlayerRef(redraftValuationSwap.candidate),
         playerOut: toRecommendationPlayerRef(redraftValuationSwap.starter),
         playersInvolved: [toRecommendationPlayerRef(redraftValuationSwap.candidate), toRecommendationPlayerRef(redraftValuationSwap.starter)].filter(Boolean) as RecommendationPlayerRef[],
-        expectedLineupChange: `${getPlayerName(redraftValuationSwap.candidate)} should start over ${getPlayerName(redraftValuationSwap.starter)}.`,
+        expectedLineupChange: `${candidateName} should start over ${starterName}.`,
         source: 'autopilot',
         reason: `Stored redraft valuation edge is ${edgeLabel}.`,
       },
