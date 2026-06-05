@@ -20602,7 +20602,10 @@
     justify-content: center !important;
     justify-self: center !important;
     gap: 0.24rem !important;
-    overflow: hidden !important;
+    /* visible (was hidden): the ADP chip is ~3px wider than its grid cell and
+       was being clipped; the row right-aligns with a negative margin, so the
+       few px spill harmlessly into the column gap instead of cutting the text. */
+    overflow: visible !important;
   }
 
   .report-shell .draft-year-card-grid .rookie-draft-mobile-context-adp {
