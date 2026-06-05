@@ -131,4 +131,48 @@ describe('projection accuracy backtest', () => {
     expect(result.decision).toBe('do-not-promote');
     expect(result.decisionReason).toContain('Too few projection rows');
   });
+
+  it('does not compare rows with blank projection or actual point fields as zero-point outcomes', () => {
+    const baseSnapshot = buildPlayerProjectionSnapshot({
+      season: 2026,
+      week: 1,
+      source: 'fantasypros',
+      scoringProfile: 'PPR',
+      projectionType: 'weekly',
+      sourceVersion: 'week1-v1',
+      rows: [
+        { playerId: 'wr-valid', playerName: 'WR Valid', team: 'JAC', position: 'WR', projectedFantasyPoints: 10 },
+      ],
+    });
+    const projectionSnapshot = {
+      ...baseSnapshot,
+      rowCount: 3,
+      rows: [
+        ...baseSnapshot.rows,
+        { ...baseSnapshot.rows[0], playerId: 'wr-blank-projection', playerName: 'WR Blank Projection', projectedFantasyPoints: null },
+        { ...baseSnapshot.rows[0], playerId: 'wr-empty-projection', playerName: 'WR Empty Projection', projectedFantasyPoints: '' },
+      ],
+    };
+
+    const result = buildProjectionAccuracyBacktest({
+      projectionSnapshot,
+      actualRows: [
+        { season: 2026, week: 1, playerId: 'wr-valid', actualFantasyPoints: 12 },
+        { season: 2026, week: 1, playerId: 'wr-blank-projection', actualFantasyPoints: 8 },
+        { season: 2026, week: 1, playerId: 'wr-empty-projection', actualFantasyPoints: null },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      actualRowCount: 2,
+      comparedRowCount: 1,
+      missingActualCount: 2,
+    });
+    expect(result.comparisons).toHaveLength(1);
+    expect(result.comparisons[0]).toMatchObject({
+      playerId: 'wr-valid',
+      actualFantasyPoints: 12,
+      projectedFantasyPoints: 10,
+    });
+  });
 });
