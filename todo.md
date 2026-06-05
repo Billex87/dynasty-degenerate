@@ -640,7 +640,8 @@
 
 ### Source Access And Policy Gates
 
-- [ ] Confirm the approved full NFL schedule source before using it in production: prefer an official or licensed endpoint that returns season, week, game date/time, home team, away team, venue, neutral-site flag, game status, and source update timestamp.
+- [x] Confirm the approved full NFL schedule source before using it in production: prefer an official or licensed endpoint that returns season, week, game date/time, home team, away team, venue, neutral-site flag, game status, and source update timestamp.
+  - 2026-06-05 completion: `nfl-schedule-games-v1` is `approved-for-snapshot` in `docs/projection-source-readiness-gates.md` and `server/sourceReadinessGates.ts`. The approved path is NFL.com schedule fields or an approved export/API derived from the same official schedule fields, imported through cron/admin/manual snapshots with source version, fetched/published timestamp, checksum, and team-code mapping evidence. Normal report loads remain snapshot-only, and public provider-attributed claims are still not allowed.
 - [ ] Confirm the approved weekly player projection source before using projections in public reports: FantasyPros, DraftSharks, SportsDataIO, Fantasy Nerds, or another licensed provider is acceptable only after production terms, rate limits, redistribution rules, and freshness guarantees are documented.
 - [x] Retire FantasyPros matchup-calendar access from active SOS jobs/source traces; do not use FantasyPros ECR or matchup rows as public SOS recommendation inputs.
 - [x] Keep normal user-triggered report loads snapshot-backed for full schedule and projection data; live calls during login/report generation should remain limited to Sleeper current league state.
