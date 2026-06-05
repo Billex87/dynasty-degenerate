@@ -458,6 +458,96 @@ describe('AI prediction outcome resolver', () => {
     });
   });
 
+  it('keeps redraft season recommendations pending until the season grading window closes', () => {
+    const resolved = resolveAIPredictionOutcome(event({
+      createdAt: '2026-09-01T00:00:00.000Z',
+      surface: 'overview',
+      action: 'watch',
+      entityType: 'manager',
+      entityId: 'manager-1',
+      entityName: 'Sample Manager',
+      season: '2026',
+      expiresAt: '2026-09-08T00:00:00.000Z',
+      metadata: {
+        valueMode: 'redraft',
+        recommendationType: 'roster construction',
+        actionText: 'Redraft roster construction read tied to final standings, playoffs, points for, usage, and title outcome',
+      },
+    }), {
+      resolvedAt: '2026-10-01T00:00:00.000Z',
+      transactions: [],
+      playerStats: [],
+      valueMovements: [],
+    });
+
+    expect(resolved).toMatchObject({
+      status: 'pending',
+    });
+    expect(resolved.note).toContain('Redraft season recommendation remains inside its grading window until 2027-01-15T12:00:00.000Z');
+    expect(resolved.note).toContain('final standings');
+    expect(resolved.note).toContain('title outcome');
+  });
+
+  it('pushes redraft season recommendations after the grading window closes without outcome evidence', () => {
+    const resolved = resolveAIPredictionOutcome(event({
+      createdAt: '2026-09-01T00:00:00.000Z',
+      surface: 'overview',
+      action: 'watch',
+      entityType: 'manager',
+      entityId: 'manager-1',
+      entityName: 'Sample Manager',
+      season: '2026',
+      expiresAt: '2026-09-08T00:00:00.000Z',
+      metadata: {
+        valueMode: 'redraft',
+        recommendationType: 'roster construction',
+        actionText: 'Redraft season outcome read',
+      },
+    }), {
+      resolvedAt: '2027-01-16T00:00:00.000Z',
+      transactions: [],
+      playerStats: [],
+      valueMovements: [],
+    });
+
+    expect(resolved).toMatchObject({
+      status: 'push',
+      realizedEdge: {
+        source: 'expiration',
+        status: 'expired',
+      },
+    });
+  });
+
+  it('keeps dynasty draft recommendations pending until the two-year grading window closes', () => {
+    const resolved = resolveAIPredictionOutcome(event({
+      createdAt: '2026-05-15T00:00:00.000Z',
+      surface: 'rankings',
+      action: 'watch',
+      entityType: 'player',
+      entityId: 'p1',
+      entityName: 'Waiver Receiver',
+      season: '2026',
+      expiresAt: '2026-06-01T00:00:00.000Z',
+      metadata: {
+        valueMode: 'dynasty',
+        recommendationType: 'rookie draft pick',
+        actionText: 'Dynasty rookie draft recommendation',
+      },
+    }), {
+      resolvedAt: '2027-01-16T00:00:00.000Z',
+      transactions: [],
+      playerStats: [],
+      valueMovements: [],
+    });
+
+    expect(resolved).toMatchObject({
+      status: 'pending',
+    });
+    expect(resolved.note).toContain('Dynasty draft recommendation remains inside its grading window until 2028-01-15T12:00:00.000Z');
+    expect(resolved.note).toContain('two-year roster usage');
+  });
+
   it('matches team defense stream reads against Sleeper defense shorthand ids', () => {
     const resolved = resolveAIPredictionOutcome(event({
       surface: 'schedule',

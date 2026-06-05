@@ -46,6 +46,14 @@ describe("AI prediction event builder", () => {
         expiresAt: expect.any(String),
         decayWindowHours: expect.any(Number),
       },
+      metadata: {
+        gradingWindow: {
+          schemaVersion: 1,
+          kind: expect.any(String),
+          expiresAt: expect.any(String),
+          evidenceRequired: expect.any(Array),
+        },
+      },
     });
     expect(events[0].outcome.baselineValue).toBe(events[0].counterfactual?.baseline.score ?? null);
     expect(getAIPredictionEventBatchSignature(events)).toContain(events[0].eventId);

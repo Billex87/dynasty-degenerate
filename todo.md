@@ -841,6 +841,8 @@
   - [x] Build first-pass visible proposal-status calibration for Trade War Room so accepted/countered/blocked/pending proposal history can adjust negotiation score, chips, and summary copy.
   - [ ] Extend this calibration with hidden/cancelled/pending account-level fields after the consented Sleeper connection path is approved and tested.
 - [ ] Add recommendation grading windows by format: redraft recommendations grade at end of season against final standings, playoff finish, points for, roster usage, and title outcome; dynasty draft recommendations use a 2-year outcome window before final hit/miss labels.
+  - [x] Add first-pass grading-window policy so redraft season recommendations stay pending until the end-of-season window and dynasty draft recommendations stay pending for a two-year outcome window before unresolved reads can expire.
+  - [ ] Add final redraft outcome facts for standings, playoff finish, points for, roster usage, and title outcome once the season-end source path is approved and populated.
 - [ ] In August 2026, ask Billy to re-review projection sources when weekly projections are live: compare Sleeper projections against DraftSharks, FantasyPros, and any approved export/API source, then choose the baseline used for start/sit, streamers, and calibration.
 - [ ] After 2026 depth charts and practice reports are live, compare role/depth-chart confidence against snaps, routes, targets, carries, starter status, and injury outcomes before raising role-read confidence.
 - [x] Remove the legacy `trade-recommendation-outcomes:v1` localStorage migration read after shared action-plan storage has been live long enough.

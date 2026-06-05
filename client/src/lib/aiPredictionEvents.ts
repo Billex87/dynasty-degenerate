@@ -19,6 +19,7 @@ import {
   type AIPredictionDecayProfile,
   type AIRealizedEdge,
 } from "@shared/aiDecisionSnapshots";
+import { buildAIRecommendationGradingWindow } from "@shared/aiRecommendationGradingWindows";
 import type {
   RecommendationExpectedAction,
   RecommendationObservedOutcome,
@@ -811,6 +812,20 @@ function buildEvent(input: {
     surface: input.surface,
     action: input.action,
   });
+  const gradingWindow = buildAIRecommendationGradingWindow({
+    createdAt: input.createdAt,
+    season: input.season,
+    week: input.week,
+    surface: input.surface,
+    action: input.action,
+    entityType: input.entityType,
+    valueMode: input.valueMode || "unknown",
+    recommendationType: input.metadata?.recommendationType,
+    actionText: input.metadata?.actionText,
+    archetypeKey: input.metadata?.archetypeKey,
+    archetypeLabel: input.metadata?.archetypeLabel,
+    draftKind: input.metadata?.draftKind,
+  });
   const predictionKey = makePredictionKey(input);
   const eventId = `ai-${hashText(`${input.reportRunKey}:${predictionKey}:${safeDecision}:${finalScore}`)}`;
   return {
@@ -850,6 +865,7 @@ function buildEvent(input: {
     },
     metadata: {
       valueMode: input.valueMode || "unknown",
+      gradingWindow,
       ...input.metadata,
     },
   };

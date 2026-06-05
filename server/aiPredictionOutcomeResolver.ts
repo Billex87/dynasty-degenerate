@@ -1,6 +1,12 @@
 import type { AIPredictionEvent, AIPredictionOutcome } from './aiPredictionCalibration';
 import { buildAIRealizedEdge, isAIPredictionExpired } from '../shared/aiDecisionSnapshots';
 import {
+  buildAIRecommendationGradingWindow,
+  isLongHorizonRecommendationWindow,
+  parseAIRecommendationGradingWindow,
+  type AIRecommendationGradingWindow,
+} from '../shared/aiRecommendationGradingWindows';
+import {
   evaluateRecommendationOutcome,
   type RecommendationExpectedAction,
   type RecommendationObservedOutcome,
@@ -121,6 +127,88 @@ function getExpectedAction(event: AIPredictionEvent): RecommendationExpectedActi
   return isRecommendationExpectedAction(expectedAction) ? expectedAction : null;
 }
 
+function getEventValueMode(event: AIPredictionEvent): string {
+  return cleanText(event.metadata?.valueMode)
+    || cleanText(event.decisionSnapshot?.valueMode)
+    || 'unknown';
+}
+
+function getRecommendationGradingWindow(event: AIPredictionEvent): AIRecommendationGradingWindow {
+  return parseAIRecommendationGradingWindow(event.metadata?.gradingWindow)
+    || buildAIRecommendationGradingWindow({
+      createdAt: event.createdAt,
+      season: event.season,
+      week: event.week,
+      surface: event.surface,
+      action: event.action,
+      entityType: event.entityType,
+      valueMode: getEventValueMode(event),
+      recommendationType: event.metadata?.recommendationType,
+      actionText: event.metadata?.actionText,
+      archetypeKey: event.metadata?.archetypeKey,
+      archetypeLabel: event.metadata?.archetypeLabel,
+      draftKind: event.metadata?.draftKind,
+    });
+}
+
+function latestIsoDate(values: Array<string | Date | null | undefined>): string | null {
+  let latestIso: string | null = null;
+  let latestMs = Number.NEGATIVE_INFINITY;
+  values.forEach((value) => {
+    const date = value ? new Date(value) : null;
+    if (!date || !Number.isFinite(date.getTime())) return;
+    if (date.getTime() > latestMs) {
+      latestMs = date.getTime();
+      latestIso = date.toISOString();
+    }
+  });
+  return latestIso;
+}
+
+function effectivePredictionExpiresAt(
+  event: AIPredictionEvent,
+  extraExpiresAt?: string | Date | null
+): string | null {
+  const gradingWindow = getRecommendationGradingWindow(event);
+  const longHorizonWindow = isLongHorizonRecommendationWindow(gradingWindow);
+  return latestIsoDate([
+    event.expiresAt,
+    event.decay?.expiresAt,
+    extraExpiresAt,
+    longHorizonWindow ? gradingWindow.minimumFinalGradeAt : null,
+    longHorizonWindow ? gradingWindow.expiresAt : null,
+  ]);
+}
+
+function predictionExpired(
+  event: AIPredictionEvent,
+  context: AIPredictionOutcomeResolverContext,
+  extraExpiresAt?: string | Date | null
+): boolean {
+  return isAIPredictionExpired({
+    expiresAt: effectivePredictionExpiresAt(event, extraExpiresAt),
+    now: context.resolvedAt,
+  });
+}
+
+function pendingLongHorizonWindowOutcome(
+  event: AIPredictionEvent,
+  context: AIPredictionOutcomeResolverContext
+): AIPredictionOutcome | null {
+  const gradingWindow = getRecommendationGradingWindow(event);
+  if (!isLongHorizonRecommendationWindow(gradingWindow)) return null;
+  const finalGradeAt = gradingWindow.minimumFinalGradeAt || gradingWindow.expiresAt;
+  if (!finalGradeAt || isAIPredictionExpired({ expiresAt: finalGradeAt, now: context.resolvedAt })) return null;
+  const evidence = gradingWindow.evidenceRequired.length
+    ? gradingWindow.evidenceRequired.join(', ')
+    : 'the required outcome evidence';
+  return {
+    ...event.outcome,
+    status: 'pending',
+    note: `${gradingWindow.label} remains inside its grading window until ${finalGradeAt}; final hit/miss waits for ${evidence}.`,
+  };
+}
+
 function observedStatusToPredictionStatus(
   observed: RecommendationObservedOutcome
 ): AIPredictionOutcome['status'] {
@@ -162,7 +250,7 @@ function resolveObservedRecommendationOutcome(
     currentLineupState: currentRosterState,
     transactionHistory: scopedTransactions,
     now: context.resolvedAt,
-    expiresAt: event.expiresAt || event.decay?.expiresAt || expectedAction.deadline || null,
+    expiresAt: effectivePredictionExpiresAt(event, expectedAction.deadline || null),
   });
   if (observed.status === 'pending') return null;
   if (observed.status === 'unknown' && observed.evidence.detectedFrom === 'insufficient_data') return null;
@@ -540,7 +628,7 @@ function resolveValueMovementRead(event: AIPredictionEvent, context: AIPredictio
   const movedDown = delta <= -minMeaningfulMove;
   const negativeRead = isNegativePlayerRead(event);
   const positiveRead = isPositiveMarketRead(event);
-  const expired = isAIPredictionExpired({ expiresAt: event.expiresAt || event.decay?.expiresAt, now: context.resolvedAt });
+  const expired = predictionExpired(event, context);
 
   if (!movedUp && !movedDown) {
     if (!expired) {
@@ -644,6 +732,8 @@ function resolveStartSitOrStream(event: AIPredictionEvent, context: AIPrediction
 
 function resolveHoldOrNoAction(event: AIPredictionEvent, context: AIPredictionOutcomeResolverContext): AIPredictionOutcome | null {
   if (!isFirmNoActionRead(event)) return null;
+  const gradingWindow = getRecommendationGradingWindow(event);
+  const waitsForFinalOutcomeEvidence = isLongHorizonRecommendationWindow(gradingWindow);
 
   const actedAgainstRead = findRelatedTransaction(event, context, ['add', 'drop', 'trade']);
   if (actedAgainstRead) {
@@ -657,7 +747,8 @@ function resolveHoldOrNoAction(event: AIPredictionEvent, context: AIPredictionOu
     };
   }
 
-  if (isAIPredictionExpired({ expiresAt: event.expiresAt || event.decay?.expiresAt, now: context.resolvedAt })) {
+  if (predictionExpired(event, context)) {
+    if (waitsForFinalOutcomeEvidence) return null;
     const note = event.action === 'hold'
       ? 'Hold/no-action read was followed through until the recommendation expired.'
       : 'Do-not-chase read expired without a matching action against it.';
@@ -710,7 +801,10 @@ export function resolveAIPredictionOutcome(
   const valueResolved = resolveValueMovementRead(event, context);
   if (valueResolved) return valueResolved;
 
-  if (isAIPredictionExpired({ expiresAt: event.expiresAt || event.decay?.expiresAt, now: context.resolvedAt })) {
+  const pendingLongHorizonWindow = pendingLongHorizonWindowOutcome(event, context);
+  if (pendingLongHorizonWindow) return pendingLongHorizonWindow;
+
+  if (predictionExpired(event, context)) {
     return outcome('push', context, 'Prediction expired before enough outcome evidence was available.', {
       realizedEdge: buildAIRealizedEdge({
         predictedEdge: event.counterfactual?.edge ?? null,
