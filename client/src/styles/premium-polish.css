@@ -1,0 +1,71 @@
+/*
+ * premium-polish.css — LAST-imported deliberate premium overrides.
+ *
+ * Imported last in index.css so these intentional visual upgrades win the
+ * cascade over the scattered per-context rules (many of which use !important).
+ * Keep this file for DELIBERATE look-and-feel decisions only (rounding, depth,
+ * premium surface treatment) — tokens still live in premium-tokens.css.
+ */
+
+/* ── Player / owner tiles: rounded + soft depth ───────────────────────────
+   These tiles rendered square-cornered and flat. Round them into premium
+   cards with a hairline border (via inset shadow → no layout reflow) and a
+   soft drop-shadow for elevation. They already set overflow:hidden, so the
+   avatar wash / scrim children clip to the rounded shape. */
+:is(
+  .command-depth-tile,
+  .owner-summary-tile,
+  .player-tile,
+  .player-card,
+  .player-team-tile
+) {
+  border-radius: 1.1rem !important;
+  overflow: hidden !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 18px 34px -18px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* ── Value cards: don't let the value swim ────────────────────────────────
+   The rank cards (vertical position/value/tier stacks) stretch to fill their
+   grid column — fine at ~112px in the sidebar, but they balloon to ~360px in
+   the wide expanded spotlight where the value fills only ~7%. Cap them to the
+   well-proportioned sidebar size everywhere and center the row, so the value
+   stays comfortably filled instead of floating in empty space. */
+.dashboard-position-ranks span,
+.dashboard-starter-ranks span {
+  max-width: 8rem !important;
+}
+.dashboard-position-ranks,
+.dashboard-starter-ranks > div,
+.dashboard-rank-grid {
+  justify-content: center !important;
+}
+
+/* ── Status pills: size to the word, not the column ───────────────────────
+   The roster status pill ("Active"/"Taxi"/"Questionable") sits in a stretchy
+   grid column that ballooned it to ~330px for one short word. Size it to its
+   content so it reads as a compact pill, grouped by the position pill, with the
+   player value still anchored to the right of the row. */
+.starter-player-status-pill {
+  justify-self: start !important;
+  width: max-content !important;
+  max-width: 100% !important;
+}
+
+/* ── Player value: one color, no pill ─────────────────────────────────────
+   The player value number was wrapped in a dark pill and colored inconsistently
+   (green here, other colors elsewhere). Strip the pill and render it as a clean
+   number in one consistent brand color everywhere it appears. */
+:root {
+  --dd-value-color: #41e6ff; /* brand cyan — the single player-value color */
+}
+.starter-player-meta-main > strong {
+  background: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  color: var(--dd-value-color) !important;
+  font-variant-numeric: tabular-nums;
+}

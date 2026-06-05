@@ -18,19 +18,21 @@
  * Tuning contract: change a value here, change it app-wide.
  */
 :root {
-  /* ── Brand display font ─────────────────────────────────────────────────
-     Referenced 60+ times via var(--font-athletic, …) but never defined — it
-     resolved only through the baked-in "Oswald" fallback, and bare
-     `var(--font-athletic)` sites (no fallback) fell back to the default serif.
-     Defining it fixes those serif sites and makes the brand font explicit.
-     Design = display Oswald + clean body sans (body copy stays on --dd-font-body). */
-  --font-athletic: "Oswald", system-ui, -apple-system, sans-serif;
+  /* ── Primary UI / display font (premium) ────────────────────────────────
+     --font-athletic drives all tiles, data, labels, values, and section
+     headings (60+ consumers). Now SORA — a clean geometric grotesk that reads
+     far more premium than the old condensed Oswald, with excellent tabular
+     numerals. Oswald is retained ONLY for the brand wordmark / hero title via
+     --font-brand below. (Token name kept to avoid re-pointing 60+ call sites.) */
+  --font-athletic: "Sora", system-ui, -apple-system, sans-serif;
 
-  /* ── Heading/display aliases ────────────────────────────────────────────
-     A couple of headings reference --font-heading / --font-display, which were
-     never defined — so those headings silently fell back to the inherited body
-     sans instead of the brand display font. Alias both to --font-athletic so
-     they render Oswald as intended (and any future use stays on-contract). */
+  /* ── Brand wordmark / hero-title font ───────────────────────────────────
+     Oswald stays the bold brand identity for the big "Dynasty Degens" wordmark
+     and hero titles. Applied to .home-title*, .dd-tile__hero-title, and the
+     report header brand lockup so the brand punch is preserved. */
+  --font-brand: "Oswald", system-ui, -apple-system, sans-serif;
+
+  /* ── Heading/display aliases (route to the primary UI font) ─────────────── */
   --font-heading: var(--font-athletic);
   --font-display: var(--font-athletic);
 
@@ -48,4 +50,21 @@
   --dd-focus-ring-color: var(--dd-tron-cyan);
   --dd-focus-ring: 0 0 0 var(--dd-focus-ring-w)
     color-mix(in srgb, var(--dd-tron-cyan) 75%, transparent);
+}
+
+/* ── Brand wordmark / hero titles stay on Oswald ──────────────────────────
+   Everything else now renders in Sora via --font-athletic; these brand-defining
+   moments keep Oswald (--font-brand) so the identity is preserved. !important
+   wins over the inherited Sora regardless of import order. */
+:is(
+  .home-title,
+  .home-title span,
+  .home-title-primary,
+  .home-title-accent,
+  .dd-tile--hero .dd-tile__hero-title,
+  .report-header-brand,
+  .home-header-brand,
+  .report-header-mobile-brand-lockup
+) {
+  font-family: var(--font-brand) !important;
 }
