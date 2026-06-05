@@ -9,6 +9,7 @@ import {
 import {
   ArrowRightLeft,
   Cable,
+  ExternalLink,
   Loader2,
   ShieldCheck,
 } from "lucide-react";
@@ -136,8 +137,21 @@ type TradeProposalSignal = NonNullable<ReportData["tradeProposalSignals"]>[numbe
 
 const SLEEPER_HELPER_APP_SOURCE = "dynasty-degens-app";
 const SLEEPER_HELPER_EXTENSION_SOURCE = "dynasty-degens-sleeper-helper";
+const TRANSACTION_SYNC_CHROME_WEB_STORE_URL =
+  "https://chromewebstore.google.com/detail/dynasty-degens-transactio/hfbmbbcndhdoldlofakfbengicobmgpp";
 const CURRENT_PENDING_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const SLEEPER_HELPER_IMPORT_TIMEOUT_MS = 60 * 1000;
+
+function isLikelyMobileBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+
+  const userAgent = navigator.userAgent || "";
+  const platform = navigator.platform || "";
+  const isIPadDesktopMode =
+    platform === "MacIntel" && Number(navigator.maxTouchPoints || 0) > 1;
+
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent) || isIPadDesktopMode;
+}
 
 function isPendingSleeperSignalStatus(status?: string | null): boolean {
   const normalized = String(status || "").trim().toLowerCase();
@@ -1555,6 +1569,7 @@ export function ReportTradesTab({
   const tradeWarRoomRef = useRef<HTMLDivElement | null>(null);
   const autoImportPendingRef = useRef(false);
   const helperImportTimeoutRef = useRef<number | null>(null);
+  const isMobileBrowser = useMemo(() => isLikelyMobileBrowser(), []);
   const hasImportedSleeperActivity =
     Boolean(reportData.sleeperHiddenLeagueSnapshot) ||
     Boolean(reportData.adminSleeperTradeProposalSignals?.length) ||
@@ -1758,9 +1773,21 @@ export function ReportTradesTab({
   }, [clearHelperImportTimeout, importCapturedSnapshot, leagueId, showSleeperPendingActivity]);
 
   const importHelperSnapshot = async () => {
-    if (!helperDetected) {
+    if (isMobileBrowser) {
       setHelperError(
-        "Transaction Sync is not installed or enabled yet. Enable the extension, refresh this page, then click Import Pending Transactions again."
+        "Transaction Sync requires desktop Chrome. Chrome extensions do not run on iPhone, iPad, or Android Chrome, so open this report on desktop Chrome to import pending Sleeper trades and waivers."
+      );
+      return;
+    }
+
+    if (!helperDetected) {
+      window.open(
+        TRANSACTION_SYNC_CHROME_WEB_STORE_URL,
+        "_blank",
+        "noopener,noreferrer"
+      );
+      setHelperError(
+        "Install Transaction Sync from the Chrome Web Store, refresh this Dynasty Degens tab after Chrome finishes installing it, then click Import Pending Transactions again."
       );
       return;
     }
@@ -1871,9 +1898,9 @@ export function ReportTradesTab({
                       Import pending Sleeper trades and waivers
                     </h3>
                     <p className="max-w-3xl text-sm leading-6 text-slate-300">
-                      Click once. Transaction Sync opens Sleeper, captures only
-                      sanitized pending transaction data, and imports it back into this
-                      report.
+                      Desktop Chrome only. Install Transaction Sync once, then
+                      click once to open Sleeper, capture sanitized pending
+                      transaction data, and import it back into this report.
                     </p>
                   </div>
                 </div>
@@ -1889,6 +1916,8 @@ export function ReportTradesTab({
                       ? "Importing pending transactions"
                       : helperSnapshot
                       ? `Captured ${helperTransactionCount} pending item${helperTransactionCount === 1 ? "" : "s"}`
+                      : isMobileBrowser
+                        ? "Desktop Chrome required"
                       : helperDetected
                         ? "Transaction Sync detected"
                         : "Waiting for Transaction Sync"}
@@ -1898,10 +1927,31 @@ export function ReportTradesTab({
                       ? "Sleeper sync in progress. Keep this tab open while the helper captures trades and waivers."
                       : helperSnapshot
                       ? `${helperTradeCount} trades, ${helperWaiverCount} waiver claims captured ${new Date(helperSnapshot.capturedAt).toLocaleString()}.`
+                      : isMobileBrowser
+                        ? "Chrome extensions do not run on iPhone, iPad, Android Chrome, or the Sleeper mobile app. Use desktop Chrome for pending transaction import."
                       : helperDetected
                         ? "Ready. The helper will open Sleeper, refresh the right pages, and import the latest pending snapshot."
-                        : "Install or reload Transaction Sync in Chrome Extensions, then click this button again."}
+                        : "Install Transaction Sync from the Chrome Web Store, then refresh this Dynasty Degens tab."}
                   </p>
+                  {!helperDetected || isMobileBrowser ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <a
+                        href={TRANSACTION_SYNC_CHROME_WEB_STORE_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1.5 text-xs font-black text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/20"
+                      >
+                        Install from Chrome Web Store
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                      </a>
+                      <a
+                        href="/sleeper-helper"
+                        className="inline-flex items-center gap-2 rounded-full border border-orange-300/25 bg-orange-300/10 px-3 py-1.5 text-xs font-black text-orange-100 transition hover:border-orange-200/55 hover:bg-orange-300/20"
+                      >
+                        Setup help
+                      </a>
+                    </div>
+                  ) : null}
                   {isHelperImporting ? (
                     <div className="mt-3 max-w-sm" aria-hidden="true">
                       <div className="loading-progress-bar-wrap !mt-0">
@@ -1924,10 +1974,16 @@ export function ReportTradesTab({
                 >
                   {isHelperImporting ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : !helperDetected ? (
+                    <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
                   ) : (
                     <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
                   )}
-                  Import Pending Transactions
+                  {isMobileBrowser
+                    ? "Desktop Chrome Required"
+                    : !helperDetected
+                    ? "Install Transaction Sync"
+                    : "Import Pending Transactions"}
                 </Button>
               </div>
               {helperStatus ? (

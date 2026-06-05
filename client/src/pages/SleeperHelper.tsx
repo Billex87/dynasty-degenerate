@@ -1,9 +1,11 @@
 const repoUrl = "https://github.com/Billex87/dynasty-degenerate/tree/main/browser-extension/sleeper-helper";
+const chromeWebStoreUrl =
+  "https://chromewebstore.google.com/detail/dynasty-degens-transactio/hfbmbbcndhdoldlofakfbengicobmgpp";
 
 const steps = [
   {
-    label: "Install the helper",
-    body: "Open Chrome Extensions, enable Developer mode, choose Load unpacked, and select browser-extension/sleeper-helper."
+    label: "Install Transaction Sync",
+    body: "Install the Chrome extension from the Chrome Web Store in desktop Chrome."
   },
   {
     label: "Open your report",
@@ -31,7 +33,7 @@ const boundaries = [
 const troubleshooting = [
   {
     issue: "Dynasty Degens says the helper is not detected.",
-    fix: "Reload the extension in chrome://extensions, then reload Dynasty Degens."
+    fix: "Install Transaction Sync from the Chrome Web Store, then refresh Dynasty Degens after Chrome finishes installing it."
   },
   {
     issue: "Sleeper did not return a snapshot.",
@@ -40,6 +42,10 @@ const troubleshooting = [
   {
     issue: "No pending items import.",
     fix: "Sleeper responded, but no current pending trades or waiver claims were visible on the refreshed pages."
+  },
+  {
+    issue: "I am on iPhone, iPad, Android, or the Sleeper app.",
+    fix: "Use desktop Chrome for Transaction Sync. Chrome extensions do not run inside iPhone Chrome, Safari, Android Chrome, or the Sleeper mobile app."
   },
   {
     issue: "The popup cannot send manually.",
@@ -68,34 +74,36 @@ function SleeperHelperPage() {
                 Transaction Sync
               </p>
               <h1 className="max-w-4xl text-4xl font-black uppercase leading-[0.9] tracking-[-0.05em] text-white sm:text-6xl lg:text-7xl">
-                Import pending Sleeper trades without copying tokens.
+                Import pending Sleeper trades and waivers without copying tokens.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-                The helper watches Sleeper pages you are already logged into, captures only pending trade and waiver transaction responses, strips them down to safe roster/player data, and sends that snapshot into Dynasty Degens.
+                The desktop Chrome extension watches Sleeper pages you are already logged into, captures only pending trade and waiver transaction responses, strips them down to safe roster/player data, and sends that snapshot into Dynasty Degens.
               </p>
             </div>
 
             <div className="rounded-[2rem] border border-cyan-300/20 bg-slate-950/70 p-5 shadow-[0_0_80px_rgba(34,211,238,0.14)]">
               <div className="rounded-[1.45rem] border border-orange-300/25 bg-gradient-to-br from-orange-500/15 via-slate-900 to-cyan-500/15 p-5">
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-orange-200">Transaction Sync status</p>
-                <h2 className="mt-3 text-2xl font-black text-white">Local unpacked MVP, production-domain ready.</h2>
+                <h2 className="mt-3 text-2xl font-black text-white">Live on the Chrome Web Store.</h2>
                 <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Use this route for installation, privacy review, and troubleshooting until the Chrome Web Store listing is approved.
+                  Transaction Sync works in desktop Chrome. iPhone, iPad, Android Chrome, Safari, and the Sleeper mobile app do not run this Chrome extension.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <a
-                    href={repoUrl}
+                    href={chromeWebStoreUrl}
                     rel="noreferrer"
                     target="_blank"
                     className="rounded-2xl bg-cyan-300 px-4 py-3 text-center text-sm font-black text-slate-950 transition hover:bg-cyan-200"
                   >
-                    View helper files
+                    Install Chrome extension
                   </a>
                   <a
-                    href="#install"
+                    href={repoUrl}
+                    rel="noreferrer"
+                    target="_blank"
                     className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center text-sm font-black text-white transition hover:bg-white/15"
                   >
-                    Install steps
+                    Review helper files
                   </a>
                 </div>
               </div>
@@ -136,7 +144,7 @@ function SleeperHelperPage() {
                 <h2 className="mt-2 text-3xl font-black uppercase tracking-[-0.04em] text-white">If the import does not fire</h2>
               </div>
               <code className="w-fit rounded-full border border-white/10 bg-white/10 px-3 py-2 text-xs font-black text-cyan-100">
-                chrome://extensions
+                desktop Chrome required
               </code>
             </div>
             <div className="mt-6 grid gap-3 md:grid-cols-2">
@@ -150,10 +158,10 @@ function SleeperHelperPage() {
           </section>
 
           <section className="rounded-[2rem] border border-cyan-300/20 bg-cyan-300/10 p-6">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100">Chrome Web Store readiness</p>
-            <h2 className="mt-3 text-3xl font-black uppercase tracking-[-0.04em] text-white">Prepared for packaging, not yet submitted.</h2>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100">Mobile support</p>
+            <h2 className="mt-3 text-3xl font-black uppercase tracking-[-0.04em] text-white">Use desktop Chrome for sync.</h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-cyan-50/80">
-              The repo includes icons, permission notes, privacy copy, store-listing draft, and a package script. The final manual work is creating the Chrome Web Store developer listing, uploading the zip, adding screenshots, and waiting for review.
+              Chrome extensions do not run inside iPhone Chrome, iPhone Safari, Android Chrome, or the Sleeper mobile app. A Safari iPhone/iPad version would need to be built and shipped separately as a Safari Web Extension through the App Store.
             </p>
           </section>
         </div>
