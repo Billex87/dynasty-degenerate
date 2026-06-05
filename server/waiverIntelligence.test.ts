@@ -567,4 +567,112 @@ describe("buildWaiverIntelligence", () => {
     expect(result.priorityWaiverTargets?.[0]?.reasons.join(" ")).toContain("favorable upcoming schedule");
     expect(result.priorityWaiverTargets?.[0]?.weeklyProjection?.projectedFantasyPoints).toBe(12.8);
   });
+
+  it("uses SOS and playoff windows for priority waiver targets without projection rows", () => {
+    const players = {
+      playoffrunner: {
+        first_name: "Playoff",
+        last_name: "Runner",
+        position: "RB",
+        team: "LV",
+        active: true,
+        fantasy_positions: ["RB"],
+      },
+      flatrunner: {
+        first_name: "Flat",
+        last_name: "Runner",
+        position: "RB",
+        team: "LAR",
+        active: true,
+        fantasy_positions: ["RB"],
+      },
+    };
+    const ktcValues = {
+      playoffrunner: {
+        name: "Playoff Runner",
+        ktc_value: 2600,
+        dynasty_value: 2600,
+        market_value_ktc: 2600,
+        position_rank: "RB44",
+        value_sources: ["KTC"],
+      },
+      flatrunner: {
+        name: "Flat Runner",
+        ktc_value: 2400,
+        dynasty_value: 2400,
+        market_value_ktc: 2400,
+        position_rank: "RB44",
+        value_sources: ["KTC"],
+      },
+    };
+    const draftSharksScheduleContext = {
+      status: "loaded",
+      source: "DraftSharks SOS",
+      updatedAt: "2026-09-01T18:00:00.000Z",
+      profiles: {
+        "LV:RB": {
+          team: "LV",
+          position: "RB",
+          seasonSOS: 14,
+          remainingSOS: 18,
+          scheduleTier: "easy",
+          streamerWeeks: [1, 2, 3, 4, 5, 6],
+          avoidWeeks: [],
+          weeklyMatchups: [
+            { week: 1, opponent: "TEN", homeAway: "home", matchupPercent: 18, matchupTier: "easy" },
+            { week: 2, opponent: "NYG", homeAway: "home", matchupPercent: 22, matchupTier: "easy" },
+            { week: 3, opponent: "CAR", homeAway: "away", matchupPercent: 17, matchupTier: "easy" },
+            { week: 4, opponent: "DEN", homeAway: "home", matchupPercent: 13, matchupTier: "easy" },
+            { week: 5, opponent: "LAC", homeAway: "away", matchupPercent: 12, matchupTier: "easy" },
+            { week: 6, opponent: "KC", homeAway: "home", matchupPercent: 11, matchupTier: "easy" },
+          ],
+          source: "DraftSharks SOS",
+          updatedAt: "2026-09-01T18:00:00.000Z",
+        },
+        "LAR:RB": {
+          team: "LAR",
+          position: "RB",
+          seasonSOS: -8,
+          remainingSOS: -12,
+          scheduleTier: "hard",
+          streamerWeeks: [],
+          avoidWeeks: [1, 2, 3, 4, 5, 6],
+          weeklyMatchups: [
+            { week: 1, opponent: "SF", homeAway: "home", matchupPercent: -15, matchupTier: "hard" },
+            { week: 2, opponent: "SEA", homeAway: "away", matchupPercent: -12, matchupTier: "hard" },
+            { week: 3, opponent: "ARI", homeAway: "home", matchupPercent: -9, matchupTier: "hard" },
+            { week: 4, opponent: "KC", homeAway: "away", matchupPercent: -8, matchupTier: "hard" },
+            { week: 5, opponent: "BUF", homeAway: "home", matchupPercent: -10, matchupTier: "hard" },
+            { week: 6, opponent: "MIA", homeAway: "away", matchupPercent: -11, matchupTier: "hard" },
+          ],
+          source: "DraftSharks SOS",
+          updatedAt: "2026-09-01T18:00:00.000Z",
+        },
+      },
+    };
+
+    const result = buildWaiverIntelligence(
+      [],
+      [],
+      players,
+      ktcValues,
+      {},
+      {},
+      "redraft",
+      undefined,
+      {
+        rosterPositions: ["QB", "RB", "WR", "TE", "FLEX", "BN"],
+        draftSharksScheduleContext: draftSharksScheduleContext as any,
+        currentWeek: 1,
+        playoffWeeks: [4, 5, 6],
+        playoffWeekStart: 4,
+      }
+    );
+
+    expect(result.priorityWaiverTargets?.[0]?.player.name).toBe("Playoff Runner");
+    expect(["add-now", "streamer"]).toContain(result.priorityWaiverTargets?.[0]?.priority);
+    expect(result.priorityWaiverTargets?.[0]?.weeklyProjection).toBeNull();
+    expect(result.priorityWaiverTargets?.[0]?.reasons.join(" ")).toContain("playoff-window");
+    expect(result.priorityWaiverTargets?.[0]?.reasons.join(" ")).toContain("without weekly projection dependency");
+  });
 });

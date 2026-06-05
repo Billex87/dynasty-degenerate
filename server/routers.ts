@@ -5208,6 +5208,28 @@ function buildWaiverWeeklyEcrTargets(
     .slice(0, 12);
 }
 
+function getWaiverWindowNumber(window: any, key: 'easyWeeks' | 'hardWeeks' | 'score'): number {
+  const value = Number(window?.[key] || 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function getWaiverScheduleWindowScore(
+  window: any,
+  options: {
+    cap: number;
+    scoreWeight: number;
+    easyWeight: number;
+    hardWeight: number;
+  }
+): number {
+  if (!window) return 0;
+  const score =
+    getWaiverWindowNumber(window, 'score') * options.scoreWeight +
+    getWaiverWindowNumber(window, 'easyWeeks') * options.easyWeight -
+    getWaiverWindowNumber(window, 'hardWeeks') * options.hardWeight;
+  return Math.max(-options.cap, Math.min(options.cap, Math.round(score)));
+}
+
 function buildPriorityWaiverTargets(
   players: TrendingPlayer[],
   options: { leagueValueMode?: LeagueValueMode } = {}
@@ -5223,28 +5245,73 @@ function buildPriorityWaiverTargets(
       const outlook = isScheduleWindowSignal(scheduleSignal)
         ? getShortTermMatchupOutlook(scheduleSignal.matchupWindows)
         : null;
-      const easyWeeks = scheduleSignal?.matchupWindows?.next3?.easyWeeks || 0;
-      const hardWeeks = scheduleSignal?.matchupWindows?.next3?.hardWeeks || 0;
+      const next3Window = scheduleSignal?.matchupWindows?.next3 || null;
+      const next6Window = scheduleSignal?.matchupWindows?.next6 || null;
+      const playoffWindow = scheduleSignal?.matchupWindows?.playoffs || null;
+      const easyWeeks = getWaiverWindowNumber(next3Window, 'easyWeeks');
+      const hardWeeks = getWaiverWindowNumber(next3Window, 'hardWeeks');
+      const next6EasyWeeks = getWaiverWindowNumber(next6Window, 'easyWeeks');
+      const next6HardWeeks = getWaiverWindowNumber(next6Window, 'hardWeeks');
+      const playoffEasyWeeks = getWaiverWindowNumber(playoffWindow, 'easyWeeks');
+      const playoffHardWeeks = getWaiverWindowNumber(playoffWindow, 'hardWeeks');
       const projectionScore = projectionPoints > 0 ? projectionPoints * 52 : 0;
       const valueScore = Math.min(value / 10, 520);
       const windowScore = outlook
         ? outlook.score * 10 + easyWeeks * 95 - hardWeeks * 90
         : 0;
-      const score = Math.round(valueScore + projectionScore + scheduleScore * 0.45 + windowScore);
+      const next6WindowScore = getWaiverScheduleWindowScore(next6Window, {
+        cap: 260,
+        scoreWeight: 7,
+        easyWeight: 55,
+        hardWeight: 42,
+      });
+      const rawPlayoffWindowScore = getWaiverScheduleWindowScore(playoffWindow, {
+        cap: 240,
+        scoreWeight: 8,
+        easyWeight: 70,
+        hardWeight: 55,
+      });
+      const playoffWindowScore = options.leagueValueMode === 'redraft'
+        ? rawPlayoffWindowScore
+        : Math.min(rawPlayoffWindowScore, 110);
+      const strongScheduleWindow = Boolean(
+        isScheduleWindowSignal(scheduleSignal) &&
+        (
+          easyWeeks >= 2 ||
+          next6EasyWeeks >= 3 ||
+          playoffEasyWeeks >= 2 ||
+          windowScore + next6WindowScore + playoffWindowScore >= 340
+        )
+      );
+      const scheduleOnlyUrgency = !weeklyProjection && strongScheduleWindow ? 180 : 0;
+      const score = Math.round(
+        valueScore +
+        projectionScore +
+        scheduleScore * 0.45 +
+        windowScore +
+        next6WindowScore +
+        playoffWindowScore +
+        scheduleOnlyUrgency
+      );
       if (score <= 0) return null;
 
       const reasons = [
         projectionPoints >= 10 ? `${projectionPoints.toFixed(1)} stored projected points` : null,
         easyWeeks > 0 ? `${easyWeeks} favorable upcoming schedule week${easyWeeks === 1 ? '' : 's'}` : null,
+        next6EasyWeeks > easyWeeks ? `${next6EasyWeeks} favorable six-week window week${next6EasyWeeks === 1 ? '' : 's'}` : null,
+        playoffEasyWeeks > 0 ? `${playoffEasyWeeks} favorable playoff-window week${playoffEasyWeeks === 1 ? '' : 's'}` : null,
         hardWeeks > 0 && easyWeeks === 0 ? `${hardWeeks} rough upcoming schedule week${hardWeeks === 1 ? '' : 's'} limits priority` : null,
+        next6HardWeeks > next6EasyWeeks && !easyWeeks ? `${next6HardWeeks} rough six-week window weeks limit priority` : null,
+        playoffHardWeeks > playoffEasyWeeks ? `${playoffHardWeeks} rough playoff-window week${playoffHardWeeks === 1 ? '' : 's'} limits priority` : null,
+        !weeklyProjection && strongScheduleWindow ? 'schedule-backed priority without weekly projection dependency' : null,
         scheduleSignal?.bestPositionRank ? `${scheduleSignal.source} ${scheduleSignal.bestPositionRank} signal` : null,
         value > 0 ? `${Math.round(value).toLocaleString('en-US')} value baseline` : null,
       ].filter((reason): reason is string => Boolean(reason));
 
       const priority: NonNullable<WaiverIntelligence['priorityWaiverTargets']>[number]['priority'] =
-        score >= 1250 && projectionPoints >= 8
+        score >= 1250 && (projectionPoints >= 8 || strongScheduleWindow)
           ? 'add-now'
-          : isScheduleWindowSignal(scheduleSignal) && easyWeeks > 0 && projectionPoints >= 4
+          : isScheduleWindowSignal(scheduleSignal) && strongScheduleWindow && (projectionPoints >= 4 || value >= 450 || score >= 900)
             ? 'streamer'
             : score >= 780
               ? 'watch'
@@ -6077,24 +6144,35 @@ export function buildWaiverIntelligence(
       const projectionValue = weeklyProjection?.status === 'ready'
         ? Math.round(weeklyProjection.projectedFantasyPoints * 100)
         : 0;
+      const scheduleOnlyValue = weeklyEcr
+        ? Math.min(
+          2200,
+          Math.max(0, Math.round(getWaiverWeeklyEcrSignalScore(weeklyEcr, { leagueValueMode }) * 0.8))
+        )
+        : 0;
       const trustedValue = getScheduleAdjustedSpecialTeamsValue({
         position: waiverPosition,
-        value: leagueValueMode === 'dynasty' ? value || ecrValue || projectionValue : Math.max(value || 0, ecrValue || 0, projectionValue),
+        value: leagueValueMode === 'dynasty'
+          ? value || ecrValue || projectionValue || scheduleOnlyValue
+          : Math.max(value || 0, ecrValue || 0, projectionValue, scheduleOnlyValue),
         signal: weeklyEcr,
         leagueValueMode,
       });
       const trustedRank = rank || ecrRank;
-      if (trustedValue <= 0 && !trustedRank) return null;
+      const scheduleBackedCandidate = Boolean(weeklyEcr && !trustedRank && scheduleOnlyValue >= 650);
+      if (trustedValue <= 0 && !trustedRank && !scheduleBackedCandidate) return null;
       const sourceCount = getWaiverCandidateSourceCount(valueProfilesById?.[playerId]);
       const trustedSourceCount = sourceCount + (weeklyEcr ? 1 : 0);
-      const omissionReason = getWaiverCandidateOmissionReason({
-        player,
-        position: waiverPosition,
-        value: trustedValue,
-        rank: trustedRank,
-        sourceCount: trustedSourceCount,
-        leagueValueMode,
-      });
+      const omissionReason = scheduleBackedCandidate
+        ? null
+        : getWaiverCandidateOmissionReason({
+          player,
+          position: waiverPosition,
+          value: trustedValue,
+          rank: trustedRank,
+          sourceCount: trustedSourceCount,
+          leagueValueMode,
+        });
       if (omissionReason) {
         if (omittedCandidates.length < 40) {
           omittedCandidates.push(buildWaiverCandidateOmission({
