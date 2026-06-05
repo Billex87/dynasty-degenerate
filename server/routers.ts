@@ -5788,6 +5788,34 @@ function getWaiverWindowPlayableWeeks(window: any): number {
   return Math.max(0, getWaiverWindowNumber(window, 'easyWeeks') - getWaiverWindowNumber(window, 'hardWeeks'));
 }
 
+function getWaiverCandidateByeWeek(player: TrendingPlayer): number | null {
+  const scheduleByeWeek = Number(player.playerDetails?.schedule?.byeWeek);
+  if (Number.isInteger(scheduleByeWeek) && scheduleByeWeek >= 1 && scheduleByeWeek <= 18) return scheduleByeWeek;
+  const scheduleRows = Array.isArray(player.weeklyEcr?.weeks) ? player.weeklyEcr.weeks : [];
+  const byeRow = scheduleRows.find((row: any) =>
+    row?.isBye === true ||
+    String(row?.matchupTier || '').toLowerCase() === 'bye' ||
+    String(row?.opponent || '').toUpperCase() === 'BYE'
+  );
+  const rowByeWeek = Number(byeRow?.week);
+  return Number.isInteger(rowByeWeek) && rowByeWeek >= 1 && rowByeWeek <= 18 ? rowByeWeek : null;
+}
+
+function getWaiverWeeksInRange(currentWeek: number, length: number): number[] {
+  return Array.from({ length }, (_, index) => currentWeek + index)
+    .filter((week) => week >= 1 && week <= 18);
+}
+
+function getWaiverCandidateByeWeeksInRange(candidateByeWeek: number | null, currentWeek: number, length: number): number[] {
+  if (!candidateByeWeek) return [];
+  return getWaiverWeeksInRange(currentWeek, length).includes(candidateByeWeek) ? [candidateByeWeek] : [];
+}
+
+function getWaiverByeCoverageWeeks(window: any, candidateByeWeek: number | null): number[] {
+  return getWaiverWindowWeekNumbers(window)
+    .filter((week) => week !== candidateByeWeek);
+}
+
 function buildPriorityWaiverOpportunityWindows(input: {
   weeklyProjection: WeeklyProjectionContext | null;
   projectionPoints: number;
@@ -5798,6 +5826,10 @@ function buildPriorityWaiverOpportunityWindows(input: {
   playoffWindow: any;
   next6WindowScore: number;
   playoffWindowScore: number;
+  candidateByeWeek: number | null;
+  byeCoverageWeeks: number[];
+  byeCoverageScore: number;
+  nearTermByeWeeks: number[];
 }): WaiverPriorityOpportunityWindow[] {
   const windows: WaiverPriorityOpportunityWindow[] = [];
   const addScheduleWindow = (
@@ -5839,6 +5871,23 @@ function buildPriorityWaiverOpportunityWindows(input: {
       confidence: clampWaiverPriorityConfidence(62 + Math.min(26, input.projectionPoints * 1.7)),
       source: input.weeklyProjection.source || 'stored-weekly-projection',
       note: 'Ready weekly projection clears the playable waiver threshold.',
+    });
+  }
+
+  if (input.byeCoverageScore > 0 && input.byeCoverageWeeks.length >= 3 && !input.nearTermByeWeeks.length) {
+    windows.push({
+      type: 'bye-coverage',
+      label: 'Bye coverage',
+      weeks: input.byeCoverageWeeks,
+      score: Math.round(input.byeCoverageScore),
+      easyWeeks: getWaiverWindowNumber(input.next6Window, 'easyWeeks'),
+      hardWeeks: getWaiverWindowNumber(input.next6Window, 'hardWeeks'),
+      playableWeeks: input.byeCoverageWeeks.length,
+      confidence: clampWaiverPriorityConfidence(52 + Math.min(20, input.byeCoverageWeeks.length * 3) + Math.min(8, input.byeCoverageScore / 28)),
+      source: input.scheduleSignal?.source || 'schedule-window',
+      note: input.candidateByeWeek
+        ? `Candidate is playable in ${input.byeCoverageWeeks.length} short-term week${input.byeCoverageWeeks.length === 1 ? '' : 's'} before its Week ${input.candidateByeWeek} bye.`
+        : 'Candidate has playable short-term weeks without an identified near-term bye conflict.',
     });
   }
 
@@ -5899,6 +5948,9 @@ function buildPriorityWaiverConfidence(input: {
   playoffEasyWeeks: number;
   value: number;
   opportunityWindows: WaiverPriorityOpportunityWindow[];
+  byeCoverageWeeks: number;
+  nearTermByeWeeks: number;
+  next6ByeWeeks: number;
 }) {
   let confidence = 46;
   const confidenceReasons: string[] = [];
@@ -5937,6 +5989,20 @@ function buildPriorityWaiverConfidence(input: {
     confidence += Math.min(6, input.playoffEasyWeeks * 3);
     confidenceReasons.push('Playoff-window schedule evidence is present.');
   }
+  if (input.byeCoverageWeeks >= 3 && input.nearTermByeWeeks === 0) {
+    confidence += Math.min(6, input.byeCoverageWeeks);
+    confidenceReasons.push('Short-term bye-coverage window is present.');
+  }
+  if (input.nearTermByeWeeks > 0) {
+    confidence -= 8;
+    confidenceCapReason = confidenceCapReason
+      ? `${confidenceCapReason} Candidate has a near-term bye that limits coverage.`
+      : 'Candidate has a near-term bye that limits coverage; confidence is capped.';
+    confidenceReasons.push('Candidate bye timing limits immediate lineup coverage.');
+  } else if (input.next6ByeWeeks > 0) {
+    confidence -= 2;
+    confidenceReasons.push('Candidate bye lands inside the six-week window.');
+  }
   if (input.value >= 1800) {
     confidence += 6;
     confidenceReasons.push('Current value baseline supports the waiver priority.');
@@ -5947,7 +6013,10 @@ function buildPriorityWaiverConfidence(input: {
     confidence += Math.min(8, input.opportunityWindows.length * 2);
   }
 
-  const cap = input.weeklyProjection ? 92 : input.strongScheduleWindow ? 68 : 58;
+  let cap = input.weeklyProjection ? 92 : input.strongScheduleWindow ? 68 : 58;
+  if (input.nearTermByeWeeks > 0) {
+    cap = Math.min(cap, input.weeklyProjection ? 76 : 56);
+  }
   return {
     confidence: clampWaiverPriorityConfidence(Math.min(confidence, cap)),
     confidenceReasons: confidenceReasons.slice(0, 6),
@@ -5957,9 +6026,12 @@ function buildPriorityWaiverConfidence(input: {
 
 function buildPriorityWaiverTargets(
   players: TrendingPlayer[],
-  options: { leagueValueMode?: LeagueValueMode } = {}
+  options: { leagueValueMode?: LeagueValueMode; currentWeek?: number | null } = {}
 ): NonNullable<WaiverIntelligence['priorityWaiverTargets']> {
   type WaiverPriorityTargetRow = NonNullable<WaiverIntelligence['priorityWaiverTargets']>[number];
+  const currentWeek = Number.isInteger(options.currentWeek) && Number(options.currentWeek) >= 1 && Number(options.currentWeek) <= 18
+    ? Number(options.currentWeek)
+    : 1;
   return players
     .map((player): WaiverPriorityTargetRow | null => {
       const weeklyProjection = player.weeklyProjection?.status === 'ready' ? player.weeklyProjection : null;
@@ -5979,6 +6051,14 @@ function buildPriorityWaiverTargets(
       const next6HardWeeks = getWaiverWindowNumber(next6Window, 'hardWeeks');
       const playoffEasyWeeks = getWaiverWindowNumber(playoffWindow, 'easyWeeks');
       const playoffHardWeeks = getWaiverWindowNumber(playoffWindow, 'hardWeeks');
+      const candidateByeWeek = getWaiverCandidateByeWeek(player);
+      const nearTermByeWeeks = getWaiverCandidateByeWeeksInRange(candidateByeWeek, currentWeek, 3);
+      const next6ByeWeeks = getWaiverCandidateByeWeeksInRange(candidateByeWeek, currentWeek, 6);
+      const byeCoverageWeeks = getWaiverByeCoverageWeeks(next6Window, candidateByeWeek);
+      const byeCoverageScore = byeCoverageWeeks.length >= 3 && !nearTermByeWeeks.length
+        ? Math.max(0, Math.min(190, byeCoverageWeeks.length * 28 + next6EasyWeeks * 24 - next6HardWeeks * 18))
+        : 0;
+      const byeRiskPenalty = nearTermByeWeeks.length ? 190 : next6ByeWeeks.length ? 75 : 0;
       const projectionScore = projectionPoints > 0 ? projectionPoints * 52 : 0;
       const valueScore = Math.min(value / 10, 520);
       const windowScore = outlook
@@ -6005,6 +6085,7 @@ function buildPriorityWaiverTargets(
           easyWeeks >= 2 ||
           next6EasyWeeks >= 3 ||
           playoffEasyWeeks >= 2 ||
+          byeCoverageScore >= 140 ||
           windowScore + next6WindowScore + playoffWindowScore >= 340
         )
       );
@@ -6016,6 +6097,8 @@ function buildPriorityWaiverTargets(
         windowScore +
         next6WindowScore +
         playoffWindowScore +
+        byeCoverageScore -
+        byeRiskPenalty +
         scheduleOnlyUrgency
       );
       if (score <= 0) return null;
@@ -6025,6 +6108,8 @@ function buildPriorityWaiverTargets(
         easyWeeks > 0 ? `${easyWeeks} favorable upcoming schedule week${easyWeeks === 1 ? '' : 's'}` : null,
         next6EasyWeeks > easyWeeks ? `${next6EasyWeeks} favorable six-week window week${next6EasyWeeks === 1 ? '' : 's'}` : null,
         playoffEasyWeeks > 0 ? `${playoffEasyWeeks} favorable playoff-window week${playoffEasyWeeks === 1 ? '' : 's'}` : null,
+        byeCoverageScore > 0 ? `${byeCoverageWeeks.length} bye-coverage playable week${byeCoverageWeeks.length === 1 ? '' : 's'}` : null,
+        nearTermByeWeeks.length ? `candidate bye Week ${nearTermByeWeeks.join('/')} limits immediate coverage` : null,
         hardWeeks > 0 && easyWeeks === 0 ? `${hardWeeks} rough upcoming schedule week${hardWeeks === 1 ? '' : 's'} limits priority` : null,
         next6HardWeeks > next6EasyWeeks && !easyWeeks ? `${next6HardWeeks} rough six-week window weeks limit priority` : null,
         playoffHardWeeks > playoffEasyWeeks ? `${playoffHardWeeks} rough playoff-window week${playoffHardWeeks === 1 ? '' : 's'} limits priority` : null,
@@ -6043,6 +6128,10 @@ function buildPriorityWaiverTargets(
         playoffWindow,
         next6WindowScore,
         playoffWindowScore,
+        candidateByeWeek,
+        byeCoverageWeeks,
+        byeCoverageScore,
+        nearTermByeWeeks,
       });
       const { confidence, confidenceReasons, confidenceCapReason } = buildPriorityWaiverConfidence({
         weeklyProjection,
@@ -6054,6 +6143,9 @@ function buildPriorityWaiverTargets(
         playoffEasyWeeks,
         value,
         opportunityWindows,
+        byeCoverageWeeks: byeCoverageWeeks.length,
+        nearTermByeWeeks: nearTermByeWeeks.length,
+        next6ByeWeeks: next6ByeWeeks.length,
       });
 
       const priority: NonNullable<WaiverIntelligence['priorityWaiverTargets']>[number]['priority'] =
@@ -7088,7 +7180,7 @@ export function buildWaiverIntelligence(
     ? rankedRecommendationCandidates
     : rankedAvailableCandidates;
   const weeklyEcrTargets = buildWaiverWeeklyEcrTargets(topCandidatePool, { leagueValueMode });
-  const priorityWaiverTargets = buildPriorityWaiverTargets(topCandidatePool, { leagueValueMode });
+  const priorityWaiverTargets = buildPriorityWaiverTargets(topCandidatePool, { leagueValueMode, currentWeek: options.currentWeek });
   const specialTeamsStreamerTargets = buildSpecialTeamsStreamerTargets({
     players: topCandidatePool,
     draftSharksContext: options.draftSharksScheduleContext,

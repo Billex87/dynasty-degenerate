@@ -1156,7 +1156,8 @@
 - [x] Wire schedule context into `CommandCenterExpansion`, `PlayerDetailModal`, `AITeamAutopilot`, and `LeagueCommandCenter` so the same schedule data powers every surface without diverging.
 - [x] Add schedule-aware autopilot guidance for roster gaps, start/sit calls, streamer targets, waiver timing, and priority actions.
 - [x] Add D/ST and matchup-streamer logic driven by schedule strength, bye-week pressure, and upcoming opponent difficulty.
-- [ ] Add waiver timing and bench-stash guidance for upcoming bye-week cliffs and short-term lineup pressure.
+- [x] Add waiver timing and bench-stash guidance for upcoming bye-week cliffs and short-term lineup pressure.
+  - 2026-06-05 backend completion: priority waiver targets now emit `bye-coverage` opportunity windows, score/cap candidates around short-term playable weeks and candidate bye timing, and include rollout-summary counts so projection/SOS verification can confirm the field is present without adding UI or AI wording.
 - [ ] Feed schedule context into redraft lineup strength, valuation, and confidence only after freshness checks pass.
 - [ ] Add schedule-aware trade and dynasty context for short-term contention windows, playoff pushes, and easy/hard stretches.
 - [ ] Add schedule badges or notes in Overview and owner-level surfaces when schedule context changes the read.

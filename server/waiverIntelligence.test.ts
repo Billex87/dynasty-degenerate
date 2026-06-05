@@ -699,6 +699,8 @@ describe("buildWaiverIntelligence", () => {
     expect(result.priorityWaiverTargets?.[0]?.confidence).toBeGreaterThanOrEqual(80);
     expect(result.priorityWaiverTargets?.[0]?.confidenceReasons?.join(" ")).toContain("Ready weekly projection");
     expect(result.priorityWaiverTargets?.[0]?.opportunityWindows?.some((window) => window.type === "projected-usage")).toBe(true);
+    expect(result.priorityWaiverTargets?.[0]?.opportunityWindows?.some((window) => window.type === "bye-coverage")).toBe(true);
+    expect(result.priorityWaiverTargets?.[0]?.confidenceReasons?.join(" ")).toContain("Short-term bye-coverage window");
     expect(result.priorityWaiverTargets?.[0]?.opportunityWindows?.some((window) => window.type === "multi-week-staying-power")).toBe(true);
   });
 
@@ -811,5 +813,6 @@ describe("buildWaiverIntelligence", () => {
     expect(result.priorityWaiverTargets?.[0]?.confidence).toBeLessThanOrEqual(68);
     expect(result.priorityWaiverTargets?.[0]?.confidenceCapReason).toContain("No ready weekly projection");
     expect(result.priorityWaiverTargets?.[0]?.opportunityWindows?.some((window) => window.type === "playoff-window")).toBe(true);
+    expect(result.priorityWaiverTargets?.[0]?.opportunityWindows?.some((window) => window.type === "bye-coverage")).toBe(true);
   });
 });

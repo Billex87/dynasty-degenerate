@@ -310,6 +310,8 @@ function summarizePriorityWaiverTargets(reportData: any) {
   ).length;
   const opportunityWindowCount = targets.reduce((sum: number, target: any) =>
     sum + getPriorityWaiverOpportunityWindows(target).length, 0);
+  const byeCoverageWindowCount = targets.reduce((sum: number, target: any) =>
+    sum + getPriorityWaiverOpportunityWindows(target).filter((window: any) => window?.type === 'bye-coverage').length, 0);
 
   return {
     count: targets.length,
@@ -318,6 +320,7 @@ function summarizePriorityWaiverTargets(reportData: any) {
     targetsWithWeeklyProjection: targetsWithWeeklyProjection.length,
     targetsWithOpportunityWindows: targetsWithOpportunityWindows.length,
     opportunityWindowCount,
+    byeCoverageWindowCount,
     confidenceCount: confidenceValues.length,
     confidenceReasonCount,
     capReasonCount,
@@ -796,6 +799,7 @@ function validateReportContract(input: {
       priorityWaiverTargetsWithWeeklyProjection: priorityWaiverTargets.targetsWithWeeklyProjection,
       priorityWaiverTargetsWithOpportunityWindows: priorityWaiverTargets.targetsWithOpportunityWindows,
       priorityWaiverOpportunityWindowCount: priorityWaiverTargets.opportunityWindowCount,
+      priorityWaiverByeCoverageWindowCount: priorityWaiverTargets.byeCoverageWindowCount,
       priorityWaiverConfidenceCount: priorityWaiverTargets.confidenceCount,
       priorityWaiverConfidenceReasonCount: priorityWaiverTargets.confidenceReasonCount,
       priorityWaiverConfidenceCapReasonCount: priorityWaiverTargets.capReasonCount,
