@@ -70,10 +70,13 @@ Before projection or endpoint snapshots influence lineup, matchup, waiver, trade
 pnpm run audit:source-readiness-gates
 CHECK_FANTASYPROS_EXPANDED=true CHECK_FANTASYPROS_PROJECTIONS=true pnpm run check:fantasypros
 pnpm run probe:football-data-sources
+pnpm run probe:fantasy-nerds
 pnpm run audit:zero-row-valuation-sources
 ```
 
 FantasyPros `WW` waiver snapshots require a closer-to-season recheck and non-zero rows before use. FantasyPros targets and articles stay blocked until package access returns `200` and usage terms are approved. SportsDataIO/FantasyData players, teams, schedule, injuries, depth charts, scoring, projections, and usage/route fields stay research-only until package access, endpoint shape, rate limits, and player mapping pass metadata probes.
+
+Fantasy Nerds remains blocked for production features until `pnpm run probe:fantasy-nerds -- --require-current-season-rows` proves current-season non-TEST rows from an approved package key. The probe covers the official players, teams, draft rankings, ADP, dynasty rankings, draft projections, weekly projections, weekly rankings, and rest-of-season projection candidates, but TEST fallback rows do not count as production evidence and no normal report load may call those endpoints.
 
 Sleeper weekly projection snapshots can refresh without enabling public projection claims by setting `ENABLE_SLEEPER_PROJECTION_SNAPSHOTS=true`. User-facing projection mechanics still require the full rollout set: `ENABLE_PROJECTION_FEATURES=true`, `ENABLE_SLEEPER_PROJECTIONS=true`, and at least one projection-type flag such as `ENABLE_WEEKLY_PROJECTIONS=true`.
 

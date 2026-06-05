@@ -40,7 +40,7 @@ Every source needs the same evidence before provider-attributed projection, sche
 | FantasyPros news | `research` | Snapshot only | No | Confirm production coverage, cadence, rate limits, and attribution terms. |
 | SportsDataIO/RotoBaller news | `research` | Snapshot only | No | Validate package access, endpoint shape, rate limits, and Sleeper mapping. |
 | SportsDataIO/FantasyData beyond news | `research` | Blocked | No | June 5 probe covered players, teams, schedule, injuries, depth charts, scoring, projections, usage/route docs, and news; protected endpoints remain `missing_config` until approved package credentials exist. |
-| Fantasy Nerds API | `blocked` | Blocked | No | June 5 local shell has no Fantasy Nerds key configured; do not add or enable production key/features until current-season non-TEST rows are confirmed. |
+| Fantasy Nerds API | `blocked` | Blocked | No | `pnpm run probe:fantasy-nerds` now covers the official package candidates, but local status remains `missing_config` until an approved key proves current-season non-TEST rows, freshness, package limits, mapping, and terms. |
 | GridIron Data | `research` | Blocked | No | No key/package, endpoint, row, freshness, rate-limit, or mapping evidence exists; revisit only after key/package access exists. |
 | Dynasty Daddy source selector | `research` | Blocked | No | June 5 audit captured public source-selector labels and player endpoint candidates; keep integration blocked until terms, cadence/rate limits, upstream attribution, player mapping, and privacy review pass. |
 | Sleeper hidden account-level transactions | `blocked` | Blocked | No | June 5 audit found no official OAuth/app-authorization/partner path for pending, cancelled, failed, rejected, skipped, or losing account-level waiver/trade rows. Do not collect raw session/OAuth tokens; use public completed transactions, manual labels, or explicit sanitized exports until an approved path exists. |
@@ -67,10 +67,13 @@ Use these commands before any model consumes new provider fields:
 ```sh
 CHECK_FANTASYPROS_EXPANDED=true CHECK_FANTASYPROS_PROJECTIONS=true pnpm run check:fantasypros
 pnpm run probe:football-data-sources
+pnpm run probe:fantasy-nerds
 pnpm run audit:zero-row-valuation-sources
 ```
 
 `probe:football-data-sources` does not print provider payloads or credentials. Without approved credentials, SportsDataIO/FantasyData endpoint probes report `missing_config` and do not call package endpoints.
+
+`probe:fantasy-nerds` does not print provider payloads or credentials. Without `FANTASY_NERDS_API_KEY` or `FANTASYNERDS_API_KEY`, Fantasy Nerds endpoint probes report `missing_config` and do not call protected endpoints. For package approval, run it with `--require-current-season-rows`; TEST-key rows never count as production evidence.
 
 Latest FantasyPros metadata evidence from June 5, 2026:
 
@@ -80,9 +83,16 @@ Latest FantasyPros metadata evidence from June 5, 2026:
 - `targets` and `articles`: `403 Forbidden`; keep snapshots blocked.
 - `players`, `news`, `injuries`, and `player-points`: reachable in metadata probes; production model use still requires the gate evidence above.
 
+Fantasy Nerds metadata workflow added June 5, 2026:
+
+- Official docs candidates covered by the local probe: `/players`, `/teams`, `/draft-rankings`, `/adp`, `/dynasty`, `/draft-projections`, `/weekly-projections`, `/weekly-rankings`, and `/ros`.
+- The probe records HTTP status, row count, payload shape, source season, exposed freshness timestamp, TEST-key status, and Fantasy Nerds `200` responses with rate-limit `Error` nodes.
+- The gate remains blocked until an approved key returns current-season non-TEST rows and source/legal review approves terms, cadence/rate limits, mapping coverage, and attribution language.
+
 ## Dated Follow-Ups
 
 - Re-review the projection-source baseline in August 2026, when weekly projections, waiver rankings, targets, injuries, and depth-chart packages should be mature enough to re-evaluate.
 - Recheck FantasyPros `WW` snapshots closer to the 2026 season and require non-zero rows before using them for waiver priority.
 - Re-run SportsDataIO/FantasyData probes only after package access is approved; do not treat docs coverage as row coverage.
+- Run `pnpm run probe:fantasy-nerds -- --require-current-season-rows` after Fantasy Nerds package access exists; do not add or enable production `FANTASY_NERDS_API_KEY` flags before non-TEST current-season rows are proven.
 - Revisit Sleeper hidden account-level transaction capture only if Sleeper publishes an approved authorization/partner path or if users can provide an explicit sanitized export that avoids raw token capture and private payload storage.
