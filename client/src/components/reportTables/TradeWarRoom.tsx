@@ -214,6 +214,45 @@ function normalizeTradeWarLookupName(value?: string | null): string {
     .trim();
 }
 
+const TRADE_WAR_DEFENSE_TEAM_BY_NAME: Record<string, string> = {
+  "arizona cardinals": "ARI",
+  "atlanta falcons": "ATL",
+  "baltimore ravens": "BAL",
+  "buffalo bills": "BUF",
+  "carolina panthers": "CAR",
+  "chicago bears": "CHI",
+  "cincinnati bengals": "CIN",
+  "cleveland browns": "CLE",
+  "dallas cowboys": "DAL",
+  "denver broncos": "DEN",
+  "detroit lions": "DET",
+  "green bay packers": "GB",
+  "houston texans": "HOU",
+  "indianapolis colts": "IND",
+  "jacksonville jaguars": "JAX",
+  "kansas city chiefs": "KC",
+  "las vegas raiders": "LV",
+  "los angeles chargers": "LAC",
+  "los angeles rams": "LAR",
+  "miami dolphins": "MIA",
+  "minnesota vikings": "MIN",
+  "new england patriots": "NE",
+  "new orleans saints": "NO",
+  "new york giants": "NYG",
+  "new york jets": "NYJ",
+  "philadelphia eagles": "PHI",
+  "pittsburgh steelers": "PIT",
+  "san francisco 49ers": "SF",
+  "seattle seahawks": "SEA",
+  "tampa bay buccaneers": "TB",
+  "tennessee titans": "TEN",
+  "washington commanders": "WAS",
+};
+
+function getTradeWarDefenseTeamFromName(value?: string | null): string | null {
+  return TRADE_WAR_DEFENSE_TEAM_BY_NAME[normalizeTradeWarLookupName(value)] || null;
+}
+
 function findTradeWarRankingRowForAsset(
   playerId: string | null | undefined,
   playerName: string | null | undefined,
@@ -227,6 +266,17 @@ function findTradeWarRankingRowForAsset(
   }
   const normalizedName = normalizeTradeWarLookupName(playerName);
   if (!normalizedName) return null;
+  const defenseTeam = getTradeWarDefenseTeamFromName(playerName);
+  if (defenseTeam) {
+    const byDefenseTeam = rankingRows.find(row => {
+      const rowTeam = String(row.team || "").toUpperCase();
+      return (
+        isTradeWarSpecialTeamsPosition(row.pos) &&
+        (rowTeam === defenseTeam || normalizeTradeWarLookupName(row.name) === normalizedName)
+      );
+    });
+    if (byDefenseTeam) return byDefenseTeam;
+  }
   return (
     rankingRows.find(row => normalizeTradeWarLookupName(row.name) === normalizedName) ||
     null
@@ -254,7 +304,14 @@ function buildSyntheticWaiverTradeWarAsset({
   const details = id ? playerDetailsById?.[id] : undefined;
   const rankingRow = findTradeWarRankingRowForAsset(id, name, rankingRows);
   const valueProfile = details?.valueProfile;
-  const resolvedPosition = details?.position || rankingRow?.pos || "FLEX";
+  const fallbackDefenseTeam = getTradeWarDefenseTeamFromName(name);
+  const rankingRowIsSpecialTeams = isTradeWarSpecialTeamsPosition(rankingRow?.pos);
+  const resolvedPosition =
+    fallbackDefenseTeam
+      ? rankingRow?.pos || "DEF"
+      : rankingRowIsSpecialTeams
+        ? rankingRow?.pos || "DEF"
+        : details?.position || rankingRow?.pos || "FLEX";
   const normalizedPosition =
     isTradeWarSpecialTeamsPosition(resolvedPosition) &&
     String(resolvedPosition).toUpperCase() !== "K"
@@ -271,14 +328,15 @@ function buildSyntheticWaiverTradeWarAsset({
     0;
   const rankingDynastyValue = rankingRow?.value ?? 0;
   const rankingSeasonValue = rankingRow?.seasonValue ?? rankingRow?.value ?? 0;
+  const specialTeamsFallbackValue = isSpecialTeamsAsset ? 1 : 0;
   const dynastyValue =
     (isSpecialTeamsAsset
       ? rankingDynastyValue || profileDynastyValue
-      : profileDynastyValue || rankingDynastyValue) || 0;
+      : profileDynastyValue || rankingDynastyValue) || specialTeamsFallbackValue;
   const seasonValue =
     (isSpecialTeamsAsset
       ? rankingSeasonValue || profileSeasonValue
-      : profileSeasonValue || rankingSeasonValue) || dynastyValue;
+      : profileSeasonValue || rankingSeasonValue) || dynastyValue || specialTeamsFallbackValue;
   const currentPositionRank = isSpecialTeamsAsset
     ? rankingRow?.positionRank ||
       rankingRow?.sourcePositionRank ||
@@ -306,7 +364,7 @@ function buildSyntheticWaiverTradeWarAsset({
     name: details?.fullName || rankingRow?.name || name,
     pos: normalizedPosition,
     team: isSpecialTeamsAsset
-      ? rankingRow?.team || details?.team || null
+      ? rankingRow?.team || details?.team || fallbackDefenseTeam || null
       : details?.team || rankingRow?.team || null,
     owner: manager === "Free Agent" ? "FA" : manager,
     manager,
