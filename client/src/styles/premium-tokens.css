@@ -1,0 +1,43 @@
+/*
+ * premium-tokens.css — late-imported, UNLAYERED premium token contract.
+ *
+ * This COMPLEMENTS the existing token systems; it does not replace them:
+ *   - dd-tile-system.css :root  → --dd-* colors / --dd-space-* / --dd-radius* /
+ *     --dd-motion* / [data-dd-tone] / --dd-font-ui / --dd-font-display
+ *   - report-surfaces.css       → --report-chip-font-size, --report-kicker-font-size,
+ *     --report-manager-title-{,long,xlong,xxlong}-size, --report-player-name-size …
+ *     (responsive, context-scoped report typography + the shared pill :is() contracts)
+ *
+ * It fills the genuine GAPS only: the undefined --font-athletic brand-font var,
+ * an explicit body-font token, and focus-ring tokens. The report already has a
+ * type scale + pill geometry, so we intentionally do NOT add a parallel one.
+ *
+ * Unlayered + imported first (index.css line 3) so these read everywhere and
+ * keep correct cascade precedence over the layered dd-tile-system :root.
+ *
+ * Tuning contract: change a value here, change it app-wide.
+ */
+:root {
+  /* ── Brand display font ─────────────────────────────────────────────────
+     Referenced 60+ times via var(--font-athletic, …) but never defined — it
+     resolved only through the baked-in "Oswald" fallback, and bare
+     `var(--font-athletic)` sites (no fallback) fell back to the default serif.
+     Defining it fixes those serif sites and makes the brand font explicit.
+     Design = display Oswald + clean body sans (body copy stays on --dd-font-body). */
+  --font-athletic: "Oswald", system-ui, -apple-system, sans-serif;
+
+  /* ── Body font (clean sans, by design) ──────────────────────────────────
+     Matches Tailwind's font-sans default that body copy already renders in;
+     tokenized so it's explicit and tunable. */
+  --dd-font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  /* ── Focus ring ─────────────────────────────────────────────────────────
+     No focus tokens existed (focus styling was inline). These let the report's
+     :focus-visible rings route through one tunable contract. */
+  --dd-focus-ring-w: 2px;
+  --dd-focus-ring-offset: 2px;
+  --dd-focus-ring-color: var(--dd-tron-cyan);
+  --dd-focus-ring: 0 0 0 var(--dd-focus-ring-w)
+    color-mix(in srgb, var(--dd-tron-cyan) 75%, transparent);
+}
