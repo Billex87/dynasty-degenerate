@@ -2873,7 +2873,7 @@ function stripWeeklyProjectionFromRedraftValuation(redraftValuation: ReportData[
   };
 }
 
-function stripWeeklyProjectionContextFromReportData(reportData: ReportData): ReportData {
+export function stripWeeklyProjectionContextFromReportData(reportData: ReportData): ReportData {
   return {
     ...reportData,
     weeklyProjectionDiagnostics: {
