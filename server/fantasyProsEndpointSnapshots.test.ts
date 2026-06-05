@@ -93,6 +93,39 @@ describe('FantasyPros endpoint snapshots', () => {
     expect(JSON.stringify(upsertSpy.mock.calls)).not.toContain('test-key');
   });
 
+  it('keeps missing expert-count metadata unknown instead of recording zero experts', async () => {
+    vi.spyOn(db, 'upsertProviderDataSnapshot').mockResolvedValue(true);
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      last_updated: '5/19',
+      total_experts: null,
+      totalExperts: '',
+      players: [{ player_name: 'Sample Player' }],
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }));
+
+    const results = await refreshFantasyProsEndpointSnapshots({
+      season: '2026',
+      scoring: 'PPR',
+      apiKey: 'test-key',
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      persistSnapshot: false,
+      requestDelayMs: 0,
+      includeExpanded: false,
+      includeProjections: false,
+      currentWeek: 1,
+      weekWindow: 1,
+    });
+
+    expect(results[0]).toMatchObject({
+      endpointKey: 'fantasypros-draft',
+      status: 'loaded',
+      rowCount: 1,
+      totalExperts: null,
+    });
+  });
+
   it('stops after a rate limit and marks later endpoints as skipped', async () => {
     const upsertSpy = vi.spyOn(db, 'upsertProviderDataSnapshot').mockResolvedValue(true);
     const fetchMock = vi.fn(async () => new Response('rate limited', {
