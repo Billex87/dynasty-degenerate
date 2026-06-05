@@ -385,6 +385,32 @@ function summarizeRookieDevelopmentContext(reportData: any) {
   };
 }
 
+function summarizeTradeRecommendationContext(reportData: any) {
+  const context = reportData?.tradeRecommendationContext;
+  const rows = asArray(context?.rows);
+  const managers = asArray(context?.managers);
+  const confidences = rows
+    .map((row: any) => finiteNumber(row?.confidence))
+    .filter((value: number | null): value is number => value !== null);
+  const projectedRows = rows.filter((row: any) => finiteNumber(row?.projectedFantasyPoints) !== null);
+  const fragileProjectionSpikeRows = rows.filter((row: any) => row?.fragileProjectionSpike === true);
+
+  return {
+    exists: Boolean(context),
+    status: context?.status || null,
+    projectionStatus: context?.projectionStatus || null,
+    rowCount: rows.length,
+    managerCount: managers.length,
+    confidenceCount: confidences.length,
+    minConfidence: confidences.length ? Math.min(...confidences) : null,
+    maxConfidence: confidences.length ? Math.max(...confidences) : null,
+    projectedRowCount: projectedRows.length,
+    fragileProjectionSpikeCount: fragileProjectionSpikeRows.length,
+    actionTypes: Array.from(new Set(rows.map((row: any) => row?.action).filter(Boolean))).sort(),
+    containsProjectionClaim: containsStoredWeeklyProjectionClaim(context),
+  };
+}
+
 function validateReportContract(input: {
   mode: Mode;
   leagueId: string;
@@ -402,6 +428,7 @@ function validateReportContract(input: {
   const priorityWaiverTargets = summarizePriorityWaiverTargets(reportData);
   const dynastyContentionContext = summarizeDynastyContentionContext(reportData);
   const rookieDevelopmentContext = summarizeRookieDevelopmentContext(reportData);
+  const tradeRecommendationContext = summarizeTradeRecommendationContext(reportData);
 
   if (!schedulePlanning) failures.push('missing schedulePlanning');
   if (!playoffSchedulePlanning) failures.push('missing playoffSchedulePlanning');
@@ -413,6 +440,7 @@ function validateReportContract(input: {
   if (!reportData.redraftValuation) failures.push('missing redraftValuation');
   if (reportData.leagueValueMode !== 'redraft' && !dynastyContentionContext.exists) failures.push('missing dynastyContentionContext');
   if (reportData.leagueValueMode !== 'redraft' && !rookieDevelopmentContext.exists) failures.push('missing rookieDevelopmentContext');
+  if (reportData.leagueValueMode !== 'redraft' && !tradeRecommendationContext.exists) failures.push('missing tradeRecommendationContext');
   if (!matchupPreviews.length) failures.push('missing matchupPreviews');
   if (matchupPreviewSummary.count > 0 && matchupPreviewSummary.confidenceCount !== matchupPreviewSummary.count) {
     failures.push('missing matchup preview confidence');
@@ -465,6 +493,17 @@ function validateReportContract(input: {
       (rookieDevelopmentContext.minConfidence < 0 || (rookieDevelopmentContext.maxConfidence ?? 0) > 100)
     ) {
       failures.push(`rookieDevelopmentContext confidence out of range: ${rookieDevelopmentContext.minConfidence}-${rookieDevelopmentContext.maxConfidence}`);
+    }
+  }
+  if (tradeRecommendationContext.exists) {
+    if (tradeRecommendationContext.rowCount > 0 && tradeRecommendationContext.confidenceCount !== tradeRecommendationContext.rowCount) {
+      failures.push('missing tradeRecommendationContext row confidence');
+    }
+    if (
+      tradeRecommendationContext.minConfidence !== null &&
+      (tradeRecommendationContext.minConfidence < 0 || (tradeRecommendationContext.maxConfidence ?? 0) > 100)
+    ) {
+      failures.push(`tradeRecommendationContext confidence out of range: ${tradeRecommendationContext.minConfidence}-${tradeRecommendationContext.maxConfidence}`);
     }
   }
 
@@ -579,6 +618,18 @@ function validateReportContract(input: {
     if (rookieDevelopmentContext.containsProjectionClaim) {
       failures.push('projection-off rookieDevelopmentContext still contains stored weekly projection claims');
     }
+    if (tradeRecommendationContext.projectedRowCount > 0) {
+      failures.push('projection-off tradeRecommendationContext still exposes projected fantasy points');
+    }
+    if (tradeRecommendationContext.fragileProjectionSpikeCount > 0) {
+      failures.push('projection-off tradeRecommendationContext still exposes fragile projection spikes');
+    }
+    if (tradeRecommendationContext.maxConfidence !== null && tradeRecommendationContext.maxConfidence > 58) {
+      failures.push(`projection-off tradeRecommendationContext confidence exceeds fallback cap: ${tradeRecommendationContext.maxConfidence}`);
+    }
+    if (tradeRecommendationContext.containsProjectionClaim) {
+      failures.push('projection-off tradeRecommendationContext still contains stored weekly projection claims');
+    }
   }
 
   return {
@@ -650,6 +701,14 @@ function validateReportContract(input: {
       rookieDevelopmentProjectedRowCount: rookieDevelopmentContext.projectedRowCount,
       rookieDevelopmentActionTypes: rookieDevelopmentContext.actionTypes,
       rookieDevelopmentStageTypes: rookieDevelopmentContext.stageTypes,
+      tradeRecommendationStatus: tradeRecommendationContext.status,
+      tradeRecommendationProjectionStatus: tradeRecommendationContext.projectionStatus,
+      tradeRecommendationRowCount: tradeRecommendationContext.rowCount,
+      tradeRecommendationManagerCount: tradeRecommendationContext.managerCount,
+      tradeRecommendationConfidenceCount: tradeRecommendationContext.confidenceCount,
+      tradeRecommendationProjectedRowCount: tradeRecommendationContext.projectedRowCount,
+      tradeRecommendationFragileProjectionSpikeCount: tradeRecommendationContext.fragileProjectionSpikeCount,
+      tradeRecommendationActionTypes: tradeRecommendationContext.actionTypes,
     },
   };
 }

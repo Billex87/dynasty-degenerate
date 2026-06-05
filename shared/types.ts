@@ -882,6 +882,51 @@ export interface RookieDevelopmentContext {
   note: string;
 }
 
+export type TradeRecommendationAction = 'trade-for' | 'trade-away' | 'hold';
+
+export interface TradeRecommendationRead {
+  id: string;
+  manager: string;
+  targetManager?: string | null;
+  action: TradeRecommendationAction;
+  sourceAction?: DynastyContentionAction | RookieDevelopmentAction | string | null;
+  rosterWindow: DynastyContentionRosterWindow;
+  player: ManagerIntelPlayer;
+  score: number;
+  confidence: number;
+  confidenceReasons: string[];
+  confidenceCapReason?: string | null;
+  shortTermValue: number | null;
+  dynastyValue: number | null;
+  valueGap: number | null;
+  projectedFantasyPoints?: number | null;
+  projectionStatus: 'ready' | 'blocked' | 'warning' | 'missing';
+  playoffLeverageScore: number | null;
+  contenderFitScore: number;
+  rebuilderFitScore: number;
+  fragileProjectionSpike: boolean;
+  signals: string[];
+  sourceTrace: string[];
+}
+
+export interface TradeRecommendationManagerRead {
+  manager: string;
+  rosterWindow: DynastyContentionRosterWindow;
+  tradeFor: TradeRecommendationRead[];
+  tradeAway: TradeRecommendationRead[];
+  hold: TradeRecommendationRead[];
+}
+
+export interface TradeRecommendationContext {
+  status: 'ready' | 'partial' | 'value-only';
+  source: 'stored-report-trade-recommendation';
+  projectionStatus: 'ready' | 'blocked' | 'warning' | 'missing';
+  generatedAt: string;
+  rows: TradeRecommendationRead[];
+  managers: TradeRecommendationManagerRead[];
+  note: string;
+}
+
 export interface PickPortfolio {
   manager: string;
   value2026: number;
@@ -2506,6 +2551,7 @@ export interface ReportData {
   redraftValuation?: RedraftValuationSummary;
   dynastyContentionContext?: DynastyContentionContext;
   rookieDevelopmentContext?: RookieDevelopmentContext;
+  tradeRecommendationContext?: TradeRecommendationContext;
   matchupPreviews?: MatchupPreview[];
   schedulePlanning?: SchedulePlanningSummary;
   playoffSchedulePlanning?: PlayoffSchedulePlanningSummary;

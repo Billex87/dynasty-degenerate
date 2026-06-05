@@ -29,6 +29,7 @@ import { buildLineupStrength } from "./lineupStrength";
 import { buildRedraftValuation } from "./redraftValuation";
 import { buildDynastyContentionContext } from "./dynastyContentionContext";
 import { buildRookieDevelopmentContext } from "./rookieDevelopmentContext";
+import { buildTradeRecommendationContext } from "./tradeRecommendationContext";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
 import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadResponse, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
@@ -3140,6 +3141,53 @@ export function stripWeeklyProjectionContextFromReportData(reportData: ReportDat
       }),
     };
   };
+  const tradeRecommendationProjectionCapReason =
+    'Weekly projections are disabled for this response; trade recommendation confidence is capped to value, roster-window, and playoff context.';
+  const stripTradeRecommendationRead = (
+    read: NonNullable<ReportData['tradeRecommendationContext']>['rows'][number]
+  ): NonNullable<ReportData['tradeRecommendationContext']>['rows'][number] => ({
+    ...read,
+    projectedFantasyPoints: null,
+    projectionStatus: 'blocked',
+    fragileProjectionSpike: false,
+    confidence: Math.min(Number.isFinite(Number(read.confidence)) ? Number(read.confidence) : 58, 58),
+    confidenceReasons: [
+      tradeRecommendationProjectionCapReason,
+      ...stripStoredProjectionReasons(read.confidenceReasons),
+    ].slice(0, 6),
+    confidenceCapReason: tradeRecommendationProjectionCapReason,
+    signals: stripStoredProjectionReasons(read.signals).filter((signal) => signal !== 'fragile-projection-spike'),
+    sourceTrace: (read.sourceTrace || []).filter((trace) => !hasStoredProjectionClaim(trace)),
+  });
+  const stripTradeRecommendationReads = (
+    reads: NonNullable<ReportData['tradeRecommendationContext']>['rows'] = []
+  ): NonNullable<ReportData['tradeRecommendationContext']>['rows'] =>
+    reads
+      .filter((read) => read.sourceAction !== 'sell-on-projection-spike')
+      .map(stripTradeRecommendationRead);
+  const stripTradeRecommendationContext = (
+    context: ReportData['tradeRecommendationContext']
+  ): ReportData['tradeRecommendationContext'] => {
+    if (!context) return context;
+    return {
+      ...context,
+      projectionStatus: 'blocked',
+      status: context.status === 'ready' ? 'partial' : context.status,
+      note: 'Trade recommendation context is capped because weekly projections are disabled for this response.',
+      rows: stripTradeRecommendationReads(context.rows || []),
+      managers: (context.managers || []).map((manager) => {
+        const tradeFor = stripTradeRecommendationReads(manager.tradeFor || []);
+        const tradeAway = stripTradeRecommendationReads(manager.tradeAway || []);
+        const hold = stripTradeRecommendationReads(manager.hold || []);
+        return {
+          ...manager,
+          tradeFor,
+          tradeAway,
+          hold,
+        };
+      }),
+    };
+  };
 
   return {
     ...reportData,
@@ -3176,6 +3224,7 @@ export function stripWeeklyProjectionContextFromReportData(reportData: ReportDat
     redraftValuation: stripWeeklyProjectionFromRedraftValuation(reportData.redraftValuation),
     dynastyContentionContext: stripDynastyContentionContext(reportData.dynastyContentionContext),
     rookieDevelopmentContext: stripRookieDevelopmentContext(reportData.rookieDevelopmentContext),
+    tradeRecommendationContext: stripTradeRecommendationContext(reportData.tradeRecommendationContext),
     playoffSchedulePlanning: stripWeeklyProjectionFromPlayoffSchedulePlanning(reportData.playoffSchedulePlanning),
     matchupPreviews: (reportData.matchupPreviews || []).map((preview) => {
       const hasProjectionClaim =
@@ -10211,6 +10260,16 @@ export const appRouter = router({
             redraftValuation,
             rookieDevelopmentContext,
           });
+          const tradeRecommendationContext = buildTradeRecommendationContext({
+            ...reportData,
+            managerRosterIntelligence: managerRosterIntelligenceWithSituation,
+            playerDetailsById: playerDetailsWithSituationById,
+            weeklyProjectionDiagnostics,
+            playoffSchedulePlanning,
+            redraftValuation,
+            dynastyContentionContext,
+            rookieDevelopmentContext,
+          });
           const reportPayloadData = {
             ...reportData,
             leagueDiagnostics: reportData.leagueDiagnostics
@@ -10246,6 +10305,7 @@ export const appRouter = router({
             redraftValuation,
             dynastyContentionContext,
             rookieDevelopmentContext,
+            tradeRecommendationContext,
             recentTransactions: allRecentTransactions,
             transactionBackfillDiagnostics,
             adminTradeProposalSignals,
