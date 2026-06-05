@@ -153,6 +153,33 @@ function getOpportunityRunwayWeeks(details: PlayerDetails | null, similarScore: 
   return Math.max(2, base + (similarScore !== null && similarScore >= 70 ? 2 : similarScore !== null && similarScore <= 35 ? -2 : 0));
 }
 
+function getFantasyProsRookieRankSignal(details: PlayerDetails | null): {
+  key: string;
+  rank: number | null;
+  positionRank: string | null;
+  score: number;
+} | null {
+  const trace = details?.valueProfile?.fantasyProsSourceTrace?.find((row) => row.key === 'ROOKIES' || row.key === 'RKADP');
+  if (!trace) return null;
+  const rank = finiteNumber(trace.rank ?? trace.value);
+  const positionRank = trace.positionRank || null;
+  const positionRankNumber = Number(String(positionRank || '').match(/\d+/)?.[0] || NaN);
+  const effectiveRank = rank ?? (Number.isFinite(positionRankNumber) ? positionRankNumber * 4 : null);
+  if (effectiveRank === null) return null;
+  const score =
+    effectiveRank <= 12 ? 88 :
+      effectiveRank <= 24 ? 76 :
+        effectiveRank <= 48 ? 62 :
+          effectiveRank <= 72 ? 48 :
+            36;
+  return {
+    key: trace.key,
+    rank,
+    positionRank,
+    score,
+  };
+}
+
 function getDevelopmentAction(input: {
   teamInvestmentScore: number;
   earlyUsageScore: number;
@@ -186,6 +213,7 @@ function buildDevelopmentRead(input: {
   const depthChartBarrierScore = getDepthChartBarrierScore(details);
   const similarPlayerOpportunityScore = getSimilarPlayerOpportunityScore(details);
   const opportunityRunwayWeeks = getOpportunityRunwayWeeks(details, similarPlayerOpportunityScore);
+  const fantasyProsRookieRankSignal = getFantasyProsRookieRankSignal(details);
   const action = getDevelopmentAction({
     teamInvestmentScore,
     earlyUsageScore,
@@ -200,7 +228,8 @@ function buildDevelopmentRead(input: {
     earlyUsageScore * 0.26 +
     (100 - depthChartBarrierScore) * 0.20 +
     (similarPlayerOpportunityScore ?? 52) * 0.16 +
-    (opportunityRunwayWeeks !== null ? Math.min(12, opportunityRunwayWeeks) * 0.8 : 0)
+    (opportunityRunwayWeeks !== null ? Math.min(12, opportunityRunwayWeeks) * 0.8 : 0) +
+    (fantasyProsRookieRankSignal ? (fantasyProsRookieRankSignal.score - 50) * 0.08 : 0)
   );
   let confidence = 46;
   const confidenceReasons = [
@@ -208,12 +237,14 @@ function buildDevelopmentRead(input: {
     details?.usageTrend ? 'Early usage trend is attached.' : 'Early usage trend is missing or thin.',
     details?.depthChartOrder || details?.rosterRoom ? 'Depth-chart barrier evidence is attached.' : 'Depth-chart barrier evidence is thin.',
     similarPlayerOpportunityScore !== null ? 'Similar-player opportunity evidence is attached.' : 'Similar-player opportunity evidence is not available.',
-  ];
+    fantasyProsRookieRankSignal ? 'FantasyPros rookie ranking evidence is attached.' : null,
+  ].filter((reason): reason is string => Boolean(reason));
   confidence += teamInvestmentScore >= 70 ? 10 : 5;
   confidence += details?.usageTrend ? 8 : 0;
   confidence += details?.depthChartOrder || details?.rosterRoom ? 7 : 0;
   confidence += similarPlayerOpportunityScore !== null ? 7 : 0;
   confidence += weeklyProjection ? 6 : 0;
+  confidence += fantasyProsRookieRankSignal ? 5 : 0;
   const confidenceCapReason = projectionStatus === 'ready'
     ? null
     : 'Weekly projection readiness is not ready; rookie development confidence is capped to draft, usage, depth-chart, and comp evidence.';
@@ -245,6 +276,7 @@ function buildDevelopmentRead(input: {
       details?.usageTrend ? 'early-usage' : null,
       details?.depthChartOrder || details?.rosterRoom ? 'depth-chart' : null,
       similarPlayerOpportunityScore !== null ? 'similar-player-opportunity' : null,
+      fantasyProsRookieRankSignal ? `fantasypros-${fantasyProsRookieRankSignal.key.toLowerCase()}` : null,
     ].filter((signal): signal is string => Boolean(signal)),
     sourceTrace: [
       draftCapital ? `draft-capital:${draftCapital.tier}:${draftCapital.opportunityWindow}` : null,
@@ -252,6 +284,7 @@ function buildDevelopmentRead(input: {
       details?.rosterRoom ? `roster-room:${details.rosterRoom.season || 'season'}` : null,
       details?.playerCohort?.seasonOutcomeReceipt ? `season-outcome-receipt:${details.playerCohort.seasonOutcomeReceipt.confidenceGrade}` : null,
       weeklyProjection ? `${weeklyProjection.source}:${weeklyProjection.provider || 'unknown'}:${weeklyProjection.week || 'week'}` : null,
+      fantasyProsRookieRankSignal ? `fantasypros-${fantasyProsRookieRankSignal.key.toLowerCase()}:rank:${fantasyProsRookieRankSignal.rank ?? fantasyProsRookieRankSignal.positionRank ?? 'available'}` : null,
     ].filter((trace): trace is string => Boolean(trace)),
   };
 }

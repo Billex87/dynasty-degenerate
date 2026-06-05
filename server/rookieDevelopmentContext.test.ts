@@ -82,6 +82,19 @@ describe('buildRookieDevelopmentContext', () => {
           fullName: 'Promote Rookie',
           rookieYear: 2026,
           weeklyProjection: projection,
+          valueProfile: {
+            dynastyValue: 3600,
+            seasonValue: 3100,
+            sources: ['FantasyPros'],
+            fantasyProsSourceTrace: [{
+              source: 'FantasyPros',
+              key: 'ROOKIES',
+              label: 'FantasyPros Rookies',
+              rank: 6,
+              positionRank: 'WR2',
+              evidence: 'rank #6; position WR2; endpoint metadata: fantasypros-rookies.',
+            }],
+          } as any,
           depthChartOrder: 1,
           playerCohort: {
             draftCapital: {
@@ -231,6 +244,9 @@ describe('buildRookieDevelopmentContext', () => {
     expect(actions.get('Blocked Sophomore')).toBe('blocked-by-depth-chart');
     expect(actions.get('Fragile Rookie')).toBe('fragile-profile');
     expect(result?.rows.every((read) => read.confidence >= 0 && read.confidence <= 100)).toBe(true);
-    expect(result?.rows.find((read) => read.player.name === 'Promote Rookie')?.projectedFantasyPoints).toBe(10.8);
+    const promoteRead = result?.rows.find((read) => read.player.name === 'Promote Rookie');
+    expect(promoteRead?.projectedFantasyPoints).toBe(10.8);
+    expect(promoteRead?.signals).toContain('fantasypros-rookies');
+    expect(promoteRead?.sourceTrace).toContain('fantasypros-rookies:rank:6');
   });
 });

@@ -36,6 +36,10 @@ vi.mock('./fantasyProsDevy', () => ({
   loadFantasyProsDevyRankings: vi.fn(async () => ({})),
 }));
 
+vi.mock('./fantasyProsRookies', () => ({
+  loadFantasyProsRookieRankings: vi.fn(async () => ({})),
+}));
+
 vi.mock('./redraftRankings', () => ({
   formatRedraftSourceWeights: vi.fn(() => 'FantasyPros 28%, Internal Season Blend 18%, MyFantasyLeague ADP 16%'),
   getRedraftSourceWeightEntries: vi.fn(() => [
@@ -74,6 +78,49 @@ describe('rankings board prospect fallback', () => {
       isPick: true,
       player_id: undefined,
     });
+  });
+
+  it('uses FantasyPros rookie rankings as dynasty rookie valuation fallback rows', async () => {
+    const { loadFantasyProsRookieRankings } = await import('./fantasyProsRookies');
+    vi.mocked(loadFantasyProsRookieRankings).mockResolvedValueOnce({
+      rookiewideout: {
+        name: 'Rookie Wideout',
+        position: 'WR',
+        positionRank: 'WR2',
+        rank: 6,
+        averageRank: 6.4,
+      },
+    });
+    const { buildRankingsBoard } = await import('./rankingsBoard');
+
+    const board = await buildRankingsBoard({
+      players: {
+        'rookie-1': {
+          full_name: 'Rookie Wideout',
+          first_name: 'Rookie',
+          last_name: 'Wideout',
+          position: 'WR',
+          active: true,
+          metadata: { rookie_year: String(new Date().getFullYear()) },
+        },
+      },
+      ktcValues: {},
+      ownerByPlayerId: {},
+      rosterStatusByPlayerId: {},
+    });
+
+    const row = board.dynastySf.find((player) => player.name === 'Rookie Wideout');
+
+    expect(row).toMatchObject({
+      player_id: 'rookie-1',
+      pos: 'WR',
+      fantasyProsRookieRank: 6,
+      fantasyProsRookiePositionRank: 'WR2',
+      sourceOverallRank: 6,
+      sourcePositionRank: 'WR2',
+    });
+    expect(row?.value).toBeGreaterThan(0);
+    expect(row?.sources).toContain('FantasyPros Rookies');
   });
 
   it('maps curated source aliases to Sleeper player identities', async () => {

@@ -553,6 +553,7 @@ function getSourceRanksForRow({
   flock,
   blended,
   fantasyProsDevy,
+  fantasyProsRookie,
   prospectProfile,
   pos,
 }: {
@@ -563,6 +564,7 @@ function getSourceRanksForRow({
   flock?: PlayerMap[string];
   blended?: KtcValues[string];
   fantasyProsDevy?: FantasyProsDevyRanking;
+  fantasyProsRookie?: FantasyProsRookieRanking;
   prospectProfile?: ProspectProfile | null;
   pos: string;
 }): { sourceOverallRank: number; sourcePositionRank: string | null } {
@@ -570,7 +572,7 @@ function getSourceRanksForRow({
     ? Number(fantasyProsDevy?.rank || ktc?.rank || dynastyNerds?.overallRank || flock?.overallRank || prospectProfile?.overallRank || 9999)
     : option.board === 'redraft'
       ? Number(redraft?.overallRank || blended?.fantasypros_rank || ktc?.rank || dynastyNerds?.overallRank || flock?.overallRank || 9999)
-      : Number(ktc?.rank || blended?.fantasypros_dynasty_rank || blended?.fantasypros_rank || dynastyNerds?.overallRank || flock?.overallRank || 9999);
+      : Number(ktc?.rank || fantasyProsRookie?.rank || blended?.fantasypros_dynasty_rank || blended?.fantasypros_rank || dynastyNerds?.overallRank || flock?.overallRank || 9999);
 
   const sourcePositionRank = normalizeRankPosition(
     option.board === 'devy'
@@ -587,6 +589,7 @@ function getSourceRanksForRow({
           || flock?.positionRank
           || null
         : ktc?.position_rank
+          || fantasyProsRookie?.positionRank
           || blended?.fantasypros_dynasty_position_rank
           || blended?.fantasynerds_position_rank
           || blended?.fantasypros_position_rank
@@ -954,6 +957,7 @@ function buildRowsForProfile({
     ...Object.keys(canonicalFlockRows),
     ...Object.keys(canonicalDynastyNerdsRows),
     ...Object.keys(canonicalFantasyProsDevyRows),
+    ...Object.keys(canonicalFantasyProsRookieRows),
     ...Object.keys(canonicalRedraftRows),
     ...Object.keys(canonicalProspectRows),
     ...(option.board === 'dynasty' ? Object.keys(canonicalKtcValues) : []),
@@ -969,8 +973,8 @@ function buildRowsForProfile({
     const redraft = canonicalRedraftRows?.[key];
     const prospectRow = canonicalProspectRows?.[key];
     const blended = canonicalKtcValues[key];
-    const name = redraft?.name || ktc?.name || fantasyProsDevy?.name || dynastyNerds?.name || flock?.name || prospectRow?.name || blended?.name || key;
-    const rawPos = normalizePosition(redraft?.position || ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position || prospectRow?.position, redraft?.positionRank || ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank);
+    const name = redraft?.name || ktc?.name || fantasyProsDevy?.name || fantasyProsRookie?.name || dynastyNerds?.name || flock?.name || prospectRow?.name || blended?.name || key;
+    const rawPos = normalizePosition(redraft?.position || ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position || fantasyProsRookie?.position || prospectRow?.position, redraft?.positionRank || ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank || fantasyProsRookie?.positionRank);
     const sourceCollege = sanitizeCollegeName(flock?.college || ktc?.college || prospectRow?.college || null);
     const sourceTeam = redraft?.team || dynastyNerds?.team || flock?.team || ktc?.team || null;
     const playerId = option.board === 'devy'
@@ -986,7 +990,7 @@ function buildRowsForProfile({
         diagnostics,
       });
     const sleeperPlayer = playerId ? players[playerId] : null;
-    const pos = normalizePosition(redraft?.position || ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position || prospectRow?.position || sleeperPlayer?.position, redraft?.positionRank || ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank);
+    const pos = normalizePosition(redraft?.position || ktc?.position || dynastyNerds?.position || flock?.position || fantasyProsDevy?.position || fantasyProsRookie?.position || prospectRow?.position || sleeperPlayer?.position, redraft?.positionRank || ktc?.position_rank || dynastyNerds?.positionRank || flock?.positionRank || fantasyProsDevy?.positionRank || fantasyProsRookie?.positionRank);
     const hasDraftPickName = isDraftPickName(name);
     const isPick = pos === 'PICK' || hasDraftPickName;
     if (option.board === 'dynasty' && pos === 'PICK' && !hasDraftPickName && !sleeperPlayer) {
@@ -1019,6 +1023,7 @@ function buildRowsForProfile({
     const dynastyProcessValue = option.board === 'dynasty' ? blended?.expert_value_dynastyprocess || null : null;
     const dynastyDealerBenchmark = option.board === 'dynasty' ? blended?.benchmark_value_dynastydealer || null : null;
     const dynastyDealerVoteRating = option.board === 'dynasty' ? blended?.dynastydealer_vote_rating || null : null;
+    const fantasyProsRookieValue = option.board === 'dynasty' ? prospectRankToValue(fantasyProsRookie?.rank || null) : null;
     const sourceWeights = option.board === 'redraft'
       ? null
       : dynastySourceWeights || getDynastySourceWeights({
@@ -1052,7 +1057,7 @@ function buildRowsForProfile({
       { value: option.board === 'dynasty' ? dynastyProcessValue : null, weight: sourceWeights?.dynastyProcess || 0 },
     ]);
 
-    const resolvedValue = value || (option.board === 'dynasty' && isSpecialTeamsRanking && redraft ? 1 : 0);
+    const resolvedValue = value || fantasyProsRookieValue || (option.board === 'dynasty' && isSpecialTeamsRanking && redraft ? 1 : 0);
 
     if (!resolvedValue) continue;
 
@@ -1060,6 +1065,7 @@ function buildRowsForProfile({
       ktcValue ? 'KTC' : null,
       flockValue ? 'Flock' : null,
       fantasyProsDevy && option.board === 'devy' ? 'FantasyPros' : null,
+      fantasyProsRookie && option.board === 'dynasty' ? 'FantasyPros Rookies' : null,
       fantasyProsDynastyValue && option.board === 'dynasty' ? 'FantasyPros Dynasty' : null,
       prospectProfile?.source === 'NFL Draft Buzz' && option.board === 'devy' ? 'NFL Draft Buzz' : null,
       (prospectProfile?.source === 'ESPN' || prospectProfile?.espnId) && option.board === 'devy' ? 'ESPN' : null,
@@ -1089,6 +1095,7 @@ function buildRowsForProfile({
       flock,
       blended,
       fantasyProsDevy,
+      fantasyProsRookie,
       prospectProfile,
       pos,
     });
