@@ -444,6 +444,136 @@ describe("buildWaiverIntelligence", () => {
 
     expect(result.specialTeamsStreamerTargets?.[0]?.player.name).toBe("Complement Kicker");
     expect(result.specialTeamsStreamerTargets?.[0]?.player.weeklyEcr?.note).toContain("Covers rostered K rough Week 1/2");
+    expect(result.specialTeamsStreamerTargets?.[0]?.weeklyProjection).toBeNull();
+    expect(result.specialTeamsStreamerTargets?.[0]?.projectionSupport).toMatchObject({
+      status: "schedule-only",
+      position: "K",
+      candidateCount: 2,
+      readyProjectionCount: 0,
+      coveragePct: 0,
+      projectedFantasyPoints: null,
+      confidence: 38,
+    });
+    expect(result.specialTeamsStreamerTargets?.[0]?.projectionSupport?.confidenceCapReason).toContain("using schedule/SOS only");
+    expect(result.specialTeamsStreamerTargets?.[0]?.player).not.toHaveProperty("weeklyProjection");
+  });
+
+  it("uses weekly projections for special-teams streamers only when position coverage is stable", () => {
+    const players = {
+      alphak: {
+        first_name: "Alpha",
+        last_name: "Kicker",
+        position: "K",
+        team: "LV",
+        active: true,
+        fantasy_positions: ["K"],
+      },
+      betak: {
+        first_name: "Beta",
+        last_name: "Kicker",
+        position: "K",
+        team: "KC",
+        active: true,
+        fantasy_positions: ["K"],
+      },
+      gammak: {
+        first_name: "Gamma",
+        last_name: "Kicker",
+        position: "K",
+        team: "BUF",
+        active: true,
+        fantasy_positions: ["K"],
+      },
+    };
+    const draftSharksScheduleContext = {
+      status: "loaded",
+      source: "DraftSharks SOS",
+      updatedAt: "2026-09-01T18:00:00.000Z",
+      profiles: Object.fromEntries(
+        [
+          ["LV", "TEN"],
+          ["KC", "NYG"],
+          ["BUF", "CAR"],
+        ].map(([team, opponent]) => [
+          `${team}:K`,
+          {
+            team,
+            position: "K",
+            seasonSOS: 14,
+            remainingSOS: 18,
+            scheduleTier: "easy",
+            streamerWeeks: [1, 2, 3],
+            avoidWeeks: [],
+            weeklyMatchups: [
+              { week: 1, opponent, homeAway: "home", matchupPercent: 18, matchupTier: "easy" },
+              { week: 2, opponent, homeAway: "home", matchupPercent: 14, matchupTier: "easy" },
+              { week: 3, opponent, homeAway: "home", matchupPercent: 10, matchupTier: "easy" },
+            ],
+            source: "DraftSharks SOS",
+            updatedAt: "2026-09-01T18:00:00.000Z",
+          },
+        ])
+      ),
+    };
+
+    const result = buildWaiverIntelligence(
+      [],
+      [],
+      players,
+      {},
+      {},
+      {},
+      "redraft",
+      undefined,
+      {
+        rosterPositions: ["QB", "RB", "WR", "TE", "FLEX", "K", "BN"],
+        draftSharksScheduleContext: draftSharksScheduleContext as any,
+        currentWeek: 1,
+        weeklyProjectionByPlayerId: {
+          alphak: {
+            status: "ready",
+            source: "FantasyPros",
+            scoringProfile: "PPR",
+            season: "2026",
+            week: 1,
+            projectedFantasyPoints: 9.8,
+            confidence: 82,
+          },
+          betak: {
+            status: "ready",
+            source: "FantasyPros",
+            scoringProfile: "PPR",
+            season: "2026",
+            week: 1,
+            projectedFantasyPoints: 8.1,
+            confidence: 80,
+          },
+          gammak: {
+            status: "ready",
+            source: "FantasyPros",
+            scoringProfile: "PPR",
+            season: "2026",
+            week: 1,
+            projectedFantasyPoints: 7.6,
+            confidence: 78,
+          },
+        },
+      }
+    );
+
+    expect(result.specialTeamsStreamerTargets?.[0]?.player.name).toBe("Alpha Kicker");
+    expect(result.specialTeamsStreamerTargets?.[0]?.weeklyProjection?.projectedFantasyPoints).toBe(9.8);
+    expect(result.specialTeamsStreamerTargets?.[0]?.player.weeklyProjection?.projectedFantasyPoints).toBe(9.8);
+    expect(result.specialTeamsStreamerTargets?.[0]?.projectionSupport).toMatchObject({
+      status: "projection-backed",
+      position: "K",
+      candidateCount: 3,
+      readyProjectionCount: 3,
+      coveragePct: 100,
+      projectedFantasyPoints: 9.8,
+      confidence: 83,
+      confidenceCapReason: null,
+    });
   });
 
   it("prioritizes waiver targets with stored projections and favorable schedule windows", () => {

@@ -110,7 +110,7 @@ import {
   sendMagicLinkEmail,
 } from "./transactionalEmail";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
-import type { LeagueDraftStatus, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperExtensionSanitizedTransaction, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverPriorityOpportunityWindow, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
+import type { LeagueDraftStatus, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperExtensionSanitizedTransaction, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverPriorityOpportunityWindow, WaiverSourceTraceEntry, WaiverSpecialTeamsProjectionSupport, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
 import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
 import type { AICounterfactualRead, AIDecisionSnapshot, AIPredictionDecayProfile, AIRealizedEdge } from "../shared/aiDecisionSnapshots";
 import type { RecommendationObservedOutcome } from "../shared/recommendationOutcome";
@@ -2876,16 +2876,29 @@ function stripWeeklyProjectionFromPlayer<T extends Record<string, any> | null | 
   return rest as T;
 }
 
-function stripWeeklyProjectionFromPlayerArray<T>(players?: T[] | null): T[] | undefined | null {
+function stripWeeklyProjectionFromPlayerArray<T>(players?: T[] | null): T[] | undefined {
   return Array.isArray(players)
     ? players.map((player) => stripWeeklyProjectionFromPlayer(player as any) as T)
-    : players;
+    : undefined;
 }
 
-function stripWeeklyProjectionFromWaiverTarget<T extends { player?: any }>(target: T): T {
+function stripWeeklyProjectionFromWaiverTarget<T extends { player?: any; weeklyProjection?: any; projectionSupport?: any }>(target: T): T {
+  const projectionSupport = target.projectionSupport
+    ? {
+        ...target.projectionSupport,
+        status: 'blocked' as const,
+        projectedFantasyPoints: null,
+        confidence: Math.min(Number.isFinite(Number(target.projectionSupport.confidence)) ? Number(target.projectionSupport.confidence) : 58, 58),
+        confidenceCapReason: 'Weekly projections are disabled for this response; special-teams streamers stay schedule/SOS based.',
+        sourceTrace: (target.projectionSupport.sourceTrace || []).filter((trace: string) => !/stored-weekly-projection|stored weekly projection|stored projection/i.test(trace)),
+        note: 'Weekly projections are disabled; this streamer target is using schedule/SOS context only.',
+      }
+    : target.projectionSupport;
   return {
     ...target,
     player: stripWeeklyProjectionFromPlayer(target.player),
+    weeklyProjection: null,
+    projectionSupport,
   };
 }
 
@@ -5734,7 +5747,7 @@ function buildWaiverWeeklyEcrTargets(
     .slice(0, 12);
 }
 
-function getWaiverWindowNumber(window: any, key: 'easyWeeks' | 'hardWeeks' | 'score'): number {
+function getWaiverWindowNumber(window: any, key: 'easyWeeks' | 'hardWeeks' | 'score' | 'playableWeeks'): number {
   const value = Number(window?.[key] || 0);
   return Number.isFinite(value) ? value : 0;
 }
@@ -5762,7 +5775,7 @@ function clampWaiverPriorityConfidence(value: number): number {
 
 function getWaiverWindowWeekNumbers(window: any): number[] {
   const rows = Array.isArray(window?.weeks) ? window.weeks : [];
-  return Array.from(new Set(
+  return Array.from(new Set<number>(
     rows
       .map((row: any) => Number(typeof row === 'number' ? row : row?.week))
       .filter((week: number) => Number.isInteger(week) && week >= 1 && week <= 18)
@@ -6124,21 +6137,119 @@ function getSpecialTeamsComplementBoost(input: {
   };
 }
 
+type SpecialTeamsProjectionPolicy = {
+  position: WaiverSpecialTeamsPosition;
+  candidateCount: number;
+  readyProjectionCount: number;
+  coveragePct: number;
+  stable: boolean;
+  confidence: number;
+  confidenceCapReason: string | null;
+};
+
+function getReadySpecialTeamsProjection(player: TrendingPlayer): WeeklyProjectionContext | null {
+  const projection = player.weeklyProjection;
+  if (!projection || projection.status !== 'ready') return null;
+  const projectedFantasyPoints = Number(projection.projectedFantasyPoints);
+  return Number.isFinite(projectedFantasyPoints) ? projection : null;
+}
+
+function buildSpecialTeamsProjectionPolicy(
+  players: TrendingPlayer[],
+  position: WaiverSpecialTeamsPosition
+): SpecialTeamsProjectionPolicy {
+  const candidates = players.filter((player) => normalizeSeasonLineupPosition(player.pos) === position);
+  const candidateCount = candidates.length;
+  const readyProjectionCount = candidates.filter((player) => Boolean(getReadySpecialTeamsProjection(player))).length;
+  const coveragePct = candidateCount > 0 ? Math.round((readyProjectionCount / candidateCount) * 100) : 0;
+  const stable = candidateCount >= 3 && readyProjectionCount >= 3 && coveragePct >= 60;
+  const confidence = stable
+    ? Math.min(84, 58 + Math.round(coveragePct / 4))
+    : Math.min(58, 38 + Math.round(coveragePct / 5));
+
+  return {
+    position,
+    candidateCount,
+    readyProjectionCount,
+    coveragePct,
+    stable,
+    confidence,
+    confidenceCapReason: stable
+      ? null
+      : `Special-teams ${position} projection coverage is not stable enough (${readyProjectionCount}/${candidateCount}); using schedule/SOS only.`,
+  };
+}
+
+function buildSpecialTeamsProjectionSupport(input: {
+  player: TrendingPlayer;
+  position: WaiverSpecialTeamsPosition;
+  policy: SpecialTeamsProjectionPolicy;
+}): {
+  weeklyProjection: WeeklyProjectionContext | null;
+  projectionSupport: WaiverSpecialTeamsProjectionSupport;
+} {
+  const readyProjection = getReadySpecialTeamsProjection(input.player);
+  const projectedFantasyPoints = readyProjection && Number.isFinite(Number(readyProjection.projectedFantasyPoints))
+    ? Number(readyProjection.projectedFantasyPoints)
+    : null;
+  const projectionBacked = Boolean(input.policy.stable && readyProjection && projectedFantasyPoints !== null);
+  const confidenceCapReason = projectionBacked
+    ? null
+    : input.policy.confidenceCapReason ||
+      `Special-teams ${input.position} projection coverage is stable, but this streamer target is missing a ready projection row.`;
+
+  return {
+    weeklyProjection: projectionBacked ? readyProjection : null,
+    projectionSupport: {
+      status: projectionBacked ? 'projection-backed' : 'schedule-only',
+      position: input.position,
+      candidateCount: input.policy.candidateCount,
+      readyProjectionCount: input.policy.readyProjectionCount,
+      coveragePct: input.policy.coveragePct,
+      projectedFantasyPoints: projectionBacked ? projectedFantasyPoints : null,
+      confidence: input.policy.confidence,
+      confidenceCapReason,
+      sourceTrace: [
+        `special-teams-${input.position.toLowerCase()}-projection-coverage:${input.policy.readyProjectionCount}/${input.policy.candidateCount}`,
+        projectionBacked
+          ? `${readyProjection?.source || 'stored-weekly-projection'}:${readyProjection?.scoringProfile || 'unknown'}:week-${readyProjection?.week || 'unknown'}`
+          : 'schedule-sos-streamer-gate',
+      ],
+      note: projectionBacked
+        ? `Stable ${input.position} projection coverage is available for this streamer target.`
+        : `Special-teams ${input.position} streamer scoring remains schedule/SOS based.`,
+    },
+  };
+}
+
+function stripSpecialTeamsRawWeeklyProjection(player: TrendingPlayer): TrendingPlayer {
+  const sanitized = { ...player };
+  delete (sanitized as { weeklyProjection?: unknown }).weeklyProjection;
+  return sanitized;
+}
+
 function buildSpecialTeamsStreamerTargets(input: {
   players: TrendingPlayer[];
   draftSharksContext?: DraftSharksScheduleContext | null;
   allPlayers: Record<string, any>;
   ownerByPlayerId: Record<string, string>;
 }): WaiverWeeklyEcrTarget[] {
-  return input.players
-    .filter((player) => {
-      const position = normalizeSeasonLineupPosition(player.pos);
-      return Boolean(
-        !player.owner &&
-        isWaiverSpecialTeamsPosition(position) &&
-        isScheduleWindowSignal(player.weeklyEcr)
-      );
-    })
+  const candidatePool = input.players.filter((player) => {
+    const position = normalizeSeasonLineupPosition(player.pos);
+    return Boolean(
+      !player.owner &&
+      isWaiverSpecialTeamsPosition(position) &&
+      isScheduleWindowSignal(player.weeklyEcr)
+    );
+  });
+  const projectionPolicyByPosition = new Map<WaiverSpecialTeamsPosition, SpecialTeamsProjectionPolicy>(
+    (['K', 'DEF'] as WaiverSpecialTeamsPosition[]).map((position) => [
+      position,
+      buildSpecialTeamsProjectionPolicy(candidatePool, position),
+    ])
+  );
+
+  return candidatePool
     .map((player): WaiverWeeklyEcrTarget | null => {
       const position = normalizeSeasonLineupPosition(player.pos) as WaiverSpecialTeamsPosition;
       const rows = getSpecialTeamsStreamerWeekRows(player.weeklyEcr);
@@ -6154,10 +6265,20 @@ function buildSpecialTeamsStreamerTargets(input: {
         players: input.allPlayers,
         ownerByPlayerId: input.ownerByPlayerId,
       });
+      const projectionPolicy = projectionPolicyByPosition.get(position) || buildSpecialTeamsProjectionPolicy(candidatePool, position);
+      const { weeklyProjection, projectionSupport } = buildSpecialTeamsProjectionSupport({
+        player,
+        position,
+        policy: projectionPolicy,
+      });
+      const projectionScore = weeklyProjection
+        ? Math.round(Math.max(0, Number(weeklyProjection.projectedFantasyPoints || 0)) * 42)
+        : 0;
       const score = getWaiverWeeklyEcrSignalScore(player.weeklyEcr, { leagueValueMode: 'redraft' })
         + easyWeeks * 225
         + bestStars * 90
         + complement.boost
+        + projectionScore
         - hardWeeks * 180
         + Math.min(Number(player.ktcValue || 0) / 10, 160);
       const noteSuffix = complement.weeks.length
@@ -6171,10 +6292,13 @@ function buildSpecialTeamsStreamerTargets(input: {
         : player.weeklyEcr;
       return {
         player: {
-          ...player,
+          ...stripSpecialTeamsRawWeeklyProjection(player),
           weeklyEcr: signal,
+          ...(weeklyProjection ? { weeklyProjection } : {}),
         },
         signal: signal!,
+        weeklyProjection,
+        projectionSupport,
         score: Math.round(score),
       };
     })
@@ -10296,7 +10420,7 @@ export const appRouter = router({
             managerRosterIntelligence: managerRosterIntelligenceWithSituation,
             playerDetailsById: playerDetailsWithSituationById,
             weeklyProjectionDiagnostics,
-          });
+          }) || undefined;
           const dynastyContentionContext = buildDynastyContentionContext({
             ...reportData,
             managerRosterIntelligence: managerRosterIntelligenceWithSituation,
@@ -10307,7 +10431,7 @@ export const appRouter = router({
             lineupStrength,
             redraftValuation,
             rookieDevelopmentContext,
-          });
+          }) || undefined;
           const tradeRecommendationContext = buildTradeRecommendationContext({
             ...reportData,
             managerRosterIntelligence: managerRosterIntelligenceWithSituation,
@@ -10317,14 +10441,14 @@ export const appRouter = router({
             redraftValuation,
             dynastyContentionContext,
             rookieDevelopmentContext,
-          });
+          }) || undefined;
           const contenderPlayoffContext = buildContenderPlayoffContext({
             ...reportData,
             weeklyProjectionDiagnostics,
             playoffSchedulePlanning,
             dynastyContentionContext,
             tradeRecommendationContext,
-          });
+          }) || undefined;
           const reportPayloadData = {
             ...reportData,
             leagueDiagnostics: reportData.leagueDiagnostics

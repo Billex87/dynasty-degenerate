@@ -330,6 +330,43 @@ function summarizePriorityWaiverTargets(reportData: any) {
   };
 }
 
+function summarizeSpecialTeamsStreamerSupport(reportData: any) {
+  const targets = asArray(reportData?.waiverIntelligence?.specialTeamsStreamerTargets);
+  const supports = targets
+    .map((target: any) => target?.projectionSupport)
+    .filter(Boolean);
+  const confidences = supports
+    .map((support: any) => finiteNumber(support?.confidence))
+    .filter((value: number | null): value is number => value !== null);
+  const projectionBackedCount = supports.filter((support: any) => support?.status === 'projection-backed').length;
+  const scheduleOnlyCount = supports.filter((support: any) => support?.status === 'schedule-only').length;
+  const blockedCount = supports.filter((support: any) => support?.status === 'blocked').length;
+  const weeklyProjectionCount = targets.filter((target: any) =>
+    Boolean(target?.weeklyProjection || target?.player?.weeklyProjection)
+  ).length;
+  const projectedFantasyPointCount = supports.filter((support: any) =>
+    finiteNumber(support?.projectedFantasyPoints) !== null
+  ).length;
+  const capReasonCount = supports.filter((support: any) =>
+    typeof support?.confidenceCapReason === 'string' && support.confidenceCapReason.trim().length > 0
+  ).length;
+
+  return {
+    count: targets.length,
+    supportCount: supports.length,
+    projectionBackedCount,
+    scheduleOnlyCount,
+    blockedCount,
+    weeklyProjectionCount,
+    projectedFantasyPointCount,
+    confidenceCount: confidences.length,
+    capReasonCount,
+    minConfidence: confidences.length ? Math.min(...confidences) : null,
+    maxConfidence: confidences.length ? Math.max(...confidences) : null,
+    containsProjectionClaim: containsStoredWeeklyProjectionClaim(targets),
+  };
+}
+
 function summarizeDynastyContentionContext(reportData: any) {
   const context = reportData?.dynastyContentionContext;
   const rows = asArray(context?.rows);
@@ -460,6 +497,7 @@ function validateReportContract(input: {
   const rookieDevelopmentContext = summarizeRookieDevelopmentContext(reportData);
   const tradeRecommendationContext = summarizeTradeRecommendationContext(reportData);
   const contenderPlayoffContext = summarizeContenderPlayoffContext(reportData);
+  const specialTeamsStreamerSupport = summarizeSpecialTeamsStreamerSupport(reportData);
 
   if (!schedulePlanning) failures.push('missing schedulePlanning');
   if (!playoffSchedulePlanning) failures.push('missing playoffSchedulePlanning');
@@ -501,6 +539,15 @@ function validateReportContract(input: {
   }
   if (priorityWaiverTargets.hasPriorityWaiverTargets && !priorityWaiverTargets.hasOpportunityWindowBackedTarget) {
     failures.push('priorityWaiverTargets missing opportunity-window evidence');
+  }
+  if (specialTeamsStreamerSupport.count > 0 && specialTeamsStreamerSupport.supportCount !== specialTeamsStreamerSupport.count) {
+    failures.push('missing specialTeamsStreamerTargets projection support');
+  }
+  if (
+    specialTeamsStreamerSupport.minConfidence !== null &&
+    (specialTeamsStreamerSupport.minConfidence < 0 || (specialTeamsStreamerSupport.maxConfidence ?? 0) > 100)
+  ) {
+    failures.push(`specialTeamsStreamerTargets projection support confidence out of range: ${specialTeamsStreamerSupport.minConfidence}-${specialTeamsStreamerSupport.maxConfidence}`);
   }
   if (dynastyContentionContext.exists) {
     if (dynastyContentionContext.rowCount > 0 && dynastyContentionContext.confidenceCount !== dynastyContentionContext.rowCount) {
@@ -640,6 +687,21 @@ function validateReportContract(input: {
     if (priorityWaiverTargets.containsProjectionClaim) {
       failures.push('projection-off priorityWaiverTargets still contain stored weekly projection claims');
     }
+    if (specialTeamsStreamerSupport.projectionBackedCount > 0) {
+      failures.push('projection-off specialTeamsStreamerTargets still expose projection-backed support');
+    }
+    if (specialTeamsStreamerSupport.weeklyProjectionCount > 0) {
+      failures.push('projection-off specialTeamsStreamerTargets still expose weekly projections');
+    }
+    if (specialTeamsStreamerSupport.projectedFantasyPointCount > 0) {
+      failures.push('projection-off specialTeamsStreamerTargets still expose projected fantasy points');
+    }
+    if (specialTeamsStreamerSupport.maxConfidence !== null && specialTeamsStreamerSupport.maxConfidence > 58) {
+      failures.push(`projection-off specialTeamsStreamerTargets confidence exceeds fallback cap: ${specialTeamsStreamerSupport.maxConfidence}`);
+    }
+    if (specialTeamsStreamerSupport.containsProjectionClaim) {
+      failures.push('projection-off specialTeamsStreamerTargets still contain stored weekly projection claims');
+    }
     if (dynastyContentionContext.projectedRowCount > 0) {
       failures.push('projection-off dynastyContentionContext still exposes projected fantasy points');
     }
@@ -739,6 +801,17 @@ function validateReportContract(input: {
       priorityWaiverConfidenceCapReasonCount: priorityWaiverTargets.capReasonCount,
       priorityWaiverMinConfidence: priorityWaiverTargets.minConfidence,
       priorityWaiverMaxConfidence: priorityWaiverTargets.maxConfidence,
+      specialTeamsStreamerTargetCount: specialTeamsStreamerSupport.count,
+      specialTeamsStreamerProjectionSupportCount: specialTeamsStreamerSupport.supportCount,
+      specialTeamsStreamerProjectionBackedCount: specialTeamsStreamerSupport.projectionBackedCount,
+      specialTeamsStreamerScheduleOnlyCount: specialTeamsStreamerSupport.scheduleOnlyCount,
+      specialTeamsStreamerBlockedCount: specialTeamsStreamerSupport.blockedCount,
+      specialTeamsStreamerWeeklyProjectionCount: specialTeamsStreamerSupport.weeklyProjectionCount,
+      specialTeamsStreamerProjectedFantasyPointCount: specialTeamsStreamerSupport.projectedFantasyPointCount,
+      specialTeamsStreamerConfidenceCount: specialTeamsStreamerSupport.confidenceCount,
+      specialTeamsStreamerConfidenceCapReasonCount: specialTeamsStreamerSupport.capReasonCount,
+      specialTeamsStreamerMinConfidence: specialTeamsStreamerSupport.minConfidence,
+      specialTeamsStreamerMaxConfidence: specialTeamsStreamerSupport.maxConfidence,
       dynastyContentionStatus: dynastyContentionContext.status,
       dynastyContentionProjectionStatus: dynastyContentionContext.projectionStatus,
       dynastyContentionRowCount: dynastyContentionContext.rowCount,

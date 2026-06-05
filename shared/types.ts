@@ -1154,6 +1154,21 @@ export interface WaiverWeeklyEcrTarget {
   player: TrendingPlayer;
   signal: WaiverWeeklyEcrSignal;
   score: number;
+  weeklyProjection?: WeeklyProjectionContext | null;
+  projectionSupport?: WaiverSpecialTeamsProjectionSupport | null;
+}
+
+export interface WaiverSpecialTeamsProjectionSupport {
+  status: 'projection-backed' | 'schedule-only' | 'blocked';
+  position: 'K' | 'DEF';
+  candidateCount: number;
+  readyProjectionCount: number;
+  coveragePct: number;
+  projectedFantasyPoints?: number | null;
+  confidence: number;
+  confidenceCapReason?: string | null;
+  sourceTrace: string[];
+  note: string;
 }
 
 export type WaiverPriorityOpportunityType =
