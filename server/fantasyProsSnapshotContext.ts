@@ -81,6 +81,30 @@ export interface FantasyProsCompareSnapshotRow {
   averageRank: number | null;
 }
 
+export interface FantasyProsNewsSnapshotRow {
+  fantasyProsId: string | null;
+  name: string | null;
+  position: string | null;
+  team: string | null;
+  title: string | null;
+  category: string | null;
+  source: string | null;
+  url: string | null;
+  publishedAt: string | null;
+}
+
+export interface FantasyProsInjurySnapshotRow {
+  fantasyProsId: string | null;
+  name: string | null;
+  position: string | null;
+  team: string | null;
+  status: string | null;
+  injury: string | null;
+  practiceStatus: string | null;
+  gameStatus: string | null;
+  updatedAt: string | null;
+}
+
 export interface FantasyProsSnapshotContext {
   generatedAt: string;
   season: string;
@@ -93,15 +117,36 @@ export interface FantasyProsSnapshotContext {
   playerPointsByFantasyProsId: Record<string, FantasyProsPlayerPointsSnapshotRow>;
   playersByFantasyProsId: Record<string, FantasyProsPlayerReferenceSnapshotRow>;
   comparePlayersByFantasyProsId: Record<string, FantasyProsCompareSnapshotRow>;
+  draftRankingsByFantasyProsId: Record<string, FantasyProsConsensusSnapshotRow>;
+  rosRankingsByFantasyProsId: Record<string, FantasyProsConsensusSnapshotRow>;
+  dynastyRankingsByFantasyProsId: Record<string, FantasyProsConsensusSnapshotRow>;
+  devyRankingsByFantasyProsId: Record<string, FantasyProsConsensusSnapshotRow>;
+  rookieRankingsByFantasyProsId: Record<string, FantasyProsConsensusSnapshotRow>;
+  adpByFantasyProsId: Record<string, FantasyProsConsensusSnapshotRow>;
+  dynastyAdpByFantasyProsId: Record<string, FantasyProsConsensusSnapshotRow>;
+  rookieAdpByFantasyProsId: Record<string, FantasyProsConsensusSnapshotRow>;
+  newsRows: FantasyProsNewsSnapshotRow[];
+  newsByFantasyProsId: Record<string, FantasyProsNewsSnapshotRow[]>;
+  injuriesByFantasyProsId: Record<string, FantasyProsInjurySnapshotRow>;
   weeklyEcrByPositionWeek: Record<string, Record<string, Record<string, FantasyProsConsensusSnapshotRow>>>;
 }
 
 const SNAPSHOT_ENDPOINT_KEYS = [
+  'fantasypros-draft',
+  'fantasypros-ros',
+  'fantasypros-dynasty',
+  'fantasypros-devy',
+  'fantasypros-rookies',
+  'fantasypros-adp',
+  'fantasypros-dynadp',
+  'fantasypros-rkadp',
   'fantasypros-weekly-ecr',
   'fantasypros-ww',
   'fantasypros-projections',
   'fantasypros-player-points',
   'fantasypros-players',
+  'fantasypros-news',
+  'fantasypros-injuries',
   'fantasypros-compare-players',
 ] as const;
 
@@ -177,6 +222,14 @@ function playerRows(snapshot: FantasyProsEndpointSnapshotPayload | null | undefi
   const data = recordField(snapshot?.data);
   return Array.isArray(data?.players)
     ? data.players.filter((row): row is Record<string, unknown> => Boolean(recordField(row)))
+    : [];
+}
+
+function rowsForKey(snapshot: FantasyProsEndpointSnapshotPayload | null | undefined, key: string): Array<Record<string, unknown>> {
+  const data = recordField(snapshot?.data);
+  const rows = data?.[key];
+  return Array.isArray(rows)
+    ? rows.filter((row): row is Record<string, unknown> => Boolean(recordField(row)))
     : [];
 }
 
@@ -368,6 +421,50 @@ function normalizeComparePlayersSnapshot(snapshot: FantasyProsEndpointSnapshotPa
   return values;
 }
 
+function normalizeNewsSnapshot(snapshot: FantasyProsEndpointSnapshotPayload | null): {
+  rows: FantasyProsNewsSnapshotRow[];
+  byFantasyProsId: Record<string, FantasyProsNewsSnapshotRow[]>;
+} {
+  const rows = rowsForKey(snapshot, 'news').map((row): FantasyProsNewsSnapshotRow => ({
+    fantasyProsId: fantasyProsId(row),
+    name: playerName(row),
+    position: playerPosition(row),
+    team: playerTeam(row),
+    title: stringField(row.title) || stringField(row.headline),
+    category: stringField(row.category) || stringField(row.type),
+    source: stringField(row.source),
+    url: stringField(row.url) || stringField(row.link),
+    publishedAt: stringField(row.published_at) || stringField(row.publishedAt) || stringField(row.date),
+  }));
+  const byFantasyProsId: Record<string, FantasyProsNewsSnapshotRow[]> = {};
+  for (const row of rows) {
+    if (!row.fantasyProsId) continue;
+    byFantasyProsId[row.fantasyProsId] ||= [];
+    byFantasyProsId[row.fantasyProsId].push(row);
+  }
+  return { rows, byFantasyProsId };
+}
+
+function normalizeInjurySnapshot(snapshot: FantasyProsEndpointSnapshotPayload | null): Record<string, FantasyProsInjurySnapshotRow> {
+  const values: Record<string, FantasyProsInjurySnapshotRow> = {};
+  for (const row of rowsForKey(snapshot, 'injuries')) {
+    const id = fantasyProsId(row);
+    if (!id) continue;
+    values[id] = {
+      fantasyProsId: id,
+      name: playerName(row),
+      position: playerPosition(row),
+      team: playerTeam(row),
+      status: stringField(row.status) || stringField(row.player_status),
+      injury: stringField(row.injury) || stringField(row.injury_type),
+      practiceStatus: stringField(row.practice_status) || stringField(row.practiceStatus),
+      gameStatus: stringField(row.game_status) || stringField(row.gameStatus),
+      updatedAt: stringField(row.updated_at) || stringField(row.updatedAt) || stringField(row.last_updated),
+    };
+  }
+  return values;
+}
+
 export function buildFantasyProsSnapshotContext(input: {
   season: string;
   scoring: FantasyProsScoring;
@@ -392,6 +489,7 @@ export function buildFantasyProsSnapshotContext(input: {
       weeklyEcrByPositionWeek[position][String(week)] = normalizeConsensusSnapshot(input.snapshots[endpointKey] || null);
     }
   }
+  const normalizedNews = normalizeNewsSnapshot(input.snapshots['fantasypros-news'] || null);
 
   return {
     generatedAt: input.generatedAt || new Date().toISOString(),
@@ -408,6 +506,17 @@ export function buildFantasyProsSnapshotContext(input: {
     playerPointsByFantasyProsId: normalizePlayerPointsSnapshot(input.snapshots['fantasypros-player-points'] || null),
     playersByFantasyProsId: normalizePlayerReferenceSnapshot(input.snapshots['fantasypros-players'] || null),
     comparePlayersByFantasyProsId: normalizeComparePlayersSnapshot(input.snapshots['fantasypros-compare-players'] || null),
+    draftRankingsByFantasyProsId: normalizeConsensusSnapshot(input.snapshots['fantasypros-draft'] || null),
+    rosRankingsByFantasyProsId: normalizeConsensusSnapshot(input.snapshots['fantasypros-ros'] || null),
+    dynastyRankingsByFantasyProsId: normalizeConsensusSnapshot(input.snapshots['fantasypros-dynasty'] || null),
+    devyRankingsByFantasyProsId: normalizeConsensusSnapshot(input.snapshots['fantasypros-devy'] || null),
+    rookieRankingsByFantasyProsId: normalizeConsensusSnapshot(input.snapshots['fantasypros-rookies'] || null),
+    adpByFantasyProsId: normalizeConsensusSnapshot(input.snapshots['fantasypros-adp'] || null),
+    dynastyAdpByFantasyProsId: normalizeConsensusSnapshot(input.snapshots['fantasypros-dynadp'] || null),
+    rookieAdpByFantasyProsId: normalizeConsensusSnapshot(input.snapshots['fantasypros-rkadp'] || null),
+    newsRows: normalizedNews.rows,
+    newsByFantasyProsId: normalizedNews.byFantasyProsId,
+    injuriesByFantasyProsId: normalizeInjurySnapshot(input.snapshots['fantasypros-injuries'] || null),
     weeklyEcrByPositionWeek,
   };
 }

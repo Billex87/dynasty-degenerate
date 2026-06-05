@@ -124,6 +124,53 @@ describe('FantasyPros snapshot context', () => {
             },
           },
         }, 2),
+        'fantasypros-rookies': snapshot('fantasypros-rookies', 'FantasyPros ROOKIES', {
+          players: [{
+            player_id: '9100',
+            player_name: 'Sample Rookie',
+            player_position_id: 'WR',
+            player_team_id: 'CHI',
+            rank_ecr: 8,
+            pos_rank: 'WR4',
+          }],
+        }, 1),
+        'fantasypros-adp': snapshot('fantasypros-adp', 'FantasyPros ADP', {
+          players: [{
+            player_id: '9016',
+            player_name: 'Sample QB',
+            player_position_id: 'QB',
+            player_team_id: 'BUF',
+            rank_ecr: 18,
+            rank_ave: 19.4,
+            pos_rank: 'QB3',
+          }],
+        }, 1),
+        'fantasypros-news': snapshot('fantasypros-news', 'FantasyPros News', {
+          news: [{
+            player_id: '9016',
+            player_name: 'Sample QB',
+            player_position_id: 'QB',
+            player_team_id: 'BUF',
+            title: 'Sample QB ready for Week 1',
+            category: 'injury',
+            source: 'FantasyPros',
+            url: 'https://example.com/news/sample-qb',
+            published_at: '2026-09-01T16:00:00.000Z',
+          }],
+        }, 1),
+        'fantasypros-injuries': snapshot('fantasypros-injuries', 'FantasyPros Injuries', {
+          injuries: [{
+            player_id: '9020',
+            player_name: 'Sample RB',
+            player_position_id: 'RB',
+            player_team_id: 'ATL',
+            status: 'Questionable',
+            injury: 'Hamstring',
+            practice_status: 'Limited',
+            game_status: 'Questionable',
+            updated_at: '2026-09-02T12:00:00.000Z',
+          }],
+        }, 1),
       },
     });
 
@@ -166,8 +213,38 @@ describe('FantasyPros snapshot context', () => {
       worstRank: 5,
       averageRank: 4,
     });
+    expect(context.rookieRankingsByFantasyProsId['9100']).toMatchObject({
+      name: 'Sample Rookie',
+      rankEcr: 8,
+      positionRank: 'WR4',
+    });
+    expect(context.adpByFantasyProsId['9016']).toMatchObject({
+      rankEcr: 18,
+      averageRank: 19.4,
+      positionRank: 'QB3',
+    });
+    expect(context.newsByFantasyProsId['9016'][0]).toMatchObject({
+      title: 'Sample QB ready for Week 1',
+      category: 'injury',
+      url: 'https://example.com/news/sample-qb',
+      publishedAt: '2026-09-01T16:00:00.000Z',
+    });
+    expect(context.injuriesByFantasyProsId['9020']).toMatchObject({
+      status: 'Questionable',
+      injury: 'Hamstring',
+      practiceStatus: 'Limited',
+      gameStatus: 'Questionable',
+    });
     expect(context.rowCounts).toContainEqual({
       sourceKey: 'fantasypros-endpoint-v1:2026:PPR:fantasypros-weekly-ecr',
+      rowCount: 1,
+    });
+    expect(context.rowCounts).toContainEqual({
+      sourceKey: 'fantasypros-endpoint-v1:2026:PPR:fantasypros-rookies',
+      rowCount: 1,
+    });
+    expect(context.rowCounts).toContainEqual({
+      sourceKey: 'fantasypros-endpoint-v1:2026:PPR:fantasypros-news',
       rowCount: 1,
     });
     expect(context.rowCounts).toContainEqual({
