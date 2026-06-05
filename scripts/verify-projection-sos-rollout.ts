@@ -277,19 +277,56 @@ function hasScheduleWindowReason(target: any): boolean {
   );
 }
 
+function getPriorityWaiverOpportunityWindows(target: any): any[] {
+  return [
+    ...asArray(target?.opportunityWindows),
+    target?.opportunityWindow,
+  ].filter(Boolean);
+}
+
+function hasPriorityWaiverOpportunityWindow(target: any): boolean {
+  return getPriorityWaiverOpportunityWindows(target).some((window: any) =>
+    typeof window?.type === 'string' &&
+    typeof window?.source === 'string' &&
+    finiteNumber(window?.confidence) !== null
+  );
+}
+
 function summarizePriorityWaiverTargets(reportData: any) {
   const targets = getPriorityWaiverTargets(reportData);
   const targetsWithScheduleWindows = targets.filter(hasScheduleWindowEvidence);
   const targetsWithScheduleReasons = targets.filter(hasScheduleWindowReason);
   const targetsWithWeeklyProjection = targets.filter((target: any) => Boolean(target?.weeklyProjection));
+  const targetsWithOpportunityWindows = targets.filter(hasPriorityWaiverOpportunityWindow);
+  const confidenceValues = targets
+    .map((target: any) => finiteNumber(target?.confidence))
+    .filter((value: number | null): value is number => value !== null);
+  const confidenceReasonCount = targets
+    .flatMap((target: any) => asArray(target?.confidenceReasons))
+    .filter((reason: unknown): reason is string => typeof reason === 'string' && reason.trim().length > 0)
+    .length;
+  const capReasonCount = targets.filter((target: any) =>
+    typeof target?.confidenceCapReason === 'string' && target.confidenceCapReason.trim().length > 0
+  ).length;
+  const opportunityWindowCount = targets.reduce((sum: number, target: any) =>
+    sum + getPriorityWaiverOpportunityWindows(target).length, 0);
 
   return {
     count: targets.length,
     targetsWithScheduleWindows: targetsWithScheduleWindows.length,
     targetsWithScheduleReasons: targetsWithScheduleReasons.length,
     targetsWithWeeklyProjection: targetsWithWeeklyProjection.length,
+    targetsWithOpportunityWindows: targetsWithOpportunityWindows.length,
+    opportunityWindowCount,
+    confidenceCount: confidenceValues.length,
+    confidenceReasonCount,
+    capReasonCount,
+    minConfidence: confidenceValues.length ? Math.min(...confidenceValues) : null,
+    maxConfidence: confidenceValues.length ? Math.max(...confidenceValues) : null,
     hasPriorityWaiverTargets: targets.length > 0,
     hasScheduleWindowBackedTarget: targetsWithScheduleWindows.length > 0,
+    hasOpportunityWindowBackedTarget: targetsWithOpportunityWindows.length > 0,
+    containsProjectionClaim: containsStoredWeeklyProjectionClaim(targets),
   };
 }
 
@@ -333,6 +370,18 @@ function validateReportContract(input: {
   if (!priorityWaiverTargets.hasPriorityWaiverTargets) failures.push('missing priorityWaiverTargets');
   if (priorityWaiverTargets.hasPriorityWaiverTargets && !priorityWaiverTargets.hasScheduleWindowBackedTarget) {
     failures.push('priorityWaiverTargets missing source-backed matchup window evidence');
+  }
+  if (priorityWaiverTargets.count > 0 && priorityWaiverTargets.confidenceCount !== priorityWaiverTargets.count) {
+    failures.push('missing priorityWaiverTargets confidence');
+  }
+  if (
+    priorityWaiverTargets.minConfidence !== null &&
+    (priorityWaiverTargets.minConfidence < 0 || (priorityWaiverTargets.maxConfidence ?? 0) > 100)
+  ) {
+    failures.push(`priorityWaiverTargets confidence out of range: ${priorityWaiverTargets.minConfidence}-${priorityWaiverTargets.maxConfidence}`);
+  }
+  if (priorityWaiverTargets.hasPriorityWaiverTargets && !priorityWaiverTargets.hasOpportunityWindowBackedTarget) {
+    failures.push('priorityWaiverTargets missing opportunity-window evidence');
   }
 
   if (playoffSchedulePlanning) {
@@ -416,6 +465,15 @@ function validateReportContract(input: {
     if (matchupPreviewSummary.containsProjectionClaim) {
       failures.push('projection-off matchupPreviews still contain stored weekly projection claims');
     }
+    if (priorityWaiverTargets.targetsWithWeeklyProjection > 0) {
+      failures.push('projection-off priorityWaiverTargets still expose weekly projections');
+    }
+    if (priorityWaiverTargets.maxConfidence !== null && priorityWaiverTargets.maxConfidence > 58) {
+      failures.push(`projection-off priorityWaiverTargets confidence exceeds fallback cap: ${priorityWaiverTargets.maxConfidence}`);
+    }
+    if (priorityWaiverTargets.containsProjectionClaim) {
+      failures.push('projection-off priorityWaiverTargets still contain stored weekly projection claims');
+    }
   }
 
   return {
@@ -463,6 +521,13 @@ function validateReportContract(input: {
       priorityWaiverTargetsWithScheduleWindows: priorityWaiverTargets.targetsWithScheduleWindows,
       priorityWaiverTargetsWithScheduleReasons: priorityWaiverTargets.targetsWithScheduleReasons,
       priorityWaiverTargetsWithWeeklyProjection: priorityWaiverTargets.targetsWithWeeklyProjection,
+      priorityWaiverTargetsWithOpportunityWindows: priorityWaiverTargets.targetsWithOpportunityWindows,
+      priorityWaiverOpportunityWindowCount: priorityWaiverTargets.opportunityWindowCount,
+      priorityWaiverConfidenceCount: priorityWaiverTargets.confidenceCount,
+      priorityWaiverConfidenceReasonCount: priorityWaiverTargets.confidenceReasonCount,
+      priorityWaiverConfidenceCapReasonCount: priorityWaiverTargets.capReasonCount,
+      priorityWaiverMinConfidence: priorityWaiverTargets.minConfidence,
+      priorityWaiverMaxConfidence: priorityWaiverTargets.maxConfidence,
     },
   };
 }

@@ -106,7 +106,7 @@ import {
   sendMagicLinkEmail,
 } from "./transactionalEmail";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
-import type { LeagueDraftStatus, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperExtensionSanitizedTransaction, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
+import type { LeagueDraftStatus, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperExtensionSanitizedTransaction, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverPriorityOpportunityWindow, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
 import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
 import type { AICounterfactualRead, AIDecisionSnapshot, AIPredictionDecayProfile, AIRealizedEdge } from "../shared/aiDecisionSnapshots";
 import type { RecommendationObservedOutcome } from "../shared/recommendationOutcome";
@@ -2992,6 +2992,53 @@ function stripWeeklyProjectionFromPlayoffSchedulePlanning(
 }
 
 export function stripWeeklyProjectionContextFromReportData(reportData: ReportData): ReportData {
+  const waiverPriorityProjectionCapReason =
+    'Weekly projections are disabled for this response; waiver priority confidence is capped to schedule/value context.';
+  const hasStoredProjectionClaim = (value: unknown) =>
+    /stored-weekly-projection|stored weekly projection|stored projection/i.test(String(value || ''));
+  const stripStoredProjectionReasons = (reasons: unknown): string[] =>
+    (Array.isArray(reasons) ? reasons : [])
+      .filter((reason): reason is string => typeof reason === 'string' && reason.trim().length > 0)
+      .filter((reason) => !hasStoredProjectionClaim(reason));
+  const stripPriorityOpportunityWindow = (window: any): WaiverPriorityOpportunityWindow | null => {
+    if (!window || hasStoredProjectionClaim(window.source) || window.type === 'projected-usage') return null;
+    return {
+      ...window,
+      confidence: Math.min(Number.isFinite(Number(window.confidence)) ? Number(window.confidence) : 58, 58),
+      note: hasStoredProjectionClaim(window.note)
+        ? 'Schedule/value context remains available after weekly projection context was stripped.'
+        : window.note,
+    };
+  };
+  const stripPriorityWaiverTarget = (
+    target: NonNullable<WaiverIntelligence['priorityWaiverTargets']>[number]
+  ): NonNullable<WaiverIntelligence['priorityWaiverTargets']>[number] => {
+    const windowRows = [
+      ...(Array.isArray(target.opportunityWindows) ? target.opportunityWindows : []),
+      target.opportunityWindow,
+    ]
+      .filter(Boolean)
+      .map(stripPriorityOpportunityWindow)
+      .filter((window): window is WaiverPriorityOpportunityWindow => Boolean(window));
+    const uniqueWindowRows = windowRows.filter((window, index, rows) =>
+      rows.findIndex((candidate) => candidate.type === window.type && candidate.label === window.label) === index
+    );
+    return {
+      ...target,
+      player: stripWeeklyProjectionFromPlayer(target.player) || target.player,
+      weeklyProjection: null,
+      reasons: stripStoredProjectionReasons(target.reasons),
+      confidence: Math.min(Number.isFinite(Number(target.confidence)) ? Number(target.confidence) : 58, 58),
+      confidenceReasons: [
+        waiverPriorityProjectionCapReason,
+        ...stripStoredProjectionReasons(target.confidenceReasons),
+      ].slice(0, 6),
+      confidenceCapReason: waiverPriorityProjectionCapReason,
+      opportunityWindow: uniqueWindowRows[0] || null,
+      opportunityWindows: uniqueWindowRows,
+    };
+  };
+
   return {
     ...reportData,
     weeklyProjectionDiagnostics: {
@@ -3091,11 +3138,7 @@ export function stripWeeklyProjectionContextFromReportData(reportData: ReportDat
               stripWeeklyProjectionFromPlayer(player as any) || null,
             ])
           ) as WaiverIntelligence['bestAvailableByPosition'],
-          priorityWaiverTargets: (reportData.waiverIntelligence.priorityWaiverTargets || []).map((target) => ({
-            ...target,
-            player: stripWeeklyProjectionFromPlayer(target.player) || target.player,
-            weeklyProjection: null,
-          })),
+          priorityWaiverTargets: (reportData.waiverIntelligence.priorityWaiverTargets || []).map(stripPriorityWaiverTarget),
           weeklyEcrTargets: (reportData.waiverIntelligence.weeklyEcrTargets || []).map(stripWeeklyProjectionFromWaiverTarget),
           specialTeamsStreamerTargets: (reportData.waiverIntelligence.specialTeamsStreamerTargets || []).map(stripWeeklyProjectionFromWaiverTarget),
           defensePairingTargets: (reportData.waiverIntelligence.defensePairingTargets || []).map(stripWeeklyProjectionFromWaiverTarget),
@@ -5512,6 +5555,192 @@ function getWaiverScheduleWindowScore(
   return Math.max(-options.cap, Math.min(options.cap, Math.round(score)));
 }
 
+function clampWaiverPriorityConfidence(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function getWaiverWindowWeekNumbers(window: any): number[] {
+  const rows = Array.isArray(window?.weeks) ? window.weeks : [];
+  return Array.from(new Set(
+    rows
+      .map((row: any) => Number(typeof row === 'number' ? row : row?.week))
+      .filter((week: number) => Number.isInteger(week) && week >= 1 && week <= 18)
+  )).sort((a, b) => a - b);
+}
+
+function getWaiverWindowPlayableWeeks(window: any): number {
+  const playableWeeks = getWaiverWindowNumber(window, 'playableWeeks');
+  if (playableWeeks > 0) return playableWeeks;
+  return Math.max(0, getWaiverWindowNumber(window, 'easyWeeks') - getWaiverWindowNumber(window, 'hardWeeks'));
+}
+
+function buildPriorityWaiverOpportunityWindows(input: {
+  weeklyProjection: WeeklyProjectionContext | null;
+  projectionPoints: number;
+  scheduleSignal: WaiverWeeklyEcrSignal | null;
+  value: number;
+  next3Window: any;
+  next6Window: any;
+  playoffWindow: any;
+  next6WindowScore: number;
+  playoffWindowScore: number;
+}): WaiverPriorityOpportunityWindow[] {
+  const windows: WaiverPriorityOpportunityWindow[] = [];
+  const addScheduleWindow = (
+    type: WaiverPriorityOpportunityWindow['type'],
+    label: string,
+    window: any,
+    score: number,
+    note: string
+  ) => {
+    if (!window) return;
+    const easyWeeks = getWaiverWindowNumber(window, 'easyWeeks');
+    const hardWeeks = getWaiverWindowNumber(window, 'hardWeeks');
+    const playableWeeks = getWaiverWindowPlayableWeeks(window);
+    if (score <= 0 && easyWeeks <= 0 && playableWeeks <= 0) return;
+    windows.push({
+      type,
+      label,
+      weeks: getWaiverWindowWeekNumbers(window),
+      score: Math.round(score),
+      easyWeeks,
+      hardWeeks,
+      playableWeeks,
+      confidence: clampWaiverPriorityConfidence(54 + Math.min(22, Math.max(score, 0) / 18) + Math.min(10, easyWeeks * 3)),
+      source: input.scheduleSignal?.source || 'schedule-window',
+      note,
+    });
+  };
+
+  if (input.weeklyProjection && input.projectionPoints >= 8) {
+    const week = Number(input.weeklyProjection.week);
+    windows.push({
+      type: 'projected-usage',
+      label: 'Projected usage',
+      weeks: Number.isInteger(week) && week >= 1 && week <= 18 ? [week] : [],
+      score: Math.round(input.projectionPoints * 10),
+      easyWeeks: 0,
+      hardWeeks: 0,
+      playableWeeks: 1,
+      confidence: clampWaiverPriorityConfidence(62 + Math.min(26, input.projectionPoints * 1.7)),
+      source: input.weeklyProjection.source || 'stored-weekly-projection',
+      note: 'Ready weekly projection clears the playable waiver threshold.',
+    });
+  }
+
+  addScheduleWindow(
+    'upcoming-schedule',
+    'Upcoming schedule',
+    input.next3Window,
+    getWaiverScheduleWindowScore(input.next3Window, {
+      cap: 220,
+      scoreWeight: 8,
+      easyWeight: 62,
+      hardWeight: 44,
+    }),
+    'Short-term matchup window creates a near-term streaming or fill-in lane.'
+  );
+
+  addScheduleWindow(
+    'multi-week-staying-power',
+    'Multi-week staying power',
+    input.next6Window,
+    input.next6WindowScore,
+    'Six-week matchup window supports more than a one-week rental.'
+  );
+
+  addScheduleWindow(
+    'playoff-window',
+    'Playoff window',
+    input.playoffWindow,
+    input.playoffWindowScore,
+    'Playoff-week schedule window adds stash or advance-planning value.'
+  );
+
+  if (!windows.length && input.value >= 900) {
+    windows.push({
+      type: 'value-stash',
+      label: 'Value stash',
+      weeks: [],
+      score: Math.min(180, Math.round(input.value / 12)),
+      easyWeeks: 0,
+      hardWeeks: 0,
+      playableWeeks: 0,
+      confidence: clampWaiverPriorityConfidence(input.value >= 1800 ? 58 : 52),
+      source: 'current-season-value',
+      note: 'Current value keeps the candidate relevant while schedule or projection evidence is thin.',
+    });
+  }
+
+  return windows.sort((a, b) => b.score - a.score || b.confidence - a.confidence).slice(0, 4);
+}
+
+function buildPriorityWaiverConfidence(input: {
+  weeklyProjection: WeeklyProjectionContext | null;
+  projectionPoints: number;
+  scheduleSignal: WaiverWeeklyEcrSignal | null;
+  strongScheduleWindow: boolean;
+  easyWeeks: number;
+  next6EasyWeeks: number;
+  playoffEasyWeeks: number;
+  value: number;
+  opportunityWindows: WaiverPriorityOpportunityWindow[];
+}) {
+  let confidence = 46;
+  const confidenceReasons: string[] = [];
+  let confidenceCapReason: string | null = null;
+
+  if (input.weeklyProjection) {
+    const projectionBoost = input.projectionPoints >= 10 ? 18 : input.projectionPoints >= 6 ? 12 : 8;
+    confidence += projectionBoost;
+    confidenceReasons.push('Ready weekly projection is attached to the waiver target.');
+  } else {
+    confidenceCapReason = 'No ready weekly projection row; confidence is capped to schedule/value context.';
+    confidenceReasons.push(confidenceCapReason);
+  }
+
+  if (input.scheduleSignal) {
+    confidence += input.strongScheduleWindow ? 14 : 8;
+    confidenceReasons.push('Source-backed schedule window is attached to the waiver target.');
+  } else {
+    const noScheduleCap = input.weeklyProjection ? 72 : 56;
+    confidenceCapReason = confidenceCapReason
+      ? `${confidenceCapReason} No source-backed schedule window is attached.`
+      : 'No source-backed schedule window is attached; confidence is capped.';
+    confidence = Math.min(confidence, noScheduleCap);
+    confidenceReasons.push('No source-backed schedule window is attached.');
+  }
+
+  if (input.easyWeeks > 0) {
+    confidence += Math.min(8, input.easyWeeks * 3);
+    confidenceReasons.push('Near-term favorable matchup weeks improve the waiver priority.');
+  }
+  if (input.next6EasyWeeks >= 3) {
+    confidence += 8;
+    confidenceReasons.push('Six-week window supports multi-week staying power.');
+  }
+  if (input.playoffEasyWeeks > 0) {
+    confidence += Math.min(6, input.playoffEasyWeeks * 3);
+    confidenceReasons.push('Playoff-window schedule evidence is present.');
+  }
+  if (input.value >= 1800) {
+    confidence += 6;
+    confidenceReasons.push('Current value baseline supports the waiver priority.');
+  } else if (input.value >= 600) {
+    confidence += 3;
+  }
+  if (input.opportunityWindows.length) {
+    confidence += Math.min(8, input.opportunityWindows.length * 2);
+  }
+
+  const cap = input.weeklyProjection ? 92 : input.strongScheduleWindow ? 68 : 58;
+  return {
+    confidence: clampWaiverPriorityConfidence(Math.min(confidence, cap)),
+    confidenceReasons: confidenceReasons.slice(0, 6),
+    confidenceCapReason,
+  };
+}
+
 function buildPriorityWaiverTargets(
   players: TrendingPlayer[],
   options: { leagueValueMode?: LeagueValueMode } = {}
@@ -5590,6 +5819,29 @@ function buildPriorityWaiverTargets(
         value > 0 ? `${Math.round(value).toLocaleString('en-US')} value baseline` : null,
       ].filter((reason): reason is string => Boolean(reason));
 
+      const opportunityWindows = buildPriorityWaiverOpportunityWindows({
+        weeklyProjection,
+        projectionPoints,
+        scheduleSignal,
+        value,
+        next3Window,
+        next6Window,
+        playoffWindow,
+        next6WindowScore,
+        playoffWindowScore,
+      });
+      const { confidence, confidenceReasons, confidenceCapReason } = buildPriorityWaiverConfidence({
+        weeklyProjection,
+        projectionPoints,
+        scheduleSignal,
+        strongScheduleWindow,
+        easyWeeks,
+        next6EasyWeeks,
+        playoffEasyWeeks,
+        value,
+        opportunityWindows,
+      });
+
       const priority: NonNullable<WaiverIntelligence['priorityWaiverTargets']>[number]['priority'] =
         score >= 1250 && (projectionPoints >= 8 || strongScheduleWindow)
           ? 'add-now'
@@ -5606,6 +5858,11 @@ function buildPriorityWaiverTargets(
         reasons,
         scheduleSignal,
         weeklyProjection,
+        confidence,
+        confidenceReasons,
+        confidenceCapReason,
+        opportunityWindow: opportunityWindows[0] || null,
+        opportunityWindows,
       };
     })
     .filter((target): target is WaiverPriorityTargetRow => target !== null)

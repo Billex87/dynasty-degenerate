@@ -933,6 +933,28 @@ export interface WaiverWeeklyEcrTarget {
   score: number;
 }
 
+export type WaiverPriorityOpportunityType =
+  | 'projected-usage'
+  | 'upcoming-schedule'
+  | 'bye-coverage'
+  | 'injury-fill-in'
+  | 'multi-week-staying-power'
+  | 'playoff-window'
+  | 'value-stash';
+
+export interface WaiverPriorityOpportunityWindow {
+  type: WaiverPriorityOpportunityType;
+  label: string;
+  weeks: number[];
+  score: number;
+  easyWeeks: number;
+  hardWeeks: number;
+  playableWeeks: number;
+  confidence: number;
+  source: string;
+  note: string;
+}
+
 export interface WaiverPriorityTarget {
   player: TrendingPlayer;
   score: number;
@@ -940,6 +962,11 @@ export interface WaiverPriorityTarget {
   reasons: string[];
   scheduleSignal?: WaiverWeeklyEcrSignal | null;
   weeklyProjection?: WeeklyProjectionContext | null;
+  confidence?: number | null;
+  confidenceReasons?: string[];
+  confidenceCapReason?: string | null;
+  opportunityWindow?: WaiverPriorityOpportunityWindow | null;
+  opportunityWindows?: WaiverPriorityOpportunityWindow[];
 }
 
 export interface WaiverOmittedCandidate {

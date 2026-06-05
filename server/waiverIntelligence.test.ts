@@ -566,6 +566,10 @@ describe("buildWaiverIntelligence", () => {
     expect(result.priorityWaiverTargets?.[0]?.reasons.join(" ")).toContain("stored projected points");
     expect(result.priorityWaiverTargets?.[0]?.reasons.join(" ")).toContain("favorable upcoming schedule");
     expect(result.priorityWaiverTargets?.[0]?.weeklyProjection?.projectedFantasyPoints).toBe(12.8);
+    expect(result.priorityWaiverTargets?.[0]?.confidence).toBeGreaterThanOrEqual(80);
+    expect(result.priorityWaiverTargets?.[0]?.confidenceReasons?.join(" ")).toContain("Ready weekly projection");
+    expect(result.priorityWaiverTargets?.[0]?.opportunityWindows?.some((window) => window.type === "projected-usage")).toBe(true);
+    expect(result.priorityWaiverTargets?.[0]?.opportunityWindows?.some((window) => window.type === "multi-week-staying-power")).toBe(true);
   });
 
   it("uses SOS and playoff windows for priority waiver targets without projection rows", () => {
@@ -674,5 +678,8 @@ describe("buildWaiverIntelligence", () => {
     expect(result.priorityWaiverTargets?.[0]?.weeklyProjection).toBeNull();
     expect(result.priorityWaiverTargets?.[0]?.reasons.join(" ")).toContain("playoff-window");
     expect(result.priorityWaiverTargets?.[0]?.reasons.join(" ")).toContain("without weekly projection dependency");
+    expect(result.priorityWaiverTargets?.[0]?.confidence).toBeLessThanOrEqual(68);
+    expect(result.priorityWaiverTargets?.[0]?.confidenceCapReason).toContain("No ready weekly projection");
+    expect(result.priorityWaiverTargets?.[0]?.opportunityWindows?.some((window) => window.type === "playoff-window")).toBe(true);
   });
 });

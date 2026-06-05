@@ -183,9 +183,50 @@ describe("projection report sanitizer", () => {
           player: { player_id: "wr1", name: "Projection Receiver", pos: "WR", owner: null, weeklyProjection: projection },
           score: 1400,
           priority: "add-now",
-          reasons: ["12.4 stored projected points"],
+          reasons: ["12.4 stored projected points", "2 favorable upcoming schedule weeks"],
           scheduleSignal: null,
           weeklyProjection: projection,
+          confidence: 88,
+          confidenceReasons: ["Ready stored weekly projection is attached.", "Source-backed schedule window is attached."],
+          confidenceCapReason: null,
+          opportunityWindow: {
+            type: "projected-usage",
+            label: "Projected usage",
+            weeks: [1],
+            score: 124,
+            easyWeeks: 0,
+            hardWeeks: 0,
+            playableWeeks: 1,
+            confidence: 83,
+            source: "stored-weekly-projection",
+            note: "Stored weekly projection usage window.",
+          },
+          opportunityWindows: [
+            {
+              type: "projected-usage",
+              label: "Projected usage",
+              weeks: [1],
+              score: 124,
+              easyWeeks: 0,
+              hardWeeks: 0,
+              playableWeeks: 1,
+              confidence: 83,
+              source: "stored-weekly-projection",
+              note: "Stored weekly projection usage window.",
+            },
+            {
+              type: "upcoming-schedule",
+              label: "Upcoming schedule",
+              weeks: [1, 2, 3],
+              score: 180,
+              easyWeeks: 2,
+              hardWeeks: 0,
+              playableWeeks: 2,
+              confidence: 70,
+              source: "DraftSharks",
+              note: "Short-term matchup window remains usable.",
+            },
+          ],
         }],
         weeklyEcrTargets: [{
           player: { player_id: "wr1", name: "Projection Receiver", pos: "WR", owner: null, weeklyProjection: projection },
@@ -263,7 +304,12 @@ describe("projection report sanitizer", () => {
     expect(JSON.stringify(sanitized.waiverIntelligence?.bestTaxiStashes)).not.toContain("weeklyProjection");
     expect(JSON.stringify(sanitized.waiverIntelligence?.recentlyDroppedValuable)).not.toContain("weeklyProjection");
     expect(sanitized.waiverIntelligence?.priorityWaiverTargets?.[0]?.weeklyProjection).toBeNull();
+    expect(sanitized.waiverIntelligence?.priorityWaiverTargets?.[0]?.confidence).toBe(58);
+    expect(sanitized.waiverIntelligence?.priorityWaiverTargets?.[0]?.confidenceCapReason).toMatch(/weekly projections are disabled/i);
+    expect(sanitized.waiverIntelligence?.priorityWaiverTargets?.[0]?.opportunityWindow?.type).toBe("upcoming-schedule");
+    expect(sanitized.waiverIntelligence?.priorityWaiverTargets?.[0]?.opportunityWindows?.some((window) => window.type === "projected-usage")).toBe(false);
     expect(JSON.stringify(sanitized.waiverIntelligence?.priorityWaiverTargets?.[0]?.player)).not.toContain("weeklyProjection");
+    expect(JSON.stringify(sanitized.waiverIntelligence?.priorityWaiverTargets?.[0])).not.toContain("stored-weekly-projection");
   });
 
   it("applies projection-off policy to fresh analyze response payloads", () => {
