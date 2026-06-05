@@ -624,8 +624,9 @@
 - [x] Wire schedule-aware inputs into player detail views so bye windows, SOS tiers, and schedule summaries are visible at the player level.
 - [x] Wire schedule-aware inputs into weekly autopilot planning so streamer suggestions, roster gaps, and priority actions reflect byes and SOS.
 - [x] Wire schedule-aware inputs into D/ST and matchup-streamer logic so upcoming schedule strength can influence start/sit and pickup decisions.
-- [ ] Wire projections into lineup-strength, redraft valuation, and confidence calculations only after validating source freshness and endpoint stability.
+- [x] Wire projections into lineup-strength, redraft valuation, and confidence calculations only after validating source freshness and endpoint stability.
   - 2026-06-04 partial completion: lineup-strength computation now uses stored starter rows, opponent matchup rows, ready weekly projection context, optional schedule/SOS context, bench alternatives, confidence caps, and value-only fallback when projection readiness fails. Command Center Start/Sit Swap Signals now consume backend lineup-strength bench alternatives while preserving the previous local fallback. Redraft valuation now has backend report data that blends current-season value, ready weekly projection, SOS, bye timing, and role trend with value-only fallback. Broader confidence-calculation wiring remains open.
+  - 2026-06-05 completion: projection/SOS readiness now passes source freshness and projection-on/off report contracts before these backend reads are trusted; lineup strength, redraft valuation, waiver priority, dynasty contention, rookie development, trade recommendations, contender playoff context, and special-teams streamer support all emit projection-aware confidence/cap metadata with projection-off fallback checks.
 - [x] Add source-health checks and freshness checks for every projection/SOS feed we plan to depend on: report diagnostics now include DraftSharks SOS, player props, redraft source snapshots, FantasyPros health rows, and stored provider snapshot freshness; projection-driven rollout remains blocked until approved projection snapshots exist.
 - [x] Add tests for schedule normalization, bye-window rendering, streamer candidate generation, DraftSharks SOS normalization, and planner output from real schedule inputs.
 - [x] Leave a clear fallback state for pre-schedule and missing-data periods so offseason views remain stable.
@@ -714,7 +715,8 @@
 - [ ] Add Overview badges or notes only when projection/schedule context changes the conclusion; avoid duplicating the same read across matchup, roster, and owner tables.
 - [x] Add playoff-week views for contenders: Weeks 15-17 projected lineup strength, opponent difficulty, bye/bench pressure, handcuff value, and stash recommendations.
   - 2026-06-05 backend completion: `contenderPlayoffContext` now summarizes contender Weeks 15-17 projected lineup strength, schedule/opponent difficulty, bye/bench pressure, and stash recommendations from existing playoff planning. Projection-off stripping clears projected starter points, downgrades coverage to schedule/value, and caps confidence.
-- [ ] Add D/ST streamer and kicker streamer projection support only if the source coverage is stable enough; otherwise keep those reads schedule/SOS based.
+- [x] Add D/ST streamer and kicker streamer projection support only if the source coverage is stable enough; otherwise keep those reads schedule/SOS based.
+  - 2026-06-05 backend completion: `specialTeamsStreamerTargets` now attach position-level projection support metadata, only expose weekly projection points when the K/DST candidate pool has stable ready projection coverage, and stay schedule/SOS based with confidence caps when coverage is missing or unstable.
 
 ### AI Readout Rules
 
