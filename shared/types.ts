@@ -462,7 +462,7 @@ export interface LineupStrengthSummary {
 }
 
 export interface RedraftValuationComponent {
-  key: 'base-value' | 'weekly-projection' | 'schedule-sos' | 'bye-context' | 'role-trend' | 'injury-news' | 'replacement-level';
+  key: 'base-value' | 'weekly-projection' | 'rest-of-season-projection' | 'schedule-sos' | 'bye-context' | 'role-trend' | 'injury-news' | 'replacement-level';
   label: string;
   value: number;
   note: string;
@@ -476,6 +476,9 @@ export interface RedraftValuationRow {
   owner: string | null;
   baseValue: number;
   projectionValue: number | null;
+  restOfSeasonProjectionPoints?: number | null;
+  restOfSeasonValue?: number | null;
+  restOfSeasonWeeks?: number | null;
   scheduleAdjustment: number;
   byeAdjustment: number;
   roleAdjustment: number;
@@ -484,6 +487,8 @@ export interface RedraftValuationRow {
   finalValue: number;
   valueDelta: number;
   confidence: number;
+  confidenceReasons?: string[];
+  confidenceCapReason?: string | null;
   status: 'ready' | 'partial' | 'value-only';
   sourceCount: number;
   components: RedraftValuationComponent[];

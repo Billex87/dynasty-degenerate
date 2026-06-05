@@ -23,6 +23,8 @@ type RedraftPlayerLike = (ManagerStarterPlayer | TrendingPlayer) & {
 
 const DEFAULT_ROW_LIMIT = 120;
 const PROJECTION_VALUE_MULTIPLIER = 430;
+const REST_OF_SEASON_POINT_VALUE_MULTIPLIER = 26;
+const REDRAFT_REST_OF_SEASON_END_WEEK = 17;
 
 type ReplacementBaseline = {
   playerId: string;
@@ -33,6 +35,10 @@ type ReplacementBaseline = {
 
 function round(value: number): number {
   return Math.round(value);
+}
+
+function roundOne(value: number): number {
+  return Math.round(value * 10) / 10;
 }
 
 function asNumber(value: unknown): number | null {
@@ -69,11 +75,52 @@ function getBaseValue(player: RedraftPlayerLike, details: PlayerDetails | null):
   );
 }
 
-function getProjectionValue(player: RedraftPlayerLike, details: PlayerDetails | null, projectionReady: boolean): number | null {
+function getReadyProjection(player: RedraftPlayerLike, details: PlayerDetails | null, projectionReady: boolean): WeeklyProjectionContext | null {
   if (!projectionReady) return null;
   const projection = player.weeklyProjection || details?.weeklyProjection || null;
   if (projection?.status !== "ready") return null;
+  return projection;
+}
+
+function getProjectionValue(player: RedraftPlayerLike, details: PlayerDetails | null, projectionReady: boolean): number | null {
+  const projection = getReadyProjection(player, details, projectionReady);
+  if (!projection) return null;
   return round(projection.projectedFantasyPoints * PROJECTION_VALUE_MULTIPLIER);
+}
+
+function getRestOfSeasonProjection(input: {
+  player: RedraftPlayerLike;
+  details: PlayerDetails | null;
+  projectionReady: boolean;
+  currentWeek?: number | null;
+}): {
+  projectionPoints: number;
+  value: number;
+  weeks: number;
+  note: string;
+} | null {
+  const projection = getReadyProjection(input.player, input.details, input.projectionReady);
+  if (!projection) return null;
+  const currentWeek = asNumber(input.currentWeek) ?? asNumber(projection.week) ?? 1;
+  if (!currentWeek || currentWeek > REDRAFT_REST_OF_SEASON_END_WEEK) return null;
+  const remainingWeeks = Math.max(1, REDRAFT_REST_OF_SEASON_END_WEEK - currentWeek + 1);
+  const byeWeek = asNumber(input.details?.schedule?.byeWeek);
+  const byeFallsInWindow = Boolean(
+    byeWeek &&
+    byeWeek >= currentWeek &&
+    byeWeek <= REDRAFT_REST_OF_SEASON_END_WEEK
+  );
+  const weeks = Math.max(1, remainingWeeks - (byeFallsInWindow ? 1 : 0));
+  const projectionPoints = roundOne(projection.projectedFantasyPoints * weeks);
+
+  return {
+    projectionPoints,
+    value: round(projectionPoints * REST_OF_SEASON_POINT_VALUE_MULTIPLIER),
+    weeks,
+    note: byeFallsInWindow
+      ? `Derived from ready weekly projection across ${weeks} rest-of-season fantasy weeks after excluding the upcoming bye.`
+      : `Derived from ready weekly projection across ${weeks} rest-of-season fantasy weeks.`,
+  };
 }
 
 function getScheduleAdjustment(details: PlayerDetails | null): number {
@@ -254,6 +301,7 @@ function getReplacementAdjustment(input: {
 function getBlendValue(input: {
   baseValue: number;
   projectionValue: number | null;
+  restOfSeasonValue: number | null;
   scheduleAdjustment: number;
   byeAdjustment: number;
   roleAdjustment: number;
@@ -262,7 +310,9 @@ function getBlendValue(input: {
   projectionReady: boolean;
 }): number {
   if (!input.projectionReady) return input.baseValue;
-  const blendedCore = input.projectionValue === null
+  const blendedCore = input.projectionValue !== null && input.restOfSeasonValue !== null
+    ? input.baseValue * 0.54 + input.projectionValue * 0.28 + input.restOfSeasonValue * 0.18
+    : input.projectionValue === null
     ? input.baseValue
     : input.baseValue * 0.62 + input.projectionValue * 0.38;
   return Math.max(
@@ -281,6 +331,7 @@ function getBlendValue(input: {
 function getConfidence(input: {
   projectionReady: boolean;
   projectionValue: number | null;
+  restOfSeasonValue: number | null;
   scheduleAdjustment: number;
   roleAdjustment: number;
   injuryAdjustment: number;
@@ -293,6 +344,7 @@ function getConfidence(input: {
       44 +
       (input.baseValue > 0 ? 12 : 0) +
       (input.projectionReady && input.projectionValue !== null ? 22 : 0) +
+      (input.projectionReady && input.restOfSeasonValue !== null ? 6 : 0) +
       (input.scheduleAdjustment !== 0 ? 7 : 0) +
       (input.roleAdjustment !== 0 ? 7 : 0) +
       (input.injuryAdjustment !== 0 ? 5 : 0) +
@@ -304,6 +356,7 @@ function getConfidence(input: {
 function getSourceCount(input: {
   baseValue: number;
   projectionValue: number | null;
+  restOfSeasonValue: number | null;
   scheduleAdjustment: number;
   byeAdjustment: number;
   roleAdjustment: number;
@@ -313,12 +366,60 @@ function getSourceCount(input: {
   return [
     input.baseValue > 0,
     input.projectionValue !== null,
+    input.restOfSeasonValue !== null,
     input.scheduleAdjustment !== 0,
     input.byeAdjustment !== 0,
     input.roleAdjustment !== 0,
     input.injuryAdjustment !== 0,
     input.replacementAdjustment !== 0,
   ].filter(Boolean).length;
+}
+
+function getConfidenceReasons(input: {
+  projectionReady: boolean;
+  projectionValue: number | null;
+  restOfSeasonValue: number | null;
+  scheduleAdjustment: number;
+  byeAdjustment: number;
+  roleAdjustment: number;
+  injuryAdjustment: number;
+  replacementAdjustment: number;
+}): { confidenceReasons: string[]; confidenceCapReason: string | null } {
+  if (!input.projectionReady) {
+    return {
+      confidenceReasons: ["Weekly projection readiness failed, so redraft valuation is capped to current-season value."],
+      confidenceCapReason: "Weekly projection readiness failed; projection, schedule, role, injury/news, and replacement adjustments are disabled.",
+    };
+  }
+
+  const reasons = [
+    input.projectionValue !== null ? "Ready weekly projection is blended into the redraft value." : null,
+    input.restOfSeasonValue !== null ? "Derived rest-of-season projection value is available." : null,
+    input.scheduleAdjustment !== 0 ? "Stored schedule/SOS context adjusted the value." : null,
+    input.byeAdjustment !== 0 ? "Near-term bye timing adjusted the value." : null,
+    input.roleAdjustment !== 0 ? "Usage or situation trend adjusted the value." : null,
+    input.injuryAdjustment !== 0 ? "Injury/news context adjusted the value." : null,
+    input.replacementAdjustment !== 0 ? "Available replacement-level context adjusted the value." : null,
+  ].filter((reason): reason is string => Boolean(reason));
+
+  if (input.projectionValue === null) {
+    return {
+      confidenceReasons: reasons.length ? reasons : ["Projection snapshots are ready, but this player has no attached ready weekly projection."],
+      confidenceCapReason: "No ready player-level weekly projection is attached; row confidence is capped to partial context.",
+    };
+  }
+
+  if (input.restOfSeasonValue === null) {
+    return {
+      confidenceReasons: reasons,
+      confidenceCapReason: "Rest-of-season projection is unavailable; redraft value uses weekly projection plus available context only.",
+    };
+  }
+
+  return {
+    confidenceReasons: reasons,
+    confidenceCapReason: null,
+  };
 }
 
 function getPlayerKey(player: RedraftPlayerLike): string | null {
@@ -370,6 +471,13 @@ function buildRow(
 
   const baseValue = getBaseValue(player, details);
   const projectionValue = getProjectionValue(player, details, projectionReady);
+  const restOfSeasonRead = getRestOfSeasonProjection({
+    player,
+    details,
+    projectionReady,
+    currentWeek,
+  });
+  const restOfSeasonValue = restOfSeasonRead?.value ?? null;
   const scheduleAdjustment = projectionReady ? getScheduleAdjustment(details) : 0;
   const byeAdjustment = projectionReady ? getByeAdjustment(details, currentWeek) : 0;
   const roleAdjustment = projectionReady ? getRoleAdjustment(details) : 0;
@@ -382,12 +490,23 @@ function buildRow(
   const finalValue = getBlendValue({
     baseValue,
     projectionValue,
+    restOfSeasonValue,
     scheduleAdjustment,
     byeAdjustment,
     roleAdjustment,
     injuryAdjustment,
     replacementAdjustment,
     projectionReady,
+  });
+  const confidenceRead = getConfidenceReasons({
+    projectionReady,
+    projectionValue,
+    restOfSeasonValue,
+    scheduleAdjustment,
+    byeAdjustment,
+    roleAdjustment,
+    injuryAdjustment,
+    replacementAdjustment,
   });
   const status: RedraftValuationRow["status"] = !projectionReady
     ? "value-only"
@@ -403,6 +522,9 @@ function buildRow(
     owner: player.owner || null,
     baseValue,
     projectionValue,
+    restOfSeasonProjectionPoints: restOfSeasonRead?.projectionPoints ?? null,
+    restOfSeasonValue,
+    restOfSeasonWeeks: restOfSeasonRead?.weeks ?? null,
     scheduleAdjustment,
     byeAdjustment,
     roleAdjustment,
@@ -413,16 +535,20 @@ function buildRow(
     confidence: getConfidence({
       projectionReady,
       projectionValue,
+      restOfSeasonValue,
       scheduleAdjustment,
       roleAdjustment,
       injuryAdjustment,
       replacementAdjustment,
       baseValue,
     }),
+    confidenceReasons: confidenceRead.confidenceReasons,
+    confidenceCapReason: confidenceRead.confidenceCapReason,
     status,
     sourceCount: getSourceCount({
       baseValue,
       projectionValue,
+      restOfSeasonValue,
       scheduleAdjustment,
       byeAdjustment,
       roleAdjustment,
@@ -433,6 +559,9 @@ function buildRow(
       { key: "base-value", label: "Current-season value", value: baseValue, note: "Existing redraft/season value fallback." },
       projectionValue !== null
         ? { key: "weekly-projection", label: "Weekly projection", value: projectionValue, note: "Stored weekly projection converted to value scale." }
+        : null,
+      restOfSeasonRead
+        ? { key: "rest-of-season-projection", label: "Rest-of-season projection", value: restOfSeasonRead.value, note: restOfSeasonRead.note }
         : null,
       scheduleAdjustment
         ? { key: "schedule-sos", label: "Schedule/SOS", value: scheduleAdjustment, note: `${details?.schedule?.scheduleTier || "Neutral"} schedule tier adjustment.` }
@@ -454,7 +583,7 @@ function buildRow(
       ? "Projection readiness failed; using existing current-season value fallback."
       : status === "partial"
         ? "No ready player projection attached; using current-season value plus available context."
-        : "Blended from current-season value, stored weekly projection, schedule, bye, role, injury/news, and replacement-level context.",
+        : "Blended from current-season value, stored weekly projection, derived rest-of-season projection, schedule, bye, role, injury/news, and replacement-level context.",
   };
 }
 
@@ -491,7 +620,7 @@ export function buildRedraftValuation(
     generatedAt: options.generatedAt || new Date().toISOString(),
     rows,
     note: projectionReady
-      ? "Redraft valuation blends existing current-season value with stored weekly projection, SOS, bye timing, role trend, injury/news status, and replacement-level context where available."
+      ? "Redraft valuation blends existing current-season value with stored weekly projection, derived rest-of-season projection, SOS, bye timing, role trend, injury/news status, and replacement-level context where available."
       : "Redraft valuation is using existing current-season value fallback because weekly projections are not ready.",
   };
 }

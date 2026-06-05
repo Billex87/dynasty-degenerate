@@ -147,20 +147,29 @@ describe("buildRedraftValuation", () => {
       name: "Schedule Receiver",
       baseValue: 5200,
       projectionValue: 6880,
+      restOfSeasonProjectionPoints: 256,
+      restOfSeasonValue: 6656,
+      restOfSeasonWeeks: 16,
       scheduleAdjustment: 325,
       byeAdjustment: -275,
       roleAdjustment: 440,
-      finalValue: 6328,
-      valueDelta: 1128,
+      finalValue: 6422,
+      valueDelta: 1222,
+      confidenceCapReason: null,
       status: "ready",
     });
     expect(result.rows[0].components.map(component => component.key)).toEqual([
       "base-value",
       "weekly-projection",
+      "rest-of-season-projection",
       "schedule-sos",
       "bye-context",
       "role-trend",
     ]);
+    expect(result.rows[0].confidenceReasons).toEqual(expect.arrayContaining([
+      "Ready weekly projection is blended into the redraft value.",
+      "Derived rest-of-season projection value is available.",
+    ]));
   });
 
   it("adds injury/news and replacement-level context when projection readiness passes", () => {
@@ -192,13 +201,15 @@ describe("buildRedraftValuation", () => {
     expect(row).toMatchObject({
       injuryAdjustment: -325,
       replacementAdjustment: -375,
-      finalValue: 5628,
-      valueDelta: 428,
+      restOfSeasonValue: 6656,
+      finalValue: 5722,
+      valueDelta: 522,
       status: "ready",
     });
     expect(row?.components.map(component => component.key)).toEqual([
       "base-value",
       "weekly-projection",
+      "rest-of-season-projection",
       "schedule-sos",
       "bye-context",
       "role-trend",
@@ -217,6 +228,9 @@ describe("buildRedraftValuation", () => {
     expect(result.rows[0]).toMatchObject({
       baseValue: 5200,
       projectionValue: null,
+      restOfSeasonProjectionPoints: null,
+      restOfSeasonValue: null,
+      restOfSeasonWeeks: null,
       scheduleAdjustment: 0,
       byeAdjustment: 0,
       roleAdjustment: 0,
@@ -224,6 +238,7 @@ describe("buildRedraftValuation", () => {
       replacementAdjustment: 0,
       finalValue: 5200,
       valueDelta: 0,
+      confidenceCapReason: "Weekly projection readiness failed; projection, schedule, role, injury/news, and replacement adjustments are disabled.",
       status: "value-only",
     });
     expect(result.rows[0].components.map(component => component.key)).toEqual(["base-value"]);
