@@ -45,8 +45,10 @@ import { buildPlayerValueTimelineMap, getPlayerValueTimelineForPlayer, loadStore
 import { getRedraftValueTimelineForPlayer } from "./redraftValueTimeline";
 import { buildFantasyProsIdBySleeperId, buildFantasyProsPlayerSourceTrace } from "./fantasyProsPlayerSourceTrace";
 import {
+  buildFantasyProsExternalIdIndex,
   loadFantasyProsSnapshotContext,
   type FantasyProsConsensusSnapshotRow,
+  type FantasyProsExternalIdIndex,
   type FantasyProsSnapshotSummary,
   type FantasyProsSnapshotContext,
 } from "./fantasyProsSnapshotContext";
@@ -4868,6 +4870,7 @@ function getPlayerValueProfile(
   leagueValueMode: LeagueValueMode = 'dynasty',
   fantasyProsTraceOptions: {
     snapshotContext?: FantasyProsSnapshotContext | null;
+    fantasyProsExternalIdIndex?: FantasyProsExternalIdIndex | null;
     fantasyProsIdBySleeperId?: Record<string, string>;
   } = {}
 ): PlayerDetails['valueProfile'] | undefined {
@@ -4940,6 +4943,7 @@ function getPlayerValueProfile(
     fantasyProsSourceTrace: buildFantasyProsPlayerSourceTrace(data, {
       isRedraftProfile,
       snapshotContext: fantasyProsTraceOptions.snapshotContext,
+      fantasyProsExternalIdIndex: fantasyProsTraceOptions.fantasyProsExternalIdIndex,
       fantasyProsIdBySleeperId: fantasyProsTraceOptions.fantasyProsIdBySleeperId,
       sleeperPlayerId: playerId,
       player,
@@ -6642,6 +6646,7 @@ function buildPlayerValueProfileMap(
   leagueValueMode: LeagueValueMode = 'dynasty',
   fantasyProsTraceOptions: {
     snapshotContext?: FantasyProsSnapshotContext | null;
+    fantasyProsExternalIdIndex?: FantasyProsExternalIdIndex | null;
     fantasyProsIdBySleeperId?: Record<string, string>;
   } = {}
 ): Record<string, PlayerDetails['valueProfile']> {
@@ -6659,6 +6664,7 @@ function buildLazyPlayerValueProfileMap(
   leagueValueMode: LeagueValueMode = 'dynasty',
   fantasyProsTraceOptions: {
     snapshotContext?: FantasyProsSnapshotContext | null;
+    fantasyProsExternalIdIndex?: FantasyProsExternalIdIndex | null;
     fantasyProsIdBySleeperId?: Record<string, string>;
   } = {}
 ): Record<string, PlayerDetails['valueProfile']> {
@@ -7483,6 +7489,7 @@ async function buildLiveSleeperActivityPatch(
     }
 
     const safePlayers = players || {};
+    const fantasyProsExternalIdIndex = buildFantasyProsExternalIdIndex(fantasyProsSnapshotContext);
     const fantasyProsIdBySleeperId = buildFantasyProsIdBySleeperId(fantasyProsSnapshotContext);
     const valueProfilesById = buildLazyPlayerValueProfileMap(
       safePlayers,
@@ -7490,6 +7497,7 @@ async function buildLiveSleeperActivityPatch(
       leagueValueMode,
       {
         snapshotContext: fantasyProsSnapshotContext,
+        fantasyProsExternalIdIndex,
         fantasyProsIdBySleeperId,
       }
     );
@@ -9936,6 +9944,7 @@ export const appRouter = router({
             currentWeek: currentScheduleWeek,
             weekWindow: 3,
           });
+          const fantasyProsExternalIdIndex = buildFantasyProsExternalIdIndex(fantasyProsSnapshotContext);
           const fantasyProsIdBySleeperId = buildFantasyProsIdBySleeperId(fantasyProsSnapshotContext);
           const allValueProfilesById = buildPlayerValueProfileMap(
             Object.keys(players),
@@ -9944,6 +9953,7 @@ export const appRouter = router({
             leagueValueMode,
             {
               snapshotContext: fantasyProsSnapshotContext,
+              fantasyProsExternalIdIndex,
               fantasyProsIdBySleeperId,
             }
           );

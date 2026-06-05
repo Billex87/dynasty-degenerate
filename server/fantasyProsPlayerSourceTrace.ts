@@ -1,5 +1,6 @@
 import type { FantasyProsPlayerSourceTrace } from '../shared/types';
 import type {
+  FantasyProsExternalIdIndex,
   FantasyProsConsensusSnapshotRow,
   FantasyProsInjurySnapshotRow,
   FantasyProsNewsSnapshotRow,
@@ -7,6 +8,7 @@ import type {
   FantasyProsProjectionSnapshotRow,
   FantasyProsSnapshotContext,
 } from './fantasyProsSnapshotContext';
+import { buildFantasyProsExternalIdIndex, findFantasyProsIdByExternalId } from './fantasyProsSnapshotContext';
 
 type FantasyProsTraceRow = Record<string, unknown>;
 
@@ -14,6 +16,7 @@ type FantasyProsPlayerSourceTraceOptions = {
   isRedraftProfile?: boolean;
   snapshotContext?: FantasyProsSnapshotContext | null;
   fantasyProsId?: string | null;
+  fantasyProsExternalIdIndex?: FantasyProsExternalIdIndex | null;
   fantasyProsIdBySleeperId?: Record<string, string>;
   sleeperPlayerId?: string | null;
   player?: FantasyProsTraceRow | null;
@@ -143,15 +146,7 @@ export function buildFantasyProsPlayerSourceTrace(
 export function buildFantasyProsIdBySleeperId(
   context: FantasyProsSnapshotContext | null | undefined
 ): Record<string, string> {
-  const index: Record<string, string> = Object.create(null);
-  for (const [fantasyProsId, row] of Object.entries(context?.playersByFantasyProsId || {})) {
-    for (const [key, value] of Object.entries(row.externalIds || {})) {
-      if (!/sleeper/i.test(key)) continue;
-      const sleeperId = firstString(value);
-      if (sleeperId && !index[sleeperId]) index[sleeperId] = fantasyProsId;
-    }
-  }
-  return index;
+  return { ...(buildFantasyProsExternalIdIndex(context).sleeper || {}) };
 }
 
 function appendSnapshotContextTrace(
@@ -218,6 +213,9 @@ function findFantasyProsId(
   );
   if (explicitId) return explicitId;
 
+  const indexedExternalId = findFantasyProsIdFromExternalIds(row, options);
+  if (indexedExternalId) return indexedExternalId;
+
   const sleeperId = firstString(
     options.sleeperPlayerId,
     row.sleeper_id,
@@ -231,6 +229,62 @@ function findFantasyProsId(
   if (!sleeperId) return null;
 
   return options.fantasyProsIdBySleeperId?.[sleeperId] || null;
+}
+
+function findFantasyProsIdFromExternalIds(
+  row: FantasyProsTraceRow,
+  options: FantasyProsPlayerSourceTraceOptions
+): string | null {
+  const index = options.fantasyProsExternalIdIndex;
+  if (!index) return null;
+  const playerMetadata = recordValue(options.player?.metadata);
+  const candidates: Array<[string, unknown[]]> = [
+    ['sleeper', [
+      options.sleeperPlayerId,
+      row.sleeper_id,
+      row.sleeperId,
+      row.sleeper_player_id,
+      row.player_id,
+      options.player?.sleeper_id,
+      options.player?.sleeperId,
+      options.player?.player_id,
+    ]],
+    ['espn', [
+      row.espn_id,
+      row.espnId,
+      options.player?.espn_id,
+      options.player?.espnId,
+      playerMetadata?.espn_id,
+      playerMetadata?.espnId,
+    ]],
+    ['yahoo', [
+      row.yahoo_id,
+      row.yahooId,
+      options.player?.yahoo_id,
+      options.player?.yahooId,
+      playerMetadata?.yahoo_id,
+      playerMetadata?.yahooId,
+    ]],
+    ['mfl', [row.mfl_id, row.mflId, options.player?.mfl_id, options.player?.mflId, playerMetadata?.mfl_id, playerMetadata?.mflId]],
+    ['fleaflicker', [row.fleaflicker_id, row.fleaflickerId, options.player?.fleaflicker_id, options.player?.fleaflickerId, playerMetadata?.fleaflicker_id, playerMetadata?.fleaflickerId]],
+    ['fantrax', [row.fantrax_id, row.fantraxId, options.player?.fantrax_id, options.player?.fantraxId, playerMetadata?.fantrax_id, playerMetadata?.fantraxId]],
+    ['nfl', [row.nfl_id, row.nflId, options.player?.nfl_id, options.player?.nflId, playerMetadata?.nfl_id, playerMetadata?.nflId]],
+    ['cbs', [row.cbs_id, row.cbsId, options.player?.cbs_id, options.player?.cbsId, playerMetadata?.cbs_id, playerMetadata?.cbsId]],
+    ['draftkings', [row.draftkings_id, row.draftkingsId, options.player?.draftkings_id, options.player?.draftkingsId, playerMetadata?.draftkings_id, playerMetadata?.draftkingsId]],
+  ];
+
+  for (const [source, values] of candidates) {
+    for (const value of values) {
+      const fantasyProsId = findFantasyProsIdByExternalId(index, source, value);
+      if (fantasyProsId) return fantasyProsId;
+    }
+  }
+
+  return null;
+}
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
 
 function projectionTrace(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildFantasyProsSnapshotContext } from './fantasyProsSnapshotContext';
+import { buildFantasyProsExternalIdIndex, buildFantasyProsSnapshotContext, findFantasyProsIdByExternalId } from './fantasyProsSnapshotContext';
 import type { FantasyProsEndpointSnapshotPayload } from './fantasyProsEndpointSnapshots';
 
 function snapshot(
@@ -358,5 +358,10 @@ describe('FantasyPros snapshot context', () => {
         yahoo_id: '33393',
       },
     });
+    const externalIdIndex = buildFantasyProsExternalIdIndex(context);
+    expect({ ...externalIdIndex.espn }).toEqual({ '4362628': '19788' });
+    expect({ ...externalIdIndex.yahoo }).toEqual({ '33393': '19788' });
+    expect(findFantasyProsIdByExternalId(externalIdIndex, 'espn_id', 4362628)).toBe('19788');
+    expect(findFantasyProsIdByExternalId(externalIdIndex, 'yahoo', '33393')).toBe('19788');
   });
 });

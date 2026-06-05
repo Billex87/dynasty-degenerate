@@ -131,6 +131,8 @@ export interface FantasyProsSnapshotContext {
   weeklyEcrByPositionWeek: Record<string, Record<string, Record<string, FantasyProsConsensusSnapshotRow>>>;
 }
 
+export type FantasyProsExternalIdIndex = Record<string, Record<string, string>>;
+
 const SNAPSHOT_ENDPOINT_KEYS = [
   'fantasypros-draft',
   'fantasypros-ros',
@@ -180,6 +182,43 @@ function getSnapshotEndpointKeys(input: {
 function stringField(value: unknown): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+export function buildFantasyProsExternalIdIndex(
+  context: Pick<FantasyProsSnapshotContext, 'playersByFantasyProsId'> | null | undefined
+): FantasyProsExternalIdIndex {
+  const index: FantasyProsExternalIdIndex = Object.create(null);
+  for (const [fantasyProsId, row] of Object.entries(context?.playersByFantasyProsId || {})) {
+    for (const [rawSource, rawValue] of Object.entries(row.externalIds || {})) {
+      const source = normalizeExternalIdSource(rawSource);
+      const value = stringField(rawValue);
+      if (!source || !value) continue;
+      index[source] ||= Object.create(null);
+      if (!index[source][value]) index[source][value] = fantasyProsId;
+    }
+  }
+  return index;
+}
+
+export function findFantasyProsIdByExternalId(
+  index: FantasyProsExternalIdIndex | null | undefined,
+  source: string,
+  id: unknown
+): string | null {
+  const normalizedSource = normalizeExternalIdSource(source);
+  const normalizedId = stringField(id);
+  if (!normalizedSource || !normalizedId) return null;
+  return index?.[normalizedSource]?.[normalizedId] || null;
+}
+
+function normalizeExternalIdSource(source: string): string | null {
+  const normalized = source
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_id$/, '');
+  return normalized || null;
 }
 
 function numberField(value: unknown): number | null {

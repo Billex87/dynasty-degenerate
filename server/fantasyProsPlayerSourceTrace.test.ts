@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildFantasyProsIdBySleeperId, buildFantasyProsPlayerSourceTrace } from './fantasyProsPlayerSourceTrace';
+import { buildFantasyProsExternalIdIndex } from './fantasyProsSnapshotContext';
 
 describe('buildFantasyProsPlayerSourceTrace', () => {
   it('emits dynasty and season traces from stored FantasyPros value fields', () => {
@@ -218,7 +219,7 @@ describe('buildFantasyProsPlayerSourceTrace', () => {
           age: null,
           birthdate: null,
           sourceUrl: null,
-          externalIds: { sleeper_id: 'sleeper-9' },
+          externalIds: { sleeper_id: 'sleeper-9', espn_id: 'espn-9' },
         },
       },
       projectionsByFantasyProsId: {
@@ -235,18 +236,20 @@ describe('buildFantasyProsPlayerSourceTrace', () => {
         },
       },
     });
+    const fantasyProsExternalIdIndex = buildFantasyProsExternalIdIndex(snapshotContext);
     const fantasyProsIdBySleeperId = buildFantasyProsIdBySleeperId(snapshotContext);
 
     const trace = buildFantasyProsPlayerSourceTrace(
-      { value_sources: [] },
+      { espn_id: 'espn-9', value_sources: [] },
       {
         snapshotContext,
-        sleeperPlayerId: 'sleeper-9',
+        fantasyProsExternalIdIndex,
         fantasyProsIdBySleeperId,
       }
     );
 
     expect({ ...fantasyProsIdBySleeperId }).toEqual({ 'sleeper-9': 'fp9' });
+    expect({ ...fantasyProsExternalIdIndex.espn }).toEqual({ 'espn-9': 'fp9' });
     expect(trace).toHaveLength(1);
     expect(trace[0]).toMatchObject({
       key: 'PROJECTIONS',
