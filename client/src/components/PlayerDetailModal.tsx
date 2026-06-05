@@ -25,6 +25,9 @@ import {
   getCollegeInitials,
   getCollegeLogoUrl,
   getCollegeTileStyle,
+  getNflTeamColorsWithFallback,
+  getNflTeamGradientStops,
+  getNflTeamHeaderGradient,
   getNflTeamLogoUrl,
   normalizeNflTeamAbbr,
 } from '@/lib/teamTileStyle';
@@ -41,41 +44,6 @@ import { TeamLogoPill } from './TeamLogoPill';
 import { AIReadPanel, type AIReadChip } from './AIReadPanel';
 import { PremiumFxLayer } from './PremiumFxLayer';
 import { WeeklyProjectionReceipt } from './WeeklyProjectionReceipt';
-
-const NFL_TEAM_COLORS: Record<string, { primary: string; secondary: string; accent: string }> = {
-  ARI: { primary: '#97233F', secondary: '#000000', accent: '#FFB612' },
-  ATL: { primary: '#A71930', secondary: '#000000', accent: '#A5ACAF' },
-  BAL: { primary: '#241773', secondary: '#000000', accent: '#9E7C0C' },
-  BUF: { primary: '#00338D', secondary: '#C60C30', accent: '#FFFFFF' },
-  CAR: { primary: '#0085CA', secondary: '#101820', accent: '#BFC0BF' },
-  CHI: { primary: '#0B162A', secondary: '#C83803', accent: '#FFFFFF' },
-  CIN: { primary: '#FB4F14', secondary: '#000000', accent: '#FFFFFF' },
-  CLE: { primary: '#311D00', secondary: '#FF3C00', accent: '#FFFFFF' },
-  DAL: { primary: '#003594', secondary: '#041E42', accent: '#869397' },
-  DEN: { primary: '#FB4F14', secondary: '#002244', accent: '#FFFFFF' },
-  DET: { primary: '#0076B6', secondary: '#B0B7BC', accent: '#7fd8ff' },
-  GB: { primary: '#203731', secondary: '#FFB612', accent: '#FFFFFF' },
-  HOU: { primary: '#03202F', secondary: '#A71930', accent: '#FFFFFF' },
-  IND: { primary: '#002C5F', secondary: '#A2AAAD', accent: '#FFFFFF' },
-  JAX: { primary: '#006778', secondary: '#101820', accent: '#D7A22A' },
-  KC: { primary: '#E31837', secondary: '#FFB81C', accent: '#FFFFFF' },
-  LAC: { primary: '#0080C6', secondary: '#FFC20E', accent: '#FFFFFF' },
-  LAR: { primary: '#003594', secondary: '#FFA300', accent: '#FFFFFF' },
-  LV: { primary: '#000000', secondary: '#A5ACAF', accent: '#FFFFFF' },
-  MIA: { primary: '#008E97', secondary: '#FC4C02', accent: '#005778' },
-  MIN: { primary: '#4F2683', secondary: '#FFC62F', accent: '#FFFFFF' },
-  NE: { primary: '#002244', secondary: '#C60C30', accent: '#B0B7BC' },
-  NO: { primary: '#101820', secondary: '#D3BC8D', accent: '#FFFFFF' },
-  NYG: { primary: '#0B2265', secondary: '#A71930', accent: '#A5ACAF' },
-  NYJ: { primary: '#125740', secondary: '#000000', accent: '#FFFFFF' },
-  PHI: { primary: '#004C54', secondary: '#A5ACAF', accent: '#FFFFFF' },
-  PIT: { primary: '#FFB612', secondary: '#101820', accent: '#C60C30' },
-  SEA: { primary: '#002244', secondary: '#69BE28', accent: '#A5ACAF' },
-  SF: { primary: '#AA0000', secondary: '#B3995D', accent: '#FFFFFF' },
-  TB: { primary: '#D50A0A', secondary: '#34302B', accent: '#FF7900' },
-  TEN: { primary: '#0C2340', secondary: '#4B92DB', accent: '#C8102E' },
-  WAS: { primary: '#5A1414', secondary: '#FFB612', accent: '#FFFFFF' },
-};
 
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 const ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY = 'dynasty-degenerates:admin-passphrase-verified-session:v1';
@@ -404,19 +372,23 @@ export function PlayerDetailModal({
   const position = pick.playerPos || details?.position || '-';
   const team = isCollegeProspect ? null : details?.team || 'FA';
   const jerseyNumber = details?.jerseyNumber;
-  const teamColors = team ? NFL_TEAM_COLORS[team] || null : null;
+  const teamColors = isCollegeProspect ? null : getNflTeamColorsWithFallback(team);
+  const teamGradientStops = isCollegeProspect ? [] : getNflTeamGradientStops(team);
+  const teamPrimary = teamGradientStops[0] || teamColors?.primary;
+  const teamSecondary = teamGradientStops[1] || teamColors?.secondary || teamPrimary;
+  const teamHeaderGradient = isCollegeProspect ? undefined : getNflTeamHeaderGradient(team);
   const collegeTileStyle = isCollegeProspect ? getCollegeTileStyle(prospectCollege) : undefined;
   const tileAccent = isCollegeProspect ? '#fbbf24' : getReadableTeamAccent(teamColors);
   const sourcePositionRank = pick.sourcePositionRank || (currentRank !== '-' ? currentRank : null);
   const modalBackground = isCollegeProspect
     ? `radial-gradient(circle at 15% 6%, color-mix(in srgb, var(--team-primary, #7c2d12) 38%, transparent), transparent 28%), radial-gradient(circle at 95% 0%, color-mix(in srgb, var(--team-secondary, #0f172a) 46%, transparent), transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, #070b13 100%)`
-    : teamColors
-    ? `radial-gradient(circle at 15% 6%, ${teamColors.primary}38, transparent 28%), radial-gradient(circle at 95% 0%, ${teamColors.secondary}52, transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, #070b13 100%)`
+    : teamPrimary && teamSecondary
+    ? `radial-gradient(circle at 15% 6%, ${teamPrimary}38, transparent 28%), radial-gradient(circle at 95% 0%, ${teamSecondary}52, transparent 34%), linear-gradient(180deg, #070b13 0%, #101827 44%, #070b13 100%)`
     : undefined;
   const heroBackground = isCollegeProspect
     ? `radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--team-primary, #7c2d12) 62%, transparent), transparent 34%), radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--team-secondary, #0f172a) 76%, transparent), transparent 30%), linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #7c2d12) 72%, #070b13) 0%, #070b13 48%, color-mix(in srgb, var(--team-secondary, #0f172a) 74%, #070b13) 100%)`
-    : teamColors
-    ? `radial-gradient(circle at 18% 18%, ${teamColors.primary}88, transparent 34%), radial-gradient(circle at 88% 8%, ${teamColors.secondary}99, transparent 30%), linear-gradient(135deg, ${teamColors.primary} 0%, #070b13 48%, ${teamColors.secondary} 100%)`
+    : teamPrimary && teamSecondary && teamHeaderGradient
+    ? `radial-gradient(circle at 18% 18%, ${teamPrimary}88, transparent 34%), radial-gradient(circle at 88% 8%, ${teamSecondary}99, transparent 30%), ${teamHeaderGradient}`
     : undefined;
   const managerAvatarUrl = pick.managerAvatarUrl || (pick.manager ? managerAvatars?.[pick.manager] : null);
   const managerDisplayName = pick.managerDisplayName || pick.manager || '';
