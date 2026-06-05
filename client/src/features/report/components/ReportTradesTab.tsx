@@ -9,6 +9,8 @@ import {
 import {
   ArrowRightLeft,
   Cable,
+  Check,
+  Copy,
   ExternalLink,
   Loader2,
   ShieldCheck,
@@ -141,6 +143,7 @@ const TRANSACTION_SYNC_CHROME_WEB_STORE_URL =
   "https://chromewebstore.google.com/detail/dynasty-degens-transactio/hfbmbbcndhdoldlofakfbengicobmgpp";
 const CURRENT_PENDING_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const SLEEPER_HELPER_IMPORT_TIMEOUT_MS = 60 * 1000;
+const COPY_REPORT_LINK_FEEDBACK_MS = 2400;
 
 function isLikelyMobileBrowser(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -1559,6 +1562,8 @@ export function ReportTradesTab({
   const [helperDetected, setHelperDetected] = useState(false);
   const [helperStatus, setHelperStatus] = useState<string | null>(null);
   const [helperError, setHelperError] = useState<string | null>(null);
+  const [copyReportLinkStatus, setCopyReportLinkStatus] =
+    useState<"idle" | "copied" | "error">("idle");
   const [isHelperCaptureRunning, setIsHelperCaptureRunning] = useState(false);
   const [isHelperSuccessCollapsed, setIsHelperSuccessCollapsed] = useState(false);
   const [tradeWarRoomOpenSignal, setTradeWarRoomOpenSignal] = useState(0);
@@ -1619,6 +1624,31 @@ export function ReportTradesTab({
       .length ?? 0;
   const isHelperImporting =
     isHelperCaptureRunning || isImportingSleeperTradeCenterSnapshot;
+
+  const copyReportLinkForDesktop = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    const reportUrl = window.location.href;
+
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Clipboard API unavailable");
+      }
+
+      await navigator.clipboard.writeText(reportUrl);
+      setCopyReportLinkStatus("copied");
+      window.setTimeout(
+        () => setCopyReportLinkStatus("idle"),
+        COPY_REPORT_LINK_FEEDBACK_MS
+      );
+    } catch {
+      setCopyReportLinkStatus("error");
+      window.setTimeout(
+        () => setCopyReportLinkStatus("idle"),
+        COPY_REPORT_LINK_FEEDBACK_MS
+      );
+    }
+  }, []);
 
   const clearHelperImportTimeout = useCallback(() => {
     if (helperImportTimeoutRef.current === null) return;
@@ -1917,7 +1947,7 @@ export function ReportTradesTab({
                       : helperSnapshot
                       ? `Captured ${helperTransactionCount} pending item${helperTransactionCount === 1 ? "" : "s"}`
                       : isMobileBrowser
-                        ? "Desktop Chrome required"
+                        ? "Send this report to desktop"
                       : helperDetected
                         ? "Transaction Sync detected"
                         : "Waiting for Transaction Sync"}
@@ -1928,12 +1958,41 @@ export function ReportTradesTab({
                       : helperSnapshot
                       ? `${helperTradeCount} trades, ${helperWaiverCount} waiver claims captured ${new Date(helperSnapshot.capturedAt).toLocaleString()}.`
                       : isMobileBrowser
-                        ? "Chrome extensions do not run on iPhone, iPad, Android Chrome, or the Sleeper mobile app. Use desktop Chrome for pending transaction import."
+                        ? "Transaction Sync requires desktop Chrome. Copy this report link, open it on desktop Chrome, install the extension, then import pending Sleeper trades and waivers there."
                       : helperDetected
                         ? "Ready. The helper will open Sleeper, refresh the right pages, and import the latest pending snapshot."
                         : "Install Transaction Sync from the Chrome Web Store, then refresh this Dynasty Degens tab."}
                   </p>
-                  {!helperDetected || isMobileBrowser ? (
+                  {isMobileBrowser ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={copyReportLinkForDesktop}
+                        className="h-9 rounded-full border-cyan-300/30 bg-cyan-300/10 px-3 text-xs font-black text-cyan-100 hover:border-cyan-200/60 hover:bg-cyan-300/20"
+                      >
+                        {copyReportLinkStatus === "copied" ? (
+                          <Check className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+                        ) : (
+                          <Copy className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+                        )}
+                        {copyReportLinkStatus === "copied"
+                          ? "Report link copied"
+                          : copyReportLinkStatus === "error"
+                            ? "Copy failed"
+                          : "Copy report link"}
+                      </Button>
+                      <a
+                        href={TRANSACTION_SYNC_CHROME_WEB_STORE_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black text-slate-200 transition hover:border-white/20 hover:bg-white/10"
+                      >
+                        Desktop extension
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                      </a>
+                    </div>
+                  ) : !helperDetected ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                       <a
                         href={TRANSACTION_SYNC_CHROME_WEB_STORE_URL}
@@ -1962,29 +2021,29 @@ export function ReportTradesTab({
                     </div>
                   ) : null}
                 </div>
-                <Button
-                  type="button"
-                  onClick={importHelperSnapshot}
-                  disabled={isHelperImporting}
-                  className={`h-10 text-slate-950 disabled:opacity-80 ${
-                    isHelperImporting
-                      ? "bg-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.22)] hover:bg-cyan-300"
-                      : "bg-emerald-300 hover:bg-emerald-200"
-                  }`}
-                >
-                  {isHelperImporting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                  ) : !helperDetected ? (
-                    <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
-                  ) : (
-                    <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
-                  )}
-                  {isMobileBrowser
-                    ? "Desktop Chrome Required"
-                    : !helperDetected
-                    ? "Install Transaction Sync"
-                    : "Import Pending Transactions"}
-                </Button>
+                {!isMobileBrowser ? (
+                  <Button
+                    type="button"
+                    onClick={importHelperSnapshot}
+                    disabled={isHelperImporting}
+                    className={`h-10 text-slate-950 disabled:opacity-80 ${
+                      isHelperImporting
+                        ? "bg-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.22)] hover:bg-cyan-300"
+                        : "bg-emerald-300 hover:bg-emerald-200"
+                    }`}
+                  >
+                    {isHelperImporting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : !helperDetected ? (
+                      <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
+                    )}
+                    {!helperDetected
+                      ? "Install Transaction Sync"
+                      : "Import Pending Transactions"}
+                  </Button>
+                ) : null}
               </div>
               {helperStatus ? (
                 <p className={`mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ${
