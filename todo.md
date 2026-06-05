@@ -841,6 +841,8 @@
   - [ ] Wire manager waiver order/standings calibration into report payloads and priority-burn language after the current server/shared/waiver integration files are available, then tune against league activity and manager history.
 - [ ] Add league/cohort calibration fallback: learn manager behavior inside the exact league first, then use similar-league cohorts only when local samples are thin, bucketed by FAAB versus waiver priority, redraft/dynasty, team count, scoring, lineup format, and activity level.
   - [x] Add first-pass calibration fallback priority: exact manager, exact league, manager archetype, league sharpness cohort, format/waiver/QB/team-count cohort, then generic baseline.
+  - [x] Add standalone backend fallback selector that chooses the first sample-sufficient calibration scope in exact-manager, exact-league, manager-archetype, league-sharpness, format/waiver/QB/team-count/scoring/lineup/activity cohort, then generic-baseline order.
+  - [ ] Wire the fallback selector into the live recommendation calibration path after the currently dirty shared/server integration files are available.
 - [ ] After 2026 weekly games begin, review the admin Module Accuracy rows weekly and tune confidence caps only when each module has enough resolved samples.
 - [ ] After 2026 waivers begin processing, capture skipped claims, losing bids where available, waiver-priority results, and follow-up production so waiver bid-range calibration can move past sample-size caps.
 - [ ] After 2026 trades start, classify accepted, rejected, countered, expired, blocked, and regretted trade recommendations from Sleeper statuses where available, then fall back to admin/user labeling only for outcomes Sleeper does not expose.
