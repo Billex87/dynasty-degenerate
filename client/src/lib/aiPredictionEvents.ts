@@ -180,6 +180,38 @@ function getReportValueProfileKey(reportData: ReportData): string {
   return firstTimeline || "12_sf_ppr_base";
 }
 
+function getLeagueLineupFormat(reportData: ReportData): string | null {
+  const starterSlots = reportData.leagueDiagnostics?.starterSlots || [];
+  if (!starterSlots.length) return null;
+  return starterSlots
+    .map(slot => cleanText(slot)?.toLowerCase())
+    .filter((slot): slot is string => Boolean(slot))
+    .join("-");
+}
+
+function getLeagueActivityLevel(reportData: ReportData): "active" | "normal" | "quiet" | "unknown" {
+  const recentTransactions = reportData.recentTransactions?.length || 0;
+  const waiverRows = (reportData.waiverIntelligence?.availableTrendingAdds?.length || 0)
+    + (reportData.waiverIntelligence?.weeklyEcrTargets?.length || 0);
+  const confidenceScore = Number(reportData.leagueDiagnostics?.aiConfidence?.score);
+  if (recentTransactions >= 18 || waiverRows >= 16 || confidenceScore >= 72) return "active";
+  if (recentTransactions >= 4 || waiverRows >= 6 || confidenceScore >= 52) return "normal";
+  if (recentTransactions > 0 || waiverRows > 0 || Number.isFinite(confidenceScore)) return "quiet";
+  return "unknown";
+}
+
+function getLeagueCalibrationMetadata(reportData: ReportData, valueMode: string): Record<string, unknown> {
+  return {
+    leagueFormat: valueMode,
+    waiverMode: reportData.leagueDiagnostics?.waiverMode || "unknown",
+    qbFormat: reportData.leagueDiagnostics?.qbFormat || "unknown",
+    teamCount: reportData.leagueDiagnostics?.teamCount ?? null,
+    scoring: cleanText(reportData.leagueDiagnostics?.scoringSummary),
+    lineupFormat: getLeagueLineupFormat(reportData),
+    activityLevel: getLeagueActivityLevel(reportData),
+  };
+}
+
 function labelFromScore(score: number): AIConfidenceLabel {
   if (score >= 84) return "high conviction";
   if (score >= 72) return "priority";
@@ -1419,6 +1451,7 @@ export function buildAIPredictionEventsForReport(input: BuildAIPredictionEventsF
   const createdAt = getReportCreatedAt(reportData, input.createdAt);
   const reportRunKey = getReportRunKey(reportData, input.leagueId);
   const valueProfileKey = getReportValueProfileKey(reportData);
+  const leagueCalibrationMetadata = getLeagueCalibrationMetadata(reportData, valueMode);
   const season = reportData.leagueDiagnostics?.currentSeason || null;
   const week = reportData.leagueDiagnostics?.currentWeek || null;
   const manager = input.manager || reportData.viewerManager || null;
@@ -1573,6 +1606,7 @@ export function buildAIPredictionEventsForReport(input: BuildAIPredictionEventsF
       ...event,
       metadata: {
         valueMode,
+        ...leagueCalibrationMetadata,
         valueProfileKey,
         ...event.metadata,
       },

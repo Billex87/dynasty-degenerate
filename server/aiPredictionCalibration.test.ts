@@ -867,4 +867,84 @@ describe('AI prediction calibration', () => {
     expect(adjusted.finalScore).toBeLessThan(90);
     expect(adjusted.confidenceCap).toBeLessThanOrEqual(76);
   });
+
+  it('applies exact manager calibration before broader league and cohort buckets', () => {
+    const profile = buildAICalibrationAdjustmentProfile([
+      event({ entityId: 'manager-miss-1', manager: 'Manager A', leagueId: 'league-a', finalScore: 90, outcome: { status: 'miss' } }),
+      event({ entityId: 'manager-miss-2', manager: 'Manager A', leagueId: 'league-a', finalScore: 88, outcome: { status: 'miss' } }),
+      event({ entityId: 'manager-miss-3', manager: 'Manager A', leagueId: 'league-a', finalScore: 86, outcome: { status: 'miss' } }),
+      event({ entityId: 'manager-miss-4', manager: 'Manager A', leagueId: 'league-a', finalScore: 84, outcome: { status: 'miss' } }),
+      event({ entityId: 'manager-hit-1', manager: 'Manager A', leagueId: 'league-a', finalScore: 82, outcome: { status: 'hit' } }),
+      event({ entityId: 'league-hit-1', manager: 'Manager B', leagueId: 'league-a', finalScore: 70, outcome: { status: 'hit' } }),
+      event({ entityId: 'league-hit-2', manager: 'Manager C', leagueId: 'league-a', finalScore: 70, outcome: { status: 'hit' } }),
+      event({ entityId: 'league-hit-3', manager: 'Manager D', leagueId: 'league-a', finalScore: 70, outcome: { status: 'hit' } }),
+    ], { limit: 80 });
+
+    const adjusted = applyAICalibrationAdjustment({
+      profile,
+      surface: 'waiver',
+      action: 'pickup',
+      label: 'high conviction',
+      sourceAgreementState: 'aligned',
+      leagueId: 'league-a',
+      manager: 'Manager A',
+      finalScore: 90,
+      confidenceCap: 100,
+    });
+
+    expect(adjusted.appliedAdjustment?.group).toMatchObject({
+      surface: 'waiver',
+      manager: 'Manager A',
+    });
+    expect(adjusted.finalScore).toBeLessThan(90);
+  });
+
+  it('falls back to similar-league format and waiver cohorts when exact samples are unavailable', () => {
+    const cohortMetadata = {
+      leagueFormat: 'redraft',
+      waiverMode: 'priority',
+      qbFormat: 'sf',
+      teamCount: 12,
+      scoring: 'Half PPR',
+      lineupFormat: '2RB 3WR Flex Superflex',
+      activityLevel: 'active',
+    };
+    const profile = buildAICalibrationAdjustmentProfile([
+      event({ entityId: 'cohort-miss-1', manager: 'Other A', leagueId: 'league-x', finalScore: 90, outcome: { status: 'miss' }, metadata: cohortMetadata }),
+      event({ entityId: 'cohort-miss-2', manager: 'Other B', leagueId: 'league-y', finalScore: 88, outcome: { status: 'miss' }, metadata: cohortMetadata }),
+      event({ entityId: 'cohort-miss-3', manager: 'Other C', leagueId: 'league-z', finalScore: 86, outcome: { status: 'miss' }, metadata: cohortMetadata }),
+      event({ entityId: 'cohort-miss-4', manager: 'Other D', leagueId: 'league-q', finalScore: 84, outcome: { status: 'miss' }, metadata: cohortMetadata }),
+      event({ entityId: 'cohort-hit-1', manager: 'Other E', leagueId: 'league-r', finalScore: 82, outcome: { status: 'hit' }, metadata: cohortMetadata }),
+    ], { limit: 80 });
+
+    const adjusted = applyAICalibrationAdjustment({
+      profile,
+      surface: 'waiver',
+      action: 'pickup',
+      label: 'priority',
+      sourceAgreementState: 'aligned',
+      leagueFormat: 'redraft',
+      waiverMode: 'priority',
+      qbFormat: 'superflex',
+      teamCount: 12,
+      scoring: 'half ppr',
+      lineupFormat: '2rb-3wr-flex-superflex',
+      activityLevel: 'active',
+      finalScore: 86,
+      confidenceCap: 100,
+    });
+
+    expect(adjusted.appliedAdjustment?.group).toMatchObject({
+      surface: 'waiver',
+      action: 'pickup',
+      leagueFormat: 'redraft',
+      waiverMode: 'priority',
+      qbFormat: 'superflex',
+      teamCountBucket: 'teams:standard',
+      scoring: 'half-ppr',
+      lineupFormat: '2rb-3wr-flex-superflex',
+      activityLevel: 'active',
+    });
+    expect(adjusted.confidenceCap).toBeLessThanOrEqual(76);
+  });
 });

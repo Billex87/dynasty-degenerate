@@ -2345,7 +2345,9 @@ export type ReportAICalibrationAdjustmentScope =
   | 'leagueSharpness'
   | 'surfaceActionLeagueSharpness'
   | 'managerArchetype'
-  | 'surfaceActionManagerArchetype';
+  | 'surfaceActionManagerArchetype'
+  | 'formatWaiverCohort'
+  | 'surfaceActionFormatWaiverCohort';
 
 export interface ReportAICalibrationAdjustment {
   key: string;

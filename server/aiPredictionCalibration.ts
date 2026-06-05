@@ -120,6 +120,12 @@ export type AIPredictionReliabilityGroupBy =
   | 'manager'
   | 'managerArchetype'
   | 'leagueFormat'
+  | 'waiverMode'
+  | 'qbFormat'
+  | 'teamCountBucket'
+  | 'scoring'
+  | 'lineupFormat'
+  | 'activityLevel'
   | 'counterfactual'
   | 'realizedEdge';
 
@@ -248,7 +254,9 @@ export type AICalibrationAdjustmentScope =
   | 'leagueSharpness'
   | 'surfaceActionLeagueSharpness'
   | 'managerArchetype'
-  | 'surfaceActionManagerArchetype';
+  | 'surfaceActionManagerArchetype'
+  | 'formatWaiverCohort'
+  | 'surfaceActionFormatWaiverCohort';
 
 export type AICalibrationAdjustment = {
   key: string;
@@ -338,8 +346,16 @@ export type ApplyAICalibrationAdjustmentInput = {
   label: AIConfidenceLabel;
   sourceAgreementState?: AISourceAgreementState | null;
   leagueId?: string | null;
+  manager?: string | null;
   leagueSharpnessTier?: string | null;
   managerArchetype?: string | null;
+  leagueFormat?: string | null;
+  waiverMode?: string | null;
+  qbFormat?: string | null;
+  teamCount?: number | null;
+  scoring?: string | null;
+  lineupFormat?: string | null;
+  activityLevel?: string | null;
   finalScore: number;
   confidenceCap?: number | null;
 };
@@ -359,6 +375,26 @@ function cleanText(value: unknown): string | null {
 function numeric(value: unknown): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizedBucketValue(value: unknown, fallback = 'unknown'): string {
+  const normalized = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '-');
+  return normalized || fallback;
+}
+
+function normalizeQbFormat(value: unknown): string {
+  const normalized = normalizedBucketValue(value);
+  if (normalized === 'sf' || normalized === 'super_flex' || normalized === 'super-flex') return 'superflex';
+  if (normalized === '1qb' || normalized === 'one-qb') return 'one_qb';
+  return normalized;
+}
+
+function getTeamCountBucket(teamCount: unknown): string {
+  const parsed = numeric(teamCount);
+  if (!parsed || parsed <= 0) return 'teams:unknown';
+  if (parsed <= 10) return 'teams:small';
+  if (parsed <= 12) return 'teams:standard';
+  return 'teams:deep';
 }
 
 function clampPercent(value: unknown): number {
@@ -681,7 +717,13 @@ function eventGroupValue(event: AIPredictionEvent, groupBy: AIPredictionReliabil
   if (groupBy === 'league') return event.leagueId || 'global';
   if (groupBy === 'manager') return event.manager || 'unknown';
   if (groupBy === 'managerArchetype') return cleanText(event.metadata?.managerArchetype) || cleanText(event.metadata?.managerPersonalityArchetype) || 'unknown';
-  if (groupBy === 'leagueFormat') return event.decisionSnapshot?.valueMode || String(event.metadata?.valueMode || 'unknown');
+  if (groupBy === 'leagueFormat') return normalizedBucketValue(event.metadata?.leagueFormat || event.decisionSnapshot?.valueMode || event.metadata?.valueMode);
+  if (groupBy === 'waiverMode') return normalizedBucketValue(event.metadata?.waiverMode);
+  if (groupBy === 'qbFormat') return normalizeQbFormat(event.metadata?.qbFormat);
+  if (groupBy === 'teamCountBucket') return getTeamCountBucket(event.metadata?.teamCount);
+  if (groupBy === 'scoring') return normalizedBucketValue(event.metadata?.scoring);
+  if (groupBy === 'lineupFormat') return normalizedBucketValue(event.metadata?.lineupFormat);
+  if (groupBy === 'activityLevel') return normalizedBucketValue(event.metadata?.activityLevel);
   if (groupBy === 'counterfactual') return event.counterfactual?.status || 'missing-baseline';
   if (groupBy === 'realizedEdge') return event.outcome.realizedEdge?.status || 'unresolved';
   return String(event[groupBy] || 'unknown');
@@ -1124,6 +1166,8 @@ function adjustmentScopeForGroupBy(groupBy: AIPredictionReliabilityGroupBy[]): A
   if (key === 'surface|action|leagueSharpness') return 'surfaceActionLeagueSharpness';
   if (key === 'managerArchetype') return 'managerArchetype';
   if (key === 'surface|action|managerArchetype') return 'surfaceActionManagerArchetype';
+  if (key === 'leagueFormat|waiverMode|qbFormat|teamCountBucket|scoring|lineupFormat|activityLevel') return 'formatWaiverCohort';
+  if (key === 'surface|action|leagueFormat|waiverMode|qbFormat|teamCountBucket|scoring|lineupFormat|activityLevel') return 'surfaceActionFormatWaiverCohort';
   return 'global';
 }
 
@@ -1228,6 +1272,8 @@ export function buildAICalibrationAdjustmentProfile(
     ['surface', 'action', 'leagueSharpness'],
     ['managerArchetype'],
     ['surface', 'action', 'managerArchetype'],
+    ['leagueFormat', 'waiverMode', 'qbFormat', 'teamCountBucket', 'scoring', 'lineupFormat', 'activityLevel'],
+    ['surface', 'action', 'leagueFormat', 'waiverMode', 'qbFormat', 'teamCountBucket', 'scoring', 'lineupFormat', 'activityLevel'],
   ];
 
   const adjustmentsByKey = new Map<string, AICalibrationAdjustment>();
@@ -1379,8 +1425,16 @@ function getAdjustmentGroupValue(input: ApplyAICalibrationAdjustmentInput, key: 
   if (key === 'label') return input.label;
   if (key === 'sourceAgreement') return input.sourceAgreementState || 'unknown';
   if (key === 'league') return input.leagueId || 'global';
+  if (key === 'manager') return input.manager || 'unknown';
   if (key === 'leagueSharpness') return input.leagueSharpnessTier || 'unknown';
   if (key === 'managerArchetype') return input.managerArchetype || 'unknown';
+  if (key === 'leagueFormat') return normalizedBucketValue(input.leagueFormat);
+  if (key === 'waiverMode') return normalizedBucketValue(input.waiverMode);
+  if (key === 'qbFormat') return normalizeQbFormat(input.qbFormat);
+  if (key === 'teamCountBucket') return getTeamCountBucket(input.teamCount);
+  if (key === 'scoring') return normalizedBucketValue(input.scoring);
+  if (key === 'lineupFormat') return normalizedBucketValue(input.lineupFormat);
+  if (key === 'activityLevel') return normalizedBucketValue(input.activityLevel);
   return 'unknown';
 }
 
@@ -1397,7 +1451,15 @@ function adjustmentFallbackPriority(adjustment: AICalibrationAdjustment): number
   if (adjustment.group.league) return 500;
   if (adjustment.group.managerArchetype) return 400;
   if (adjustment.group.leagueSharpness) return 300;
-  if (adjustment.group.leagueFormat) return 220;
+  if (
+    adjustment.group.leagueFormat ||
+    adjustment.group.waiverMode ||
+    adjustment.group.qbFormat ||
+    adjustment.group.teamCountBucket ||
+    adjustment.group.scoring ||
+    adjustment.group.lineupFormat ||
+    adjustment.group.activityLevel
+  ) return 220;
   if (adjustment.scope === 'global') return 0;
   return 100;
 }
