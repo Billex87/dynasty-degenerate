@@ -41,9 +41,9 @@ describe('schedule source decision', () => {
       easyWeeks: [1, 2, 3],
       hardWeeks: [],
     });
-    expect(decision.sourceTrace.join(' ')).toContain('DraftSharks SOS');
-    expect(decision.sourceTrace.join(' ')).toContain('DraftSharks-only SOS decision policy');
-    expect(decision.whyThisFired).toContain('DraftSharks SOS average');
+    expect(decision.sourceTrace.join(' ')).toContain('Stored schedule/SOS');
+    expect(decision.sourceTrace.join(' ')).toContain('Stored schedule/SOS decision policy');
+    expect(decision.whyThisFired).toContain('Schedule/SOS average');
   });
 
   it('returns avoid when DraftSharks percentages are rough', () => {
@@ -65,7 +65,7 @@ describe('schedule source decision', () => {
     expect(decision.finalScore).toBe(-15);
     expect(decision.confidence).toBe(82);
     expect(decision.confidenceCapReason).toBeNull();
-    expect(decision.whyThisFired).toContain('DraftSharks SOS average is -15%');
+    expect(decision.whyThisFired).toContain('Schedule/SOS average is -15%');
   });
 
   it('does not fall back when DraftSharks percentage rows are missing', () => {
@@ -80,7 +80,7 @@ describe('schedule source decision', () => {
     expect(decision.agreement).toBe('missing');
     expect(decision.finalScore).toBeNull();
     expect(decision.confidence).toBe(0);
-    expect(decision.confidenceCapReason).toBe('DraftSharks SOS missing');
+    expect(decision.confidenceCapReason).toBe('Schedule/SOS missing');
   });
 
   it('returns insufficient-data when DraftSharks has no usable rows', () => {

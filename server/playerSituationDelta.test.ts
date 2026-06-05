@@ -382,7 +382,7 @@ describe('player situation delta', () => {
         fantasyProsSourceTrace: [{
           source: 'FantasyPros',
           key: 'NEWS',
-          label: 'FantasyPros News',
+          label: 'Stored news',
           status: 'Injury',
           lastUpdated: publishedAt,
           evidence: 'news "News Receiver misses practice"; source FantasyPros; published 2026-06-04T00:00:00.000Z; endpoint metadata: fantasypros-news.',
@@ -408,15 +408,15 @@ describe('player situation delta', () => {
       rosterRoom: rosterRoom(),
     }), 'news-wr');
 
-    const fantasyProsSignal = delta?.dynamicSignals.find((signal) => signal.label === 'FantasyPros injury news moved value');
+    const fantasyProsSignal = delta?.dynamicSignals.find((signal) => signal.label === 'Stored injury news moved value');
 
     expect(fantasyProsSignal).toMatchObject({
       type: 'news',
       direction: 'risk',
       eventAt: publishedAt,
-      detail: 'News is attached and stored value is down 14.3% from the baseline snapshot. FantasyPros category: injury news.',
+      detail: 'News is attached and stored value is down 14.3% from the baseline snapshot. Stored news category: injury news.',
     });
-    expect(delta?.freshness.signals.some((signal) => signal.includes('FantasyPros injury news'))).toBe(true);
+    expect(delta?.freshness.signals.some((signal) => signal.includes('Stored injury news'))).toBe(true);
   });
 
   it('builds a map and skips unsupported positions', () => {

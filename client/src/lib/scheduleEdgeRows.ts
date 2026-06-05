@@ -109,6 +109,8 @@ const SCHEDULE_EDGE_POSITION_LIMITS: Record<
   DEF: 20,
 };
 const SCHEDULE_EDGE_TABLE_ROW_LIMIT = 600;
+const DRAFTSHARKS_SCHEDULE_SOURCE = "DraftSharks";
+const DRAFTSHARKS_SOS_SIGNAL_TYPE = "draftsharks-sos";
 
 function normalizeScheduleEdgePosition(
   position?: string | null
@@ -178,7 +180,10 @@ function makeScheduleEdgeOwnershipKey(input: {
 }
 
 function isDraftSharksScheduleSignal(signal?: WaiverWeeklyEcrSignal | null): boolean {
-  return signal?.source === "DraftSharks" || signal?.signalType === "draftsharks-sos";
+  return (
+    signal?.source === DRAFTSHARKS_SCHEDULE_SOURCE &&
+    signal.signalType === DRAFTSHARKS_SOS_SIGNAL_TYPE
+  );
 }
 
 function buildScheduleEdgeOwnerLookup(reportData: ReportData) {

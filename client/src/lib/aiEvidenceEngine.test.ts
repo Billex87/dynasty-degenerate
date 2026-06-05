@@ -561,7 +561,7 @@ describe("ai evidence engine", () => {
     });
 
     expect(read.finalScore).toBeLessThanOrEqual(64);
-    expect(read.confidenceCapReason).toContain("FantasyPros weekly snapshot");
+    expect(read.confidenceCapReason).toContain("Stored ranking snapshot evidence freshness");
   });
 
   it("caps stale source action reads below actionable confidence", () => {
@@ -590,10 +590,10 @@ describe("ai evidence engine", () => {
 
     expect(read.canAct).toBe(false);
     expect(read.finalScore).toBeLessThanOrEqual(55);
-    expect(read.confidenceCapReason).toBe("FantasyPros waiver snapshot source freshness");
-    expect(read.missingEvidence).toContain("Fresh source proof is stale or unhealthy for this action read.");
-    expect(read.softPenalties.map(penalty => penalty.label)).toContain("FantasyPros waiver snapshot is stale or unhealthy");
-    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 55% because FantasyPros waiver snapshot source freshness");
+    expect(read.confidenceCapReason).toBe("Stored ranking snapshot evidence freshness");
+    expect(read.missingEvidence).toContain("Fresh stored evidence is stale or unhealthy for this action read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Stored ranking snapshot is stale or unhealthy");
+    expect(getAIEvidenceReceiptItems(read).join(" ")).toContain("Confidence limited to 55% because Stored ranking snapshot evidence freshness");
   });
 
   it("caps zero-row source trace details below actionable confidence", () => {
@@ -621,9 +621,9 @@ describe("ai evidence engine", () => {
 
     expect(read.canAct).toBe(false);
     expect(read.finalScore).toBeLessThanOrEqual(48);
-    expect(read.confidenceCapReason).toBe("FantasyPros waiver snapshot source freshness");
-    expect(read.missingEvidence).toContain("Fresh source proof is stale or unhealthy for this action read.");
-    expect(read.softPenalties.map(penalty => penalty.label)).toContain("FantasyPros waiver snapshot is stale or unhealthy");
+    expect(read.confidenceCapReason).toBe("Stored ranking snapshot evidence freshness");
+    expect(read.missingEvidence).toContain("Fresh stored evidence is stale or unhealthy for this action read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Stored ranking snapshot is stale or unhealthy");
     expect(read.sourceTrace.map(trace => trace.detail).join(" ")).toContain("zero rows");
   });
 
@@ -652,9 +652,9 @@ describe("ai evidence engine", () => {
 
     expect(read.canAct).toBe(false);
     expect(read.finalScore).toBeLessThanOrEqual(48);
-    expect(read.confidenceCapReason).toBe("FantasyPros waiver snapshot source freshness");
-    expect(read.missingEvidence).toContain("Fresh source proof is stale or unhealthy for this action read.");
-    expect(read.softPenalties.map(penalty => penalty.label)).toContain("FantasyPros waiver snapshot is stale or unhealthy");
+    expect(read.confidenceCapReason).toBe("Stored ranking snapshot evidence freshness");
+    expect(read.missingEvidence).toContain("Fresh stored evidence is stale or unhealthy for this action read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Stored ranking snapshot is stale or unhealthy");
   });
 
   it("caps unavailable source traces below actionable confidence", () => {
@@ -682,9 +682,9 @@ describe("ai evidence engine", () => {
 
     expect(read.canAct).toBe(false);
     expect(read.finalScore).toBeLessThanOrEqual(55);
-    expect(read.confidenceCapReason).toBe("FantasyPros waiver snapshot source freshness");
-    expect(read.missingEvidence).toContain("Fresh source proof is stale or unhealthy for this action read.");
-    expect(read.softPenalties.map(penalty => penalty.label)).toContain("FantasyPros waiver snapshot is stale or unhealthy");
+    expect(read.confidenceCapReason).toBe("Stored ranking snapshot evidence freshness");
+    expect(read.missingEvidence).toContain("Fresh stored evidence is stale or unhealthy for this action read.");
+    expect(read.softPenalties.map(penalty => penalty.label)).toContain("Stored ranking snapshot is stale or unhealthy");
   });
 
   it("caps player action reads without source count or source trace", () => {

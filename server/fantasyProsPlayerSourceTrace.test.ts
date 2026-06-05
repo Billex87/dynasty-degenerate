@@ -19,15 +19,15 @@ describe('buildFantasyProsPlayerSourceTrace', () => {
     expect(trace[0]).toMatchObject({
       source: 'FantasyPros',
       key: 'DYNASTY',
-      label: 'FantasyPros Dynasty',
+      label: 'Dynasty ranking snapshot',
       value: 5120,
       rank: 28,
       positionRank: 'WR12',
     });
-    expect(trace[0].evidence).toContain('exact FantasyPros endpoint metadata was not preserved');
+    expect(trace[0].evidence).toContain('exact endpoint metadata was not preserved');
     expect(trace[1]).toMatchObject({
       key: 'SEASON',
-      label: 'FantasyPros Season',
+      label: 'Season ranking snapshot',
       value: 4380,
       rank: 41,
       positionRank: 'WR18',
@@ -50,7 +50,7 @@ describe('buildFantasyProsPlayerSourceTrace', () => {
     expect(trace).toHaveLength(1);
     expect(trace[0]).toMatchObject({
       key: 'SEASON',
-      label: 'FantasyPros Season',
+      label: 'Season ranking snapshot',
       value: 4380,
     });
   });
@@ -70,7 +70,7 @@ describe('buildFantasyProsPlayerSourceTrace', () => {
     expect(trace).toHaveLength(1);
     expect(trace[0]).toMatchObject({
       key: 'ROS',
-      label: 'FantasyPros ROS',
+      label: 'ROS snapshot',
       endpointKey: 'fantasypros-endpoint-v1:2026:PPR:fantasypros-ros-rb',
       sourceKey: 'fantasypros-consensus-rankings:ROS',
       scoring: 'PPR',
@@ -101,7 +101,7 @@ describe('buildFantasyProsPlayerSourceTrace', () => {
       {
         source: 'FantasyPros',
         key: 'UNKNOWN',
-        label: 'FantasyPros Source Listing',
+        label: 'Stored source listing',
         sourceKey: null,
         endpointKey: null,
         scoring: null,
@@ -110,7 +110,7 @@ describe('buildFantasyProsPlayerSourceTrace', () => {
         fetchedAt: null,
         lastUpdated: null,
         status: 'listed-without-field-values',
-        evidence: 'FantasyPros is listed in value_sources, but this value row did not preserve FantasyPros-specific value, rank, or endpoint fields.',
+        evidence: 'A stored source is listed in value_sources, but this value row did not preserve source-specific value, rank, or endpoint fields.',
       },
     ]);
   });

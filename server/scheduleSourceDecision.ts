@@ -83,9 +83,9 @@ function buildSourceTrace(input: {
 }): string[] {
   return [
     input.draftSharksRows.length
-      ? `DraftSharks SOS: ${input.draftSharksRows.length} weekly percentage row(s), avg ${input.draftSharksAverage}%. Used for action and confidence.`
-      : 'DraftSharks SOS: missing weekly percentage rows.',
-    `Source context: ${input.agreement}. DraftSharks-only SOS decision policy.`,
+      ? `Stored schedule/SOS: ${input.draftSharksRows.length} weekly percentage row(s), avg ${input.draftSharksAverage}%. Used for action and confidence.`
+      : 'Stored schedule/SOS: missing weekly percentage rows.',
+    `Source context: ${input.agreement}. Stored schedule/SOS decision policy.`,
   ];
 }
 
@@ -100,7 +100,7 @@ export function buildScheduleSourceDecision(input: ScheduleSourceDecisionInput):
   const finalScore = draftSharksAverage;
   const action = actionFromScore(draftSharksAverage, position);
   const confidence = draftSharksAverage !== null ? 82 : 0;
-  const confidenceCapReason = draftSharksAverage === null ? 'DraftSharks SOS missing' : null;
+  const confidenceCapReason = draftSharksAverage === null ? 'Schedule/SOS missing' : null;
   const hardWeeks = draftSharksRows
     .filter((row) => row.matchupPercent <= -8)
     .map((row) => row.week);
@@ -129,7 +129,7 @@ export function buildScheduleSourceDecision(input: ScheduleSourceDecisionInput):
     hardWeeks,
     sourceTrace,
     whyThisFired: draftSharksAverage === null
-      ? 'Insufficient DraftSharks SOS evidence.'
-      : `DraftSharks SOS average is ${draftSharksAverage}% for Weeks ${input.weekStart}-${input.weekEnd}, so the schedule action is ${action}.`,
+      ? 'Insufficient schedule/SOS evidence.'
+      : `Schedule/SOS average is ${draftSharksAverage}% for Weeks ${input.weekStart}-${input.weekEnd}, so the schedule action is ${action}.`,
   };
 }

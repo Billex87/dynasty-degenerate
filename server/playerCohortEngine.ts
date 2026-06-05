@@ -895,7 +895,7 @@ function buildTrace(input: {
     `Evidence grade: ${input.calibration.evidenceGrade}; evidence score ${input.calibration.evidenceScore}; confidence limit ${input.calibration.confidenceCap}.`,
     input.calibration.missingSignals.length ? `Missing signals: ${input.calibration.missingSignals.join(', ')}.` : 'No major calibration gaps detected.',
     input.calibration.cautionFlags.length ? `Caution flags: ${input.calibration.cautionFlags.join(', ')}.` : 'No major caution flags detected.',
-    `${sourceCount(input.details)} value source signal${sourceCount(input.details) === 1 ? '' : 's'} attached.`,
+    `${sourceCount(input.details)} blend input signal${sourceCount(input.details) === 1 ? '' : 's'} attached.`,
   ];
 }
 

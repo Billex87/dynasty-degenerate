@@ -320,11 +320,11 @@ describe("AI prediction event builder", () => {
     } as any)).toBe("watch");
     expect(__testing.decisionFromQueueItem({
       ...baseQueueItem,
-      sourceHealth: ["FantasyPros source stale"],
+      sourceHealth: ["Stored source stale"],
     } as any)).toBe("watch");
     expect(__testing.decisionFromQueueItem({
       ...baseQueueItem,
-      sourceHealth: ["FantasyPros source disabled"],
+      sourceHealth: ["Stored source disabled"],
     } as any)).toBe("watch");
     expect(__testing.decisionFromQueueItem({
       ...baseQueueItem,
@@ -453,7 +453,7 @@ describe("AI prediction event builder", () => {
   it("classifies unavailable source traces as missing source-agreement proof", () => {
     const agreement = buildClientSourceAgreementRead({
       sourceTrace: [{
-        label: "FantasyPros waiver source",
+        label: "Stored waiver source",
         status: "unavailable",
         detail: "Provider disabled for this environment.",
       }],
@@ -477,7 +477,7 @@ describe("AI prediction event builder", () => {
   it("classifies disabled source detail as missing source-agreement proof", () => {
     const agreement = buildClientSourceAgreementRead({
       sourceTrace: [{
-        label: "FantasyPros waiver source",
+        label: "Stored waiver source",
         status: "loaded",
         detail: "Provider disabled for this environment.",
       }],
@@ -504,7 +504,7 @@ describe("AI prediction event builder", () => {
         status: "loaded",
         detail: "Availability confirmed.",
       }, {
-        label: "FantasyPros waiver source",
+        label: "Stored waiver source",
         status: "stale",
         detail: "0 rows returned from latest endpoint probe.",
       }],

@@ -60,24 +60,24 @@ function getSourceValues(valueProfile: ValueProfile, mode: LeagueValueMode): Sou
   if (normalizedMode === 'redraft') {
     return [
       { key: 'seasonValue', label: 'Season blend', value: valueProfile.seasonValue, primary: true },
-      { key: 'fantasyProsSeasonValue', label: 'FantasyPros season', value: valueProfile.fantasyProsSeasonValue, primary: true },
-      { key: 'fantasyCalcRedraft', label: 'FantasyCalc redraft', value: valueProfile.fantasyCalcRedraft, primary: true },
-      { key: 'flockBestBall', label: 'Flock best ball', value: valueProfile.flockBestBall, primary: true },
-      { key: 'fantasyCalcDynasty', label: 'FantasyCalc dynasty', value: valueProfile.fantasyCalcDynasty, primary: false },
+      { key: 'fantasyProsSeasonValue', label: 'Season-rank input', value: valueProfile.fantasyProsSeasonValue, primary: true },
+      { key: 'fantasyCalcRedraft', label: 'Redraft input', value: valueProfile.fantasyCalcRedraft, primary: true },
+      { key: 'flockBestBall', label: 'Best-ball input', value: valueProfile.flockBestBall, primary: true },
+      { key: 'fantasyCalcDynasty', label: 'Dynasty context input', value: valueProfile.fantasyCalcDynasty, primary: false },
     ];
   }
 
   return [
     { key: 'dynastyValue', label: 'Dynasty blend', value: valueProfile.dynastyValue, primary: true },
-    { key: 'marketKtc', label: 'KTC market', value: valueProfile.marketKtc, primary: true },
-    { key: 'flockFantasy', label: 'Flock Fantasy', value: valueProfile.flockFantasy, primary: true },
-    { key: 'fantasyProsDynasty', label: 'FantasyPros dynasty', value: valueProfile.fantasyProsDynasty, primary: true },
-    { key: 'fantasyCalcDynasty', label: 'FantasyCalc dynasty', value: valueProfile.fantasyCalcDynasty, primary: true },
-    { key: 'dynastyProcess', label: 'DynastyProcess', value: valueProfile.dynastyProcess, primary: true },
-    { key: 'dynastyNerds', label: 'Dynasty Nerds', value: valueProfile.dynastyNerds, primary: true },
-    { key: 'fantasyNerds', label: 'Fantasy Nerds', value: valueProfile.fantasyNerds, primary: true },
-    { key: 'dynastyDealerBenchmark', label: 'Dynasty Dealer', value: valueProfile.dynastyDealerBenchmark, primary: false },
-    { key: 'fantasyProsSeasonValue', label: 'FantasyPros season', value: valueProfile.fantasyProsSeasonValue, primary: false },
+    { key: 'marketKtc', label: 'Market input A', value: valueProfile.marketKtc, primary: true },
+    { key: 'flockFantasy', label: 'Expert input A', value: valueProfile.flockFantasy, primary: true },
+    { key: 'fantasyProsDynasty', label: 'Consensus input A', value: valueProfile.fantasyProsDynasty, primary: true },
+    { key: 'fantasyCalcDynasty', label: 'Market input B', value: valueProfile.fantasyCalcDynasty, primary: true },
+    { key: 'dynastyProcess', label: 'Model input', value: valueProfile.dynastyProcess, primary: true },
+    { key: 'dynastyNerds', label: 'Expert input B', value: valueProfile.dynastyNerds, primary: true },
+    { key: 'fantasyNerds', label: 'Expert input C', value: valueProfile.fantasyNerds, primary: true },
+    { key: 'dynastyDealerBenchmark', label: 'Benchmark input', value: valueProfile.dynastyDealerBenchmark, primary: false },
+    { key: 'fantasyProsSeasonValue', label: 'Season context input', value: valueProfile.fantasyProsSeasonValue, primary: false },
   ];
 }
 
@@ -91,8 +91,8 @@ function calculateSpreadPct(values: number[]): number | null {
 }
 
 function formatSpread(spreadPct: number | null): string {
-  if (spreadPct === null) return 'single-source read';
-  return `${Math.round(spreadPct * 100)}% source spread`;
+  if (spreadPct === null) return 'single-input read';
+  return `${Math.round(spreadPct * 100)}% input spread`;
 }
 
 export function getPlayerValueConfidence(input: {
@@ -150,7 +150,7 @@ export function getPlayerValueConfidence(input: {
   );
   const label = getLabel(score);
   const topSources = primarySources.slice(0, 4).map((source) => source.label).join(', ');
-  const sourceLabel = primarySourceCount === 1 ? 'primary source' : 'primary sources';
+  const sourceLabel = primarySourceCount === 1 ? 'primary blend input' : 'primary blend inputs';
 
   return {
     score,

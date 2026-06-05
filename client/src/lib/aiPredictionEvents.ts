@@ -452,18 +452,25 @@ function getWaiverCandidateRosterState(player: TrendingPlayer): {
 function sourceTraceFromWaiverPlayer(player: TrendingPlayer): AISourceTrace[] {
   const trace = player.weeklyEcr?.sourceTrace || [];
   if (trace.length) {
-    return trace.slice(0, 8).map(item => ({
-      label: item.endpointLabel || item.source || item.sourceKey || "Waiver source",
-      status:
-        item.status === "loaded" ||
-        item.status === "stale" ||
-        item.status === "missing" ||
-        item.status === "error" ||
-        item.status === "limited"
+    const traceLabel = player.weeklyEcr?.signalType === "draftsharks-sos"
+      ? "Schedule snapshot"
+      : "Weekly rank snapshot";
+    return trace.slice(0, 8).map(item => {
+      const status = item.rowCount === 0
+        ? "missing"
+        : item.status === "loaded" ||
+          item.status === "stale" ||
+          item.status === "missing" ||
+          item.status === "error" ||
+          item.status === "limited"
           ? item.status
-          : "loaded",
-      detail: item.evidence || item.endpointKey || null,
-    }));
+          : "loaded";
+      return {
+        label: item.week ? `${traceLabel} W${item.week}` : traceLabel,
+        status,
+        detail: sanitizeWaiverSourceTraceDetail(item),
+      };
+    });
   }
 
   const rosterState = getWaiverCandidateRosterState(player);
@@ -475,6 +482,17 @@ function sourceTraceFromWaiverPlayer(player: TrendingPlayer): AISourceTrace[] {
         ? "Available player pool"
         : "Unverified roster availability",
   ]);
+}
+
+function sanitizeWaiverSourceTraceDetail(item: NonNullable<TrendingPlayer["weeklyEcr"]>["sourceTrace"][number]): string | null {
+  const rowCopy = typeof item.rowCount === "number" ? `${item.rowCount.toLocaleString()} rows` : null;
+  const evidence = String(item.evidence || "").trim().toLowerCase();
+  const healthCopy = /\b(?:0|zero)\s+rows?\b/.test(evidence)
+    ? "zero rows reported"
+    : /\bempty\b/.test(evidence)
+      ? "empty response reported"
+      : null;
+  return [rowCopy, healthCopy].filter(Boolean).join("; ") || null;
 }
 
 function sourceSignalDirectionFromTrace(
@@ -1142,7 +1160,7 @@ function eventFromWaiverCandidate(input: {
       input.player.ktcValue ? `Market value ${Math.round(input.player.ktcValue).toLocaleString()}.` : null,
     ].filter((value): value is string => Boolean(value)),
     missingEvidence: [
-      input.player.weeklyEcr ? null : "No DraftSharks schedule signal attached to this waiver candidate.",
+      input.player.weeklyEcr ? null : "No stored schedule signal attached to this waiver candidate.",
       missingAvailabilityProof ? "No current roster ownership or availability proof returned for this waiver candidate." : null,
     ].filter((value): value is string => Boolean(value)),
     hardBlockers: hasOwner ? [`Already rostered by ${rosterState.ownerLabel || "another manager"}.`] : [],
@@ -1163,7 +1181,7 @@ function eventFromWaiverCandidate(input: {
       snapshotFact({ key: "trendAdds", label: "Trend adds", value: input.player.count || 0, source: "Sleeper trends" }),
       snapshotFact({ key: "marketValue", label: "Market value", value: input.player.ktcValue, source: "stored value snapshot" }),
       snapshotFact({ key: "currentRank", label: "Current rank", value: input.player.currentPositionRank ?? null, source: "redraft/current rank snapshot" }),
-      snapshotFact({ key: "scheduleScore", label: "Schedule score", value: input.target?.score ?? input.player.weeklyEcr?.confidence ?? null, source: input.player.weeklyEcr?.source || input.target?.signal.source || "DraftSharks SOS" }),
+      snapshotFact({ key: "scheduleScore", label: "Schedule score", value: input.target?.score ?? input.player.weeklyEcr?.confidence ?? null, source: "stored schedule context" }),
       snapshotFact({ key: "baseline", label: "Counterfactual baseline", value: formatBaselineLabel(counterfactual.baseline.score), source: counterfactual.baseline.source }),
     ],
     counterfactual,
@@ -1275,7 +1293,7 @@ function sourceTraceFromPlayerDetails(details: PlayerDetails): AISourceTrace[] {
       detail: details.playerSituationDelta.summary,
     } : null,
     details.schedule ? {
-      label: "DraftSharks schedule profile",
+      label: "Stored schedule profile",
       status: "loaded",
       detail: details.schedule.scheduleTier || null,
     } : null,

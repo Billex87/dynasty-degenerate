@@ -77,7 +77,7 @@ function buildProjectionContextFixture(overrides: {
 }
 
 describe('projection readout policy', () => {
-  it('distinguishes unnamed provider projections from named provider claims', () => {
+  it('keeps stored projection labels generic when provider attribution is not requested', () => {
     const fixture = buildProjectionContextFixture();
 
     const read = buildProjectionReadoutPolicy({
@@ -94,16 +94,16 @@ describe('projection readout policy', () => {
       },
     });
 
-    expect(read.evidenceKind).toBe('stored provider projection');
+    expect(read.evidenceKind).toBe('stored projection');
     expect(read.canUseProjectionClaim).toBe(true);
     expect(read.canNameProvider).toBe(false);
-    expect(read.evidenceLanguage).toContain('stored provider weekly projection');
+    expect(read.evidenceLanguage).toContain('stored projection weekly');
     expect(read.sourceTraceText.join(' ')).not.toContain('FantasyPros');
     expect(read.sourceTraceText.join(' ')).toContain('Week 1');
     expect(read.sourceTraceText.join(' ')).toContain('vs ARI');
   });
 
-  it('names a provider only when attribution and source naming are approved', () => {
+  it('keeps stored projection labels generic even when attribution flags are enabled', () => {
     const fixture = buildProjectionContextFixture();
 
     const read = buildProjectionReadoutPolicy({
@@ -121,9 +121,11 @@ describe('projection readout policy', () => {
       },
     });
 
-    expect(read.evidenceKind).toBe('provider projection');
-    expect(read.canNameProvider).toBe(true);
-    expect(read.evidenceLanguage).toContain('FantasyPros weekly projection');
+    expect(read.evidenceKind).toBe('stored projection');
+    expect(read.canNameProvider).toBe(false);
+    expect(read.evidenceLanguage).toContain('stored projection weekly');
+    expect(read.evidenceLanguage).not.toContain('FantasyPros');
+    expect(read.sourceTraceText.join(' ')).not.toContain('FantasyPros');
   });
 
   it('drops confidence for stale, thin, source-only, unresolved-injury projection rows', () => {

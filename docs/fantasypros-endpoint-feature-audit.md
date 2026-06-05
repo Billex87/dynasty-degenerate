@@ -24,6 +24,26 @@ Current gate status:
 - Targets and articles: blocked until package access returns `200` and usage terms are approved.
 - News: snapshot/research only until production coverage, cadence, rate limits, and attribution terms are confirmed.
 
+## Resolved Product Logic, June 5 2026
+
+1. Primary player value is the Dynasty Degens weighted/blended valuation output, not raw KTC and not raw FantasyPros. FantasyPros can contribute through the existing source weighting only when stored, fresh, and approved rows exist. Current FantasyPros "values" in the backend are rank-to-value normalizations from ECR/ADP/ranking fields, so do not describe them as native FantasyPros player values.
+
+2. Waiver cards should lead with claim-over-drop value and roster fit from the app blend, then layer in stored weekly-rank context when fresh. Weekly rank supports short-term startability, ROS rank supports hold value, waiver rank supports priority when non-empty, and expert spread/confidence should lower certainty when analysts disagree. If ranking rows are stale, empty, gated, or missing, the card falls back to blended value/rank without making a provider-branded claim.
+
+3. Trade cards should lead with blended value edge plus roster-fit context, then show player-level values and ranks. Side totals use app-blended player values; pick value needs a separate pick valuation path before it can be included in the quick pending-card total. The Trade War Room remains the deeper surface for starter impact, roster fit, manager leverage, and acceptance reads.
+
+4. Schedule Edge uses the stored schedule/SOS snapshot only for now. Weekly rank can support startability context later, but it must not feed Schedule Edge, SOS, matchup-grade, or schedule-strength labels unless a future approved schedule source explicitly supports that use.
+
+5. Projections belong in weekly and seasonal decision layers after approval: lineup strength, start/sit, streamers, redraft waivers, and weekly matchup reads. They must not override dynasty asset value. In dynasty contexts, projections can explain short-term contender/rebuilder fit, fragile projection spikes, or immediate starter pressure, but the core value stays the app's blended dynasty value.
+
+6. Missing or stale provider rows should not create provider-branded claims. If rankings, weekly rank, waiver rank, projections, news, or other rows are stale, empty, gated, blocked, or missing, user-facing and admin-facing cards fall back to the app's blended/internal value and suppress provider labels. Internal trace data may retain source keys for troubleshooting. Rendered cards should describe stale or missing evidence only when it materially changes the recommendation, confidence cap, or actionability.
+
+7. Expert-spread fields should feed confidence first. Low-disagreement rows can add a small confidence boost and show a simple "Stable consensus" badge when useful; high-disagreement rows should lower confidence and may show "Wide expert range" or "Volatile expert read" when the badge changes the read. Keep raw best/worst/average/std-dev values in source diagnostics or internal trace detail instead of making normal cards display the math.
+
+8. D/ST and K should behave like normal lineup assets in redraft, waiver, streamer, lineup, and schedule contexts: show positional rank, season value, projections/ranks when approved, and stored schedule/SOS when available. In dynasty trade/value contexts, treat D/ST and K as season-only lineup pieces. Display their rank/value context when the league uses those slots, but do not include them in long-term dynasty quick trade side totals or label their value as a core dynasty asset. Schedule/SOS supports their lineup context, not a dynasty market rank/value.
+
+9. Public and admin recommendation surfaces should follow the same source-label rule: the Dynasty Degens blended value/recommendation is the product output. Provider data is evidence inside the blend and freshness gates, not a separate displayed truth. Rendered recommendation UI and AI copy should say "blended value," "weekly rank," "schedule context," "stored projection," "stored news," or "blend evidence" instead of provider-branded value labels. Do not write recommendation copy as "FantasyPros says" or "DraftSharks says." Internal storage, logs, tests, legal/attribution pages, and true diagnostics such as Source Coverage can keep provider/source keys and provider names for verification and compliance.
+
 Endpoint pacing is now implemented in the FantasyPros health check and smoke script. Expanded probes are opt-in, each request is delayed, `Retry-After` is captured, and the run stops after a `429` so one broad check does not burn through the package limit.
 
 Run the full metadata check with:
@@ -80,8 +100,10 @@ DraftSharks is the schedule-strength source. FantasyPros `matchups/{position}.ph
 
 ## AI Readout Boundaries
 
-- Say "FantasyPros ECR/rankings" only when the stored row actually came from the rankings endpoint.
-- Say "FantasyPros projection" only when a fresh projection snapshot exists for the relevant scoring/week.
+- Say "weekly rank" or "stored ranking" when the stored row came from a ranking endpoint; keep provider names out of recommendation copy.
+- Say "stored projection" only when a fresh projection snapshot exists for the relevant scoring/week.
+- Suppress provider labels when the relevant stored row is stale, empty, gated, blocked, or missing; keep source keys internal outside legal pages and true source diagnostics.
+- Mention stale or missing stored evidence only when it changes confidence, actionability, or the recommended next step.
 - Say "usage trend" for targets/player-points; do not label targets as route participation.
 - Say "expert disagreement" only when expert spread fields are stored.
 - Do not display FantasyPros player images unless Sportradar/FantasyPros image rights are separately approved.
@@ -90,7 +112,7 @@ DraftSharks is the schedule-strength source. FantasyPros `matchups/{position}.ph
 ## Implementation Order
 
 1. Resolve package access for `targets` and `articles` before depending on those rows.
-2. Surface admin-only per-player source trace from the normalized snapshot context.
+2. Surface per-player blend evidence and freshness diagnostics from the normalized snapshot context without provider-branded recommendation labels.
 3. Build the Rankings-tab Schedule Edge table against stored DraftSharks SOS snapshots first, showing all positions with D/ST/K streamer pairings as the first high-signal filter.
 4. Expand AI readouts only after snapshot freshness and identity matching pass diagnostics.
 

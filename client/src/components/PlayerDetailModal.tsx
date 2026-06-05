@@ -163,6 +163,15 @@ function isDefensePosition(position?: string | null) {
   return normalized === 'DEF' || normalized === 'DST' || normalized === 'D/ST' || normalized === 'DEFENSE';
 }
 
+function isKickerPosition(position?: string | null) {
+  const normalized = String(position || '').trim().toUpperCase();
+  return normalized === 'K' || normalized === 'PK';
+}
+
+function isSeasonOnlyLineupPosition(position?: string | null) {
+  return isDefensePosition(position) || isKickerPosition(position);
+}
+
 function hasDraftPickContext(pick?: PlayerModalData | null) {
   if (!pick) return false;
 
@@ -237,6 +246,7 @@ export function PlayerDetailModal({
   const queryIsCollegeProspect = isCollegeOnlyModalPick(pick, queryDetails);
   const modalPosition = pick?.playerPos || queryDetails?.position || null;
   const isDefenseModalPick = isDefensePosition(modalPosition);
+  const isSeasonOnlyModalPick = isSeasonOnlyLineupPosition(modalPosition);
   const normalizedTeamForImage = normalizeNflTeamAbbr(queryDetails?.team || null);
   const { data: headshotData } = trpc.images.playerHeadshot.useQuery(
     {
@@ -274,7 +284,7 @@ export function PlayerDetailModal({
       selectedWindow: dynastyTimelineSelectedWindow || undefined,
     },
     {
-      enabled: isOpen && queryValueMode !== 'redraft' && Boolean(pick?.playerName) && !queryIsCollegeProspect && Boolean(queryDetails?.valueTimeline) && !hasReportValueTimelineForHydration,
+      enabled: isOpen && queryValueMode !== 'redraft' && Boolean(pick?.playerName) && !queryIsCollegeProspect && !isSeasonOnlyModalPick && Boolean(queryDetails?.valueTimeline) && !hasReportValueTimelineForHydration,
       staleTime: 1000 * 60 * 30,
       refetchOnWindowFocus: false,
     }
@@ -371,6 +381,7 @@ export function PlayerDetailModal({
   const valueGain = pick.valueGain;
   const currentRank = pick.currentPositionRank || '-';
   const position = pick.playerPos || details?.position || '-';
+  const usesSeasonOnlyValueLens = !isRedraftValueMode && isSeasonOnlyLineupPosition(position);
   const team = isCollegeProspect ? null : details?.team || 'FA';
   const jerseyNumber = details?.jerseyNumber;
   const teamColors = isCollegeProspect ? null : getNflTeamColorsWithFallback(team);
@@ -459,14 +470,16 @@ export function PlayerDetailModal({
   const balancedRank = getValueProfileRank(valueProfile, 'balanced', currentRank);
   const contenderRank = getValueProfileRank(valueProfile, 'contender', currentRank);
   const rebuilderRank = getValueProfileRank(valueProfile, 'rebuilder', currentRank);
-  const topDynastyRank = dynastyRank || (valueMode !== 'redraft' ? currentRank : null);
-  const topSeasonRank = seasonRank || (valueMode === 'redraft' ? currentRank : null);
-  const dynastyValue = valueProfile?.dynastyValue
-    ?? valueProfile?.balancedValue
-    ?? (valueMode !== 'redraft' ? currentValue : null);
+  const topDynastyRank = usesSeasonOnlyValueLens ? null : dynastyRank || (valueMode !== 'redraft' ? currentRank : null);
+  const topSeasonRank = seasonRank || (valueMode === 'redraft' || usesSeasonOnlyValueLens ? currentRank : null);
+  const dynastyValue = usesSeasonOnlyValueLens
+    ? null
+    : valueProfile?.dynastyValue
+      ?? valueProfile?.balancedValue
+      ?? (valueMode !== 'redraft' ? currentValue : null);
   const seasonValue = valueProfile?.seasonValue
     ?? valueProfile?.fantasyProsSeasonValue
-    ?? (valueMode === 'redraft' ? currentValue : null);
+    ?? (valueMode === 'redraft' || usesSeasonOnlyValueLens ? currentValue : null);
   const valueConfidence = getPlayerValueConfidence({ valueProfile, mode: valueMode });
   const valueFraming = getPlayerValueFraming({
     valueProfile,
@@ -478,28 +491,28 @@ export function PlayerDetailModal({
   });
   const valueTimeline = details?.valueTimeline || null;
   const hasReportValueTimeline = Boolean(valueTimeline && valueTimeline.points.length >= 2);
-  const shouldShowDynastyTimeline = !isRedraftValueMode && hasReportValueTimeline;
+  const shouldShowDynastyTimeline = !isRedraftValueMode && !usesSeasonOnlyValueLens && hasReportValueTimeline;
   const shouldShowRedraftTimeline = isRedraftValueMode && Boolean(redraftValueTimeline || isRedraftTimelineFetching || hasReportValueTimeline);
   const shouldShowTimelineGrid = shouldShowDynastyTimeline || shouldShowRedraftTimeline;
   const sourceValueRows = valueProfile ? (
-    isRedraftValueMode
+    isRedraftValueMode || usesSeasonOnlyValueLens
       ? [
-          ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
-          ['FantasyPros Season', valueProfile.fantasyProsSeasonValue],
-          ['Flock Best Ball', valueProfile.flockBestBall],
-          ['Season Value', valueProfile.seasonValue],
+          ['Redraft input', valueProfile.fantasyCalcRedraft],
+          ['Season-rank input', valueProfile.fantasyProsSeasonValue],
+          ['Best-ball input', valueProfile.flockBestBall],
+          ['Blended season value', valueProfile.seasonValue],
         ]
       : [
-          ['Flock Fantasy', valueProfile.flockFantasy],
-          ['KTC Market Consensus', valueProfile.marketKtc],
-          ['FantasyPros Dynasty', valueProfile.fantasyProsDynasty],
-          ['FantasyCalc Dynasty', valueProfile.fantasyCalcDynasty],
-          ['FantasyCalc Redraft', valueProfile.fantasyCalcRedraft],
-          ['DynastyProcess', valueProfile.dynastyProcess],
-          ['Dynasty Nerds', valueProfile.dynastyNerds],
-          ['Fantasy Nerds', valueProfile.fantasyNerds],
-          ['Dynasty Dealer Benchmark', valueProfile.dynastyDealerBenchmark],
-          ['FantasyPros Season', valueProfile.fantasyProsSeasonValue],
+          ['Expert input A', valueProfile.flockFantasy],
+          ['Market input A', valueProfile.marketKtc],
+          ['Consensus input A', valueProfile.fantasyProsDynasty],
+          ['Market input B', valueProfile.fantasyCalcDynasty],
+          ['Redraft context input', valueProfile.fantasyCalcRedraft],
+          ['Model input', valueProfile.dynastyProcess],
+          ['Expert input B', valueProfile.dynastyNerds],
+          ['Expert input C', valueProfile.fantasyNerds],
+          ['Benchmark input', valueProfile.dynastyDealerBenchmark],
+          ['Season context input', valueProfile.fantasyProsSeasonValue],
         ]
   ).filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const fantasyProsSourceTrace = valueProfile?.fantasyProsSourceTrace || [];
@@ -552,7 +565,8 @@ export function PlayerDetailModal({
     calibrationLeagueId: leagueId,
   }) : null;
   const leagueContextBadges = [
-    valueMode === 'redraft' ? 'Redraft' : 'Dynasty',
+    usesSeasonOnlyValueLens ? 'Dynasty lineup' : valueMode === 'redraft' ? 'Redraft' : 'Dynasty',
+    usesSeasonOnlyValueLens ? 'Season-only' : null,
     leagueDiagnostics?.qbFormat === 'superflex' || leagueDiagnostics?.qbFormat === 'two_qb' ? 'SF' : null,
     Number(leagueDiagnostics?.tightEndPremium || 0) > 0 ? 'TE Premium' : null,
     leagueDiagnostics?.draftStatus &&
@@ -842,7 +856,7 @@ export function PlayerDetailModal({
                   className="player-modal-metric-season-value"
                 />
                 <MetricTile label="Season Rank" mobileLabel="Season" value={topSeasonRank || '-'} valueClassName={`${getPositionRankPillClass(topSeasonRank)} player-modal-rank-value`} teamColors={teamColors} tileAccent={tileAccent} className="player-modal-metric-season-rank" />
-                {!isRedraftValueMode && (
+                {!isRedraftValueMode && !usesSeasonOnlyValueLens && (
                   <>
                     <MetricTile
                       label="Dynasty Value"
@@ -1330,7 +1344,7 @@ export function PlayerDetailModal({
                               {latestNews.title}
                             </p>
                             <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-cyan-200/75">
-                              {[latestNews.source, latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : null].filter(Boolean).join(' · ') || 'Recent update'}
+                              {latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : 'Stored news update'}
                             </p>
                             {latestNews.summary ? (
                               <p className="mt-3 break-words whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
@@ -1358,7 +1372,7 @@ export function PlayerDetailModal({
                           {latestNews.title}
                         </p>
                         <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-cyan-200/75">
-                          {[latestNews.source, latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : null].filter(Boolean).join(' · ') || 'Recent update'}
+                          {latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : 'Stored news update'}
                         </p>
                         {latestNews.summary ? (
                           <p className="mt-3 break-words whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
@@ -1415,7 +1429,7 @@ export function PlayerDetailModal({
                           : undefined,
                       }}
                     >
-                      <h4>Source Inputs</h4>
+                      <h4>Blend Evidence</h4>
                       {sourceValueRows.length > 0 ? (
                         <div className="mt-3 grid gap-2">
                           {sourceValueRows.map(([label, value]) => (
@@ -1437,7 +1451,7 @@ export function PlayerDetailModal({
                         <div className={sourceValueRows.length > 0 ? 'mt-4 border-t border-cyan-300/10 pt-4' : 'mt-3'}>
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <h5 className="text-[0.7rem] font-black uppercase tracking-[0.18em] text-cyan-100">
-                              FantasyPros Trace
+                              Ranking Snapshot Trace
                             </h5>
                             <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-2 py-1 text-[0.62rem] font-black uppercase tracking-[0.14em] text-cyan-100">
                               {fantasyProsSourceTrace.length} row{fantasyProsSourceTrace.length === 1 ? '' : 's'}
@@ -1451,14 +1465,14 @@ export function PlayerDetailModal({
                               >
                                 <div className="flex flex-wrap items-start justify-between gap-2">
                                   <span className="min-w-0 font-mono text-[0.68rem] font-black uppercase tracking-[0.16em] text-amber-100 sm:text-[0.72rem]">
-                                    {trace.label}
+                                    {formatSnapshotTraceLabel(trace, index)}
                                   </span>
                                   <strong className="shrink-0 text-right text-sm font-black text-slate-100">
                                     {formatFantasyProsTraceValue(trace)}
                                   </strong>
                                 </div>
                                 <div className="mt-2 flex flex-wrap gap-1.5">
-                                  {[trace.key, trace.endpointKey, trace.sourceKey, trace.scoring, trace.week ? `Week ${trace.week}` : null, trace.lastUpdated ? `Updated ${formatNewsDate(trace.lastUpdated)}` : null]
+                                  {[trace.key, trace.scoring, trace.week ? `Week ${trace.week}` : null, trace.lastUpdated ? `Updated ${formatNewsDate(trace.lastUpdated)}` : null]
                                     .filter(Boolean)
                                     .map((tag) => (
                                       <span
@@ -1921,13 +1935,13 @@ function formatTimelineSourceValue(value: number | null | undefined) {
 type TimelinePoint = NonNullable<NonNullable<PlayerDetails['valueTimeline']>['points']>[number];
 
 const timelineSourceFields = [
-  { key: 'marketKtc', label: 'KTC', color: '#67e8f9' },
-  { key: 'fantasyCalcDynasty', label: 'FantasyCalc', color: '#a78bfa' },
-  { key: 'fantasyProsDynasty', label: 'FantasyPros', color: '#fbbf24' },
-  { key: 'dynastyProcess', label: 'DynastyProcess', color: '#34d399' },
-  { key: 'dynastyNerds', label: 'Dynasty Nerds', color: '#60a5fa' },
-  { key: 'fantasyNerds', label: 'Fantasy Nerds', color: '#f472b6' },
-  { key: 'flockFantasy', label: 'Flock', color: '#fb7185' },
+  { key: 'marketKtc', label: 'Market input A', color: '#67e8f9' },
+  { key: 'fantasyCalcDynasty', label: 'Market input B', color: '#a78bfa' },
+  { key: 'fantasyProsDynasty', label: 'Consensus input A', color: '#fbbf24' },
+  { key: 'dynastyProcess', label: 'Model input', color: '#34d399' },
+  { key: 'dynastyNerds', label: 'Expert input B', color: '#60a5fa' },
+  { key: 'fantasyNerds', label: 'Expert input C', color: '#f472b6' },
+  { key: 'flockFantasy', label: 'Expert input A', color: '#fb7185' },
 ] as const;
 
 function buildTimelineSourceAudit(point: TimelinePoint) {
@@ -2410,7 +2424,7 @@ function RedraftValueTimelinePanel({
 
   return (
     <div className="space-y-2">
-      <div className="player-value-window-tabs" role="tablist" aria-label={`${playerName} redraft value source`}>
+      <div className="player-value-window-tabs" role="tablist" aria-label={`${playerName} redraft value history`}>
         {scopes.map((scope) => (
           <button
             key={scope.key}
@@ -2711,8 +2725,8 @@ function PlayerValueTimelineDetailDialog({
     : undefined;
   const headerAccent = tileAccent || teamColors?.accent || '#67e8f9';
   const selectedSourceLabel = selectedTimelinePoint?.sourceCount
-    ? `${selectedTimelinePoint.sourceCount} source${selectedTimelinePoint.sourceCount === 1 ? '' : 's'}`
-    : 'No source count';
+    ? `${selectedTimelinePoint.sourceCount} blend input${selectedTimelinePoint.sourceCount === 1 ? '' : 's'}`
+    : 'No blend input count';
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -3036,7 +3050,7 @@ function PlayerValueTimelineDetailDialog({
                   </>
                 )}
                 <p className="player-value-source-admin-note">
-                  Use this to debug whether the blended value moved because the market moved, a new source entered the blend, or one provider is pulling materially away from consensus.
+                  Use this to debug whether the blended value moved because the market moved, a new input entered the blend, or one input is pulling materially away from consensus.
                 </p>
               </section>
             )}
@@ -3114,6 +3128,11 @@ function formatFantasyProsTraceValue(trace: FantasyProsPlayerTraceRow) {
   if (typeof trace.value === 'number') return trace.value.toLocaleString();
   if (typeof trace.tier === 'number') return `Tier ${trace.tier}`;
   return trace.status || '-';
+}
+
+function formatSnapshotTraceLabel(trace: FantasyProsPlayerTraceRow, index: number) {
+  const key = String(trace.key || '').trim().replace(/[_-]+/g, ' ');
+  return key ? `${key} snapshot` : `Snapshot trace ${index + 1}`;
 }
 
 function formatSeasonStatValue(value: number | null | undefined): string {
@@ -3461,22 +3480,21 @@ function buildPlayerAiSourceTrace(
   valueProfile: PlayerDetails['valueProfile'] | undefined
 ): AISourceTrace[] {
   const sourceRows: AISourceTrace[] = [];
-  (valueProfile?.sources || []).forEach(source => {
+  (valueProfile?.sources || []).forEach((_, index) => {
     sourceRows.push({
-      label: source,
+      label: `Blend input ${index + 1}`,
       status: 'loaded',
-      detail: 'Player value source',
+      detail: 'Player value input loaded',
     });
   });
-  (valueProfile?.fantasyProsSourceTrace || []).forEach(trace => {
+  (valueProfile?.fantasyProsSourceTrace || []).forEach((trace, index) => {
     const updatedAt = trace.fetchedAt || trace.lastUpdated || null;
     sourceRows.push({
-      label: trace.label || trace.source || 'FantasyPros player source',
+      label: formatSnapshotTraceLabel(trace, index),
       status: normalizePlayerAiTraceStatus(trace.status),
       detail: [
         trace.positionRank || (trace.rank ? `Rank ${trace.rank}` : null),
         trace.scoring,
-        trace.evidence,
       ].filter(Boolean).join(' - '),
       ageHours: getPlayerAiTraceAgeHours(updatedAt),
     });
@@ -3511,12 +3529,13 @@ function getPlayerAiSignalModes(input: {
   hasCurrentSeasonEvidence: boolean;
   hasDynastyEvidence: boolean;
   isCollegeProspect?: boolean;
+  isSeasonOnlyLineupAsset?: boolean;
 }): AIEvidenceMode[] {
   const modes: AIEvidenceMode[] = [];
   if (input.hasCurrentSeasonEvidence) {
     modes.push('redraft', 'current');
   }
-  if (input.valueMode !== 'redraft' || input.hasDynastyEvidence) {
+  if ((input.valueMode !== 'redraft' && !input.isSeasonOnlyLineupAsset) || input.hasDynastyEvidence) {
     modes.push('dynasty');
   }
   if (input.isCollegeProspect) modes.push('prospect');
@@ -3571,6 +3590,7 @@ function buildPlayerAiEvidenceRead(input: {
   calibrationProfile?: ReportData['aiCalibrationAdjustmentProfile'];
   calibrationLeagueId?: string | null;
 }): AIEvidenceResult {
+  const isSeasonOnlyLineupAsset = isSeasonOnlyLineupPosition(input.position);
   const hasCurrentSeasonEvidence = Boolean(
     input.valueProfile?.seasonValue ||
       input.valueProfile?.fantasyProsSeasonValue ||
@@ -3581,7 +3601,7 @@ function buildPlayerAiEvidenceRead(input: {
       input.latestNews ||
       (input.valueProfile?.sources || []).some(source => /redraft|season|current|fantasypros/i.test(source))
   );
-  const hasDynastyEvidence = Boolean(
+  const hasDynastyEvidence = !isSeasonOnlyLineupAsset && Boolean(
     input.valueProfile?.dynastyValue ||
       input.valueProfile?.balancedValue ||
       input.valueProfile?.marketKtc ||
@@ -3609,12 +3629,13 @@ function buildPlayerAiEvidenceRead(input: {
       hasCurrentSeasonEvidence,
       hasDynastyEvidence,
       isCollegeProspect: input.isCollegeProspect,
+      isSeasonOnlyLineupAsset,
     }),
     baseScore: input.rawConfidence,
     evidence: [
       input.currentRank && input.currentRank !== '-' ? `${input.currentRank} rank loaded.` : null,
       input.valueFraming.marketPrice ? `Market price ${formatValueLens(input.valueFraming.marketPrice)}.` : null,
-      input.valueProfile?.sources?.length ? `${input.valueProfile.sources.length} value sources returned.` : null,
+      input.valueProfile?.sources?.length ? `${input.valueProfile.sources.length} blend inputs returned.` : null,
       input.details?.playerCohort?.calibration ? `Cohort evidence ${input.details.playerCohort.calibration.evidenceGrade}.` : null,
       input.details?.playerCohort?.anomalyFlags?.length
         ? `Anomaly rules fired: ${input.details.playerCohort.anomalyFlags.map(flag => flag.label).slice(0, 2).join(', ')}.`
@@ -3635,7 +3656,7 @@ function buildPlayerAiEvidenceRead(input: {
       input.valueMode === 'redraft' && !hasCurrentSeasonEvidence
         ? 'No current-season redraft evidence returned.'
         : null,
-      input.valueMode !== 'redraft' && !hasDynastyEvidence && !input.isCollegeProspect
+      input.valueMode !== 'redraft' && !hasDynastyEvidence && !input.isCollegeProspect && !isSeasonOnlyLineupAsset
         ? 'No dynasty market evidence returned.'
         : null,
     ].filter((value): value is string => Boolean(value)),
@@ -4426,6 +4447,7 @@ function buildPlayerDecisionLabels({
 }) {
   const labels: Array<{ label: string; copy: string; tone: 'buy' | 'hold' | 'shop' | 'risk' | 'core' }> = [];
   const isRedraftValueMode = valueMode === 'redraft';
+  const isSeasonOnlyLineupAsset = isSeasonOnlyLineupPosition(position);
   const rankNumber = parseRankNumber(currentRank);
   const seasonRankNumber = parseRankNumber(valueProfile?.seasonPositionRank || valueProfile?.fantasyProsPositionRank);
   const dynastyRankNumber = parseRankNumber(valueProfile?.dynastyPositionRank || valueProfile?.balancedPositionRank || currentRank);
@@ -4437,6 +4459,16 @@ function buildPlayerDecisionLabels({
   const veteranAge = position === 'RB' ? 27 : position === 'WR' ? 29 : position === 'TE' ? 30 : position === 'QB' ? 33 : 30;
   const youngAge = position === 'RB' ? 24 : position === 'WR' ? 25 : position === 'TE' ? 26 : position === 'QB' ? 27 : 25;
   const eliteCutoff = position === 'TE' ? 5 : position === 'QB' ? 6 : 10;
+
+  if (!isRedraftValueMode && isSeasonOnlyLineupAsset) {
+    const lineupRank = valueProfile?.seasonPositionRank || valueProfile?.fantasyProsPositionRank || currentRank || null;
+    labels.push({
+      label: 'Lineup Piece',
+      copy: `${lineupRank && lineupRank !== '-' ? `${lineupRank} is` : 'This is'} season-only context; use schedule and startability instead of dynasty core pricing.`,
+      tone: 'hold',
+    });
+    return labels;
+  }
 
   if (rankNumber && rankNumber <= eliteCutoff) {
     labels.push({
@@ -4522,6 +4554,7 @@ function buildPlayerIntelligenceNotes({
 }) {
   const notes: Array<{ label: string; value: string; copy?: string; tone?: 'risk' | 'upside' | 'market' | 'neutral'; fullWidth?: boolean }> = [];
   const isRedraftValueMode = valueMode === 'redraft';
+  const isSeasonOnlyLineupAsset = isSeasonOnlyLineupPosition(position);
   const avgMissed = details?.avgGamesMissed;
   const seasons = details?.availabilitySeasons || 0;
   const lastRank = details?.lastSeasonPositionRank;
@@ -4535,6 +4568,17 @@ function buildPlayerIntelligenceNotes({
   const dynastyRankNumber = parseRankNumber(dynastyRank);
   const seasonRankNumber = parseRankNumber(seasonRank);
   const newsDate = formatSleeperNewsUpdated(details?.sleeperNewsUpdated);
+
+  if (!isRedraftValueMode && isSeasonOnlyLineupAsset) {
+    const lineupRank = seasonRank || currentRank || null;
+    notes.push({
+      label: 'Lineup Lens',
+      value: lineupRank && lineupRank !== '-' ? lineupRank : seasonValue ? formatValueLens(seasonValue) : 'Season-only',
+      copy: 'Treat this as a current-season lineup/schedule read, not a long-term dynasty asset read.',
+      tone: 'neutral',
+      fullWidth: true,
+    });
+  }
 
   if (avgMissed !== null && avgMissed !== undefined && seasons > 0) {
     const tone = avgMissed >= 4 ? 'risk' : avgMissed <= 1 ? 'upside' : 'neutral';
@@ -4563,7 +4607,7 @@ function buildPlayerIntelligenceNotes({
     });
   }
 
-  if (age !== null && age !== undefined && currentRank && rankNumber) {
+  if (!isSeasonOnlyLineupAsset && age !== null && age !== undefined && currentRank && rankNumber) {
     const veteranAge = position === 'RB' ? 27 : position === 'WR' ? 29 : position === 'TE' ? 30 : 33;
     const youngAge = position === 'RB' ? 24 : position === 'WR' ? 25 : position === 'TE' ? 26 : 27;
     if (age >= veteranAge && rankNumber <= 24) {
@@ -4618,7 +4662,7 @@ function buildPlayerIntelligenceNotes({
     });
   }
 
-  if (!isRedraftValueMode && dynastyRank && seasonRank && dynastyRankNumber && seasonRankNumber) {
+  if (!isSeasonOnlyLineupAsset && !isRedraftValueMode && dynastyRank && seasonRank && dynastyRankNumber && seasonRankNumber) {
     const rankGap = seasonRankNumber - dynastyRankNumber;
     const value = Math.abs(rankGap) >= 8
       ? `${dynastyRank} / ${seasonRank}`

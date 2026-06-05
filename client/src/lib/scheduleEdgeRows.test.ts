@@ -260,6 +260,59 @@ describe("schedule edge rows", () => {
     expect(row.decisionLabel).toBe("Review this");
   });
 
+  it("excludes FantasyPros weekly rank rows from Schedule Edge", () => {
+    const weeklyRankSignal = makeSignal({
+      playerId: "fp-rank-1",
+      name: "Weekly Rank Receiver",
+      source: "FantasyPros",
+      signalType: "weekly-rank",
+      sourceTrace: [
+        makeTrace({
+          source: "FantasyPros",
+          sourceKey: "fantasypros-weekly-ecr-wr-week-2",
+          endpointKey: "fantasypros-weekly-ecr-wr-week-2",
+          endpointLabel: "FantasyPros WR Weekly ECR Week 2",
+        }),
+      ],
+    });
+    const mislabeledRankSignal = makeSignal({
+      playerId: "fp-rank-2",
+      name: "Mislabeled Rank Receiver",
+      source: "FantasyPros",
+      signalType: "draftsharks-sos",
+      sourceTrace: [
+        makeTrace({
+          source: "FantasyPros",
+          sourceKey: "fantasypros-weekly-ecr-wr-week-3",
+          endpointKey: "fantasypros-weekly-ecr-wr-week-3",
+          endpointLabel: "FantasyPros WR Weekly ECR Week 3",
+        }),
+      ],
+    });
+    const report = makeReport({
+      weeklyEcrTargets: [
+        {
+          player: makePlayer({
+            player_id: "fp-rank-1",
+            name: "Weekly Rank Receiver",
+          }),
+          signal: weeklyRankSignal,
+          score: 80,
+        },
+        {
+          player: makePlayer({
+            player_id: "fp-rank-2",
+            name: "Mislabeled Rank Receiver",
+          }),
+          signal: mislabeledRankSignal,
+          score: 85,
+        },
+      ],
+    });
+
+    expect(buildScheduleEdgeRows(report, { now: NOW })).toEqual([]);
+  });
+
   it("uses current-season redraft rank for matchup calendar rows in dynasty reports", () => {
     const seasonRankedSignal = makeSignal({
       playerId: "season-rank-receiver",
@@ -1081,17 +1134,17 @@ describe("schedule edge rows", () => {
     expect(staleRows[0].evidenceRead.canAct).toBe(false);
     expect(staleRows[0].evidenceRead.confidenceCap).toBe(55);
     expect(staleRows[0].evidenceRead.confidenceCapReason).toContain(
-      "source freshness"
+      "evidence freshness"
     );
     expect(partialRows[0].sourceFreshness).toMatch(/^Partial - /);
     expect(partialRows[0].sourceTone).toBe("warn");
     expect(partialRows[0].evidenceRead.canAct).toBe(false);
     expect(partialRows[0].evidenceRead.confidenceCap).toBe(48);
     expect(partialRows[0].evidenceRead.confidenceCapReason).toContain(
-      "source freshness"
+      "evidence freshness"
     );
     expect(partialRows[0].evidenceRead.missingEvidence).toContain(
-      "Fresh source proof is stale or unhealthy for this action read."
+      "Fresh stored evidence is stale or unhealthy for this action read."
     );
   });
 

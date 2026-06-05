@@ -91,6 +91,17 @@ Readouts must also pass projection readiness:
 
 If any of those are missing, stale, errored, disabled, partial, unknown, or broken, the app should suppress projection-specific claims and continue with base schedule/value/roster reads.
 
+## Projection Value Boundary
+
+Approved projections are weekly and seasonal decision inputs, not dynasty asset values.
+
+- Use projections in lineup strength, start/sit, streamers, redraft waivers, redraft valuation, and weekly matchup reads after source readiness passes.
+- In redraft, projections may contribute directly to current-season value because weekly points are the product surface.
+- In dynasty, projections may explain short-term contender/rebuilder decisions, starter pressure, fragile spikes, or trade leverage, but the primary player value remains the app's blended dynasty value.
+- For D/ST and K in dynasty leagues, keep season value, positional rank, projection, and schedule/SOS as lineup/schedule context only. Show their rank/value context when the league uses those slots, but do not count them in long-term dynasty quick trade totals or label schedule rows as dynasty market value.
+- Do not use weekly projection points to replace dynasty value, dynasty rank, trade-card side totals, or long-term market-value labels.
+- If projection readiness fails, all projection-specific reads fall back to schedule/value/roster context without implying a usable stored projection exists.
+
 ## Normalized Schedule Snapshot Model
 
 Full schedule snapshots use `providerDataSnapshots` with source key `nfl-schedule-games-v1` and snapshot key `{season}:{sourceVersion}`. A correction, flex update, postponement, or new provider release should use a new `sourceVersion` so old schedule reads remain auditable.
@@ -196,13 +207,14 @@ If the schedule snapshot is missing, opponent claims are suppressed while the pr
 
 ## Projection Display Language
 
-Public readouts must name projection evidence according to what actually exists:
+Rendered public and admin recommendation readouts should present projection evidence as part of the Dynasty Degens blend, not as a provider-branded alternate read. Legal/attribution pages and true diagnostics such as Source Coverage are exempt because they need provider names for compliance and troubleshooting:
 
-- Say `FantasyPros projection`, `DraftSharks projection`, `SportsDataIO projection`, or another provider name only when a fresh stored snapshot from that provider exists for the relevant player/team, week, scoring format, and projection type, and the source agreement allows user-facing attribution.
-- Say `stored provider projection` when the app can verify freshness and scoring context but public attribution is not approved.
-- Say `internal estimate` only for app-derived calculations from schedule, value, role, usage, or market context. Do not call these provider projections.
+- Say `stored projection` when the app can verify freshness, scoring context, and player/week identity.
+- Say `internal estimate` only for app-derived calculations from schedule, value, role, usage, or market context. Do not call these stored projections.
 - Say `schedule/value context only` when projection flags are disabled, snapshots are stale, identity matching is uncertain, or the player/week/scoring row is missing.
-- Do not show projection-driven start/sit, lineup-strength, trade, or valuation claims unless the readout can expose the source, week, scoring profile, fetched or published timestamp, freshness status, and the biggest signal that changed the read.
+- Keep stale, empty, gated, blocked, or missing provider rows out of rendered claims. Internal traces, logs, tests, legal/attribution pages, and diagnostics can retain source keys, but cards should fall back to blended value/context without noisy provider-unavailable badges unless stale or missing evidence changes confidence, actionability, or the next step.
+- AI recommendation copy must not say a provider says or recommends something; use app-level phrases such as `weekly rank`, `schedule context`, `stored projection`, `stored news`, and `blend evidence`.
+- Do not show projection-driven start/sit, lineup-strength, trade, or valuation claims unless the readout can verify week, scoring profile, fetched or published timestamp, freshness status, and the biggest signal that changed the read.
 
 ## Blocked Before Projection-Driven Features
 

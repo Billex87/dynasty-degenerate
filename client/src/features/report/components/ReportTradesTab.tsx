@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { PlayerDetailModal, type PlayerModalData } from "@/components/PlayerDetailModal";
 import { PlayerIdentityRow } from "@/components/reportPrimitives";
 import { TeamLogoPill } from "@/components/TeamLogoPill";
+import { summarizeFantasyProsExpertSpreadRows } from "@shared/fantasyProsExpertSpread";
 import type { ReportData, SleeperExtensionTradeCenterSnapshot } from "@shared/types";
 import { getTeamTileStyle } from "@/lib/teamTileStyle";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
@@ -177,7 +178,16 @@ function formatPendingActivityDate(value?: string | null): string {
 
 function isDefensePosition(position?: string | null): boolean {
   const normalized = String(position || "").trim().toUpperCase();
-  return normalized === "DEF" || normalized === "DST";
+  return normalized === "DEF" || normalized === "DST" || normalized === "D/ST";
+}
+
+function isKickerPosition(position?: string | null): boolean {
+  const normalized = String(position || "").trim().toUpperCase();
+  return normalized === "K" || normalized === "PK";
+}
+
+function isSeasonOnlyLineupPosition(position?: string | null): boolean {
+  return isDefensePosition(position) || isKickerPosition(position);
 }
 
 const DEFENSE_TEAM_BY_NAME: Record<string, string> = {
@@ -455,8 +465,9 @@ function getPendingPlayerValue(
   rankingRow?: any | null
 ): number | null {
   const profile = details?.valueProfile;
+  const position = details?.position || rankingRow?.position || rankingRow?.pos || null;
   const value =
-    leagueValueMode === "redraft" || isDefensePosition(details?.position)
+    leagueValueMode === "redraft" || isSeasonOnlyLineupPosition(position)
       ? profile?.seasonValue ?? profile?.fantasyProsSeasonValue ?? rankingRow?.seasonValue ?? rankingRow?.value ?? null
       : profile?.dynastyValue ?? profile?.balancedValue ?? profile?.marketKtc ?? rankingRow?.value ?? rankingRow?.ktcValue ?? null;
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -470,6 +481,7 @@ function getPendingPlayerRank(
   rankFromMap?: string | null
 ): string | null {
   const profile = details?.valueProfile;
+  const position = details?.position || rankingRow?.position || rankingRow?.pos || null;
   const rankingPositionRank =
     rankFromMap ||
     rankingRow?.seasonPositionRank ||
@@ -480,7 +492,7 @@ function getPendingPlayerRank(
     rankingRow?.rank ||
     null;
   const rank =
-    leagueValueMode === "redraft" || isDefense
+    leagueValueMode === "redraft" || isSeasonOnlyLineupPosition(position) || isDefense
       ? profile?.seasonPositionRank || profile?.fantasyProsPositionRank || rankingPositionRank
       : profile?.dynastyPositionRank || profile?.balancedPositionRank || rankingPositionRank;
   if (rank !== null && rank !== undefined && String(rank).trim() !== "") {
@@ -493,29 +505,101 @@ function getPendingPlayerRank(
   );
 }
 
-function PendingPlayerAssetCard({
+type PendingResolvedAsset = {
+  playerId: string | null;
+  playerName: string;
+  team: string | null;
+  position: string | null;
+  isDefense: boolean;
+  isSeasonOnlyLineupAsset: boolean;
+  countsTowardTradeValue: boolean;
+  value: number | null;
+  rank: string | null;
+  modalDetails?: NonNullable<ReportData["playerDetailsById"]>[string];
+  weeklyEcrRank: string | null;
+  rosRank: string | null;
+  wwRank: string | null;
+  ecrConfidence: string | null;
+};
+
+function getRankNumber(value?: string | number | null): number | null {
+  const match = String(value ?? "").match(/\d+/);
+  if (!match) return null;
+  const rank = Number(match[0]);
+  return Number.isFinite(rank) && rank > 0 ? rank : null;
+}
+
+function formatSignedCompactValue(value: number): string {
+  if (value === 0) return "Even";
+  const label = formatCompactValue(Math.abs(value));
+  return `${value > 0 ? "+" : "-"}${label}`;
+}
+
+function isUsableFantasyProsStatus(status?: string | null, rowCount?: number | null): boolean {
+  if (rowCount === 0) return false;
+  const normalized = String(status || "").trim();
+  if (!normalized) return false;
+  return !/(?:missing|empty|blocked|forbidden|stale|error|failed|unavailable|limited|gated)/i.test(normalized);
+}
+
+function getFantasyProsTraceRank(
+  details: PendingResolvedAsset["modalDetails"] | undefined,
+  keys: string[]
+): string | null {
+  const trace = details?.valueProfile?.fantasyProsSourceTrace?.find(row =>
+    keys.includes(String(row.key || "").toUpperCase())
+  );
+  if (!trace || !isUsableFantasyProsStatus(trace.status)) return null;
+  if (trace.positionRank) return trace.positionRank;
+  return typeof trace.rank === "number" && Number.isFinite(trace.rank)
+    ? `ECR ${Math.round(trace.rank)}`
+    : null;
+}
+
+function hasUsableWeeklyEcrRows(signal?: any | null): boolean {
+  if (!signal || signal.source !== "FantasyPros") return false;
+  const weeks = Array.isArray(signal.weeks) ? signal.weeks : [];
+  const traces = Array.isArray(signal.sourceTrace) ? signal.sourceTrace : [];
+  return (
+    weeks.some((week: any) => isUsableFantasyProsStatus(week?.sourceStatus, week?.sourceRowCount)) ||
+    traces.some((trace: any) => isUsableFantasyProsStatus(trace?.status, trace?.rowCount))
+  );
+}
+
+function getWeeklyEcrRankLabel(signal?: any | null): string | null {
+  if (!hasUsableWeeklyEcrRows(signal)) return null;
+  if (signal.bestPositionRank) return String(signal.bestPositionRank);
+  return typeof signal.bestRankEcr === "number" && Number.isFinite(signal.bestRankEcr)
+    ? `ECR ${Math.round(signal.bestRankEcr)}`
+    : null;
+}
+
+function getWeeklyEcrConfidenceLabel(signal?: any | null): string | null {
+  if (!hasUsableWeeklyEcrRows(signal)) return null;
+  const weeks = Array.isArray(signal.weeks) ? signal.weeks : [];
+  const usableWeeks = weeks.filter((week: any) =>
+    isUsableFantasyProsStatus(week?.sourceStatus, week?.sourceRowCount)
+  );
+  return summarizeFantasyProsExpertSpreadRows(usableWeeks).label;
+}
+
+function resolvePendingPlayerAsset({
   playerId,
   playerName,
   playerDetailsById,
   currentPositionRankById,
   waiverIntelligence,
-  managerName,
-  managerAvatars,
   leagueValueMode,
   rankings,
-  onSelectPlayer,
 }: {
   playerId?: string | null;
   playerName: string;
   playerDetailsById?: ReportData["playerDetailsById"];
   currentPositionRankById?: ReportData["currentPositionRankById"];
   waiverIntelligence?: ReportData["waiverIntelligence"];
-  managerName?: string | null;
-  managerAvatars?: ReportData["managerAvatars"];
   leagueValueMode: ReportData["leagueValueMode"];
   rankings?: ReportData["rankings"];
-  onSelectPlayer: (player: PlayerModalData) => void;
-}) {
+}): PendingResolvedAsset {
   const defenseTeamFromName = getDefenseTeamFromName(playerName);
   const lookupPlayerId = defenseTeamFromName ? undefined : playerId || undefined;
   const details = lookupPlayerId ? playerDetailsById?.[lookupPlayerId] : undefined;
@@ -536,6 +620,7 @@ function PendingPlayerAssetCard({
     ? "DEF"
     : details?.position || rankingPosition || waiverPosition || null;
   const isDefense = isDefensePosition(position) || Boolean(inferredDefenseTeam);
+  const isSeasonOnlyLineupAsset = isSeasonOnlyLineupPosition(position);
   const cleanDefenseRank = (rank?: string | null) => {
     if (!rank) return null;
     const rankText = String(rank).trim();
@@ -565,13 +650,389 @@ function PendingPlayerAssetCard({
   const rank = isDefense
     ? defenseRankFromRankingRow || rankFromMap || "DEF"
     : getPendingPlayerRank(details, leagueValueMode, rankingRow, false, rankFromMap);
-  const modalPick: PlayerModalData = {
+  const weeklyEcrSignal = waiverPlayer?.weeklyEcr || null;
+  const weeklyEcrRank = getWeeklyEcrRankLabel(weeklyEcrSignal);
+
+  return {
+    playerId: playerId || null,
     playerName: displayName,
+    team,
+    position,
+    isDefense,
+    isSeasonOnlyLineupAsset,
+    countsTowardTradeValue: leagueValueMode !== "dynasty" || !isSeasonOnlyLineupAsset,
+    value,
+    rank,
+    modalDetails,
+    weeklyEcrRank,
+    rosRank: getFantasyProsTraceRank(modalDetails, ["ROS"]),
+    wwRank: getFantasyProsTraceRank(modalDetails, ["WW"]),
+    ecrConfidence: getWeeklyEcrConfidenceLabel(weeklyEcrSignal),
+  };
+}
+
+function resolvePendingAssets({
+  playerIds,
+  playerNames,
+  playerDetailsById,
+  currentPositionRankById,
+  waiverIntelligence,
+  leagueValueMode,
+  rankings,
+}: {
+  playerIds: string[];
+  playerNames: string[];
+  playerDetailsById?: ReportData["playerDetailsById"];
+  currentPositionRankById?: ReportData["currentPositionRankById"];
+  waiverIntelligence?: ReportData["waiverIntelligence"];
+  leagueValueMode: ReportData["leagueValueMode"];
+  rankings?: ReportData["rankings"];
+}): PendingResolvedAsset[] {
+  const itemCount = Math.max(playerNames.length, playerIds.length);
+  return Array.from({ length: itemCount }, (_, index) => {
+    const playerId = playerIds[index] || null;
+    const playerName = getPendingAssetDisplayName(playerId, playerNames[index], playerDetailsById);
+    return playerName
+      ? resolvePendingPlayerAsset({
+          playerId,
+          playerName,
+          playerDetailsById,
+          currentPositionRankById,
+          waiverIntelligence,
+          leagueValueMode,
+          rankings,
+        })
+      : null;
+  }).filter((item): item is PendingResolvedAsset => Boolean(item));
+}
+
+function getKnownValueTotal(
+  assets: PendingResolvedAsset[],
+  options: { includeSeasonOnlyLineupAssets?: boolean } = {}
+): number | null {
+  const includeSeasonOnlyLineupAssets = options.includeSeasonOnlyLineupAssets ?? true;
+  const knownValues = assets
+    .filter(asset => includeSeasonOnlyLineupAssets || asset.countsTowardTradeValue)
+    .map(asset => asset.value)
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (!knownValues.length) return null;
+  return knownValues.reduce((total, value) => total + value, 0);
+}
+
+function getSeasonOnlyTradeAssetCount(assets: PendingResolvedAsset[]): number {
+  return assets.filter(asset => !asset.countsTowardTradeValue).length;
+}
+
+function getBestRankedAsset(assets: PendingResolvedAsset[]): PendingResolvedAsset | null {
+  return assets
+    .filter(asset => getRankNumber(asset.weeklyEcrRank || asset.rank) !== null)
+    .sort((a, b) =>
+      (getRankNumber(a.weeklyEcrRank || a.rank) || Infinity) -
+      (getRankNumber(b.weeklyEcrRank || b.rank) || Infinity)
+    )[0] || null;
+}
+
+function buildRosterFitNote(
+  manager: string | null | undefined,
+  receivedAssets: PendingResolvedAsset[],
+  sentAssets: PendingResolvedAsset[],
+  managerRosterIntelligence?: ReportData["managerRosterIntelligence"]
+): string {
+  const managerKey = String(manager || "").trim().toLowerCase();
+  const intel = managerRosterIntelligence?.find(row =>
+    row.manager.trim().toLowerCase() === managerKey
+  );
+  const positionsReceived = new Set(receivedAssets.map(asset => asset.position).filter(Boolean));
+  const positionsSent = new Set(sentAssets.map(asset => asset.position).filter(Boolean));
+  const need = intel?.tradePlan?.needPosition || null;
+  const surplus = intel?.tradePlan?.surplusPosition || null;
+
+  if (need && positionsReceived.has(need) && surplus && positionsSent.has(surplus)) {
+    return `Fit: addresses ${need} need with ${surplus} surplus.`;
+  }
+  if (need && positionsReceived.has(need)) {
+    return `Fit: addresses ${need} need; War Room checks starter impact.`;
+  }
+  if (surplus && positionsSent.has(surplus)) {
+    return `Fit: moves ${surplus} surplus; War Room checks incoming starter impact.`;
+  }
+  if (intel?.weakestStarter?.pos && positionsReceived.has(intel.weakestStarter.pos)) {
+    return `Starter impact: incoming ${intel.weakestStarter.pos} can challenge the weak starter slot.`;
+  }
+  return "Fit: Trade War Room checks roster fit, starter impact, and manager leverage.";
+}
+
+type PendingActivitySummaryData = {
+  headline: string;
+  note: string;
+  chips: string[];
+  tone: "trade" | "waiver";
+};
+
+function PendingActivitySummaryStrip({ summary }: { summary: PendingActivitySummaryData | null }) {
+  if (!summary) return null;
+  return (
+    <div className="border-b border-white/10 bg-slate-950/30 px-4 py-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <p className={`text-[0.64rem] font-black uppercase tracking-[0.18em] ${
+            summary.tone === "waiver" ? "text-sky-200" : "text-orange-200"
+          }`}>
+            Blended value read
+          </p>
+          <p className="mt-1 text-base font-black text-slate-50">{summary.headline}</p>
+          <p className="mt-1 text-sm leading-5 text-slate-300">{summary.note}</p>
+        </div>
+        <div className="flex max-w-full flex-wrap gap-2">
+          {summary.chips.slice(0, 4).map(chip => (
+            <span
+              key={chip}
+              className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.14em] text-slate-200"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function buildWaiverActivitySummary({
+  signal,
+  adds,
+  drops,
+  playerDetailsById,
+  currentPositionRankById,
+  waiverIntelligence,
+  leagueValueMode,
+  rankings,
+}: {
+  signal: TradeProposalSignal;
+  adds: string[];
+  drops: string[];
+  playerDetailsById?: ReportData["playerDetailsById"];
+  currentPositionRankById?: ReportData["currentPositionRankById"];
+  waiverIntelligence?: ReportData["waiverIntelligence"];
+  leagueValueMode: ReportData["leagueValueMode"];
+  rankings?: ReportData["rankings"];
+}): PendingActivitySummaryData {
+  const addAssets = resolvePendingAssets({
+    playerIds: signal.waiverAdds?.playerIds || signal.playerIds || [],
+    playerNames: adds,
+    playerDetailsById,
+    currentPositionRankById,
+    waiverIntelligence,
+    leagueValueMode,
+    rankings,
+  });
+  const dropAssets = resolvePendingAssets({
+    playerIds: signal.waiverDrops?.playerIds || [],
+    playerNames: drops,
+    playerDetailsById,
+    currentPositionRankById,
+    waiverIntelligence,
+    leagueValueMode,
+    rankings,
+  });
+  const addTotal = getKnownValueTotal(addAssets);
+  const dropTotal = getKnownValueTotal(dropAssets);
+  const edge = addTotal !== null && dropTotal !== null ? addTotal - dropTotal : null;
+  const bestAdd = getBestRankedAsset(addAssets);
+  const bestDrop = getBestRankedAsset(dropAssets);
+  const rankGap =
+    bestAdd && bestDrop
+      ? (getRankNumber(bestDrop.weeklyEcrRank || bestDrop.rank) || 0) -
+        (getRankNumber(bestAdd.weeklyEcrRank || bestAdd.rank) || 0)
+      : null;
+  const ecrAsset = addAssets.find(asset => asset.weeklyEcrRank);
+  const rosAsset = addAssets.find(asset => asset.rosRank);
+  const wwAsset = addAssets.find(asset => asset.wwRank);
+  const confidenceAsset = addAssets.find(asset => asset.ecrConfidence);
+  const chips = [
+    addTotal !== null ? `Claim ${formatCompactValue(addTotal)}` : null,
+    dropTotal !== null ? `Drop ${formatCompactValue(dropTotal)}` : null,
+    ecrAsset?.weeklyEcrRank ? `Weekly rank ${ecrAsset.weeklyEcrRank}` : null,
+    rosAsset?.rosRank ? `ROS ${rosAsset.rosRank}` : null,
+    wwAsset?.wwRank ? `WW ${wwAsset.wwRank}` : null,
+    confidenceAsset?.ecrConfidence || null,
+  ].filter((chip): chip is string => Boolean(chip));
+
+  const rankNote = rankGap && Math.abs(rankGap) > 0
+    ? rankGap > 0
+      ? `Claim ranks ${rankGap} spots ahead of the drop.`
+      : `Drop ranks ${Math.abs(rankGap)} spots ahead, so this needs roster-fit justification.`
+    : null;
+  const ecrNote = ecrAsset?.weeklyEcrRank
+    ? `${ecrAsset.playerName} adds ${ecrAsset.weeklyEcrRank} weekly ECR context for short-term startability.`
+    : "No fresh weekly ECR signal is attached, so this falls back to blended value and roster fit.";
+
+  return {
+    tone: "waiver",
+    headline: edge !== null
+      ? `Claim edge ${formatSignedCompactValue(edge)}`
+      : "Claim value check",
+    note: rankNote || ecrNote,
+    chips,
+  };
+}
+
+function buildTradeActivitySummary({
+  signal,
+  playerDetailsById,
+  currentPositionRankById,
+  waiverIntelligence,
+  leagueValueMode,
+  rankings,
+  managerRosterIntelligence,
+}: {
+  signal: TradeProposalSignal;
+  playerDetailsById?: ReportData["playerDetailsById"];
+  currentPositionRankById?: ReportData["currentPositionRankById"];
+  waiverIntelligence?: ReportData["waiverIntelligence"];
+  leagueValueMode: ReportData["leagueValueMode"];
+  rankings?: ReportData["rankings"];
+  managerRosterIntelligence?: ReportData["managerRosterIntelligence"];
+}): PendingActivitySummaryData | null {
+  const sides = signal.tradeSides || [];
+  if (!sides.length) {
+    const assets = resolvePendingAssets({
+      playerIds: signal.playerIds || [],
+      playerNames: signal.playerNames || [],
+      playerDetailsById,
+      currentPositionRankById,
+      waiverIntelligence,
+      leagueValueMode,
+      rankings,
+    });
+    const total = getKnownValueTotal(assets, { includeSeasonOnlyLineupAssets: false });
+    const seasonOnlyCount = getSeasonOnlyTradeAssetCount(assets);
+    const seasonOnlyNote = seasonOnlyCount
+      ? " K/DST are shown as lineup pieces and are not included in this dynasty quick total."
+      : "";
+    return {
+      tone: "trade",
+      headline: total !== null ? `Player value ${formatCompactValue(total)}` : "Trade value check",
+      note: `Uses app blended value first; Trade War Room adds roster fit, starter impact, and manager leverage.${seasonOnlyNote}`,
+      chips: total !== null ? [`Blended ${formatCompactValue(total)}`] : [],
+    };
+  }
+
+  const sideSummaries = sides.map(side => {
+    const receivedAssets = resolvePendingAssets({
+      playerIds: side.playerIds || [],
+      playerNames: side.playerNames || [],
+      playerDetailsById,
+      currentPositionRankById,
+      waiverIntelligence,
+      leagueValueMode,
+      rankings,
+    });
+    const sentSides = sides.filter(otherSide => otherSide !== side);
+    const sentAssets = resolvePendingAssets({
+      playerIds: sentSides.flatMap(otherSide => otherSide.playerIds || []),
+      playerNames: sentSides.flatMap(otherSide => otherSide.playerNames || []),
+      playerDetailsById,
+      currentPositionRankById,
+      waiverIntelligence,
+      leagueValueMode,
+      rankings,
+    });
+    const receivedTotal = getKnownValueTotal(receivedAssets, { includeSeasonOnlyLineupAssets: false });
+    const sentTotal = getKnownValueTotal(sentAssets, { includeSeasonOnlyLineupAssets: false });
+    return {
+      manager: side.manager,
+      receivedAssets,
+      sentAssets,
+      receivedTotal,
+      sentTotal,
+      edge: receivedTotal !== null && sentTotal !== null ? receivedTotal - sentTotal : null,
+      pickCount: (side.pickLabels || []).length + sentSides.flatMap(otherSide => otherSide.pickLabels || []).length,
+      seasonOnlyTradeAssetCount: getSeasonOnlyTradeAssetCount(receivedAssets) + getSeasonOnlyTradeAssetCount(sentAssets),
+    };
+  });
+
+  const knownEdges = sideSummaries.filter(row => row.edge !== null);
+  const leadingSide = knownEdges.sort((a, b) => Number(b.edge) - Number(a.edge))[0] || sideSummaries[0];
+  if (!leadingSide) return null;
+  const edge = leadingSide.edge;
+  const pickNote = leadingSide.pickCount
+    ? " Pick value is not included in this quick player-value total."
+    : "";
+  const seasonOnlyNote = leadingSide.seasonOnlyTradeAssetCount
+    ? " K/DST are shown as lineup pieces and are not included in this dynasty quick total."
+    : "";
+  const chips = [
+    leadingSide.receivedTotal !== null ? `Receives ${formatCompactValue(leadingSide.receivedTotal)}` : null,
+    leadingSide.sentTotal !== null ? `Sends ${formatCompactValue(leadingSide.sentTotal)}` : null,
+    edge !== null ? `Edge ${formatSignedCompactValue(edge)}` : null,
+    leadingSide.seasonOnlyTradeAssetCount ? "Lineup-only K/DST" : null,
+  ].filter((chip): chip is string => Boolean(chip));
+
+  return {
+    tone: "trade",
+    headline: edge !== null
+      ? `${leadingSide.manager} ${formatSignedCompactValue(edge)} value edge`
+      : "Trade value check",
+    note: `${buildRosterFitNote(
+      leadingSide.manager,
+      leadingSide.receivedAssets,
+      leadingSide.sentAssets,
+      managerRosterIntelligence
+    )}${pickNote}${seasonOnlyNote}`,
+    chips,
+  };
+}
+
+function PendingPlayerAssetCard({
+  playerId,
+  playerName,
+  playerDetailsById,
+  currentPositionRankById,
+  waiverIntelligence,
+  managerName,
+  managerAvatars,
+  leagueValueMode,
+  rankings,
+  onSelectPlayer,
+}: {
+  playerId?: string | null;
+  playerName: string;
+  playerDetailsById?: ReportData["playerDetailsById"];
+  currentPositionRankById?: ReportData["currentPositionRankById"];
+  waiverIntelligence?: ReportData["waiverIntelligence"];
+  managerName?: string | null;
+  managerAvatars?: ReportData["managerAvatars"];
+  leagueValueMode: ReportData["leagueValueMode"];
+  rankings?: ReportData["rankings"];
+  onSelectPlayer: (player: PlayerModalData) => void;
+}) {
+  const resolved = resolvePendingPlayerAsset({
+    playerId,
+    playerName,
+    playerDetailsById,
+    currentPositionRankById,
+    waiverIntelligence,
+    leagueValueMode,
+    rankings,
+  });
+  const contextPills = [
+    resolved.weeklyEcrRank ? `Weekly rank ${resolved.weeklyEcrRank}` : null,
+    resolved.rosRank ? `ROS ${resolved.rosRank}` : null,
+    resolved.wwRank ? `WW ${resolved.wwRank}` : null,
+    resolved.ecrConfidence,
+    !resolved.countsTowardTradeValue ? "Lineup-only" : null,
+  ].filter((pill): pill is string => Boolean(pill));
+  const valueLabel = resolved.value !== null && resolved.value !== undefined
+    ? `${!resolved.countsTowardTradeValue ? "Lineup " : ""}${formatCompactValue(resolved.value)}`
+    : "-";
+  const modalPick: PlayerModalData = {
+    playerName: resolved.playerName,
     player_id: playerId || undefined,
-    playerPos: position || undefined,
-    playerDetails: modalDetails,
-    boardPositionRank: rank || position || null,
-    sourcePositionRank: rank || position || null,
+    playerPos: resolved.position || undefined,
+    playerDetails: resolved.modalDetails,
+    boardPositionRank: resolved.rank || resolved.position || null,
+    sourcePositionRank: resolved.rank || resolved.position || null,
     managerAvatarUrl: managerName ? managerAvatars?.[managerName] || null : null,
     valueMode: normalizeLeagueValueMode(leagueValueMode),
   };
@@ -580,30 +1041,42 @@ function PendingPlayerAssetCard({
     <button
       type="button"
       onClick={() => onSelectPlayer(modalPick)}
-      className="player-team-tile weekly-momentum-tile group w-full !min-h-[6.85rem] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
-      style={getTeamTileStyle(team)}
-      aria-label={`Open ${displayName} details`}
+      className="player-team-tile weekly-momentum-tile group w-full !min-h-[7.55rem] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
+      style={getTeamTileStyle(resolved.team)}
+      aria-label={`Open ${resolved.playerName} details`}
     >
       <div className="weekly-momentum-identity">
         <PlayerIdentityRow
           className="weekly-momentum-player"
           playerId={playerId || undefined}
-          playerName={displayName}
-          team={team}
-          position={position}
+          playerName={resolved.playerName}
+          team={resolved.team}
+          position={resolved.position}
           hideMeta
         />
       </div>
       <div className="activity-card-meta-row">
         <div className="weekly-momentum-pills flex min-w-0 flex-wrap items-center gap-2">
-          <PositionRankPill rank={rank || position || "-"} />
-          {!isDefense ? <TeamLogoPill team={team} /> : null}
+          <PositionRankPill rank={resolved.rank || resolved.position || "-"} />
+          {!resolved.isDefense ? <TeamLogoPill team={resolved.team} /> : null}
           <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-xs font-black text-emerald-200">
-            {formatCompactValue(value)}
+            {valueLabel}
           </span>
         </div>
         {renderActivityManagerAvatar(managerName, managerAvatars)}
       </div>
+      {contextPills.length ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {contextPills.slice(0, 2).map(pill => (
+            <span
+              key={pill}
+              className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.12em] text-cyan-100"
+            >
+              {pill}
+            </span>
+          ))}
+        </div>
+      ) : null}
     </button>
   );
 }
@@ -824,6 +1297,7 @@ function PendingSleeperActivityList({
   leagueValueMode,
   managerAvatars,
   rankings,
+  managerRosterIntelligence,
   onSelectPlayer,
 }: {
   signals: TradeProposalSignal[];
@@ -834,6 +1308,7 @@ function PendingSleeperActivityList({
   leagueValueMode: ReportData["leagueValueMode"];
   managerAvatars?: ReportData["managerAvatars"];
   rankings?: ReportData["rankings"];
+  managerRosterIntelligence?: ReportData["managerRosterIntelligence"];
   onSelectPlayer: (player: PlayerModalData) => void;
 }) {
   if (!signals.length) {
@@ -853,6 +1328,26 @@ function PendingSleeperActivityList({
           ? signal.waiverAdds.playerNames
           : signal.playerNames || [];
         const drops = signal.waiverDrops?.playerNames || [];
+        const summary = isWaiver
+          ? buildWaiverActivitySummary({
+              signal,
+              adds,
+              drops,
+              playerDetailsById,
+              currentPositionRankById,
+              waiverIntelligence,
+              leagueValueMode,
+              rankings,
+            })
+          : buildTradeActivitySummary({
+              signal,
+              playerDetailsById,
+              currentPositionRankById,
+              waiverIntelligence,
+              leagueValueMode,
+              rankings,
+              managerRosterIntelligence,
+            });
         return (
           <article
             key={`${signal.id}:${signal.date}`}
@@ -890,6 +1385,7 @@ function PendingSleeperActivityList({
                 View in Trade War Room
               </Button>
             </div>
+            <PendingActivitySummaryStrip summary={summary} />
             <div className="p-4">
               {isWaiver ? (
                 <div className="grid gap-3 md:grid-cols-2">
@@ -1465,6 +1961,7 @@ export function ReportTradesTab({
             leagueValueMode={leagueValueMode}
             managerAvatars={reportData.managerAvatars}
             rankings={rankingsForReport}
+            managerRosterIntelligence={reportData.managerRosterIntelligence}
             onSelectPlayer={setSelectedPendingPlayer}
           />
         </CollapsibleReportSection>

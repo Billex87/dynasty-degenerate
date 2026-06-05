@@ -3859,7 +3859,9 @@
 }
 
 .report-shell :is(.owner-summary-scrim, .command-depth-tile-scrim) {
-  background: linear-gradient(90deg, rgba(2, 6, 23, 0.46), rgba(2, 6, 23, 0.84)), linear-gradient(180deg, rgba(2, 6, 23, 0.16), rgba(2, 6, 23, 0.42)) !important;
+  /* Dark scrim removed per request — the avatar wash/mark beneath are already
+     faint and the tile base is dark, so no legibility scrim is needed. */
+  background: none !important;
 }
 
 .report-shell :is(.owner-summary-wash, .command-depth-tile-wash) {

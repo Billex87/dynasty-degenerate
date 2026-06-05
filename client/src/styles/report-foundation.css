@@ -7361,7 +7361,8 @@
   .command-depth-tile-scrim {
     position: absolute;
     inset: 0;
-    background: linear-gradient(90deg, rgba(2, 6, 23, 0.16), rgba(2, 6, 23, 0.64)), linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.22));
+    /* Dark scrim removed per request (re-add a light one later if needed). */
+    background: none;
   }
 
   .command-depth-tile-main {
@@ -7839,7 +7840,8 @@
   .owner-intel-scrim {
     position: absolute;
     inset: 0;
-    background: linear-gradient(90deg, rgba(2, 6, 23, 0.12), rgba(2, 6, 23, 0.66)), linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.38));
+    /* Dark scrim removed per request (re-add a light one later if needed). */
+    background: none;
   }
 
   .owner-intel-content {
@@ -14487,7 +14489,9 @@
   .manager-hero-scrim {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(2, 6, 23, 0.12), rgba(2, 6, 23, 0.76) 72%), radial-gradient(circle at 12% 0%, rgba(249, 115, 22, 0.18), transparent 36%), radial-gradient(circle at 88% 10%, rgba(34, 211, 238, 0.16), transparent 42%);
+    /* Dark gradient removed per request; subtle brand-color glows kept (not a
+       dark overlay) to preserve legibility over the brighter hero avatar. */
+    background: radial-gradient(circle at 12% 0%, rgba(249, 115, 22, 0.18), transparent 36%), radial-gradient(circle at 88% 10%, rgba(34, 211, 238, 0.16), transparent 42%);
   }
 
   .manager-draft-table {
@@ -15809,7 +15813,9 @@
   .trade-manager-hero-scrim {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(2, 6, 23, 0.18), rgba(2, 6, 23, 0.9) 68%), radial-gradient(circle at 12% 0%, rgba(249, 115, 22, 0.18), transparent 36%);
+    /* Dark gradient removed per request; subtle brand-color glow kept (not a
+       dark overlay) to preserve legibility over the brighter hero avatar. */
+    background: radial-gradient(circle at 12% 0%, rgba(249, 115, 22, 0.18), transparent 36%);
   }
 
   .trade-manager-header {

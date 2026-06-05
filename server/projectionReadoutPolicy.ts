@@ -16,8 +16,7 @@ import type {
 } from './playerProjectionSnapshots';
 
 export type ProjectionEvidenceKind =
-  | 'provider projection'
-  | 'stored provider projection'
+  | 'stored projection'
   | 'internal projection'
   | 'schedule estimate'
   | 'market signal'
@@ -118,13 +117,8 @@ function projectionFreshnessHours(type?: PlayerProjectionType | string): number 
 
 function displaySourceName(source?: PlayerProjectionSource | string, canNameProvider = false): string {
   if (!source) return 'projection source';
-  if (!canNameProvider && source !== 'internal') return 'stored provider';
-  if (source === 'fantasypros') return 'FantasyPros';
-  if (source === 'draftsharks') return 'DraftSharks';
-  if (source === 'sportsdataio') return 'SportsDataIO';
-  if (source === 'fantasynerds') return 'Fantasy Nerds';
-  if (source === 'internal') return 'internal';
-  return String(source);
+  if (source === 'internal') return canNameProvider ? 'app projection' : 'internal';
+  return 'stored projection';
 }
 
 function findProjectionRow(
@@ -154,7 +148,7 @@ function getEvidenceKind(input: {
 
   if (input.projectionRow.source === 'internal') return 'internal projection';
   if (PROVIDER_SOURCES.has(input.projectionRow.source)) {
-    return input.canNameProvider ? 'provider projection' : 'stored provider projection';
+    return 'stored projection';
   }
   return 'schedule/value context only';
 }
@@ -249,7 +243,7 @@ function getSourceTrace(input: {
       ?? dateAgeHours(projectionSnapshot.publishedAt, input.now)
       ?? dateAgeHours(projectionSnapshot.fetchedAt, input.now);
     trace.push({
-      label: `${sourceLabel} ${projectionSnapshot.projectionType} projection`,
+      label: `${sourceLabel} ${projectionSnapshot.projectionType}`,
       status: projectionSnapshot.sourceError || projectionSnapshot.staleReason ? 'stale' : 'loaded',
       ageHours,
       detail: [
@@ -279,7 +273,7 @@ function getSourceTrace(input: {
 
   if (projectionRow?.expertCount !== null && projectionRow?.expertCount !== undefined) {
     trace.push({
-      label: 'Projection source count',
+      label: 'Projection evidence count',
       status: projectionRow.expertCount > 1 ? 'loaded' : 'limited',
       detail: `${projectionRow.expertCount} expert${projectionRow.expertCount === 1 ? '' : 's'}`,
     });
@@ -329,9 +323,9 @@ function getEvidenceLanguage(input: {
 }): string {
   const row = input.row;
   if (!row) return 'No projection row is available; do not make a weekly projection claim.';
-  if (input.evidenceKind === 'provider projection' || input.evidenceKind === 'stored provider projection') {
+  if (input.evidenceKind === 'stored projection') {
     const source = displaySourceName(input.projectionSnapshot?.source, input.canNameProvider);
-    return `${source} ${row.projectionType} projection is ${row.projectedFantasyPoints ?? 'n/a'} points for ${row.scoringProfile}.`;
+    return `${source} ${row.projectionType} is ${row.projectedFantasyPoints ?? 'n/a'} points for ${row.scoringProfile}.`;
   }
   if (input.evidenceKind === 'internal projection') {
     return `Internal ${row.projectionType} projection is ${row.projectedFantasyPoints ?? 'n/a'} points for ${row.scoringProfile}.`;
@@ -469,7 +463,7 @@ export function buildProjectionReadoutPolicy(input: ProjectionReadoutPolicyInput
   const providerNameAllowed = projectionRow?.source
     ? sourcePolicy.providerNamesAllowed?.[projectionRow.source] === true
     : false;
-  const canNameProvider = projectionRow?.source === 'internal' || (providerAttributionAllowed && providerNameAllowed);
+  const canNameProvider = projectionRow?.source === 'internal' && providerAttributionAllowed && providerNameAllowed;
   const canUseProjectionClaim = Boolean(input.row && projectionRow && projectionDisplayAllowed && projectionRow.projectedFantasyPoints !== null);
   const evidenceKind = getEvidenceKind({
     row: input.row,
@@ -512,7 +506,7 @@ export function buildProjectionReadoutPolicy(input: ProjectionReadoutPolicyInput
     ?? dateAgeHours(projectionSnapshot?.publishedAt || null, now)
     ?? dateAgeHours(projectionSnapshot?.fetchedAt || null, now);
   if (projectionSnapshot && projectionAge !== null && projectionAge > projectionFreshnessHours(projectionSnapshot.projectionType)) {
-    softWarnings.push(`${displaySourceName(projectionSnapshot.source, canNameProvider)} projection snapshot is ${projectionAge} hours old.`);
+    softWarnings.push(`${displaySourceName(projectionSnapshot.source, canNameProvider)} snapshot is ${projectionAge} hours old.`);
     const capped = capConfidence(confidenceCap, confidenceCapReason, 62, 'Projection source freshness');
     confidenceCap = capped.cap;
     confidenceCapReason = capped.reason;

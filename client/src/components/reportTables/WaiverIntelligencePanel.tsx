@@ -5,6 +5,7 @@ import type {
   RecentTransactionPlayer,
   ReportData,
   TrendingPlayer,
+  WaiverSourceTraceEntry,
   WaiverWeeklyEcrSignal,
   WaiverWeeklyEcrTarget,
   WaiverWeeklyEcrWeek,
@@ -298,6 +299,10 @@ const WAIVER_WEEKLY_ECR_RANK_LIMITS: Record<WaiverPosition, number> = {
   K: 20,
   DEF: 20,
 };
+const DRAFTSHARKS_SCHEDULE_SOURCE = "DraftSharks";
+const DRAFTSHARKS_SOS_SIGNAL_TYPE = "draftsharks-sos";
+const UNUSABLE_FANTASYPROS_STATUS_PATTERN =
+  /stale|missing|empty|gated|blocked|forbidden|unauthorized|disabled|unavailable|error|fail|rate|limited|research/i;
 
 function getWaiverWeeklyEcrSignal(
   player: TrendingPlayer,
@@ -316,7 +321,57 @@ function isWaiverScheduleWindowSignal(
 ): signal is WaiverWeeklyEcrSignal {
   return Boolean(
     signal &&
-      signal.signalType === "draftsharks-sos"
+      signal.source === DRAFTSHARKS_SCHEDULE_SOURCE &&
+      signal.signalType === DRAFTSHARKS_SOS_SIGNAL_TYPE
+  );
+}
+
+function isFantasyProsRankSignal(
+  signal?: WaiverWeeklyEcrSignal | null
+): signal is WaiverWeeklyEcrSignal {
+  return Boolean(signal && signal.source === "FantasyPros" && !isWaiverScheduleWindowSignal(signal));
+}
+
+function isUsableFantasyProsSignalStatus(
+  status?: string | null,
+  rowCount?: number | null
+): boolean {
+  if (rowCount === 0) return false;
+  const normalized = String(status || "").trim();
+  if (!normalized) return false;
+  return !UNUSABLE_FANTASYPROS_STATUS_PATTERN.test(normalized);
+}
+
+function hasUsableFantasyProsRankSignal(signal?: WaiverWeeklyEcrSignal | null): boolean {
+  if (!isFantasyProsRankSignal(signal)) return false;
+  const hasRank = Boolean(getWaiverWeeklyEcrBestRank(signal));
+  if (!hasRank) return false;
+  const usableWeek = getUsableWaiverWeeklyEcrWeeks(signal).length > 0;
+  const usableTrace = getUsableWaiverWeeklyEcrSourceTrace(signal).length > 0;
+  return usableWeek || usableTrace;
+}
+
+function shouldUseWaiverWeeklyEcrSignal(signal?: WaiverWeeklyEcrSignal | null): boolean {
+  return isWaiverScheduleWindowSignal(signal) || hasUsableFantasyProsRankSignal(signal);
+}
+
+function getUsableWaiverWeeklyEcrWeeks(signal?: WaiverWeeklyEcrSignal | null): WaiverWeeklyEcrSignal["weeks"] {
+  if (!signal?.weeks?.length) return [];
+  if (isWaiverScheduleWindowSignal(signal)) return signal.weeks;
+  if (!isFantasyProsRankSignal(signal)) return [];
+  return signal.weeks.filter(
+    week =>
+      Boolean(week.positionRank || week.rankEcr) &&
+      isUsableFantasyProsSignalStatus(week.sourceStatus, week.sourceRowCount)
+  );
+}
+
+function getUsableWaiverWeeklyEcrSourceTrace(signal?: WaiverWeeklyEcrSignal | null): WaiverSourceTraceEntry[] {
+  if (!signal?.sourceTrace?.length) return [];
+  if (isWaiverScheduleWindowSignal(signal)) return signal.sourceTrace;
+  if (!isFantasyProsRankSignal(signal)) return [];
+  return signal.sourceTrace.filter(trace =>
+    isUsableFantasyProsSignalStatus(trace.status, trace.rowCount)
   );
 }
 
@@ -429,11 +484,12 @@ function getWaiverWeeklyEcrRankNumber(
 function formatWaiverWeeklyEcrWindow(
   signal?: WaiverWeeklyEcrSignal | null
 ): string | null {
-  if (!signal?.weeks?.length) return null;
+  const displayWeeks = getUsableWaiverWeeklyEcrWeeks(signal);
+  if (!displayWeeks.length) return null;
   const windowWeeks = signal.matchupWindows?.next3?.weeks || null;
   const rows = windowWeeks?.length
-    ? signal.weeks.filter(week => windowWeeks.includes(week.week))
-    : signal.weeks.slice(0, 3);
+    ? displayWeeks.filter(week => windowWeeks.includes(week.week))
+    : displayWeeks.slice(0, 3);
 
   const formattedRows = rows
     .map(week => {
@@ -465,7 +521,7 @@ function formatWaiverWeeklyEcrWindow(
 function formatWaiverWeeklyEcrReason(
   signal?: WaiverWeeklyEcrSignal | null
 ): string | null {
-  if (!signal) return null;
+  if (!signal || !shouldUseWaiverWeeklyEcrSignal(signal)) return null;
   const bestRank = getWaiverWeeklyEcrBestRank(signal);
   const window = formatWaiverWeeklyEcrWindow(signal);
   const playoffSummary = signal.matchupWindows?.playoffs?.playableWeeks
@@ -477,9 +533,9 @@ function formatWaiverWeeklyEcrReason(
         ? `improved ${signal.rankDelta} spots`
         : `slipped ${Math.abs(signal.rankDelta)} spots`
       : null;
-  const label = signal.source === "DraftSharks" || signal.signalType === "draftsharks-sos"
-    ? "DraftSharks next-3 SOS window"
-    : "FantasyPros next-3 rank window";
+  const label = isWaiverScheduleWindowSignal(signal)
+    ? "Next-3 schedule window"
+    : "Next-3 weekly rank window";
   return [bestRank ? `${label}: ${bestRank}` : null, window, playoffSummary, movement]
     .filter(Boolean)
     .join(" • ") || null;
@@ -490,7 +546,7 @@ function getWaiverWeeklyEcrRecommendationScore(
   position: WaiverPosition | null,
   leagueValueMode: LeagueValueMode = "dynasty"
 ): number {
-  if (!signal || !position) return 0;
+  if (!signal || !position || !shouldUseWaiverWeeklyEcrSignal(signal)) return 0;
   const rankLimit = WAIVER_WEEKLY_ECR_RANK_LIMITS[position];
   const bestRank = getWaiverWeeklyEcrRankNumber(signal) || signal.bestRankEcr || null;
   if ((!bestRank || bestRank > rankLimit) && !isWaiverScheduleWindowSignal(signal)) return 0;
@@ -1663,11 +1719,11 @@ function getWaiverEvidenceSourceCount(
 ): number {
   const valueSources = details?.valueProfile?.sources || [];
   const uniqueSources = new Set(valueSources.filter(Boolean));
-  if (weeklyEcrSignal) {
+  if (weeklyEcrSignal && shouldUseWaiverWeeklyEcrSignal(weeklyEcrSignal)) {
     uniqueSources.add(
-      weeklyEcrSignal.source === "DraftSharks"
-        ? "DraftSharks SOS snapshot"
-        : "FantasyPros rank snapshot"
+      weeklyEcrSignal.source === DRAFTSHARKS_SCHEDULE_SOURCE
+        ? "Schedule snapshot"
+        : "Weekly rank snapshot"
     );
   }
   return uniqueSources.size;
@@ -1729,29 +1785,31 @@ function getWaiverEvidenceSourceTrace({
   const traces: Array<string | AISourceTrace> = [];
   const valueSources = details?.valueProfile?.sources || [];
   if (valueSources.length) {
-    traces.push(`${valueSources.length} value source${valueSources.length === 1 ? "" : "s"}: ${valueSources.slice(0, 3).join(", ")}`);
+    traces.push(`${valueSources.length} blended value input${valueSources.length === 1 ? "" : "s"} loaded.`);
   }
   if (bidEvidenceLabel) traces.push(`Bid model: ${bidEvidenceLabel}`);
-  if (weeklyEcrSignal?.traceSummary) {
+  const canShowWeeklySignal = shouldUseWaiverWeeklyEcrSignal(weeklyEcrSignal);
+  if (weeklyEcrSignal?.traceSummary && canShowWeeklySignal) {
     const traceLabel =
-      weeklyEcrSignal.source === "DraftSharks" ||
-      weeklyEcrSignal.signalType === "draftsharks-sos"
-        ? "DraftSharks SOS trace"
-        : "FantasyPros rank trace";
+      isWaiverScheduleWindowSignal(weeklyEcrSignal)
+        ? "Schedule context trace"
+        : "Weekly rank context trace";
     traces.push({
       label: traceLabel,
       status: "loaded",
       detail: weeklyEcrSignal.traceSummary,
     });
   }
-  weeklyEcrSignal?.sourceTrace?.slice(0, 3).forEach(trace => {
+  if (!canShowWeeklySignal) return traces;
+  getUsableWaiverWeeklyEcrSourceTrace(weeklyEcrSignal).slice(0, 3).forEach(trace => {
+    const traceLabel = isWaiverScheduleWindowSignal(weeklyEcrSignal)
+      ? "Schedule snapshot"
+      : "Weekly rank snapshot";
     traces.push({
-      label: trace.endpointLabel || trace.source || "Stored schedule source",
+      label: trace.week ? `${traceLabel} W${trace.week}` : traceLabel,
       status: normalizeAiSourceTraceStatus(trace.status),
       detail: [
-        trace.week ? `W${trace.week}` : null,
         trace.rowCount ? `${trace.rowCount} rows` : null,
-        trace.evidence,
       ]
         .filter(Boolean)
         .join(" · "),
@@ -1813,6 +1871,7 @@ function buildWaiverEvidenceRead({
   const rank = isRedraft ? seasonRank || dynastyRank : dynastyRank || seasonRank;
   const sourceCount = getWaiverEvidenceSourceCount(details, weeklyEcrSignal);
   const weeklyRead = formatWaiverWeeklyEcrReason(weeklyEcrSignal);
+  const hasUsableWeeklyEcrSignal = shouldUseWaiverWeeklyEcrSignal(weeklyEcrSignal);
   const weeklyProjection = player.weeklyProjection || details?.weeklyProjection || null;
   const hasRecentUsage = Boolean(weeklyProjection || details?.usageTrend);
   const hasRoleContext = Boolean(details?.playerCohort || details?.playerSituationDelta);
@@ -1824,7 +1883,7 @@ function buildWaiverEvidenceRead({
     player,
     recentTransactions
   );
-  const hasCurrentSeasonValue = seasonValue > 0 || Boolean(weeklyEcrSignal);
+  const hasCurrentSeasonValue = seasonValue > 0 || hasUsableWeeklyEcrSignal;
   const hasDynastyValue = dynastyValue > 0;
   const hasProspectOnlyValue = Boolean(
     details?.prospectProfile &&
@@ -1835,7 +1894,7 @@ function buildWaiverEvidenceRead({
     isRedraft && hasCurrentSeasonValue ? "redraft" : null,
     hasCurrentSeasonValue ? "current" : null,
     !isRedraft && hasDynastyValue ? "dynasty" : null,
-    weeklyEcrSignal ? "schedule" : null,
+    isWaiverScheduleWindowSignal(weeklyEcrSignal) ? "schedule" : null,
     player.count ? "market" : null,
     details?.prospectProfile ? "prospect" : null,
   ].filter((item): item is AIEvidenceMode => Boolean(item));
@@ -1868,9 +1927,9 @@ function buildWaiverEvidenceRead({
     ].filter((item): item is string => Boolean(item)),
     missingEvidence: [
       rank ? null : "No trusted positional rank is attached.",
-      sourceCount ? null : "No value source count is attached.",
+      sourceCount ? null : "No blend evidence count is attached.",
       position === "K" || position === "DEF"
-        ? weeklyEcrSignal
+        ? isWaiverScheduleWindowSignal(weeklyEcrSignal)
           ? null
           : "No short-window schedule source is attached."
         : null,
@@ -1901,7 +1960,7 @@ function buildWaiverEvidenceRead({
       hasRoleContext,
     },
     schedule: {
-      hasScheduleData: Boolean(weeklyEcrSignal?.matchupWindows || weeklyEcrSignal?.weeks?.length),
+      hasScheduleData: isWaiverScheduleWindowSignal(weeklyEcrSignal),
       isRoughStart: Boolean(matchupOutlook?.isRoughStart),
       isStrongStart: Boolean(matchupOutlook?.isStrongStart),
       missingReason: "No stored matchup window is attached to this streamer read.",

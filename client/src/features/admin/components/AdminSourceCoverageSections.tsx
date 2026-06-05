@@ -159,8 +159,8 @@ function AdminSourceCoveragePanel({
       <div className="admin-traffic-panel admin-traffic-panel-error">
         <p>Source coverage is locked until Admin Tools are unlocked.</p>
         <span>
-          This panel is admin-only because it exposes provider names, refresh
-          cadence, and integration gaps.
+          This diagnostics panel is admin-only because it exposes provider
+          names, refresh cadence, integration gaps, and stored evidence health.
         </span>
       </div>
     );

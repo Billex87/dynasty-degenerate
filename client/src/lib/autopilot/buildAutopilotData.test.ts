@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createCachedCommandCenterReport, createCachedRedraftReport } from '../../../../tests/e2e/fixtures/cachedReports';
 import { buildMatchupWindowSet } from '@shared/matchupWindows';
 import type { ReportAICalibrationAdjustmentProfile, ReportData, TrendingPlayer, WaiverWeeklyEcrSignal, WaiverWeeklyEcrWeek } from '@shared/types';
-import { buildAutopilotData } from './buildAutopilotData';
+import { buildAutopilotData, buildSleeperResearchTodo } from './buildAutopilotData';
 import { AUTOPILOT_MOCK_DATA } from './mockData';
 
 describe('buildAutopilotData', () => {
@@ -30,6 +30,15 @@ describe('buildAutopilotData', () => {
 
     expect(data.weeklyPlan?.summary).toContain('Pressure-test');
     expect(data.weeklyPlan?.summary).not.toMatch(/\bStart\b.*\bover\b/i);
+  });
+
+  it('keeps projection research guidance out of dynasty asset-value language', () => {
+    const dynastyTodos = buildSleeperResearchTodo('dynasty').join(' ');
+    const redraftTodos = buildSleeperResearchTodo('redraft').join(' ');
+
+    expect(redraftTodos).toContain('start/sit and weekly plan cards');
+    expect(dynastyTodos).toContain('short-term contender/rebuilder context');
+    expect(dynastyTodos).not.toMatch(/dynasty market reads and ranking context/i);
   });
 
   it('builds a dynasty cockpit from live report data', () => {
@@ -2638,7 +2647,7 @@ describe('buildAutopilotData', () => {
     expect(data.waivers[0]?.player).toBe('Streaming Defense');
     expect(JSON.stringify(data.waivers)).not.toContain('Los Angeles Rams');
     expect(data.actionQueue[0]?.target).toBe('Streaming Defense');
-    expect(data.actionQueue[0]?.changeTriggers.join(' ')).toContain('DraftSharks');
+    expect(data.actionQueue[0]?.changeTriggers.join(' ')).toContain('schedule window');
     expect(JSON.stringify(data.actionQueue)).not.toContain('Los Angeles Rams');
   });
 
@@ -2777,7 +2786,7 @@ describe('buildAutopilotData', () => {
     expect(JSON.stringify(data.actionQueue)).not.toContain('Denver Broncos');
   });
 
-  it('keeps stale weekly-source waiver reads below do-this copy and queue actions', () => {
+  it('suppresses stale FantasyPros weekly-source claims on waiver reads', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];
     const receiver = reportData.waiverIntelligence!.availableTrendingAdds[0]!;
@@ -2860,23 +2869,18 @@ describe('buildAutopilotData', () => {
       fallback: AUTOPILOT_MOCK_DATA.redraft,
     });
 
-    expect(data.waivers[0]).toMatchObject({
-      player: 'Waiver Receiver',
-      action: 'Monitor only',
-      expectedAction: {
-        type: 'hold',
-      },
-    });
-    expect(data.waivers[0]?.summary).toContain("Don't add yet");
-    expect(data.waivers[0]?.confidence).toBeLessThan(68);
+    expect(data.waivers[0]?.player).toBe('Waiver Receiver');
+    expect(data.waivers[0]?.summary).not.toMatch(/FantasyPros|weekly ECR|stored weekly rank/i);
+    expect(data.waivers[0]?.reasons.join(' ')).not.toMatch(/FantasyPros|weekly ECR|stale snapshot/i);
+    expect(data.waivers[0]?.signals.join(' ')).not.toMatch(/FantasyPros|stored schedule trace|weekly ECR/i);
+    expect(data.waivers[0]?.evidenceRead?.sourceTrace.map((trace) => `${trace.label}: ${trace.status} ${trace.detail || ''}`).join(' ')).not.toMatch(/FantasyPros|stale snapshot/i);
     const waiverQueueItem = data.actionQueue.find((item) => item.target === 'Waiver Receiver');
     expect(waiverQueueItem).toBeDefined();
-    expect(waiverQueueItem?.decision).not.toBe('do');
-    expect(waiverQueueItem?.sourceHealth.join(' ')).toContain('stale');
-    expect(waiverQueueItem?.changeTriggers.join(' ')).toContain('FantasyPros WR weekly ECR');
+    expect(waiverQueueItem?.sourceHealth.join(' ')).not.toMatch(/FantasyPros|stale/i);
+    expect(waiverQueueItem?.changeTriggers.join(' ')).not.toMatch(/FantasyPros|weekly ECR/i);
   });
 
-  it('treats zero-row weekly-source traces as missing source-health proof', () => {
+  it('suppresses zero-row FantasyPros weekly-source claims on waiver reads', () => {
     const reportData = createCachedCommandCenterReport().reportData as ReportData;
     reportData.recentTransactions = [];
     const receiver = reportData.waiverIntelligence!.availableTrendingAdds[0]!;
@@ -2960,17 +2964,15 @@ describe('buildAutopilotData', () => {
       fallback: AUTOPILOT_MOCK_DATA.redraft,
     });
 
-    expect(data.waivers[0]).toMatchObject({
-      player: 'Waiver Receiver',
-      action: 'Monitor only',
-      expectedAction: {
-        type: 'hold',
-      },
-    });
-    expect(data.waivers[0]?.confidence).toBeLessThanOrEqual(48);
-    expect(data.waivers[0]?.evidenceRead?.missingEvidence.join(' ')).toContain('Fresh source proof is stale or unhealthy');
-    expect(data.waivers[0]?.evidenceRead?.sourceTrace.map((trace) => `${trace.label}: ${trace.status} ${trace.detail || ''}`).join(' ')).toContain('FantasyPros WR weekly ECR: missing 0 rows');
-    expect(data.actionQueue.filter((item) => item.target === 'Waiver Receiver' && item.decision === 'do')).toHaveLength(0);
+    expect(data.waivers[0]?.player).toBe('Waiver Receiver');
+    expect(data.waivers[0]?.summary).not.toMatch(/FantasyPros|weekly ECR|empty source/i);
+    expect(data.waivers[0]?.reasons.join(' ')).not.toMatch(/FantasyPros|weekly ECR|empty source/i);
+    expect(data.waivers[0]?.signals.join(' ')).not.toMatch(/FantasyPros|stored schedule trace|weekly ECR/i);
+    expect(data.waivers[0]?.evidenceRead?.missingEvidence.join(' ')).not.toContain('Fresh stored evidence is stale or unhealthy');
+    expect(data.waivers[0]?.evidenceRead?.sourceTrace.map((trace) => `${trace.label}: ${trace.status} ${trace.detail || ''}`).join(' ')).not.toMatch(/FantasyPros|0 rows|empty source/i);
+    const waiverQueueItem = data.actionQueue.find((item) => item.target === 'Waiver Receiver');
+    expect(waiverQueueItem?.sourceHealth.join(' ')).not.toMatch(/FantasyPros|0 rows|missing/i);
+    expect(waiverQueueItem?.changeTriggers.join(' ')).not.toMatch(/FantasyPros|weekly ECR/i);
   });
 
   it('does not turn dynasty-only waiver stash evidence into a redraft queue action', () => {

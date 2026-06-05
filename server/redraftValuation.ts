@@ -118,7 +118,7 @@ function getPlayerPointsHistoryAdjustment(
   return {
     adjustment,
     note: adjustment
-      ? `FantasyPros player-points history average ${roundOne(historicalAverage)} PPG calibrates projection confidence.`
+      ? `Stored player-points history average ${roundOne(historicalAverage)} PPG calibrates projection confidence.`
       : null,
   };
 }
@@ -231,7 +231,7 @@ function getFantasyProsInjuryTraceAdjustment(details: PlayerDetails | null): { a
   ) {
     return {
       adjustment: -1400,
-      note: "FantasyPros injury/practice snapshot flags a hard availability risk",
+      note: "Stored injury/practice snapshot flags a hard availability risk",
     };
   }
 
@@ -244,7 +244,7 @@ function getFantasyProsInjuryTraceAdjustment(details: PlayerDetails | null): { a
   ) {
     return {
       adjustment: -750,
-      note: "FantasyPros injury/practice snapshot flags a doubtful or missed-practice risk",
+      note: "Stored injury/practice snapshot flags a doubtful or missed-practice risk",
     };
   }
 
@@ -256,7 +256,7 @@ function getFantasyProsInjuryTraceAdjustment(details: PlayerDetails | null): { a
   ) {
     return {
       adjustment: -325,
-      note: "FantasyPros injury/practice snapshot flags a questionable or limited-practice risk",
+      note: "Stored injury/practice snapshot flags a questionable or limited-practice risk",
     };
   }
 
@@ -290,7 +290,7 @@ function getInjuryNewsAdjustment(details: PlayerDetails | null): { adjustment: n
     adjustment = adjustment < 0
       ? Math.min(adjustment, fantasyProsInjuryRead.adjustment)
       : fantasyProsInjuryRead.adjustment;
-    notes.push(fantasyProsInjuryRead.note || "FantasyPros injury/practice snapshot");
+    notes.push(fantasyProsInjuryRead.note || "Stored injury/practice snapshot");
   }
 
   for (const signal of details.playerSituationDelta?.dynamicSignals || []) {

@@ -237,7 +237,7 @@ function buildDevelopmentRead(input: {
     details?.usageTrend ? 'Early usage trend is attached.' : 'Early usage trend is missing or thin.',
     details?.depthChartOrder || details?.rosterRoom ? 'Depth-chart barrier evidence is attached.' : 'Depth-chart barrier evidence is thin.',
     similarPlayerOpportunityScore !== null ? 'Similar-player opportunity evidence is attached.' : 'Similar-player opportunity evidence is not available.',
-    fantasyProsRookieRankSignal ? 'FantasyPros rookie ranking evidence is attached.' : null,
+    fantasyProsRookieRankSignal ? 'Stored rookie ranking evidence is attached.' : null,
   ].filter((reason): reason is string => Boolean(reason));
   confidence += teamInvestmentScore >= 70 ? 10 : 5;
   confidence += details?.usageTrend ? 8 : 0;

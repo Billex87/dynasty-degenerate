@@ -536,7 +536,7 @@ export function buildLineupStrength(reportData: ReportData, options: { generated
     const confidenceCapReason = !projectionReady
       ? "Weekly projection readiness failed, so lineup strength is value/rank first."
       : starterAvailabilityRiskCount
-        ? "Stored FantasyPros injury/practice-report snapshot flags starter availability risk, so lineup confidence is capped."
+        ? "Stored injury/practice-report snapshot flags starter availability risk, so lineup confidence is capped."
       : scheduleScore === null
         ? "Schedule context is missing for these starters, so SOS does not affect the score."
         : null;

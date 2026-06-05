@@ -208,7 +208,7 @@ describe("buildLineupStrength", () => {
       fantasyProsSourceTrace: [{
         source: "FantasyPros",
         key: "INJURIES",
-        label: "FantasyPros Injuries",
+        label: "Stored injuries",
         status: "Questionable",
         evidence: "status Questionable; injury Shoulder; practice Limited; endpoint metadata: fantasypros-injuries.",
       }],
@@ -221,7 +221,7 @@ describe("buildLineupStrength", () => {
       totalScore: 282,
       edge: 48,
       confidence: 76,
-      confidenceCapReason: "Stored FantasyPros injury/practice-report snapshot flags starter availability risk, so lineup confidence is capped.",
+      confidenceCapReason: "Stored injury/practice-report snapshot flags starter availability risk, so lineup confidence is capped.",
       optimalStarterScoreDelta: 15,
     });
     expect(alpha?.benchAlternatives[0]).toMatchObject({

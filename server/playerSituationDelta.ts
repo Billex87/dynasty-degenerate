@@ -169,8 +169,8 @@ function fantasyProsNewsCategory(details: PlayerDetails): {
     )
   );
   const detail = details.newsValueMovement?.note && hasValueMovementOverlap
-    ? `${details.newsValueMovement.note} FantasyPros category: ${categoryLabel}.`
-    : trace.evidence || details.latestNews?.summary || details.latestNews?.title || `FantasyPros ${categoryLabel} is attached.`;
+    ? `${details.newsValueMovement.note} Stored news category: ${categoryLabel}.`
+    : trace.evidence || details.latestNews?.summary || details.latestNews?.title || `Stored ${categoryLabel} is attached.`;
 
   return {
     categoryLabel,
@@ -294,8 +294,8 @@ function buildDynamicSignals(details: PlayerDetails): PlayerSituationDynamicSign
     addDynamicSignal(signals, {
       type: 'news',
       label: movementDirection
-        ? `FantasyPros ${fantasyProsNews.categoryLabel} moved value`
-        : `FantasyPros ${fantasyProsNews.categoryLabel}`,
+        ? `Stored ${fantasyProsNews.categoryLabel} moved value`
+        : `Stored ${fantasyProsNews.categoryLabel}`,
       direction: movementDirection || fantasyProsNews.defaultDirection,
       detail: fantasyProsNews.detail,
       eventAt: fantasyProsNews.eventAt,
@@ -370,7 +370,7 @@ function buildFreshnessProfile(
     score += details.latestNews?.title
       ? 3
       : ageDays === null ? 5 : ageDays <= 7 ? 12 : ageDays <= 30 ? 8 : 3;
-    signals.push(ageDays === null ? `FantasyPros ${fantasyProsNews.categoryLabel}` : `FantasyPros ${fantasyProsNews.categoryLabel} ${ageDays}d old`);
+    signals.push(ageDays === null ? `Stored ${fantasyProsNews.categoryLabel}` : `Stored ${fantasyProsNews.categoryLabel} ${ageDays}d old`);
   }
   if (details.schedule) {
     score += 4;
@@ -746,7 +746,7 @@ export function buildPlayerSituationDelta(details: PlayerDetails, playerId: stri
   if (details.rosterRoom?.movementTypes?.includes('free-agent-or-claim')) cautionFlags.push('inferred free-agent/claim movement');
   if (!details.rosterRoom?.opportunityDelta && details.rosterRoom) cautionFlags.push('roster-room movement lacks quality weighting');
   const fantasyProsNews = fantasyProsNewsCategory(details);
-  if (fantasyProsNews?.categoryLabel === 'rumor news') cautionFlags.push('FantasyPros rumor news category');
+  if (fantasyProsNews?.categoryLabel === 'rumor news') cautionFlags.push('Stored rumor news category');
   const dynamicSignals = buildDynamicSignals(details);
   const freshness = buildFreshnessProfile(details, dynamicSignals, missingSignals, cautionFlags);
 

@@ -2897,7 +2897,8 @@ button.owner-summary-tile:focus-visible {
 .owner-summary-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(2, 6, 23, 0.16), rgba(2, 6, 23, 0.64)), linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.22));
+  /* Dark scrim removed per request (re-add a light one later if needed). */
+  background: none;
 }
 
 .owner-summary-main,
@@ -7997,6 +7998,49 @@ body {
     flex: 0 1 calc((100% - 0.45rem) / 2) !important;
     max-width: calc((100% - 0.45rem) / 2) !important;
   }
+}
+
+/* ── Rank cards: vertical stack — position (top) / value (middle) / tier ───
+   Replaces the old [position-tile | rank-pill] horizontal layout. The rank
+   value is no longer a pill, so nothing can clip at narrow widths (the cramped
+   sidebar copy was cutting the "#N" badge). Three centered rows: position on
+   top, the rank value in the middle, the tier blurb beneath. */
+.dashboard-position-ranks .dashboard-rank-stack {
+  gap: 0.14rem;
+  text-align: center;
+  line-height: 1;
+}
+.dashboard-position-ranks .dashboard-rank-position {
+  font-family: var(--font-athletic);
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dd-text-muted, #9eb5d1);
+  line-height: 1;
+}
+.dashboard-position-ranks .dashboard-rank-value {
+  font-family: var(--font-athletic);
+  font-weight: 800;
+  font-size: 1.1rem;
+  line-height: 1.05;
+  color: var(--dd-text, #eef6ff);
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-position-ranks .dashboard-rank-tier {
+  display: block;
+  max-width: 100%;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.54rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--dd-text-dim, #7691b4);
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dashboard-position-ranks span[data-position="QB"] {

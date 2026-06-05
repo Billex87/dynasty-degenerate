@@ -82,17 +82,15 @@ function renderDashboardRankCard({
   key?: string;
 }) {
   return (
-    <CompactTile
+    <span
       key={itemKey || position}
-      as="span"
-      title={<em>{position}</em>}
-      aside={<strong>{formatDashboardRank(rank)}</strong>}
-      meta={<b>{tier}</b>}
       data-position={position}
-      tone="brand"
-      size="sm"
-      className="dashboard-position-rank-card"
-    />
+      className="dashboard-position-rank-card dashboard-rank-stack"
+    >
+      <em className="dashboard-rank-position">{position}</em>
+      <strong className="dashboard-rank-value">{formatDashboardRank(rank)}</strong>
+      <b className="dashboard-rank-tier">{tier}</b>
+    </span>
   );
 }
 

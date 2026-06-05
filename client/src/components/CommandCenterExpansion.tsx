@@ -3046,7 +3046,7 @@ function buildNewsRows(data: ReportData, selectedManager: string) {
       position: details.position || '-',
       team: details.team || null,
       title: details.latestNews?.title || 'News flag',
-      source: details.latestNews?.source || 'FantasyPros',
+      source: 'Stored news',
       publishedAt: details.latestNews?.publishedAt || null,
       isRostered: false,
     }));
@@ -3365,7 +3365,7 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
     {
       label: 'Research Assistant',
       status: newsCount ? 'Backed' : 'Missing',
-      note: 'Uses returned FantasyPros/Sleeper news and status flags when available.',
+      note: 'Uses stored news and status flags when available.',
       tone: newsCount ? 'good' : 'warn',
     },
     {

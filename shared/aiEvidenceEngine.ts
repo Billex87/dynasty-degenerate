@@ -322,14 +322,36 @@ function getPlayerAvailabilityStatus(player: AIEvidencePlayerContext): string | 
     cleanText(player.weeklyProjectionStatus);
 }
 
+const PROVIDER_ATTRIBUTION_PATTERN = /\b(?:FantasyPros|DraftSharks|KeepTradeCut|KTC|FantasyCalc|Flock Fantasy|DynastyProcess|Dynasty Nerds|Fantasy Nerds|Dynasty Dealer)\b/i;
+
+function sanitizeProviderDetail(value?: string | null): string | null {
+  const clean = cleanText(value);
+  if (!clean) return null;
+  return clean.replace(PROVIDER_ATTRIBUTION_PATTERN, "stored source");
+}
+
+function sanitizeSourceTraceLabel(value?: string | null): string {
+  const clean = cleanText(value) || "Source trace";
+  if (!PROVIDER_ATTRIBUTION_PATTERN.test(clean)) return clean;
+  if (/schedule|sos|matchup/i.test(clean)) return "Stored schedule snapshot";
+  if (/projection/i.test(clean)) return "Stored projection snapshot";
+  if (/news/i.test(clean)) return "Stored news snapshot";
+  if (/injur|practice|availability/i.test(clean)) return "Stored injury snapshot";
+  if (/rank|ecr|adp|ros|ww|waiver/i.test(clean)) return "Stored ranking snapshot";
+  if (/value|market|source/i.test(clean)) return "Stored value evidence";
+  return "Stored evidence";
+}
+
 function normalizeSourceTrace(sourceTrace?: Array<string | AISourceTrace>): AISourceTrace[] {
   const seen = new Set<string>();
   const result: AISourceTrace[] = [];
   (sourceTrace || []).forEach(item => {
+    const rawTrace = typeof item === "string" ? { label: item } : item;
+    const label = sanitizeSourceTraceLabel(rawTrace.label);
     const trace: AISourceTrace =
       typeof item === "string"
-        ? { label: item }
-        : { ...item, label: cleanText(item.label) || "Source trace" };
+        ? { label }
+        : { ...item, label, detail: sanitizeProviderDetail(item.detail) };
     const key = `${trace.label}|${trace.status || ""}|${trace.detail || ""}`.toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
@@ -1203,7 +1225,7 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
       ? Math.min(defaultStaleSourceCap, traceHealth === "missing" || staleTrace.status === "error" ? 48 : 55)
       : defaultStaleSourceCap;
     if (isDirectPlayerAction && (staleSourceCap < defaultStaleSourceCap || traceHealth === "missing" || traceHealth === "unhealthy")) {
-      missingEvidence.push("Fresh source proof is stale or unhealthy for this action read.");
+      missingEvidence.push("Fresh stored evidence is stale or unhealthy for this action read.");
     }
     softPenalties.push({
       label: `${staleTrace.label} is stale or unhealthy`,
@@ -1213,7 +1235,7 @@ export function evaluateAIEvidence(input: AIEvidenceInput): AIEvidenceResult {
       confidenceCap,
       confidenceCapReason,
       staleSourceCap,
-      `${staleTrace.label} source freshness`
+      `${staleTrace.label} evidence freshness`
     );
     confidenceCap = capped.cap;
     confidenceCapReason = capped.reason;

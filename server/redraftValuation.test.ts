@@ -224,7 +224,7 @@ describe("buildRedraftValuation", () => {
     details.valueProfile.fantasyProsSourceTrace = [{
       source: "FantasyPros",
       key: "PLAYER_POINTS",
-      label: "FantasyPros Player Points",
+      label: "Stored player points",
       value: 15.2,
       evidence: "season points 258.4; average 15.2; games 17; endpoint metadata: fantasypros-player-points.",
     }];
@@ -258,7 +258,7 @@ describe("buildRedraftValuation", () => {
     details.valueProfile.fantasyProsSourceTrace = [{
       source: "FantasyPros",
       key: "INJURIES",
-      label: "FantasyPros Injuries",
+      label: "Stored injuries",
       status: "Questionable",
       evidence: "status Questionable; injury Hamstring; practice Limited; endpoint metadata: fantasypros-injuries.",
     }];
@@ -276,7 +276,7 @@ describe("buildRedraftValuation", () => {
     });
     expect(row?.components.find(component => component.key === "injury-news")).toMatchObject({
       value: -325,
-      note: "Availability/news adjustment from FantasyPros injury/practice snapshot flags a questionable or limited-practice risk.",
+      note: "Availability/news adjustment from Stored injury/practice snapshot flags a questionable or limited-practice risk.",
     });
     expect(row?.confidenceReasons).toContain("Injury/news context adjusted the value.");
   });

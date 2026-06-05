@@ -30,10 +30,10 @@ describe('getPlayerValueConfidence', () => {
     expect(confidence.primarySourceCount).toBeGreaterThanOrEqual(4);
     expect(confidence.primarySources.map((source) => source.label)).toEqual([
       'Dynasty blend',
-      'KTC market',
-      'Flock Fantasy',
-      'FantasyCalc dynasty',
-      'Dynasty Nerds',
+      'Market input A',
+      'Expert input A',
+      'Market input B',
+      'Expert input B',
     ]);
   });
 
@@ -69,9 +69,9 @@ describe('getPlayerValueConfidence', () => {
     expect(confidence.score).toBeGreaterThanOrEqual(70);
     expect(confidence.sources.map((source) => source.label)).toEqual([
       'Season blend',
-      'FantasyPros season',
-      'FantasyCalc redraft',
-      'Flock best ball',
+      'Season-rank input',
+      'Redraft input',
+      'Best-ball input',
     ]);
   });
 });

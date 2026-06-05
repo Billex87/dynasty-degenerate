@@ -4,6 +4,7 @@ import { evaluateAIEvidence, getAIEvidenceLeagueContextFromDiagnostics, getAIEvi
 import type { AIEvidenceAction, AIEvidenceMode, AIEvidenceSurface, AIConfidenceLabel, AISourceTrace } from '@shared/aiEvidenceEngine';
 import { buildAIEvidenceLeagueActivityContext } from '@shared/leagueActivityContext';
 import { buildLeagueSharpnessProfile } from '@shared/leagueSharpness';
+import { summarizeFantasyProsExpertSpreadRows } from '@shared/fantasyProsExpertSpread';
 import type { LeagueSharpnessProfile } from '@shared/leagueSharpness';
 import type { RecommendationExpectedAction, RecommendationPlayerRef } from '@shared/recommendationOutcome';
 import type {
@@ -343,8 +344,65 @@ function isScheduleWindowSignal(
 ): signal is NonNullable<TrendingPlayer['weeklyEcr']> {
   return Boolean(
     signal &&
+      signal.source === 'DraftSharks' &&
       signal.signalType === 'draftsharks-sos'
   );
+}
+
+const UNUSABLE_FANTASYPROS_STATUS_PATTERN =
+  /stale|missing|empty|gated|blocked|forbidden|unauthorized|disabled|unavailable|error|fail|rate|limited|research/i;
+
+function isFantasyProsRankSignal(
+  signal?: TrendingPlayer['weeklyEcr']
+): signal is NonNullable<TrendingPlayer['weeklyEcr']> {
+  return Boolean(signal && signal.source === 'FantasyPros' && !isScheduleWindowSignal(signal));
+}
+
+function isUsableFantasyProsSignalStatus(status?: string | null, rowCount?: number | null): boolean {
+  if (rowCount === 0) return false;
+  const normalized = String(status || '').trim();
+  if (!normalized) return false;
+  return !UNUSABLE_FANTASYPROS_STATUS_PATTERN.test(normalized);
+}
+
+function hasUsableFantasyProsRankSignal(signal?: TrendingPlayer['weeklyEcr']): boolean {
+  if (!isFantasyProsRankSignal(signal)) return false;
+  const hasRank = Boolean(signal.bestPositionRank || signal.bestRankEcr);
+  if (!hasRank) return false;
+  const usableWeek = getUsableWeeklyRankWeeks(signal).length > 0;
+  const usableTrace = getUsableWeeklyRankSourceTrace(signal).length > 0;
+  return usableWeek || usableTrace;
+}
+
+function shouldUseWeeklyRankSignal(signal?: TrendingPlayer['weeklyEcr']): boolean {
+  return isScheduleWindowSignal(signal) || hasUsableFantasyProsRankSignal(signal);
+}
+
+function getUsableWeeklyRankWeeks(signal?: WaiverWeeklyEcrSignal | null): WaiverWeeklyEcrSignal['weeks'] {
+  if (!signal?.weeks?.length) return [];
+  if (isScheduleWindowSignal(signal)) return signal.weeks;
+  if (!isFantasyProsRankSignal(signal)) return [];
+  return signal.weeks.filter(
+    week =>
+      Boolean(week.positionRank || week.rankEcr) &&
+      isUsableFantasyProsSignalStatus(week.sourceStatus, week.sourceRowCount)
+  );
+}
+
+function getUsableWeeklyRankSourceTrace(signal?: WaiverWeeklyEcrSignal | null): WaiverSourceTraceEntry[] {
+  if (!signal?.sourceTrace?.length) return [];
+  if (isScheduleWindowSignal(signal)) return signal.sourceTrace;
+  if (!isFantasyProsRankSignal(signal)) return [];
+  return signal.sourceTrace.filter(trace =>
+    isUsableFantasyProsSignalStatus(trace.status, trace.rowCount)
+  );
+}
+
+function getFantasyProsExpertSpreadLabel(signal?: WaiverWeeklyEcrSignal | null): string | null {
+  if (!isFantasyProsRankSignal(signal)) return null;
+  const usableWeeks = getUsableWeeklyRankWeeks(signal);
+  if (!usableWeeks.length) return null;
+  return summarizeFantasyProsExpertSpreadRows(usableWeeks).label;
 }
 
 function getWaiverMatchupGuard(player: TrendingPlayer): {
@@ -2314,7 +2372,7 @@ function buildQueueChangeTriggers(
           ? 'If partner need, roster surplus, or value spread changes, do not force the trade.'
           : 'A cleaner action with stronger evidence would replace this hold call.';
   const scheduleTrigger = recommendation.signals.some((signal) => /schedule|matchup|stream/i.test(signal))
-    ? "A stale or rough DraftSharks schedule window would downgrade this to don't force it."
+    ? "A stale or rough schedule window would downgrade this to don't force it."
     : null;
   const decisionTrigger =
     decision === 'do'
@@ -2840,7 +2898,7 @@ function buildAIReportCardRead({
       status: adjustmentProfile
         ? `${adjustmentProfile.scoredCount} scored / ${adjustmentProfile.adjustments.length} adjustments`
         : calibrationStatus,
-      detail: topAdjustment?.reason || calibration?.note || 'Confidence learns from observed prediction outcomes, provider data, and admin feedback.',
+      detail: topAdjustment?.reason || calibration?.note || 'Confidence learns from observed prediction outcomes, stored evidence, and admin feedback.',
       tone: topAdjustment ? calibrationPriorityTone(topAdjustment.priority) : calibration?.status === 'ready' ? 'good' : calibration?.status === 'collecting' ? 'info' : 'warn',
     },
     {
@@ -2983,8 +3041,9 @@ function scoreWaiverCandidate(
   const needBonus = intel?.tradePlan?.needPosition === position ? 18 : 0;
   const youngBonus = mode === 'dynasty' && age && age <= 24 ? 13 : 0;
   const roleBonus = mode === 'redraft' && rank && rank <= 45 ? 14 : 0;
-  const weeklyEcrRank = parsePositionRankValue(player.weeklyEcr?.bestPositionRank)
-    || player.weeklyEcr?.bestRankEcr
+  const usableWeeklyRankSignal = shouldUseWeeklyRankSignal(player.weeklyEcr) ? player.weeklyEcr : null;
+  const weeklyEcrRank = parsePositionRankValue(usableWeeklyRankSignal?.bestPositionRank)
+    || usableWeeklyRankSignal?.bestRankEcr
     || null;
   const weeklyEcrBonus = weeklyEcrRank
     ? Math.max(0, 18 - weeklyEcrRank / 6) + Math.min(10, (player.weeklyEcr?.confidence || 0) / 10)
@@ -2998,12 +3057,14 @@ function scoreWaiverCandidate(
 
 function formatWaiverWeeklyEcrRead(player: TrendingPlayer): string | null {
   const signal = player.weeklyEcr;
-  if (!signal?.weeks?.length) return null;
+  if (!signal?.weeks?.length || !shouldUseWeeklyRankSignal(signal)) return null;
+  const displayWeeks = getUsableWeeklyRankWeeks(signal);
+  if (!displayWeeks.length) return null;
   const bestRank = signal.bestPositionRank || (signal.bestRankEcr ? `Rank ${Math.round(signal.bestRankEcr)}` : null);
   const windowWeeks = signal.matchupWindows?.next3?.weeks || null;
   const rows = windowWeeks?.length
-    ? signal.weeks.filter((week) => windowWeeks.includes(week.week))
-    : signal.weeks.slice(0, 3);
+    ? displayWeeks.filter((week) => windowWeeks.includes(week.week))
+    : displayWeeks.slice(0, 3);
   const window = rows
     .map((week) => {
       if (week.isBye) return `W${week.week} BYE`;
@@ -3017,27 +3078,30 @@ function formatWaiverWeeklyEcrRead(player: TrendingPlayer): string | null {
       return `W${week.week} ${week.positionRank || (week.rankEcr ? `Rank ${week.rankEcr}` : 'ranked')}`;
     })
     .join(' / ');
-  const label = signal.source === 'DraftSharks' || signal.signalType === 'draftsharks-sos'
-    ? 'DraftSharks next-3 SOS window'
-    : 'FantasyPros next-3 rank window';
+  const label = isScheduleWindowSignal(signal)
+    ? 'Next-3 schedule window'
+    : 'Next-3 weekly rank window';
   const playoffSummary = signal.matchupWindows?.playoffs?.playableWeeks
     ? signal.matchupWindows.playoffs.summary
     : null;
-  return [bestRank ? `${label}: ${bestRank}` : null, window, playoffSummary].filter(Boolean).join(': ') || null;
+  const spreadLabel = getFantasyProsExpertSpreadLabel(signal);
+  return [bestRank ? `${label}: ${bestRank}` : null, window, playoffSummary, spreadLabel].filter(Boolean).join(': ') || null;
 }
 
 function formatWaiverWeeklyEcrTraceRead(player: TrendingPlayer): string | null {
   const signal = player.weeklyEcr;
-  if (!signal?.sourceTrace?.length) return null;
-  const loadedWeeks = signal.sourceTrace
+  if (!signal?.sourceTrace?.length || !shouldUseWeeklyRankSignal(signal)) return null;
+  const displaySourceTrace = getUsableWeeklyRankSourceTrace(signal);
+  if (!displaySourceTrace.length) return null;
+  const loadedWeeks = displaySourceTrace
     .map((trace) => trace.week)
     .filter((week): week is number => Number.isFinite(week))
     .sort((a, b) => a - b)
     .map((week) => `W${week}`)
     .join('/');
-  const sourceLabel = signal.source === 'DraftSharks' || signal.signalType === 'draftsharks-sos'
-    ? 'DraftSharks SOS'
-    : 'FantasyPros rank';
+  const sourceLabel = isScheduleWindowSignal(signal)
+    ? 'schedule'
+    : 'weekly rank';
   return `${loadedWeeks || 'Rolling weeks'} backed by stored ${sourceLabel} snapshots.`;
 }
 
@@ -3057,14 +3121,27 @@ function getAutopilotTraceAgeHours(trace: WaiverSourceTraceEntry): number | null
   return Math.max(0, Math.round((Date.now() - timestamp) / (60 * 60 * 1000)));
 }
 
+function getAutopilotTraceHealthDetail(trace: WaiverSourceTraceEntry): string | null {
+  const rowCopy = typeof trace.rowCount === 'number' ? `${trace.rowCount.toLocaleString()} rows` : null;
+  const evidence = String(trace.evidence || '').trim().toLowerCase();
+  const healthCopy = /\b(?:0|zero)\s+rows?\b/.test(evidence)
+    ? 'zero rows reported'
+    : /\bempty\b/.test(evidence)
+      ? 'empty response reported'
+      : null;
+  return [rowCopy, healthCopy].filter(Boolean).join('; ') || null;
+}
+
 function getWaiverWeeklyEcrSourceTrace(signal?: WaiverWeeklyEcrSignal | null): AISourceTrace[] {
-  if (!signal?.sourceTrace?.length) return [];
-  return signal.sourceTrace.slice(0, 3).map((trace) => {
-    const rowCopy = typeof trace.rowCount === 'number' ? `${trace.rowCount.toLocaleString()} rows` : null;
+  if (!signal?.sourceTrace?.length || !shouldUseWeeklyRankSignal(signal)) return [];
+  const traceLabel = isScheduleWindowSignal(signal)
+    ? 'Schedule snapshot'
+    : 'Weekly rank snapshot';
+  return getUsableWeeklyRankSourceTrace(signal).slice(0, 3).map((trace) => {
     return {
-      label: trace.endpointLabel || trace.source || 'Weekly rank source',
+      label: trace.week ? `${traceLabel} W${trace.week}` : traceLabel,
       status: normalizeAutopilotSourceTraceStatus(trace.status, trace.rowCount),
-      detail: [rowCopy, trace.evidence || trace.sourceKey || signal.traceSummary || null].filter(Boolean).join(' - ') || null,
+      detail: getAutopilotTraceHealthDetail(trace),
       ageHours: getAutopilotTraceAgeHours(trace),
     };
   });
@@ -3072,7 +3149,9 @@ function getWaiverWeeklyEcrSourceTrace(signal?: WaiverWeeklyEcrSignal | null): A
 
 function getAutopilotValueSourceCount(player: TrendingPlayer): number {
   const sources = new Set((player.playerDetails?.valueProfile?.sources || []).filter(Boolean));
-  if (player.weeklyEcr) sources.add(player.weeklyEcr.source === 'DraftSharks' ? 'DraftSharks SOS snapshot' : 'FantasyPros rank snapshot');
+  if (player.weeklyEcr && shouldUseWeeklyRankSignal(player.weeklyEcr)) {
+    sources.add(isScheduleWindowSignal(player.weeklyEcr) ? 'Schedule snapshot' : 'Weekly rank snapshot');
+  }
   if (getWeeklyProjection(player)?.status === 'ready') sources.add('stored weekly projection');
   return sources.size;
 }
@@ -3128,6 +3207,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       const weeklyEcrTraceRead = formatWaiverWeeklyEcrTraceRead(player);
       const weeklyProjection = getWeeklyProjection(player);
       const weeklyProjectionRead = formatWeeklyProjectionRead(player);
+      const hasUsableWeeklyRankSignal = shouldUseWeeklyRankSignal(player.weeklyEcr);
       const hasRecentUsage = Boolean(weeklyProjection || player.playerDetails?.usageTrend);
       const hasRoleContext = Boolean(player.playerDetails?.playerCohort || player.playerDetails?.playerSituationDelta);
       const matchupOutlook = isScheduleWindowSignal(player.weeklyEcr)
@@ -3138,7 +3218,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         player.playerDetails?.valueProfile?.seasonValue ||
         player.playerDetails?.valueProfile?.fantasyProsSeasonValue ||
         redraftValuationRead ||
-        player.weeklyEcr ||
+        hasUsableWeeklyRankSignal ||
         weeklyProjectionRead
       );
       const hasDynastyValue = Boolean(
@@ -3151,7 +3231,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         hasCurrentSeasonValue ? 'current' : null,
         mode === 'dynasty' && hasDynastyValue ? 'dynasty' : null,
         weeklyProjectionRead ? 'current' : null,
-        player.weeklyEcr ? 'schedule' : null,
+        isScheduleWindowSignal(player.weeklyEcr) ? 'schedule' : null,
         player.count ? 'market' : null,
         player.playerDetails?.prospectProfile ? 'prospect' : null,
       ].filter((item): item is AIEvidenceMode => Boolean(item));
@@ -3177,8 +3257,8 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         ], 8),
         missingEvidence: dedupeStrings([
           rank ? null : 'No trusted positional rank is attached.',
-          sourceCount ? null : 'No value source count is attached.',
-          ['K', 'DEF'].includes(getPlayerLineupPosition(player)) && !player.weeklyEcr ? 'No short-window schedule source is attached.' : null,
+          sourceCount ? null : 'No blend evidence count is attached.',
+          ['K', 'DEF'].includes(getPlayerLineupPosition(player)) && !isScheduleWindowSignal(player.weeklyEcr) ? 'No short-window schedule source is attached.' : null,
         ], 8),
         sourceTrace: [
           ...dedupeStrings([
@@ -3210,7 +3290,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
           hasRoleContext,
         },
         schedule: {
-          hasScheduleData: Boolean(player.weeklyEcr?.matchupWindows || player.weeklyEcr?.weeks?.length),
+          hasScheduleData: isScheduleWindowSignal(player.weeklyEcr),
           isRoughStart: Boolean(matchupOutlook?.isRoughStart),
           isStrongStart: Boolean(matchupOutlook?.isStrongStart),
           missingReason: 'No stored matchup window is attached to this streamer read.',
@@ -3484,7 +3564,7 @@ export function buildSleeperResearchTodo(mode: AutopilotMode): string[] {
     'Add `GET /v1/players/nfl/{team}/depth_chart` for Sleeper-native depth chart context.',
     mode === 'redraft'
       ? 'Then wire projections into start/sit and weekly plan cards.'
-      : 'Then layer projections into dynasty market reads and ranking context.',
+      : 'Then use projections only as short-term contender/rebuilder context beside dynasty market reads.',
   ];
 }
 

@@ -65,7 +65,7 @@ export function buildFantasyProsPlayerSourceTrace(
     trace.push({
       source: 'FantasyPros',
       key,
-      label: key === 'DYNASTY' ? 'FantasyPros Dynasty' : `FantasyPros ${formatTraceKeyLabel(key)}`,
+      label: key === 'DYNASTY' ? 'Dynasty ranking snapshot' : `${formatTraceKeyLabel(key)} snapshot`,
       sourceKey,
       endpointKey,
       value: dynastyValue,
@@ -83,7 +83,7 @@ export function buildFantasyProsPlayerSourceTrace(
         positionRank: dynastyPositionRank,
         tier: null,
         endpointKey,
-        fallback: 'Stored FantasyPros dynasty field contributed to the blended value profile.',
+        fallback: 'Stored dynasty ranking field contributed to the blended value profile.',
       }),
     });
   }
@@ -97,7 +97,7 @@ export function buildFantasyProsPlayerSourceTrace(
     trace.push({
       source: 'FantasyPros',
       key,
-      label: key === 'SEASON' ? 'FantasyPros Season' : `FantasyPros ${formatTraceKeyLabel(key)}`,
+      label: key === 'SEASON' ? 'Season ranking snapshot' : `${formatTraceKeyLabel(key)} snapshot`,
       sourceKey,
       endpointKey,
       value: seasonValue,
@@ -116,7 +116,7 @@ export function buildFantasyProsPlayerSourceTrace(
         positionRank: seasonPositionRank,
         tier,
         endpointKey,
-        fallback: 'Stored FantasyPros current-season field contributed to the season value profile.',
+        fallback: 'Stored current-season ranking field contributed to the season value profile.',
       }),
     });
   }
@@ -129,7 +129,7 @@ export function buildFantasyProsPlayerSourceTrace(
     trace.push({
       source: 'FantasyPros',
       key: inferFantasyProsKey(row, 'UNKNOWN'),
-      label: 'FantasyPros Source Listing',
+      label: 'Stored source listing',
       sourceKey,
       endpointKey,
       scoring,
@@ -138,7 +138,7 @@ export function buildFantasyProsPlayerSourceTrace(
       fetchedAt,
       lastUpdated,
       status: status || 'listed-without-field-values',
-      evidence: 'FantasyPros is listed in value_sources, but this value row did not preserve FantasyPros-specific value, rank, or endpoint fields.',
+      evidence: 'A stored source is listed in value_sources, but this value row did not preserve source-specific value, rank, or endpoint fields.',
     });
   }
 
@@ -302,7 +302,7 @@ function projectionTrace(
   return {
     source: 'FantasyPros',
     key: 'PROJECTIONS',
-    label: 'FantasyPros Projections',
+    label: 'Stored projections',
     sourceKey: summary?.sourceKey || null,
     endpointKey,
     value: row.projectedPoints,
@@ -331,7 +331,7 @@ function playerPointsTrace(
   return {
     source: 'FantasyPros',
     key: 'PLAYER_POINTS',
-    label: 'FantasyPros Player Points',
+    label: 'Stored player points',
     sourceKey: summary?.sourceKey || null,
     endpointKey,
     value,
@@ -359,7 +359,7 @@ function comparePlayersTrace(
   return {
     source: 'FantasyPros',
     key: 'COMPARE_PLAYERS',
-    label: 'FantasyPros Compare Players',
+    label: 'Stored expert spread',
     sourceKey: summary?.sourceKey || null,
     endpointKey,
     value: row.averageRank,
@@ -391,7 +391,7 @@ function consensusTrace(
   return {
     source: 'FantasyPros',
     key,
-    label: `FantasyPros ${formatTraceKeyLabel(key)}`,
+    label: `${formatTraceKeyLabel(key)} snapshot`,
     sourceKey: summary?.sourceKey || null,
     endpointKey,
     rank: row.rankEcr,
@@ -422,7 +422,7 @@ function newsTrace(
   return {
     source: 'FantasyPros',
     key: 'NEWS',
-    label: 'FantasyPros News',
+    label: 'Stored news',
     sourceKey: summary?.sourceKey || null,
     endpointKey,
     fetchedAt: summary?.fetchedAt || null,
@@ -447,7 +447,7 @@ function injuryTrace(
   return {
     source: 'FantasyPros',
     key: 'INJURIES',
-    label: 'FantasyPros Injuries',
+    label: 'Stored injuries',
     sourceKey: summary?.sourceKey || null,
     endpointKey,
     fetchedAt: summary?.fetchedAt || null,
@@ -495,7 +495,7 @@ function buildEvidence(input: {
   if (input.endpointKey) {
     return `${valueEvidence}; endpoint metadata: ${input.endpointKey}.`;
   }
-  return `${valueEvidence}; exact FantasyPros endpoint metadata was not preserved on this blended row.`;
+  return `${valueEvidence}; exact endpoint metadata was not preserved on this blended row.`;
 }
 
 function inferFantasyProsKey(row: FantasyProsTraceRow, fallback: string, allowedKeys: string[] = FANTASYPROS_KEYS): string {

@@ -1056,6 +1056,7 @@ export interface WaiverWeeklyEcrWeek {
   endpointKey?: string | null;
   fetchedAt?: string | null;
   sourceStatus?: string | null;
+  sourceRowCount?: number | null;
   sourceType?: 'weekly-rank' | 'draftsharks-sos' | string;
   opponent?: string | null;
   homeAway?: 'home' | 'away' | null;

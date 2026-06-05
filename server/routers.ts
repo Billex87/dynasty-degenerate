@@ -1,4 +1,5 @@
 import { COOKIE_NAME, ONE_YEAR_MS, UNAUTHED_ERR_MSG } from "@shared/const";
+import { summarizeFantasyProsExpertSpreadRows } from "@shared/fantasyProsExpertSpread";
 import { TRPCError } from "@trpc/server";
 import { hasAdminPermissionIdentifier, hasAdminPermissionsForUser } from "./_core/adminAccess";
 import type { TrpcContext } from "./_core/context";
@@ -1449,8 +1450,8 @@ function getDynastyStartupBaselineDate(season: number): Date {
 
 function getDynastyBaselineLabel(season: string, valueProfileKey: string): string {
   return valueProfileKey.includes('one_qb')
-    ? `FantasyPros ${season} Dynasty 1QB baseline`
-    : `FantasyPros ${season} Dynasty SF baseline`;
+    ? `Stored ${season} Dynasty 1QB baseline`
+    : `Stored ${season} Dynasty SF baseline`;
 }
 
 function isMainDraftPick(pick: any): boolean {
@@ -5225,7 +5226,7 @@ function getWaiverCandidateOmissionReason({
   }
 
   if (sourceCount === 0 && !rankNumber) {
-    return 'No usable value source or positional rank for waiver analysis.';
+    return 'No usable blended value input or positional rank for waiver analysis.';
   }
 
   return null;
@@ -5371,7 +5372,7 @@ function getWaiverWeeklyEcrTraceEntry(
 }
 
 function buildWaiverWeeklyEcrTraceSummary(trace: WaiverSourceTraceEntry[]): string {
-  if (!trace.length) return 'FantasyPros weekly ECR trace unavailable from stored snapshots.';
+  if (!trace.length) return 'Weekly rank trace unavailable from stored snapshots.';
   const weeks = Array.from(new Set(trace.map((entry) => entry.week).filter(Boolean)))
     .sort((a, b) => Number(a) - Number(b))
     .map((week) => `W${week}`)
@@ -5383,7 +5384,7 @@ function buildWaiverWeeklyEcrTraceSummary(trace: WaiverSourceTraceEntry[]): stri
     .at(-1) || null;
   const statusSet = Array.from(new Set(trace.map((entry) => entry.status).filter(Boolean)));
   const statusCopy = statusSet.length ? statusSet.join(', ') : 'unknown status';
-  return `FantasyPros weekly ECR source trace: ${weeks || 'rolling weeks'} from stored endpoint snapshots (${statusCopy})${latestFetch ? `, latest fetch ${latestFetch}` : ''}.`;
+  return `Weekly rank trace: ${weeks || 'rolling weeks'} from stored ranking snapshots (${statusCopy})${latestFetch ? `, latest fetch ${latestFetch}` : ''}.`;
 }
 
 function getWaiverWeeklyEcrRows(
@@ -5442,6 +5443,7 @@ function buildWaiverWeeklyEcrSignalFromRows(
         endpointKey: trace.endpointKey,
         fetchedAt: trace.fetchedAt,
         sourceStatus: trace.status,
+        sourceRowCount: trace.rowCount,
       };
     })
     .filter((row) => Number.isFinite(row.week) && row.week > 0);
@@ -5475,8 +5477,11 @@ function buildWaiverWeeklyEcrSignalFromRows(
     .filter((value): value is string => Boolean(value))
     .sort()
     .at(-1) || null;
-  const lowStdDevWeeks = weeks.filter((row) => typeof row.rankStdDev === 'number' && row.rankStdDev <= 10).length;
-  const confidence = Math.min(100, 42 + weeks.length * 12 + lowStdDevWeeks * 6 + (latestUpdated ? 8 : 0));
+  const expertSpread = summarizeFantasyProsExpertSpreadRows(weeks);
+  const confidence = Math.max(
+    0,
+    Math.min(100, 42 + weeks.length * 12 + expertSpread.confidenceAdjustment + (latestUpdated ? 8 : 0))
+  );
   const weekCopy = weeks
     .map((row) => `W${row.week} ${row.positionRank || (row.rankEcr ? `ECR ${row.rankEcr}` : 'ranked')}`)
     .join(', ');
@@ -5501,7 +5506,7 @@ function buildWaiverWeeklyEcrSignalFromRows(
     averageRankEcr,
     rankDelta,
     confidence,
-    note: `FantasyPros rolling ECR: ${weekCopy}${movementCopy}.`,
+    note: `Rolling weekly rank: ${weekCopy}${movementCopy}.`,
     sourceTrace,
     traceSummary: buildWaiverWeeklyEcrTraceSummary(sourceTrace),
   };
@@ -5531,6 +5536,7 @@ function isScheduleWindowSignal(
 ): signal is WaiverWeeklyEcrSignal {
   return Boolean(
     signal &&
+      signal.source === 'DraftSharks' &&
       signal.signalType === 'draftsharks-sos'
   );
 }
@@ -5589,7 +5595,7 @@ function getDraftSharksSourceTraceEntry(
 }
 
 function buildDraftSharksTraceSummary(trace: WaiverSourceTraceEntry[]): string {
-  if (!trace.length) return 'DraftSharks SOS trace unavailable from stored snapshots.';
+  if (!trace.length) return 'Schedule/SOS trace unavailable from stored snapshots.';
   const weeks = Array.from(new Set(trace.map((entry) => entry.week).filter(Boolean)))
     .sort((a, b) => Number(a) - Number(b))
     .map((week) => `W${week}`)
@@ -5599,7 +5605,7 @@ function buildDraftSharksTraceSummary(trace: WaiverSourceTraceEntry[]): string {
     .filter((value): value is string => Boolean(value))
     .sort()
     .at(-1) || null;
-  return `DraftSharks SOS source trace: ${weeks || 'rolling weeks'} from stored percentage snapshots${latestFetch ? `, latest fetch ${latestFetch}` : ''}.`;
+  return `Schedule/SOS trace: ${weeks || 'rolling weeks'} from stored percentage snapshots${latestFetch ? `, latest fetch ${latestFetch}` : ''}.`;
 }
 
 function buildWaiverDraftSharksSignal(
@@ -5627,13 +5633,14 @@ function buildWaiverDraftSharksSignal(
       endpointKey: trace.endpointKey,
       fetchedAt: trace.fetchedAt,
       sourceStatus: trace.status,
+      sourceRowCount: trace.rowCount,
       sourceType: 'draftsharks-sos',
       opponent: row.opponent,
       homeAway: row.homeAway === 'neutral' ? null : row.homeAway,
       opponentRank: null,
       matchupStars: draftSharksMatchupStars(row.matchupPercent),
       matchupTier: row.matchupTier,
-      matchupText: `${formatDraftSharksPercent(row.matchupPercent)} DraftSharks SOS`,
+      matchupText: `${formatDraftSharksPercent(row.matchupPercent)} schedule/SOS`,
       isBye: false,
     };
   });
@@ -5673,7 +5680,7 @@ function buildWaiverDraftSharksSignal(
     bestOpponentRank: null,
     matchupWindows,
     confidence,
-    note: `DraftSharks SOS: ${weekCopy}. ${next3.summary}`,
+    note: `Schedule/SOS: ${weekCopy}. ${next3.summary}`,
     sourceTrace,
     traceSummary: buildDraftSharksTraceSummary(sourceTrace),
   };
@@ -10806,7 +10813,7 @@ export const appRouter = router({
           latestNews: latestNews ? {
             title: latestNews.title,
             summary: latestNews.summary || null,
-            source: latestNews.source || 'FantasyPros',
+            source: latestNews.source || 'Stored news',
             sourceUrl: latestNews.sourceUrl || null,
             url: latestNews.url || null,
             publishedAt: latestNews.publishedAt || null,
