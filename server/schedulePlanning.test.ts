@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildMatchupPreviews,
   buildPlayerScheduleProfiles,
+  buildPlayoffSchedulePlanningSummary,
   buildSchedulePlanningSummary,
   getSupportedScheduleByeWeeks,
 } from './schedulePlanning';
@@ -120,6 +121,49 @@ describe('schedule planning', () => {
       scheduleTier: 'elite',
       targetWeeks: [5, 6, 7],
     });
+  });
+
+  it('builds playoff-week planning from stored bye/SOS profiles and waiver windows', () => {
+    const summary = buildPlayoffSchedulePlanningSummary({
+      season: '2026',
+      rosters: [{
+        roster_id: 1,
+        players: ['carRb', 'kcRb', 'detWr', 'phiQb'],
+        starters: ['phiQb', 'carRb', 'kcRb', 'detWr'],
+      }],
+      rosterMap: { 1: 'Bill' },
+      players,
+      ktcValues,
+      playoffWeeks: [15, 16, 17],
+      playerSchedules: {
+        carRb: { byeWeek: 5, avoidWeeks: [15], streamerWeeks: [], seasonSOS: 32, scheduleTier: 'hard' },
+        kcRb: { byeWeek: 5, avoidWeeks: [], streamerWeeks: [16], seasonSOS: 74, scheduleTier: 'easy' },
+        detWr: { byeWeek: 6, avoidWeeks: [16], streamerWeeks: [], seasonSOS: 28, scheduleTier: 'hard' },
+        phiQb: { byeWeek: 10, avoidWeeks: [], streamerWeeks: [17], seasonSOS: 81, scheduleTier: 'elite' },
+        faRb: { byeWeek: 10, avoidWeeks: [], streamerWeeks: [15, 16], seasonSOS: 92, scheduleTier: 'elite' },
+        faWr: { byeWeek: 11, avoidWeeks: [], streamerWeeks: [17], seasonSOS: 79, scheduleTier: 'easy' },
+      },
+    });
+
+    expect(summary.status).toBe('ready');
+    expect(summary.weeks).toEqual([15, 16, 17]);
+    expect(summary.managerPlans[0]).toMatchObject({
+      manager: 'Bill',
+      riskScore: 4,
+      upsideScore: 2,
+    });
+    expect(summary.managerPlans[0].weeks.find((week) => week.week === 15)?.avoidPlayers).toEqual([
+      expect.objectContaining({ playerId: 'carRb', scheduleTier: 'hard' }),
+    ]);
+    expect(summary.managerPlans[0].weeks.find((week) => week.week === 16)?.streamerPlayers).toEqual([
+      expect.objectContaining({ playerId: 'kcRb', scheduleTier: 'easy' }),
+    ]);
+    expect(summary.managerPlans[0].priorityAdds[0]).toMatchObject({
+      playerId: 'faRb',
+      targetWeeks: [15, 16],
+      scheduleTier: 'elite',
+    });
+    expect(summary.managerPlans[0].note).toContain('stored SOS-backed waiver targets');
   });
 
   it('builds matchup previews from Sleeper matchup rows when available', () => {

@@ -959,6 +959,60 @@ export interface SchedulePlanningSummary {
   }>;
 }
 
+export interface PlayoffSchedulePlanningSummary {
+  source?: string | null;
+  status?: 'pending' | 'partial' | 'ready';
+  updatedAt?: string | null;
+  weeks: number[];
+  managerPlans: Array<{
+    manager: string;
+    riskScore: number;
+    upsideScore: number;
+    weeks: Array<{
+      week: number;
+      projectedStarterPoints: number | null;
+      projectionCoverage: {
+        coveredPlayerCount: number;
+        totalPlayerCount: number;
+        mode: 'stored-weekly-projection' | 'stored-weekly-projection-blend' | 'schedule-value';
+      };
+      byePlayers: Array<{
+        playerId: string;
+        name: string;
+        position: string;
+        team?: string | null;
+        scheduleTier?: ScheduleTier | null;
+      }>;
+      avoidPlayers: Array<{
+        playerId: string;
+        name: string;
+        position: string;
+        team?: string | null;
+        scheduleTier?: ScheduleTier | null;
+      }>;
+      streamerPlayers: Array<{
+        playerId: string;
+        name: string;
+        position: string;
+        team?: string | null;
+        scheduleTier?: ScheduleTier | null;
+      }>;
+      note: string;
+    }>;
+    priorityAdds: Array<{
+      playerId: string;
+      name: string;
+      position: string;
+      team?: string | null;
+      targetWeeks: number[];
+      seasonSOS?: number | null;
+      scheduleTier?: ScheduleTier | null;
+      note?: string | null;
+    }>;
+    note: string;
+  }>;
+}
+
 export interface DraftPick {
   round: number;
   pick: number;
@@ -2202,6 +2256,7 @@ export interface ReportData {
   redraftValuation?: RedraftValuationSummary;
   matchupPreviews?: MatchupPreview[];
   schedulePlanning?: SchedulePlanningSummary;
+  playoffSchedulePlanning?: PlayoffSchedulePlanningSummary;
   recentTransactions?: RecentTransaction[];
   draftPicks?: DraftPick[];
   draftStats?: ManagerDraftStats[];

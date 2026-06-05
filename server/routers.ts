@@ -24,7 +24,7 @@ import { fetchLatestPlayerNews, findLatestPlayerNewsForPlayer, type PlayerNewsIt
 import { buildRankingsBoard } from "./rankingsBoard";
 import { attachLeagueAiConfidence, loadRecentLeagueAiConfidenceSnapshots, persistLeagueAiConfidenceSnapshot } from "./leagueAiConfidence";
 import { fetchEspnDepthChartsForPlayersWithDiagnostics, type EspnDepthChartEntry } from "./espnDepthCharts";
-import { buildMatchupPreviews, buildSchedulePlanningSummary } from "./schedulePlanning";
+import { buildMatchupPreviews, buildPlayoffSchedulePlanningSummary, buildSchedulePlanningSummary } from "./schedulePlanning";
 import { buildLineupStrength } from "./lineupStrength";
 import { buildRedraftValuation } from "./redraftValuation";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
@@ -8755,6 +8755,21 @@ export const appRouter = router({
             draftSharksContext: draftSharksScheduleContext,
             playerSchedules: staticSections.playerScheduleProfiles,
           });
+          const weeklyProjectionReadiness = {
+            enabled: weeklyProjectionDiagnostics.status === 'ready' && weeklyProjectionDiagnostics.attachedPlayerCount > 0,
+            reason: weeklyProjectionDiagnostics.warnings[0] || weeklyProjectionDiagnostics.note,
+          };
+          const playoffSchedulePlanning = buildPlayoffSchedulePlanningSummary({
+            season: currentSeasonLabel,
+            rosters,
+            rosterMap: rosterUserMap,
+            players,
+            ktcValues,
+            draftSharksContext: draftSharksScheduleContext,
+            playerSchedules: staticSections.playerScheduleProfiles,
+            weeklyProjectionByPlayerId,
+            weeklyProjectionReadiness,
+          });
           const matchupPreviews = buildMatchupPreviews({
             season: currentSeasonLabel,
             week: currentScheduleWeek,
@@ -8765,10 +8780,7 @@ export const appRouter = router({
             ktcValues,
             playerSchedules: staticSections.playerScheduleProfiles,
             weeklyProjectionByPlayerId,
-            weeklyProjectionReadiness: {
-              enabled: weeklyProjectionDiagnostics.status === 'ready' && weeklyProjectionDiagnostics.attachedPlayerCount > 0,
-              reason: weeklyProjectionDiagnostics.warnings[0] || weeklyProjectionDiagnostics.note,
-            },
+            weeklyProjectionReadiness,
           });
           markAnalyzeStep('schedule planning');
 
@@ -9304,6 +9316,7 @@ export const appRouter = router({
             waiverIntelligence,
             scheduleEdgeTargets,
             schedulePlanning,
+            playoffSchedulePlanning,
             matchupPreviews,
             lineupStrength: buildLineupStrength({
               ...reportData,

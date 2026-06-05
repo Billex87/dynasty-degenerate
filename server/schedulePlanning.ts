@@ -4,7 +4,7 @@ import type { KTCValues } from './reportGenerator';
 import { getDraftSharksScheduleProfile } from './draftSharksSchedule';
 import type { DraftSharksScheduleContext } from './draftSharksSchedule';
 import { normalizeNflTeamCode } from './nflTeamCodes';
-import type { MatchupPreview, PlayerScheduleProfile, SchedulePlanningSummary, WeeklyProjectionContext } from '../shared/types';
+import type { MatchupPreview, PlayerScheduleProfile, PlayoffSchedulePlanningSummary, SchedulePlanningSummary, WeeklyProjectionContext } from '../shared/types';
 
 type SchedulePosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF';
 type WeeklyProjectionReadiness = {
@@ -24,6 +24,14 @@ type LineupProjectionResult = {
   mode: 'stored-weekly-projection' | 'stored-weekly-projection-blend' | 'schedule-value';
   coveredPlayerCount: number;
   totalPlayerCount: number;
+};
+
+type PlayoffSchedulePlayerRow = {
+  playerId: string;
+  name: string;
+  position: SchedulePosition | 'FLEX';
+  team: string | null;
+  scheduleTier: PlayerScheduleProfile['scheduleTier'] | null;
 };
 
 type SchedulePlayer = {
@@ -326,6 +334,151 @@ export function buildSchedulePlanningSummary(input: {
         teams: teams.sort(),
         note: `${teams.length} NFL team${teams.length === 1 ? '' : 's'} on bye.`,
       })),
+  };
+}
+
+function getPlayoffWeeks(weeks?: number[] | null): number[] {
+  const normalized = Array.from(new Set((weeks?.length ? weeks : [15, 16, 17])
+    .map((week) => Number(week))
+    .filter((week) => Number.isFinite(week) && week > 0 && week <= 22)))
+    .sort((a, b) => a - b);
+  return normalized.length ? normalized : [15, 16, 17];
+}
+
+function toSchedulePlayerRow(
+  playerId: string,
+  players: Record<string, SchedulePlayer>,
+  playerSchedules?: Record<string, PlayerScheduleProfile>,
+): PlayoffSchedulePlayerRow {
+  const player = players[playerId];
+  const schedule = playerSchedules?.[playerId] || null;
+  return {
+    playerId,
+    name: getPlayerDisplayName(playerId, players),
+    position: getPosition(player) || 'FLEX',
+    team: normalizeTeam(player?.team),
+    scheduleTier: schedule?.scheduleTier || null,
+  };
+}
+
+export function buildPlayoffSchedulePlanningSummary(input: {
+  season: string;
+  rosters: ScheduleRoster[];
+  rosterMap: Record<number, string>;
+  players: Record<string, SchedulePlayer>;
+  ktcValues: KTCValues;
+  playoffWeeks?: number[] | null;
+  draftSharksContext?: DraftSharksScheduleContext | null;
+  playerSchedules?: Record<string, PlayerScheduleProfile>;
+  weeklyProjectionByPlayerId?: Record<string, WeeklyProjectionContext | null | undefined>;
+  weeklyProjectionReadiness?: WeeklyProjectionReadiness | null;
+}): PlayoffSchedulePlanningSummary {
+  const weeks = getPlayoffWeeks(input.playoffWeeks);
+  const playerSchedules = input.playerSchedules || buildPlayerScheduleProfiles({
+    season: input.season,
+    players: input.players,
+    draftSharksContext: input.draftSharksContext,
+  });
+  const canUseWeeklyProjectionContext = isWeeklyProjectionReadinessEnabled(input.weeklyProjectionReadiness);
+  const weeklyProjectionByPlayerId = canUseWeeklyProjectionContext ? input.weeklyProjectionByPlayerId : undefined;
+  const ownedPlayerIds = new Set(input.rosters.flatMap((roster) => uniquePlayerIds(roster.players || [])));
+
+  const availablePriorityAdds = Object.entries(input.players)
+    .filter(([playerId, player]) => !ownedPlayerIds.has(playerId) && getPosition(player) && isCurrentSeasonLineupPlayer(player as any))
+    .map(([playerId, player]) => {
+      const schedule = playerSchedules[playerId];
+      const position = getPosition(player);
+      if (!schedule || !position) return null;
+      const targetWeeks = weeks.filter((week) => schedule.streamerWeeks?.includes(week) && schedule.byeWeek !== week);
+      if (!targetWeeks.length) return null;
+      const value = getScheduleValue(playerId, input.players, input.ktcValues);
+      return {
+        playerId,
+        name: getPlayerDisplayName(playerId, input.players),
+        position,
+        team: normalizeTeam(player.team),
+        targetWeeks,
+        seasonSOS: schedule.seasonSOS ?? null,
+        scheduleTier: schedule.scheduleTier,
+        value,
+        note: `Available ${position} with stored playoff streamer window in Week ${targetWeeks.join(', ')}.`,
+      };
+    })
+    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
+    .sort((a, b) => b.targetWeeks.length - a.targetWeeks.length || (b.seasonSOS ?? -999) - (a.seasonSOS ?? -999) || b.value - a.value || a.name.localeCompare(b.name))
+    .slice(0, 12)
+    .map(({ value, ...candidate }) => candidate);
+
+  const managerPlans = (input.rosters || []).map((roster) => {
+    const manager = input.rosterMap[roster.roster_id] || `Roster ${roster.roster_id}`;
+    const activeIds = getRosterActivePlayerIds(roster);
+    const lineupIds = uniquePlayerIds(roster.starters?.length ? roster.starters : activeIds);
+    const weekRows = weeks.map((week) => {
+      const lineupProjection = getLineupProjection({
+        playerIds: lineupIds,
+        week,
+        players: input.players,
+        ktcValues: input.ktcValues,
+        playerSchedules,
+        weeklyProjectionByPlayerId,
+      });
+      const byePlayers = lineupIds
+        .filter((playerId) => playerSchedules[playerId]?.byeWeek === week)
+        .map((playerId) => toSchedulePlayerRow(playerId, input.players, playerSchedules));
+      const avoidPlayers = lineupIds
+        .filter((playerId) => playerSchedules[playerId]?.avoidWeeks?.includes(week) && playerSchedules[playerId]?.byeWeek !== week)
+        .map((playerId) => toSchedulePlayerRow(playerId, input.players, playerSchedules));
+      const streamerPlayers = lineupIds
+        .filter((playerId) => playerSchedules[playerId]?.streamerWeeks?.includes(week))
+        .map((playerId) => toSchedulePlayerRow(playerId, input.players, playerSchedules));
+      const riskCount = byePlayers.length + avoidPlayers.length;
+      const upsideCount = streamerPlayers.length;
+
+      return {
+        week,
+        projectedStarterPoints: lineupProjection.points,
+        projectionCoverage: {
+          coveredPlayerCount: lineupProjection.coveredPlayerCount,
+          totalPlayerCount: lineupProjection.totalPlayerCount,
+          mode: lineupProjection.mode,
+        },
+        byePlayers,
+        avoidPlayers,
+        streamerPlayers,
+        note: riskCount
+          ? `${manager} has ${riskCount} playoff schedule risk${riskCount === 1 ? '' : 's'} in Week ${week}; prioritize replacement coverage before lineup lock.`
+          : upsideCount
+            ? `${manager} has ${upsideCount} stored playoff streamer edge${upsideCount === 1 ? '' : 's'} in Week ${week}.`
+            : `${manager} has no stored bye/SOS playoff red flags in Week ${week}.`,
+      };
+    });
+    const riskScore = weekRows.reduce((sum, row) => sum + row.byePlayers.length * 3 + row.avoidPlayers.length * 2, 0);
+    const upsideScore = weekRows.reduce((sum, row) => sum + row.streamerPlayers.length, 0);
+    const planPriorityAdds = availablePriorityAdds
+      .filter((candidate) => candidate.targetWeeks.some((week) => weekRows.some((row) => row.week === week && (row.byePlayers.length || row.avoidPlayers.length))))
+      .slice(0, 6);
+
+    return {
+      manager,
+      riskScore,
+      upsideScore,
+      weeks: weekRows,
+      priorityAdds: planPriorityAdds,
+      note: riskScore
+        ? `${manager} should cover ${riskScore} weighted playoff schedule risk point${riskScore === 1 ? '' : 's'} with stored SOS-backed waiver targets.`
+        : upsideScore
+          ? `${manager} has stored playoff schedule upside without current bye/SOS risk.`
+          : `${manager} has a neutral stored playoff schedule profile.`,
+    };
+  }).sort((a, b) => b.riskScore - a.riskScore || b.upsideScore - a.upsideScore || a.manager.localeCompare(b.manager));
+
+  const hasProfiles = Object.keys(playerSchedules).length > 0;
+  return {
+    source: getScheduleSource(input.draftSharksContext),
+    status: hasProfiles ? 'ready' : 'pending',
+    updatedAt: getScheduleUpdatedAt(input.draftSharksContext),
+    weeks,
+    managerPlans,
   };
 }
 
