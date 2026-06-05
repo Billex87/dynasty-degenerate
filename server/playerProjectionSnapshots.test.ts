@@ -63,6 +63,7 @@ describe('player projection snapshots', () => {
         { playerName: 'Ambiguous Name', sourcePlayerId: 'sd-1', team: 'ARI', position: 'RB', projectedFantasyPoints: 11, ambiguousMatch: true },
         { playerName: 'Bad Position', sourcePlayerId: 'sd-2', team: 'ARI', position: 'P', projectedFantasyPoints: 2 },
         { playerName: 'No Points', sourcePlayerId: 'sd-3', team: 'ARI', position: 'WR' },
+        { playerName: 'Blank Points', sourcePlayerId: 'sd-4', team: 'ARI', position: 'WR', projectedFantasyPoints: '   ' },
         { position: 'WR', projectedFantasyPoints: 9 },
       ],
     });
@@ -72,12 +73,13 @@ describe('player projection snapshots', () => {
       'ambiguous-identity',
       'unsupported-position',
       'missing-projection',
+      'missing-projection',
       'missing-player',
     ]);
     expect(buildPlayerProjectionIdentityDiagnostics(normalized.rows, normalized.quarantinedRows)).toMatchObject({
-      totalRows: 4,
+      totalRows: 5,
       normalizedRows: 0,
-      quarantinedRows: 4,
+      quarantinedRows: 5,
       ambiguousRows: 1,
       missingIdentityRows: 1,
     });
@@ -130,5 +132,26 @@ describe('player projection snapshots', () => {
     });
     expect(getPlayerProjectionSourceKey(snapshot)).toBe(snapshot.sourceKey);
     expect(getPlayerProjectionSnapshotKey(snapshot)).toBe(snapshot.snapshotKey);
+  });
+
+  it('treats null or blank week metadata as an all-weeks snapshot key, not week zero', () => {
+    const snapshot = buildPlayerProjectionSnapshot({
+      season: 2026,
+      week: null,
+      source: 'sleeper',
+      scoringProfile: 'PPR',
+      projectionType: 'rest_of_season',
+      sourceVersion: 'ros-v1',
+      rows: [
+        { playerId: '1', sourcePlayerId: 'sl-1', playerName: 'Rest Of Season Player', team: 'WAS', position: 'WR', projectedFantasyPoints: 14 },
+      ],
+    });
+
+    expect(snapshot).toMatchObject({
+      snapshotKey: '2026:all:ros-v1',
+      week: null,
+      validForWeek: null,
+    });
+    expect(getPlayerProjectionSnapshotKey({ season: 2026, week: ' ', sourceVersion: 'ros-v1' })).toBe('2026:all:ros-v1');
   });
 });

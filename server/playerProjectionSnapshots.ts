@@ -173,12 +173,15 @@ function cleanScoringProfile(value: string): string {
 }
 
 function numberValue(value: unknown): number | null {
-  if (value === null || value === undefined || value === '') return null;
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.round(parsed * 100) / 100 : null;
 }
 
 function intValue(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
   const parsed = Number(value);
   return Number.isInteger(parsed) ? parsed : null;
 }
