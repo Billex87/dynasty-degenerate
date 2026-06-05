@@ -330,6 +330,36 @@ function summarizePriorityWaiverTargets(reportData: any) {
   };
 }
 
+function summarizeDynastyContentionContext(reportData: any) {
+  const context = reportData?.dynastyContentionContext;
+  const rows = asArray(context?.rows);
+  const managers = asArray(context?.managers);
+  const confidences = rows
+    .map((row: any) => finiteNumber(row?.confidence))
+    .filter((value: number | null): value is number => value !== null);
+  const managerConfidences = managers
+    .map((row: any) => finiteNumber(row?.confidence))
+    .filter((value: number | null): value is number => value !== null);
+  const projectedRows = rows.filter((row: any) => finiteNumber(row?.projectedFantasyPoints) !== null);
+  const sellProjectionSpikeRows = rows.filter((row: any) => row?.action === 'sell-on-projection-spike');
+
+  return {
+    exists: Boolean(context),
+    status: context?.status || null,
+    projectionStatus: context?.projectionStatus || null,
+    rowCount: rows.length,
+    managerCount: managers.length,
+    confidenceCount: confidences.length,
+    managerConfidenceCount: managerConfidences.length,
+    minConfidence: confidences.length ? Math.min(...confidences) : null,
+    maxConfidence: confidences.length ? Math.max(...confidences) : null,
+    projectedRowCount: projectedRows.length,
+    sellProjectionSpikeCount: sellProjectionSpikeRows.length,
+    actionTypes: Array.from(new Set(rows.map((row: any) => row?.action).filter(Boolean))).sort(),
+    containsProjectionClaim: containsStoredWeeklyProjectionClaim(context),
+  };
+}
+
 function validateReportContract(input: {
   mode: Mode;
   leagueId: string;
@@ -345,6 +375,7 @@ function validateReportContract(input: {
   const playoffActionItems = summarizePlayoffActionItems(playoffSchedulePlanning);
   const matchupPreviewSummary = summarizeMatchupPreviews(reportData);
   const priorityWaiverTargets = summarizePriorityWaiverTargets(reportData);
+  const dynastyContentionContext = summarizeDynastyContentionContext(reportData);
 
   if (!schedulePlanning) failures.push('missing schedulePlanning');
   if (!playoffSchedulePlanning) failures.push('missing playoffSchedulePlanning');
@@ -354,6 +385,7 @@ function validateReportContract(input: {
   if (!playoffSchedulePlanning?.managerPlans?.length) failures.push('missing playoff manager plans');
   if (!reportData.lineupStrength) failures.push('missing lineupStrength');
   if (!reportData.redraftValuation) failures.push('missing redraftValuation');
+  if (reportData.leagueValueMode !== 'redraft' && !dynastyContentionContext.exists) failures.push('missing dynastyContentionContext');
   if (!matchupPreviews.length) failures.push('missing matchupPreviews');
   if (matchupPreviewSummary.count > 0 && matchupPreviewSummary.confidenceCount !== matchupPreviewSummary.count) {
     failures.push('missing matchup preview confidence');
@@ -382,6 +414,20 @@ function validateReportContract(input: {
   }
   if (priorityWaiverTargets.hasPriorityWaiverTargets && !priorityWaiverTargets.hasOpportunityWindowBackedTarget) {
     failures.push('priorityWaiverTargets missing opportunity-window evidence');
+  }
+  if (dynastyContentionContext.exists) {
+    if (dynastyContentionContext.rowCount > 0 && dynastyContentionContext.confidenceCount !== dynastyContentionContext.rowCount) {
+      failures.push('missing dynastyContentionContext row confidence');
+    }
+    if (dynastyContentionContext.managerCount > 0 && dynastyContentionContext.managerConfidenceCount !== dynastyContentionContext.managerCount) {
+      failures.push('missing dynastyContentionContext manager confidence');
+    }
+    if (
+      dynastyContentionContext.minConfidence !== null &&
+      (dynastyContentionContext.minConfidence < 0 || (dynastyContentionContext.maxConfidence ?? 0) > 100)
+    ) {
+      failures.push(`dynastyContentionContext confidence out of range: ${dynastyContentionContext.minConfidence}-${dynastyContentionContext.maxConfidence}`);
+    }
   }
 
   if (playoffSchedulePlanning) {
@@ -474,6 +520,18 @@ function validateReportContract(input: {
     if (priorityWaiverTargets.containsProjectionClaim) {
       failures.push('projection-off priorityWaiverTargets still contain stored weekly projection claims');
     }
+    if (dynastyContentionContext.projectedRowCount > 0) {
+      failures.push('projection-off dynastyContentionContext still exposes projected fantasy points');
+    }
+    if (dynastyContentionContext.sellProjectionSpikeCount > 0) {
+      failures.push('projection-off dynastyContentionContext still exposes sell-on-projection-spike reads');
+    }
+    if (dynastyContentionContext.maxConfidence !== null && dynastyContentionContext.maxConfidence > 58) {
+      failures.push(`projection-off dynastyContentionContext confidence exceeds fallback cap: ${dynastyContentionContext.maxConfidence}`);
+    }
+    if (dynastyContentionContext.containsProjectionClaim) {
+      failures.push('projection-off dynastyContentionContext still contains stored weekly projection claims');
+    }
   }
 
   return {
@@ -528,6 +586,15 @@ function validateReportContract(input: {
       priorityWaiverConfidenceCapReasonCount: priorityWaiverTargets.capReasonCount,
       priorityWaiverMinConfidence: priorityWaiverTargets.minConfidence,
       priorityWaiverMaxConfidence: priorityWaiverTargets.maxConfidence,
+      dynastyContentionStatus: dynastyContentionContext.status,
+      dynastyContentionProjectionStatus: dynastyContentionContext.projectionStatus,
+      dynastyContentionRowCount: dynastyContentionContext.rowCount,
+      dynastyContentionManagerCount: dynastyContentionContext.managerCount,
+      dynastyContentionConfidenceCount: dynastyContentionContext.confidenceCount,
+      dynastyContentionManagerConfidenceCount: dynastyContentionContext.managerConfidenceCount,
+      dynastyContentionProjectedRowCount: dynastyContentionContext.projectedRowCount,
+      dynastyContentionSellProjectionSpikeCount: dynastyContentionContext.sellProjectionSpikeCount,
+      dynastyContentionActionTypes: dynastyContentionContext.actionTypes,
     },
   };
 }

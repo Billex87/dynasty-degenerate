@@ -771,6 +771,64 @@ export interface DynastyTimeline {
   label: string;
 }
 
+export type DynastyContentionRosterWindow = 'contender' | 'rebuilder' | 'middle';
+
+export type DynastyContentionAction =
+  | 'start-now'
+  | 'hold-through-development'
+  | 'sell-on-projection-spike'
+  | 'buy-before-role-growth'
+  | 'do-not-panic-runway';
+
+export interface DynastyContentionPlayerRead {
+  id: string;
+  manager: string;
+  targetManager?: string | null;
+  action: DynastyContentionAction;
+  player: ManagerIntelPlayer;
+  score: number;
+  confidence: number;
+  confidenceReasons: string[];
+  confidenceCapReason?: string | null;
+  signals: string[];
+  dynastyValue: number | null;
+  seasonValue: number | null;
+  valueGap: number | null;
+  projectedFantasyPoints?: number | null;
+  projectionStatus: 'ready' | 'blocked' | 'warning' | 'missing';
+  redraftStatus?: RedraftValuationRow['status'] | null;
+  draftCapitalTier?: PlayerDraftCapitalTier | null;
+  opportunityWindow?: PlayerOpportunityWindow | null;
+  situationAction?: PlayerSituationDeltaAction | null;
+  situationLabels?: PlayerSituationDeltaLabel[];
+  sourceTrace: string[];
+}
+
+export interface DynastyContentionManagerRead {
+  manager: string;
+  rosterWindow: DynastyContentionRosterWindow;
+  contenderScore: number;
+  rebuildScore: number;
+  confidence: number;
+  confidenceReasons: string[];
+  confidenceCapReason?: string | null;
+  startNow: DynastyContentionPlayerRead[];
+  holdThroughDevelopment: DynastyContentionPlayerRead[];
+  sellOnProjectionSpike: DynastyContentionPlayerRead[];
+  buyBeforeRoleGrowth: DynastyContentionPlayerRead[];
+  doNotPanicRunway: DynastyContentionPlayerRead[];
+}
+
+export interface DynastyContentionContext {
+  status: 'ready' | 'partial' | 'value-only';
+  source: 'stored-report-dynasty-contention';
+  projectionStatus: 'ready' | 'blocked' | 'warning' | 'missing';
+  generatedAt: string;
+  rows: DynastyContentionPlayerRead[];
+  managers: DynastyContentionManagerRead[];
+  note: string;
+}
+
 export interface PickPortfolio {
   manager: string;
   value2026: number;
@@ -2393,6 +2451,7 @@ export interface ReportData {
   scheduleEdgeTargets?: WaiverWeeklyEcrTarget[];
   lineupStrength?: LineupStrengthSummary;
   redraftValuation?: RedraftValuationSummary;
+  dynastyContentionContext?: DynastyContentionContext;
   matchupPreviews?: MatchupPreview[];
   schedulePlanning?: SchedulePlanningSummary;
   playoffSchedulePlanning?: PlayoffSchedulePlanningSummary;

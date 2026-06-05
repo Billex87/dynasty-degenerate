@@ -27,6 +27,7 @@ import { fetchEspnDepthChartsForPlayersWithDiagnostics, type EspnDepthChartEntry
 import { buildMatchupPreviews, buildPlayoffSchedulePlanningSummary, buildSchedulePlanningSummary } from "./schedulePlanning";
 import { buildLineupStrength } from "./lineupStrength";
 import { buildRedraftValuation } from "./redraftValuation";
+import { buildDynastyContentionContext } from "./dynastyContentionContext";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
 import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadResponse, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
@@ -2994,6 +2995,8 @@ function stripWeeklyProjectionFromPlayoffSchedulePlanning(
 export function stripWeeklyProjectionContextFromReportData(reportData: ReportData): ReportData {
   const waiverPriorityProjectionCapReason =
     'Weekly projections are disabled for this response; waiver priority confidence is capped to schedule/value context.';
+  const dynastyContentionProjectionCapReason =
+    'Weekly projections are disabled for this response; dynasty contention confidence is capped to value, role, and runway context.';
   const hasStoredProjectionClaim = (value: unknown) =>
     /stored-weekly-projection|stored weekly projection|stored projection/i.test(String(value || ''));
   const stripStoredProjectionReasons = (reasons: unknown): string[] =>
@@ -3038,6 +3041,54 @@ export function stripWeeklyProjectionContextFromReportData(reportData: ReportDat
       opportunityWindows: uniqueWindowRows,
     };
   };
+  const stripDynastyContentionRead = (
+    read: NonNullable<ReportData['dynastyContentionContext']>['rows'][number]
+  ): NonNullable<ReportData['dynastyContentionContext']>['rows'][number] => ({
+    ...read,
+    projectedFantasyPoints: null,
+    projectionStatus: 'blocked',
+    score: read.action === 'sell-on-projection-spike' ? 0 : read.score,
+    confidence: Math.min(Number.isFinite(Number(read.confidence)) ? Number(read.confidence) : 58, 58),
+    confidenceReasons: [
+      dynastyContentionProjectionCapReason,
+      ...stripStoredProjectionReasons(read.confidenceReasons),
+    ].slice(0, 6),
+    confidenceCapReason: dynastyContentionProjectionCapReason,
+    signals: stripStoredProjectionReasons(read.signals),
+    sourceTrace: (read.sourceTrace || []).filter((trace) => !hasStoredProjectionClaim(trace)),
+  });
+  const stripDynastyContentionReads = (
+    reads: NonNullable<ReportData['dynastyContentionContext']>['rows'] = []
+  ): NonNullable<ReportData['dynastyContentionContext']>['rows'] =>
+    reads
+      .filter((read) => read.action !== 'sell-on-projection-spike')
+      .map(stripDynastyContentionRead);
+  const stripDynastyContentionContext = (
+    context: ReportData['dynastyContentionContext']
+  ): ReportData['dynastyContentionContext'] => {
+    if (!context) return context;
+    return {
+      ...context,
+      projectionStatus: 'blocked',
+      status: context.status === 'ready' ? 'partial' : context.status,
+      note: 'Dynasty contention context is capped because weekly projections are disabled for this response.',
+      rows: stripDynastyContentionReads(context.rows || []),
+      managers: (context.managers || []).map((manager) => ({
+        ...manager,
+        confidence: Math.min(Number.isFinite(Number(manager.confidence)) ? Number(manager.confidence) : 58, 58),
+        confidenceReasons: [
+          dynastyContentionProjectionCapReason,
+          ...stripStoredProjectionReasons(manager.confidenceReasons),
+        ].slice(0, 6),
+        confidenceCapReason: dynastyContentionProjectionCapReason,
+        startNow: stripDynastyContentionReads(manager.startNow || []),
+        holdThroughDevelopment: stripDynastyContentionReads(manager.holdThroughDevelopment || []),
+        sellOnProjectionSpike: [],
+        buyBeforeRoleGrowth: stripDynastyContentionReads(manager.buyBeforeRoleGrowth || []),
+        doNotPanicRunway: stripDynastyContentionReads(manager.doNotPanicRunway || []),
+      })),
+    };
+  };
 
   return {
     ...reportData,
@@ -3072,6 +3123,7 @@ export function stripWeeklyProjectionContextFromReportData(reportData: ReportDat
     })),
     lineupStrength: stripWeeklyProjectionFromLineupStrength(reportData.lineupStrength),
     redraftValuation: stripWeeklyProjectionFromRedraftValuation(reportData.redraftValuation),
+    dynastyContentionContext: stripDynastyContentionContext(reportData.dynastyContentionContext),
     playoffSchedulePlanning: stripWeeklyProjectionFromPlayoffSchedulePlanning(reportData.playoffSchedulePlanning),
     matchupPreviews: (reportData.matchupPreviews || []).map((preview) => {
       const hasProjectionClaim =
@@ -10072,6 +10124,34 @@ export const appRouter = router({
             currentSeasonLabel
           );
           const sleeperDraftStatusDiagnostics = normalizeSleeperDraftStatus(leagueInfo);
+          const managerRosterIntelligenceWithSituation = attachManagerSituationContext(
+            reportData.managerRosterIntelligence,
+            playerDetailsWithSituationById
+          );
+          const lineupStrength = buildLineupStrength({
+            ...reportData,
+            playerDetailsById: playerDetailsWithSituationById,
+            weeklyProjectionDiagnostics,
+            matchupPreviews,
+          });
+          const redraftValuation = buildRedraftValuation({
+            ...reportData,
+            playerDetailsById: playerDetailsWithSituationById,
+            weeklyProjectionDiagnostics,
+            waiverIntelligence,
+          }, {
+            currentWeek: currentScheduleWeek,
+          });
+          const dynastyContentionContext = buildDynastyContentionContext({
+            ...reportData,
+            managerRosterIntelligence: managerRosterIntelligenceWithSituation,
+            playerDetailsById: playerDetailsWithSituationById,
+            weeklyProjectionDiagnostics,
+            waiverIntelligence,
+            matchupPreviews,
+            lineupStrength,
+            redraftValuation,
+          });
           const reportPayloadData = {
             ...reportData,
             leagueDiagnostics: reportData.leagueDiagnostics
@@ -10091,7 +10171,7 @@ export const appRouter = router({
             currentStandings,
             managerAvatars: buildManagerAvatarMap(users),
             managerChampionships,
-            managerRosterIntelligence: attachManagerSituationContext(reportData.managerRosterIntelligence, playerDetailsWithSituationById),
+            managerRosterIntelligence: managerRosterIntelligenceWithSituation,
             playerDetailsById: playerDetailsWithSituationById,
             currentPositionRankById: buildPrimaryPositionRankMap(detailPlayerIds, players, ktcValues, valueProfilesById, leagueValueMode),
             trendingAdds,
@@ -10103,20 +10183,9 @@ export const appRouter = router({
             schedulePlanning,
             playoffSchedulePlanning,
             matchupPreviews,
-            lineupStrength: buildLineupStrength({
-              ...reportData,
-              playerDetailsById: playerDetailsWithSituationById,
-              weeklyProjectionDiagnostics,
-              matchupPreviews,
-            }),
-            redraftValuation: buildRedraftValuation({
-              ...reportData,
-              playerDetailsById: playerDetailsWithSituationById,
-              weeklyProjectionDiagnostics,
-              waiverIntelligence,
-            }, {
-              currentWeek: currentScheduleWeek,
-            }),
+            lineupStrength,
+            redraftValuation,
+            dynastyContentionContext,
             recentTransactions: allRecentTransactions,
             transactionBackfillDiagnostics,
             adminTradeProposalSignals,
