@@ -40,8 +40,8 @@ Every source needs the same evidence before provider-attributed projection, sche
 | FantasyPros news | `research` | Snapshot only | No | Confirm production coverage, cadence, rate limits, and attribution terms. |
 | SportsDataIO/RotoBaller news | `research` | Snapshot only | No | Validate package access, endpoint shape, rate limits, and Sleeper mapping. |
 | SportsDataIO/FantasyData beyond news | `research` | Blocked | No | June 5 probe covered players, teams, schedule, injuries, depth charts, scoring, projections, usage/route docs, and news; protected endpoints remain `missing_config` until approved package credentials exist. |
-| Fantasy Nerds API | `blocked` | Blocked | No | Do not add or enable production key/features until current-season non-TEST rows are confirmed. |
-| GridIron Data | `research` | Blocked | No | Revisit only after key/package access exists. |
+| Fantasy Nerds API | `blocked` | Blocked | No | June 5 local shell has no Fantasy Nerds key configured; do not add or enable production key/features until current-season non-TEST rows are confirmed. |
+| GridIron Data | `research` | Blocked | No | No key/package, endpoint, row, freshness, rate-limit, or mapping evidence exists; revisit only after key/package access exists. |
 | Dynasty Daddy source selector | `research` | Blocked | No | June 5 audit captured public source-selector labels and player endpoint candidates; keep integration blocked until terms, cadence/rate limits, upstream attribution, player mapping, and privacy review pass. |
 | Official transaction source | `research` | Blocked | No | Add only after a source can classify signings, releases, waivers, and reserve moves without inference. |
 
