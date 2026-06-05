@@ -1,6 +1,23 @@
 import type { FantasyProsPlayerSourceTrace } from '../shared/types';
+import type {
+  FantasyProsConsensusSnapshotRow,
+  FantasyProsInjurySnapshotRow,
+  FantasyProsNewsSnapshotRow,
+  FantasyProsPlayerPointsSnapshotRow,
+  FantasyProsProjectionSnapshotRow,
+  FantasyProsSnapshotContext,
+} from './fantasyProsSnapshotContext';
 
 type FantasyProsTraceRow = Record<string, unknown>;
+
+type FantasyProsPlayerSourceTraceOptions = {
+  isRedraftProfile?: boolean;
+  snapshotContext?: FantasyProsSnapshotContext | null;
+  fantasyProsId?: string | null;
+  fantasyProsIdBySleeperId?: Record<string, string>;
+  sleeperPlayerId?: string | null;
+  player?: FantasyProsTraceRow | null;
+};
 
 const FANTASYPROS_KEYS = [
   'DYNADP',
@@ -20,7 +37,7 @@ const FANTASYPROS_KEYS = [
 
 export function buildFantasyProsPlayerSourceTrace(
   row: FantasyProsTraceRow | null | undefined,
-  options: { isRedraftProfile?: boolean } = {}
+  options: FantasyProsPlayerSourceTraceOptions = {}
 ): FantasyProsPlayerSourceTrace[] {
   if (!row) return [];
 
@@ -99,6 +116,8 @@ export function buildFantasyProsPlayerSourceTrace(
     });
   }
 
+  appendSnapshotContextTrace(trace, row, options);
+
   const sources = Array.isArray(row.value_sources) ? row.value_sources : [];
   const listsFantasyPros = sources.some((source) => String(source || '').toLowerCase().includes('fantasypros'));
   if (trace.length === 0 && listsFantasyPros) {
@@ -119,6 +138,252 @@ export function buildFantasyProsPlayerSourceTrace(
   }
 
   return trace;
+}
+
+export function buildFantasyProsIdBySleeperId(
+  context: FantasyProsSnapshotContext | null | undefined
+): Record<string, string> {
+  const index: Record<string, string> = Object.create(null);
+  for (const [fantasyProsId, row] of Object.entries(context?.playersByFantasyProsId || {})) {
+    for (const [key, value] of Object.entries(row.externalIds || {})) {
+      if (!/sleeper/i.test(key)) continue;
+      const sleeperId = firstString(value);
+      if (sleeperId && !index[sleeperId]) index[sleeperId] = fantasyProsId;
+    }
+  }
+  return index;
+}
+
+function appendSnapshotContextTrace(
+  trace: FantasyProsPlayerSourceTrace[],
+  row: FantasyProsTraceRow,
+  options: FantasyProsPlayerSourceTraceOptions
+) {
+  const context = options.snapshotContext;
+  if (!context) return;
+
+  const fantasyProsId = findFantasyProsId(row, options);
+  if (!fantasyProsId) return;
+
+  const seen = new Set(trace.map((item) => item.key));
+  const addTrace = (item: FantasyProsPlayerSourceTrace | null) => {
+    if (!item || seen.has(item.key)) return;
+    seen.add(item.key);
+    trace.push(item);
+  };
+
+  const projection = context.projectionsByFantasyProsId[fantasyProsId];
+  addTrace(projectionTrace(projection, context, 'fantasypros-projections'));
+
+  const playerPoints = context.playerPointsByFantasyProsId[fantasyProsId];
+  addTrace(playerPointsTrace(playerPoints, context, 'fantasypros-player-points'));
+
+  addTrace(consensusTrace('DRAFT', context.draftRankingsByFantasyProsId[fantasyProsId], context, 'fantasypros-draft'));
+  addTrace(consensusTrace('ROS', context.rosRankingsByFantasyProsId[fantasyProsId], context, 'fantasypros-ros'));
+  addTrace(consensusTrace('ADP', context.adpByFantasyProsId[fantasyProsId], context, 'fantasypros-adp'));
+
+  if (!options.isRedraftProfile) {
+    addTrace(consensusTrace('DYNASTY', context.dynastyRankingsByFantasyProsId[fantasyProsId], context, 'fantasypros-dynasty'));
+    addTrace(consensusTrace('DEVY', context.devyRankingsByFantasyProsId[fantasyProsId], context, 'fantasypros-devy'));
+    addTrace(consensusTrace('ROOKIES', context.rookieRankingsByFantasyProsId[fantasyProsId], context, 'fantasypros-rookies'));
+    addTrace(consensusTrace('DYNADP', context.dynastyAdpByFantasyProsId[fantasyProsId], context, 'fantasypros-dynadp'));
+    addTrace(consensusTrace('RKADP', context.rookieAdpByFantasyProsId[fantasyProsId], context, 'fantasypros-rkadp'));
+  }
+
+  const news = context.newsByFantasyProsId[fantasyProsId]?.[0];
+  addTrace(newsTrace(news, context, 'fantasypros-news'));
+
+  const injury = context.injuriesByFantasyProsId[fantasyProsId];
+  addTrace(injuryTrace(injury, context, 'fantasypros-injuries'));
+}
+
+function findFantasyProsId(
+  row: FantasyProsTraceRow,
+  options: FantasyProsPlayerSourceTraceOptions
+): string | null {
+  const explicitId = firstString(
+    options.fantasyProsId,
+    row.fantasypros_id,
+    row.fantasyProsId,
+    row.fantasypros_player_id,
+    row.fantasyProsPlayerId,
+    row.fp_player_id,
+    row.fpid,
+    options.player?.fantasypros_id,
+    options.player?.fantasyProsId,
+    options.player?.fantasypros_player_id,
+    options.player?.fantasyProsPlayerId,
+    options.player?.fp_player_id,
+    options.player?.fpid
+  );
+  if (explicitId) return explicitId;
+
+  const sleeperId = firstString(
+    options.sleeperPlayerId,
+    row.sleeper_id,
+    row.sleeperId,
+    row.sleeper_player_id,
+    row.player_id,
+    options.player?.sleeper_id,
+    options.player?.sleeperId,
+    options.player?.player_id
+  );
+  if (!sleeperId) return null;
+
+  return options.fantasyProsIdBySleeperId?.[sleeperId] || null;
+}
+
+function projectionTrace(
+  row: FantasyProsProjectionSnapshotRow | null | undefined,
+  context: FantasyProsSnapshotContext,
+  endpointKey: string
+): FantasyProsPlayerSourceTrace | null {
+  if (!row || row.projectedPoints === null) return null;
+  const summary = snapshotSummary(context, endpointKey);
+  return {
+    source: 'FantasyPros',
+    key: 'PROJECTIONS',
+    label: 'FantasyPros Projections',
+    sourceKey: summary?.sourceKey || null,
+    endpointKey,
+    value: row.projectedPoints,
+    scoring: row.scoring,
+    season: row.season,
+    week: row.week,
+    fetchedAt: summary?.fetchedAt || null,
+    lastUpdated: summary?.lastUpdated || null,
+    status: summary?.status || 'loaded',
+    evidence: [
+      `projected points ${formatNumber(row.projectedPoints)}`,
+      row.week !== null ? `week ${formatNumber(row.week)}` : null,
+      endpointEvidence(summary, endpointKey),
+    ].filter(Boolean).join('; '),
+  };
+}
+
+function playerPointsTrace(
+  row: FantasyProsPlayerPointsSnapshotRow | null | undefined,
+  context: FantasyProsSnapshotContext,
+  endpointKey: string
+): FantasyProsPlayerSourceTrace | null {
+  if (!row || !hasAnyValue(row.points, row.average, row.games)) return null;
+  const summary = snapshotSummary(context, endpointKey);
+  const value = row.average ?? row.points;
+  return {
+    source: 'FantasyPros',
+    key: 'PLAYER_POINTS',
+    label: 'FantasyPros Player Points',
+    sourceKey: summary?.sourceKey || null,
+    endpointKey,
+    value,
+    scoring: row.scoring,
+    season: row.season,
+    fetchedAt: summary?.fetchedAt || null,
+    lastUpdated: summary?.lastUpdated || null,
+    status: summary?.status || 'loaded',
+    evidence: [
+      row.points !== null ? `season points ${formatNumber(row.points)}` : null,
+      row.average !== null ? `average ${formatNumber(row.average)}` : null,
+      row.games !== null ? `games ${formatNumber(row.games)}` : null,
+      endpointEvidence(summary, endpointKey),
+    ].filter(Boolean).join('; '),
+  };
+}
+
+function consensusTrace(
+  key: string,
+  row: FantasyProsConsensusSnapshotRow | null | undefined,
+  context: FantasyProsSnapshotContext,
+  endpointKey: string
+): FantasyProsPlayerSourceTrace | null {
+  if (!row || !hasAnyValue(row.rankEcr, row.positionRank, row.averageRank, row.byeWeek)) return null;
+  const summary = snapshotSummary(context, endpointKey);
+  return {
+    source: 'FantasyPros',
+    key,
+    label: `FantasyPros ${formatTraceKeyLabel(key)}`,
+    sourceKey: summary?.sourceKey || null,
+    endpointKey,
+    rank: row.rankEcr,
+    positionRank: row.positionRank,
+    scoring: row.scoring,
+    season: row.season,
+    week: row.week,
+    fetchedAt: summary?.fetchedAt || null,
+    lastUpdated: row.lastUpdated || summary?.lastUpdated || null,
+    status: summary?.status || 'loaded',
+    evidence: [
+      row.rankEcr !== null ? `rank #${formatNumber(row.rankEcr)}` : null,
+      row.positionRank ? `position ${row.positionRank}` : null,
+      row.averageRank !== null ? `average rank ${formatNumber(row.averageRank)}` : null,
+      row.byeWeek !== null ? `bye ${formatNumber(row.byeWeek)}` : null,
+      endpointEvidence(summary, endpointKey),
+    ].filter(Boolean).join('; '),
+  };
+}
+
+function newsTrace(
+  row: FantasyProsNewsSnapshotRow | null | undefined,
+  context: FantasyProsSnapshotContext,
+  endpointKey: string
+): FantasyProsPlayerSourceTrace | null {
+  if (!row || !hasAnyValue(row.title, row.category, row.publishedAt)) return null;
+  const summary = snapshotSummary(context, endpointKey);
+  return {
+    source: 'FantasyPros',
+    key: 'NEWS',
+    label: 'FantasyPros News',
+    sourceKey: summary?.sourceKey || null,
+    endpointKey,
+    fetchedAt: summary?.fetchedAt || null,
+    lastUpdated: row.publishedAt || summary?.lastUpdated || null,
+    status: row.category || summary?.status || 'loaded',
+    evidence: [
+      row.title ? `news "${truncateEvidence(row.title)}"` : null,
+      row.source ? `source ${truncateEvidence(row.source)}` : null,
+      row.publishedAt ? `published ${row.publishedAt}` : null,
+      endpointEvidence(summary, endpointKey),
+    ].filter(Boolean).join('; '),
+  };
+}
+
+function injuryTrace(
+  row: FantasyProsInjurySnapshotRow | null | undefined,
+  context: FantasyProsSnapshotContext,
+  endpointKey: string
+): FantasyProsPlayerSourceTrace | null {
+  if (!row || !hasAnyValue(row.status, row.injury, row.practiceStatus, row.gameStatus)) return null;
+  const summary = snapshotSummary(context, endpointKey);
+  return {
+    source: 'FantasyPros',
+    key: 'INJURIES',
+    label: 'FantasyPros Injuries',
+    sourceKey: summary?.sourceKey || null,
+    endpointKey,
+    fetchedAt: summary?.fetchedAt || null,
+    lastUpdated: row.updatedAt || summary?.lastUpdated || null,
+    status: row.status || row.gameStatus || summary?.status || 'loaded',
+    evidence: [
+      row.status ? `status ${truncateEvidence(row.status)}` : null,
+      row.injury ? `injury ${truncateEvidence(row.injury)}` : null,
+      row.practiceStatus ? `practice ${truncateEvidence(row.practiceStatus)}` : null,
+      row.gameStatus ? `game ${truncateEvidence(row.gameStatus)}` : null,
+      endpointEvidence(summary, endpointKey),
+    ].filter(Boolean).join('; '),
+  };
+}
+
+function snapshotSummary(context: FantasyProsSnapshotContext, endpointKey: string) {
+  return context.summaries.find((summary) => summary.endpointKey === endpointKey) || null;
+}
+
+function endpointEvidence(
+  summary: ReturnType<typeof snapshotSummary>,
+  endpointKey: string
+): string {
+  return summary?.sourceKey
+    ? `endpoint metadata: ${summary.sourceKey}`
+    : `endpoint metadata: ${endpointKey}`;
 }
 
 function buildEvidence(input: {
@@ -206,4 +471,9 @@ function hasAnyValue(...values: unknown[]) {
 
 function formatNumber(value: number): string {
   return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+}
+
+function truncateEvidence(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.length <= 96 ? trimmed : `${trimmed.slice(0, 93)}...`;
 }

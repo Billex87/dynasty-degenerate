@@ -43,7 +43,7 @@ import { loadReportSourceDiagnosticsSection, loadReportStaticSections } from "./
 import { buildReportPlayerStaticEnrichment, loadReportPlayerStaticEnrichment } from "./reportPlayerEnrichment";
 import { buildPlayerValueTimelineMap, getPlayerValueTimelineForPlayer, loadStoredValueTimelineSnapshotsForPlayers, slimPlayerValueTimelineForReport } from "./playerValueTimeline";
 import { getRedraftValueTimelineForPlayer } from "./redraftValueTimeline";
-import { buildFantasyProsPlayerSourceTrace } from "./fantasyProsPlayerSourceTrace";
+import { buildFantasyProsIdBySleeperId, buildFantasyProsPlayerSourceTrace } from "./fantasyProsPlayerSourceTrace";
 import {
   loadFantasyProsSnapshotContext,
   type FantasyProsConsensusSnapshotRow,
@@ -4865,7 +4865,11 @@ function getPlayerValueProfile(
   players: Record<string, any>,
   ktcValues: KTCValues,
   rankLookups?: Record<string, Partial<Record<'dynastyPositionRank' | 'seasonPositionRank' | 'contenderPositionRank' | 'rebuilderPositionRank' | 'balancedPositionRank', string>>>,
-  leagueValueMode: LeagueValueMode = 'dynasty'
+  leagueValueMode: LeagueValueMode = 'dynasty',
+  fantasyProsTraceOptions: {
+    snapshotContext?: FantasyProsSnapshotContext | null;
+    fantasyProsIdBySleeperId?: Record<string, string>;
+  } = {}
 ): PlayerDetails['valueProfile'] | undefined {
   const player = players[playerId];
   if (!player) return undefined;
@@ -4933,7 +4937,13 @@ function getPlayerValueProfile(
     fantasyProsPositionRank: data.fantasypros_position_rank ?? null,
     fantasyProsTier: data.fantasypros_tier ?? null,
     fantasyProsSeasonValue: data.fantasypros_season_value ?? null,
-    fantasyProsSourceTrace: buildFantasyProsPlayerSourceTrace(data, { isRedraftProfile }),
+    fantasyProsSourceTrace: buildFantasyProsPlayerSourceTrace(data, {
+      isRedraftProfile,
+      snapshotContext: fantasyProsTraceOptions.snapshotContext,
+      fantasyProsIdBySleeperId: fantasyProsTraceOptions.fantasyProsIdBySleeperId,
+      sleeperPlayerId: playerId,
+      player,
+    }),
     sources: data.value_sources || [],
   };
 }
@@ -6629,12 +6639,16 @@ function buildPlayerValueProfileMap(
   playerIds: Iterable<string>,
   players: Record<string, any>,
   ktcValues: KTCValues,
-  leagueValueMode: LeagueValueMode = 'dynasty'
+  leagueValueMode: LeagueValueMode = 'dynasty',
+  fantasyProsTraceOptions: {
+    snapshotContext?: FantasyProsSnapshotContext | null;
+    fantasyProsIdBySleeperId?: Record<string, string>;
+  } = {}
 ): Record<string, PlayerDetails['valueProfile']> {
   const rankLookups = buildValueProfileRankLookups(ktcValues, leagueValueMode);
   return Object.fromEntries(
     Array.from(new Set(Array.from(playerIds).filter(Boolean)))
-      .map((playerId) => [playerId, getPlayerValueProfile(playerId, players, ktcValues, rankLookups, leagueValueMode)])
+      .map((playerId) => [playerId, getPlayerValueProfile(playerId, players, ktcValues, rankLookups, leagueValueMode, fantasyProsTraceOptions)])
       .filter((entry): entry is [string, NonNullable<PlayerDetails['valueProfile']>] => Boolean(entry[1]))
   );
 }
@@ -6642,7 +6656,11 @@ function buildPlayerValueProfileMap(
 function buildLazyPlayerValueProfileMap(
   players: Record<string, any>,
   ktcValues: KTCValues,
-  leagueValueMode: LeagueValueMode = 'dynasty'
+  leagueValueMode: LeagueValueMode = 'dynasty',
+  fantasyProsTraceOptions: {
+    snapshotContext?: FantasyProsSnapshotContext | null;
+    fantasyProsIdBySleeperId?: Record<string, string>;
+  } = {}
 ): Record<string, PlayerDetails['valueProfile']> {
   const rankLookups = buildValueProfileRankLookups(ktcValues, leagueValueMode);
   const cache = Object.create(null) as Record<string, PlayerDetails['valueProfile']>;
@@ -6656,7 +6674,7 @@ function buildLazyPlayerValueProfileMap(
         return undefined;
       }
 
-      target[property] = getPlayerValueProfile(property, players, ktcValues, rankLookups, leagueValueMode);
+      target[property] = getPlayerValueProfile(property, players, ktcValues, rankLookups, leagueValueMode, fantasyProsTraceOptions);
       return target[property];
     },
   });
@@ -7465,10 +7483,15 @@ async function buildLiveSleeperActivityPatch(
     }
 
     const safePlayers = players || {};
+    const fantasyProsIdBySleeperId = buildFantasyProsIdBySleeperId(fantasyProsSnapshotContext);
     const valueProfilesById = buildLazyPlayerValueProfileMap(
       safePlayers,
       ktcValues,
-      leagueValueMode
+      leagueValueMode,
+      {
+        snapshotContext: fantasyProsSnapshotContext,
+        fantasyProsIdBySleeperId,
+      }
     );
     const [trendingAdds, trendingDrops] = await Promise.all([
       fetchTrendingPlayers('add', safePlayers, ktcValues, ownerByPlayerId, rosterStatusByPlayerId, leagueValueMode, valueProfilesById),
@@ -9907,7 +9930,23 @@ export const appRouter = router({
           }
           markAnalyzeStep('last season ranks');
 
-          const allValueProfilesById = buildPlayerValueProfileMap(Object.keys(players), players, ktcValues, leagueValueMode);
+          const fantasyProsSnapshotContext = await loadFantasyProsSnapshotContext({
+            season: currentSeasonLabel,
+            scoring: 'PPR',
+            currentWeek: currentScheduleWeek,
+            weekWindow: 3,
+          });
+          const fantasyProsIdBySleeperId = buildFantasyProsIdBySleeperId(fantasyProsSnapshotContext);
+          const allValueProfilesById = buildPlayerValueProfileMap(
+            Object.keys(players),
+            players,
+            ktcValues,
+            leagueValueMode,
+            {
+              snapshotContext: fantasyProsSnapshotContext,
+              fantasyProsIdBySleeperId,
+            }
+          );
           let currentWeekMatchups: any[] = [];
           try {
             const fetchedMatchups = await fetchSleeperJson<any[]>(
@@ -10126,13 +10165,7 @@ export const appRouter = router({
           markAnalyzeStep('trending players');
 
           const managers = Object.values(rosterUserMap).filter(Boolean) as string[];
-          const currentSeason = String(leagueInfo.season || new Date().getFullYear());
-          const fantasyProsSnapshotContext = await loadFantasyProsSnapshotContext({
-            season: currentSeason,
-            scoring: 'PPR',
-            currentWeek: currentScheduleWeek,
-            weekWindow: 3,
-          });
+          const currentSeason = currentSeasonLabel;
           const futurePickInventory = buildFuturePickInventory({
             rosters,
             rosterMap: rosterUserMap,
