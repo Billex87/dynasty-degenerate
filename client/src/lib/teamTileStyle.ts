@@ -5,12 +5,16 @@ export type NflTeamColors = { primary: string; secondary: string; accent: string
 
 type NflTeamCode = keyof typeof teamBackgrounds.teams;
 type NflTeamMeta = (typeof teamBackgrounds.teams)[NflTeamCode];
+type ParsedHexColor = { hex: string; r: number; g: number; b: number; luminance: number };
 
 const NFL_TEAM_CODE_ALIASES = teamBackgrounds.aliases as Record<string, NflTeamCode | undefined>;
 const NFL_FALLBACK_GRADIENT = teamBackgrounds.fallback.gradient;
 const NFL_FALLBACK_CODES = new Set(
   [teamBackgrounds.fallback.code, ...(teamBackgrounds.fallback.aliases || [])].map((code) => code.trim().toUpperCase())
 );
+const NFL_HEADER_BLACK_STOP = '#000000';
+const NFL_TEAM_BACKGROUND_BASE = '/assets/nfl-team-backgrounds';
+const NFL_FALLBACK_BACKGROUND_FILE = 'nfl-fa.jpg';
 
 function isNflTeamCode(code: string): code is NflTeamCode {
   return Object.prototype.hasOwnProperty.call(teamBackgrounds.teams, code);
@@ -31,6 +35,53 @@ function buildTeamColorsFromGradient(gradient: readonly string[]): NflTeamColors
   const secondary = gradient[1] || primary;
   const accent = gradient[2] || gradient[1] || primary;
   return { primary, secondary, accent };
+}
+
+function parseHexColor(hex: string): ParsedHexColor | null {
+  const normalized = hex.replace('#', '').trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return { hex: `#${normalized.toUpperCase()}`, r, g, b, luminance };
+}
+
+function isBlackStop(color: ParsedHexColor) {
+  return color.luminance < 0.08;
+}
+
+function isWhiteStop(color: ParsedHexColor) {
+  const max = Math.max(color.r, color.g, color.b);
+  const min = Math.min(color.r, color.g, color.b);
+  const saturation = max === 0 ? 0 : (max - min) / max;
+  return color.luminance > 0.9 && saturation < 0.08;
+}
+
+function getNflHeaderDisplayStops(gradient: readonly string[]): string[] {
+  const parsedStops = gradient
+    .map(parseHexColor)
+    .filter((color): color is ParsedHexColor => Boolean(color));
+  const nonBlackStops = parsedStops.filter((color) => !isBlackStop(color));
+  const lightCandidates = nonBlackStops.filter((color) => !isWhiteStop(color));
+  const lightStop = [...(lightCandidates.length ? lightCandidates : nonBlackStops)]
+    .sort((a, b) => b.luminance - a.luminance)[0]?.hex;
+  const alternateStop =
+    gradient.find((color) => {
+      const parsed = parseHexColor(color);
+      return parsed && !isBlackStop(parsed) && parsed.hex !== lightStop && !isWhiteStop(parsed);
+    }) ||
+    gradient.find((color) => {
+      const parsed = parseHexColor(color);
+      return parsed && !isBlackStop(parsed) && parsed.hex !== lightStop;
+    });
+
+  return [
+    lightStop || NFL_FALLBACK_GRADIENT[0],
+    NFL_HEADER_BLACK_STOP,
+    alternateStop || lightStop || NFL_FALLBACK_GRADIENT[1],
+  ];
 }
 
 export const NFL_TEAM_COLORS: Record<string, NflTeamColors> = Object.fromEntries(
@@ -58,10 +109,20 @@ export function getNflTeamGradientStops(team?: string | null): string[] {
   return [...(teamMeta?.gradient || NFL_FALLBACK_GRADIENT)];
 }
 
+export function getNflTeamHeaderGradientStops(team?: string | null): string[] {
+  return getNflHeaderDisplayStops(getNflTeamGradientStops(team));
+}
+
 export function getNflTeamHeaderGradient(team?: string | null): string {
-  const colors = getNflTeamGradientStops(team);
+  const colors = getNflTeamHeaderGradientStops(team);
   const angle = teamBackgrounds.gradientAngle || '135deg';
   return `linear-gradient(${angle}, ${colors.join(', ')})`;
+}
+
+export function getNflTeamHeaderBackgroundUrl(team?: string | null): string {
+  const teamCode = getKnownNflTeamCode(team);
+  const fileName = teamCode ? `${teamCode.toLowerCase()}.jpg` : NFL_FALLBACK_BACKGROUND_FILE;
+  return `${NFL_TEAM_BACKGROUND_BASE}/${fileName}`;
 }
 
 const NFL_TEAM_NAME_ALIASES: Record<string, string> = {
@@ -370,13 +431,15 @@ export function getCachedDraftBuzzImageUrl(url?: string | null): string | null {
 }
 
 export function getTeamTileStyle(team?: string | null): CSSProperties | undefined {
-  const teamColors = getNflTeamColors(team);
-  if (!teamColors) return undefined;
+  const teamCode = getKnownNflTeamCode(team);
+  if (!teamCode) return undefined;
+
+  const [primary, secondary, accent] = getNflTeamHeaderGradientStops(teamCode);
 
   return {
-    '--team-primary': teamColors.primary,
-    '--team-secondary': teamColors.secondary,
-    '--team-accent': teamColors.accent,
+    '--team-primary': primary,
+    '--team-secondary': secondary,
+    '--team-accent': accent,
   } as CSSProperties;
 }
 

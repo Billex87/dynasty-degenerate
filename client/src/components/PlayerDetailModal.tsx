@@ -26,8 +26,9 @@ import {
   getCollegeLogoUrl,
   getCollegeTileStyle,
   getNflTeamColorsWithFallback,
-  getNflTeamGradientStops,
+  getNflTeamHeaderBackgroundUrl,
   getNflTeamHeaderGradient,
+  getNflTeamHeaderGradientStops,
   getNflTeamLogoUrl,
   normalizeNflTeamAbbr,
 } from '@/lib/teamTileStyle';
@@ -373,10 +374,11 @@ export function PlayerDetailModal({
   const team = isCollegeProspect ? null : details?.team || 'FA';
   const jerseyNumber = details?.jerseyNumber;
   const teamColors = isCollegeProspect ? null : getNflTeamColorsWithFallback(team);
-  const teamGradientStops = isCollegeProspect ? [] : getNflTeamGradientStops(team);
-  const teamPrimary = teamGradientStops[0] || teamColors?.primary;
-  const teamSecondary = teamGradientStops[1] || teamColors?.secondary || teamPrimary;
+  const teamHeaderGradientStops = isCollegeProspect ? [] : getNflTeamHeaderGradientStops(team);
+  const teamPrimary = teamHeaderGradientStops[0] || teamColors?.primary;
+  const teamSecondary = teamHeaderGradientStops[2] || teamColors?.secondary || teamPrimary;
   const teamHeaderGradient = isCollegeProspect ? undefined : getNflTeamHeaderGradient(team);
+  const teamHeaderBackgroundUrl = isCollegeProspect ? null : getNflTeamHeaderBackgroundUrl(team);
   const collegeTileStyle = isCollegeProspect ? getCollegeTileStyle(prospectCollege) : undefined;
   const tileAccent = isCollegeProspect ? '#fbbf24' : getReadableTeamAccent(teamColors);
   const sourcePositionRank = pick.sourcePositionRank || (currentRank !== '-' ? currentRank : null);
@@ -615,6 +617,15 @@ export function PlayerDetailModal({
               background: heroBackground,
             }}
           >
+            {teamHeaderBackgroundUrl && (
+              <div
+                className="absolute inset-0 bg-center bg-no-repeat opacity-75"
+                style={{
+                  backgroundImage: `url("${teamHeaderBackgroundUrl}")`,
+                  backgroundSize: '100% 100%',
+                }}
+              />
+            )}
             <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.2)_0%,rgba(0,0,0,0.62)_58%,rgba(0,0,0,0.35)_100%)]" />
             <div
               className="absolute right-8 top-8 h-24 w-24 rounded-full blur-2xl"
