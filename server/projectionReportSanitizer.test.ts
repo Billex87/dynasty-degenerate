@@ -75,6 +75,9 @@ describe("projection report sanitizer", () => {
               totalPlayerCount: 9,
               mode: "stored-weekly-projection-blend",
             },
+            confidence: 82,
+            confidenceReasons: ["Projection coverage is partial (8/9); blended with schedule/value fallback."],
+            confidenceCapReason: "Projection coverage is partial (8/9); blended with schedule/value fallback.",
             byePlayers: [],
             avoidPlayers: [],
             streamerPlayers: [],
@@ -138,6 +141,8 @@ describe("projection report sanitizer", () => {
         totalPlayerCount: 9,
         mode: "schedule-value",
       },
+      confidence: 58,
+      confidenceCapReason: "Weekly projections are disabled for this response; playoff planning confidence is capped to schedule/value context.",
     });
     expect(sanitized.matchupPreviews?.map((preview) => preview.source)).toEqual(["Schedule/value model"]);
     expect(JSON.stringify(sanitized.playerDetailsById)).not.toContain("weeklyProjection");

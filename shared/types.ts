@@ -963,11 +963,15 @@ export interface PlayoffSchedulePlanningSummary {
   source?: string | null;
   status?: 'pending' | 'partial' | 'ready';
   updatedAt?: string | null;
+  confidence?: number;
+  confidenceReasons?: string[];
   weeks: number[];
   managerPlans: Array<{
     manager: string;
     riskScore: number;
     upsideScore: number;
+    confidence?: number;
+    confidenceReasons?: string[];
     weeks: Array<{
       week: number;
       projectedStarterPoints: number | null;
@@ -976,6 +980,9 @@ export interface PlayoffSchedulePlanningSummary {
         totalPlayerCount: number;
         mode: 'stored-weekly-projection' | 'stored-weekly-projection-blend' | 'schedule-value';
       };
+      confidence?: number;
+      confidenceReasons?: string[];
+      confidenceCapReason?: string | null;
       byePlayers: Array<{
         playerId: string;
         name: string;

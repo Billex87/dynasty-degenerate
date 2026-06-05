@@ -2889,6 +2889,12 @@ function stripWeeklyProjectionFromPlayoffSchedulePlanning(
           totalPlayerCount: week.projectionCoverage?.totalPlayerCount || 0,
           mode: 'schedule-value' as const,
         },
+        confidence: Math.min(week.confidence ?? 58, 58),
+        confidenceReasons: [
+          'Weekly projections are disabled for this response; playoff planning confidence is capped to schedule/value context.',
+          ...(week.confidenceReasons || []).filter((reason) => !/projection coverage|weekly projection/i.test(reason)),
+        ].slice(0, 6),
+        confidenceCapReason: 'Weekly projections are disabled for this response; playoff planning confidence is capped to schedule/value context.',
       })),
     })),
   };

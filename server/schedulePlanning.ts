@@ -26,6 +26,12 @@ type LineupProjectionResult = {
   totalPlayerCount: number;
 };
 
+type PlayoffConfidenceResult = {
+  confidence: number;
+  confidenceReasons: string[];
+  confidenceCapReason: string | null;
+};
+
 type PlayoffSchedulePlayerRow = {
   playerId: string;
   name: string;
@@ -64,6 +70,8 @@ const BASE_SCHEDULE_SOURCE = 'NFL.com 2026 bye weeks + Sleeper league data';
 const SCHEDULE_UPDATED_AT = '2026-05-15T09:00:00.000Z';
 const SUPPORTED_SEASONS = new Set(['2026']);
 const SCHEDULE_POSITIONS: SchedulePosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+const PLAYOFF_CONFIDENCE_BASE = 94;
+const SOS_STALE_AFTER_DAYS = 45;
 
 // Source: NFL.com 2026 schedule release bye-week list, published May 15, 2026.
 const NFL_2026_BYE_WEEK_BY_TEAM: Record<string, number> = {
@@ -179,6 +187,77 @@ function getScheduleUpdatedAt(draftSharksContext?: DraftSharksScheduleContext | 
   return draftSharksContext?.status === 'loaded' && draftSharksContext.updatedAt
     ? draftSharksContext.updatedAt
     : SCHEDULE_UPDATED_AT;
+}
+
+function isStaleTimestamp(value?: string | null, maxAgeDays = SOS_STALE_AFTER_DAYS): boolean {
+  if (!value) return false;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return false;
+  return Date.now() - parsed > maxAgeDays * 24 * 60 * 60 * 1000;
+}
+
+function uniqueReasons(reasons: Array<string | null | undefined>, limit = 6): string[] {
+  return Array.from(new Set(reasons.filter((reason): reason is string => Boolean(reason)))).slice(0, limit);
+}
+
+function getPlayoffWeekConfidence(input: {
+  lineupProjection: LineupProjectionResult;
+  lineupIds: string[];
+  playerSchedules: Record<string, PlayerScheduleProfile>;
+  draftSharksContext?: DraftSharksScheduleContext | null;
+  weeklyProjectionReadiness?: WeeklyProjectionReadiness | null;
+}): PlayoffConfidenceResult {
+  let confidenceCap = PLAYOFF_CONFIDENCE_BASE;
+  const capReasons: string[] = [];
+  const applyCap = (cap: number, reason: string) => {
+    if (cap < confidenceCap) confidenceCap = cap;
+    capReasons.push(reason);
+  };
+
+  if (!input.lineupIds.length) {
+    applyCap(45, 'No active lineup players were available for playoff confidence scoring.');
+  }
+
+  if (input.weeklyProjectionReadiness?.enabled === false) {
+    applyCap(54, input.weeklyProjectionReadiness.reason || 'Weekly projection readiness is blocked; using schedule/value fallback.');
+  }
+
+  if (input.lineupProjection.mode === 'schedule-value') {
+    applyCap(58, 'Weekly projection rows are unavailable for this playoff week; using schedule/value fallback.');
+  } else if (input.lineupProjection.mode === 'stored-weekly-projection-blend') {
+    applyCap(76, `Projection coverage is partial (${input.lineupProjection.coveredPlayerCount}/${input.lineupProjection.totalPlayerCount}); blended with schedule/value fallback.`);
+  }
+
+  if (
+    input.lineupProjection.totalPlayerCount > 0 &&
+    input.lineupProjection.coveredPlayerCount < input.lineupProjection.totalPlayerCount &&
+    input.lineupProjection.mode !== 'schedule-value'
+  ) {
+    applyCap(76, `Missing projection rows for ${input.lineupProjection.totalPlayerCount - input.lineupProjection.coveredPlayerCount} starter candidate${input.lineupProjection.totalPlayerCount - input.lineupProjection.coveredPlayerCount === 1 ? '' : 's'}.`);
+  }
+
+  const missingScheduleProfileCount = input.lineupIds.filter((playerId) => !input.playerSchedules[playerId]).length;
+  if (missingScheduleProfileCount > 0) {
+    applyCap(70, `Schedule mapping is partial for ${missingScheduleProfileCount} lineup player${missingScheduleProfileCount === 1 ? '' : 's'}.`);
+  }
+
+  if (input.draftSharksContext?.status !== 'loaded') {
+    applyCap(64, 'DraftSharks SOS snapshot is unavailable; confidence is capped to bye-week and value context.');
+  } else if (isStaleTimestamp(input.draftSharksContext.updatedAt)) {
+    applyCap(72, 'DraftSharks SOS snapshot may be stale; confidence is capped until the next source refresh.');
+  }
+
+  const confidenceReasons = uniqueReasons(
+    capReasons.length
+      ? capReasons
+      : ['Fresh schedule, SOS, and projection context support this playoff-week confidence score.']
+  );
+
+  return {
+    confidence: Math.max(25, Math.min(PLAYOFF_CONFIDENCE_BASE, confidenceCap)),
+    confidenceReasons,
+    confidenceCapReason: confidenceReasons[0] || null,
+  };
 }
 
 export function buildPlayerScheduleProfiles(input: {
@@ -422,6 +501,13 @@ export function buildPlayoffSchedulePlanningSummary(input: {
         playerSchedules,
         weeklyProjectionByPlayerId,
       });
+      const confidence = getPlayoffWeekConfidence({
+        lineupProjection,
+        lineupIds,
+        playerSchedules,
+        draftSharksContext: input.draftSharksContext,
+        weeklyProjectionReadiness: input.weeklyProjectionReadiness,
+      });
       const byePlayers = lineupIds
         .filter((playerId) => playerSchedules[playerId]?.byeWeek === week)
         .map((playerId) => toSchedulePlayerRow(playerId, input.players, playerSchedules));
@@ -442,6 +528,9 @@ export function buildPlayoffSchedulePlanningSummary(input: {
           totalPlayerCount: lineupProjection.totalPlayerCount,
           mode: lineupProjection.mode,
         },
+        confidence: confidence.confidence,
+        confidenceReasons: confidence.confidenceReasons,
+        confidenceCapReason: confidence.confidenceCapReason,
         byePlayers,
         avoidPlayers,
         streamerPlayers,
@@ -454,6 +543,10 @@ export function buildPlayoffSchedulePlanningSummary(input: {
     });
     const riskScore = weekRows.reduce((sum, row) => sum + row.byePlayers.length * 3 + row.avoidPlayers.length * 2, 0);
     const upsideScore = weekRows.reduce((sum, row) => sum + row.streamerPlayers.length, 0);
+    const confidence = weekRows.length
+      ? Math.min(...weekRows.map((row) => row.confidence || PLAYOFF_CONFIDENCE_BASE))
+      : 45;
+    const confidenceReasons = uniqueReasons(weekRows.flatMap((row) => row.confidenceReasons || []), 6);
     const planPriorityAdds = availablePriorityAdds
       .filter((candidate) => candidate.targetWeeks.some((week) => weekRows.some((row) => row.week === week && (row.byePlayers.length || row.avoidPlayers.length))))
       .slice(0, 6);
@@ -462,6 +555,8 @@ export function buildPlayoffSchedulePlanningSummary(input: {
       manager,
       riskScore,
       upsideScore,
+      confidence,
+      confidenceReasons,
       weeks: weekRows,
       priorityAdds: planPriorityAdds,
       note: riskScore
@@ -473,10 +568,21 @@ export function buildPlayoffSchedulePlanningSummary(input: {
   }).sort((a, b) => b.riskScore - a.riskScore || b.upsideScore - a.upsideScore || a.manager.localeCompare(b.manager));
 
   const hasProfiles = Object.keys(playerSchedules).length > 0;
+  const confidence = managerPlans.length
+    ? Math.min(...managerPlans.map((plan) => plan.confidence || PLAYOFF_CONFIDENCE_BASE))
+    : hasProfiles ? 70 : 35;
+  const confidenceReasons = uniqueReasons(
+    managerPlans.flatMap((plan) => plan.confidenceReasons || []),
+    8
+  );
   return {
     source: getScheduleSource(input.draftSharksContext),
     status: hasProfiles ? 'ready' : 'pending',
     updatedAt: getScheduleUpdatedAt(input.draftSharksContext),
+    confidence,
+    confidenceReasons: confidenceReasons.length
+      ? confidenceReasons
+      : [hasProfiles ? 'Stored playoff schedule profiles are available.' : 'No stored playoff schedule profiles are available.'],
     weeks,
     managerPlans,
   };

@@ -166,6 +166,106 @@ describe('schedule planning', () => {
     expect(summary.managerPlans[0].note).toContain('stored SOS-backed waiver targets');
   });
 
+  it('caps playoff planning confidence when projection coverage is partial', () => {
+    const summary = buildPlayoffSchedulePlanningSummary({
+      season: '2026',
+      rosters: [{
+        roster_id: 1,
+        players: ['phiQb', 'carRb'],
+        starters: ['phiQb', 'carRb'],
+      }],
+      rosterMap: { 1: 'Bill' },
+      players,
+      ktcValues,
+      playoffWeeks: [15],
+      draftSharksContext: {
+        status: 'loaded',
+        source: 'DraftSharks SOS',
+        updatedAt: '2099-01-01T00:00:00.000Z',
+        profiles: {},
+      },
+      playerSchedules: {
+        phiQb: { byeWeek: 10, avoidWeeks: [], streamerWeeks: [15], seasonSOS: 81, scheduleTier: 'elite' },
+        carRb: { byeWeek: 5, avoidWeeks: [], streamerWeeks: [], seasonSOS: 50, scheduleTier: 'neutral' },
+      },
+      weeklyProjectionByPlayerId: {
+        phiQb: {
+          source: 'stored-weekly-projection',
+          provider: 'sleeper',
+          season: '2026',
+          week: 15,
+          scoringProfile: 'PPR',
+          projectedFantasyPoints: 21.5,
+          status: 'ready',
+          note: 'Stored weekly projection fixture.',
+        },
+      },
+    });
+
+    const week = summary.managerPlans[0].weeks[0];
+    expect(week.projectionCoverage).toMatchObject({
+      coveredPlayerCount: 1,
+      totalPlayerCount: 2,
+      mode: 'stored-weekly-projection-blend',
+    });
+    expect(week.confidence).toBe(76);
+    expect(week.confidenceReasons?.join(' ')).toContain('Projection coverage is partial');
+    expect(summary.confidence).toBe(76);
+  });
+
+  it('caps playoff planning confidence when projections, SOS, or schedule mapping are unavailable', () => {
+    const summary = buildPlayoffSchedulePlanningSummary({
+      season: '2026',
+      rosters: [{
+        roster_id: 1,
+        players: ['phiQb', 'carRb'],
+        starters: ['phiQb', 'carRb'],
+      }],
+      rosterMap: { 1: 'Bill' },
+      players,
+      ktcValues,
+      playoffWeeks: [15],
+      playerSchedules: {
+        phiQb: { byeWeek: 10, avoidWeeks: [], streamerWeeks: [15], seasonSOS: 81, scheduleTier: 'elite' },
+      },
+      weeklyProjectionReadiness: {
+        enabled: false,
+        reason: 'Projection readiness blocked by schedule snapshot missing.',
+      },
+      weeklyProjectionByPlayerId: {
+        phiQb: {
+          source: 'stored-weekly-projection',
+          provider: 'sleeper',
+          season: '2026',
+          week: 15,
+          scoringProfile: 'PPR',
+          projectedFantasyPoints: 21.5,
+          status: 'ready',
+          note: 'Stored weekly projection fixture.',
+        },
+        carRb: {
+          source: 'stored-weekly-projection',
+          provider: 'sleeper',
+          season: '2026',
+          week: 15,
+          scoringProfile: 'PPR',
+          projectedFantasyPoints: 14.2,
+          status: 'ready',
+          note: 'Stored weekly projection fixture.',
+        },
+      },
+    });
+
+    const week = summary.managerPlans[0].weeks[0];
+    expect(week.projectionCoverage.mode).toBe('schedule-value');
+    expect(week.confidence).toBe(54);
+    expect(week.confidenceReasons?.join(' ')).toContain('Projection readiness blocked');
+    expect(week.confidenceReasons?.join(' ')).toContain('schedule/value fallback');
+    expect(week.confidenceReasons?.join(' ')).toContain('Schedule mapping is partial');
+    expect(week.confidenceReasons?.join(' ')).toContain('DraftSharks SOS snapshot is unavailable');
+    expect(summary.managerPlans[0].confidence).toBe(54);
+  });
+
   it('builds matchup previews from Sleeper matchup rows when available', () => {
     const previews = buildMatchupPreviews({
       season: '2026',
