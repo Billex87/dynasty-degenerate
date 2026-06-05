@@ -849,6 +849,8 @@
 - [ ] After 2026 trades start, classify accepted, rejected, countered, expired, blocked, and regretted trade recommendations from Sleeper statuses where available, then fall back to admin/user labeling only for outcomes Sleeper does not expose.
   - [x] Build first-pass visible proposal-status calibration for Trade War Room so accepted/countered/blocked/pending proposal history can adjust negotiation score, chips, and summary copy.
   - [ ] Extend this calibration with hidden/cancelled/pending account-level fields after the consented Sleeper connection path is approved and tested.
+- [ ] Add official transaction source so roster-room deltas can classify signings/releases/waivers/reserve moves instead of inferring.
+  - [x] Add situation-delta regression coverage proving inferred free-agent/claim roster movement emits a source-limited dynamic signal and confidence caution until an official transaction source exists.
 - [ ] Add recommendation grading windows by format: redraft recommendations grade at end of season against final standings, playoff finish, points for, roster usage, and title outcome; dynasty draft recommendations use a 2-year outcome window before final hit/miss labels.
   - [x] Add first-pass grading-window policy so redraft season recommendations stay pending until the end-of-season window and dynasty draft recommendations stay pending for a two-year outcome window before unresolved reads can expire.
   - [ ] Add final redraft outcome facts for standings, playoff finish, points for, roster usage, and title outcome once the season-end source path is approved and populated.

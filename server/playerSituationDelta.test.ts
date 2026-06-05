@@ -161,6 +161,43 @@ describe('player situation delta', () => {
     expect(delta?.summary).toMatch(/role boost/i);
   });
 
+  it('keeps inferred free-agent or claim movement source-limited until an official transaction source exists', () => {
+    const base = player({
+      usageTrend: usage(),
+      teamEnvironment: teamEnvironment(),
+      rosterRoom: rosterRoom({ movementTypes: ['roster-loss'] }),
+      valueTimeline: {
+        profileKey: 'dynasty',
+        source: 'stored-value-snapshots',
+        points: [],
+        summary: {
+          startValue: 2800,
+          endValue: 3200,
+          delta: 400,
+          deltaPct: 14,
+          sourceSetChanged: false,
+          eventCount: 1,
+          note: 'Stored value moved up after the room opened.',
+        },
+      },
+    });
+    const confirmedDelta = buildPlayerSituationDelta(base, 'confirmed-room');
+    const inferredDelta = buildPlayerSituationDelta({
+      ...base,
+      rosterRoom: rosterRoom({ movementTypes: ['free-agent-or-claim'] }),
+    }, 'inferred-room');
+
+    expect(inferredDelta?.dynamicSignals).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'source',
+        label: 'Inferred free-agent/claim movement',
+        direction: 'neutral',
+      }),
+    ]));
+    expect(inferredDelta?.cautionFlags).toContain('inferred free-agent/claim movement');
+    expect(inferredDelta?.confidence).toBeLessThan(confirmedDelta?.confidence || 0);
+  });
+
   it('keeps high-draft-capital rookies in a patience bucket when production is thin', () => {
     const delta = buildPlayerSituationDelta(player({
       fullName: 'Round One Rookie',
