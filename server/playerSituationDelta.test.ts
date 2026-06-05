@@ -361,15 +361,46 @@ describe('player situation delta', () => {
           carryDeltaPerGame: 0,
           note: 'Last 3 tracked games: 8.3 targets/g (+3.1 vs season), 0 carries/g (+0 vs season).',
         }],
+        momentum: {
+          gameCount: 6,
+          weeks: [12, 13, 14, 15, 16, 17],
+          seasonTargetsPerGame: 5.2,
+          seasonCarriesPerGame: 0,
+          seasonFantasyPointsPprPerGame: 11.1,
+          seasonOffenseSnapPct: 62,
+          windows: [{
+            games: 3,
+            weeks: [15, 16, 17],
+            targetsPerGame: 8.3,
+            carriesPerGame: 0,
+            fantasyPointsPprPerGame: 17.2,
+            offenseSnapPct: 76,
+            targetDeltaPerGame: 3.1,
+            carryDeltaPerGame: 0,
+            fantasyPointDeltaPerGame: 6.1,
+            snapDeltaPct: 14,
+            volatilityScore: 4,
+            momentumScore: 48,
+            direction: 'sustained-growth',
+            note: 'Last 3 tracked games: 8.3 targets/g, 0 carries/g, 76% snaps; momentum 48.',
+          }],
+          primaryDirection: 'sustained-growth',
+          confidence: 76,
+          confidenceCapReason: null,
+          missingEvidence: [],
+          note: 'Recent usage growth is backed by a multi-game confirmation window.',
+        },
       }),
       teamEnvironment: teamEnvironment(),
       rosterRoom: rosterRoom(),
     }), 'wr-news');
 
     expect(delta?.dynamicSignals.map((signal) => signal.label)).toContain('Rolling role spike');
+    expect(delta?.dynamicSignals.map((signal) => signal.label)).toContain('Sustained usage growth');
     expect(delta?.dynamicSignals.map((signal) => signal.label)).toContain('News attached');
     expect(delta?.freshness.grade).toMatch(/fresh|usable/);
     expect(delta?.freshness.signals).toContain('rolling usage windows');
+    expect(delta?.freshness.signals).toContain('usage momentum');
   });
 
   it('maps FantasyPros news categories into value-movement situation signals', () => {

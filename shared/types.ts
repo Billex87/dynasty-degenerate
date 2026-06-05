@@ -1218,6 +1218,7 @@ export type WaiverPriorityOpportunityType =
   | 'injury-fill-in'
   | 'multi-week-staying-power'
   | 'playoff-window'
+  | 'usage-momentum'
   | 'value-stash';
 
 export interface WaiverPriorityOpportunityWindow {
@@ -1917,6 +1918,35 @@ export interface PlayerDetails {
       carryDeltaPerGame: number | null;
       note: string;
     }>;
+    momentum?: {
+      gameCount: number;
+      weeks: number[];
+      seasonTargetsPerGame: number | null;
+      seasonCarriesPerGame: number | null;
+      seasonFantasyPointsPprPerGame: number | null;
+      seasonOffenseSnapPct: number | null;
+      windows: Array<{
+        games: number;
+        weeks: number[];
+        targetsPerGame: number | null;
+        carriesPerGame: number | null;
+        fantasyPointsPprPerGame: number | null;
+        offenseSnapPct: number | null;
+        targetDeltaPerGame: number | null;
+        carryDeltaPerGame: number | null;
+        fantasyPointDeltaPerGame: number | null;
+        snapDeltaPct: number | null;
+        volatilityScore: number;
+        momentumScore: number;
+        direction: 'sustained-growth' | 'short-spike' | 'declining' | 'volatile' | 'flat' | 'thin-sample';
+        note: string;
+      }>;
+      primaryDirection: 'sustained-growth' | 'short-spike' | 'declining' | 'volatile' | 'flat' | 'thin-sample';
+      confidence: number;
+      confidenceCapReason: string | null;
+      missingEvidence: string[];
+      note: string;
+    } | null;
     targetTrend: 'up' | 'down' | 'flat' | 'unknown';
     carryTrend: 'up' | 'down' | 'flat' | 'unknown';
     note: string;

@@ -3,6 +3,7 @@ import { findLatestProviderDataSnapshot, upsertProviderDataSnapshot } from './db
 import { getProviderSnapshotDateKey, parseProviderSnapshotPayload } from './providerDataSnapshots';
 import { parseCsv } from './nflverseDraftCapital';
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from './prospectSource';
+import { buildUsageTrendMomentumSummary, type WeeklyUsageObservation } from './usageTrendMomentum';
 import type { PlayerDetails, ProspectProfile } from '../shared/types';
 
 export const NFLVERSE_USAGE_SOURCE_PREFIX = 'nflverse-usage-v1';
@@ -363,6 +364,7 @@ export function normalizeNflverseUsageRows(input: {
   }
 
   const snapByName = new Map<string, number[]>();
+  const snapByNameWeek = new Map<string, number[]>();
   for (const row of input.snapRows || []) {
     if (String(row.season || '') !== input.season || String(row.game_type || '') !== 'REG') continue;
     const position = String(row.position || '').toUpperCase();
@@ -373,6 +375,13 @@ export function normalizeNflverseUsageRows(input: {
     const values = snapByName.get(key) || [];
     values.push(pct);
     snapByName.set(key, values);
+    const week = num(row.week);
+    if (week !== null && week > 0) {
+      const weekKey = `${key}:${Math.round(week)}`;
+      const weekValues = snapByNameWeek.get(weekKey) || [];
+      weekValues.push(pct);
+      snapByNameWeek.set(weekKey, weekValues);
+    }
   }
 
   return Array.from(byGsis.entries()).map(([gsisId, row]) => {
@@ -395,6 +404,16 @@ export function normalizeNflverseUsageRows(input: {
     const seasonTargetsPerGame = games ? row.targets / games : 0;
     const seasonCarriesPerGame = games ? row.carries / games : 0;
     const sortedUsage = row.weeklyUsage.sort((a, b) => a.week - b.week);
+    const playerSnapKey = nameKey(row.playerName);
+    const usageMomentum = sortedUsage.length
+      ? buildUsageTrendMomentumSummary(sortedUsage.map((item): WeeklyUsageObservation => ({
+        week: item.week,
+        targets: item.targets,
+        carries: item.carries,
+        fantasyPointsPpr: item.fantasyPointsPpr,
+        offenseSnapPct: average(snapByNameWeek.get(`${playerSnapKey}:${item.week}`) || []),
+      })))
+      : null;
     const rollingWindows = [3, 6, 12, 24].flatMap((windowGames) => {
       const windowRows = sortedUsage.slice(-windowGames);
       if (!windowRows.length) return [];
@@ -438,6 +457,7 @@ export function normalizeNflverseUsageRows(input: {
       recentTargets: hasWeeklyWindows ? recentTargets : row.targets,
       recentCarries: hasWeeklyWindows ? recentCarries : row.carries,
       rollingWindows,
+      momentum: usageMomentum,
       targetTrend,
       carryTrend,
       note: hasWeeklyWindows

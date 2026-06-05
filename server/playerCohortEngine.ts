@@ -111,16 +111,25 @@ function getUsageScore(details: PlayerDetails, position: string): number | null 
     : usage.targetTrend === 'down' || usage.carryTrend === 'down'
     ? -8
     : 0;
+  const momentumBoost = usage.momentum?.primaryDirection === 'sustained-growth'
+    ? 10
+    : usage.momentum?.primaryDirection === 'short-spike'
+    ? 4
+    : usage.momentum?.primaryDirection === 'declining'
+    ? -10
+    : usage.momentum?.primaryDirection === 'volatile'
+    ? -4
+    : 0;
 
   if (position === 'RB') {
     const carryWork = clamp((usage.carries / Math.max(1, usage.games)) * 9, 0, 52);
     const receivingWork = clamp((usage.receptions / Math.max(1, usage.games)) * 10, 0, 30);
-    return Math.round(clamp(carryWork + receivingWork + (ppg || 0) * 1.8 + trendBoost, 0, 100));
+    return Math.round(clamp(carryWork + receivingWork + (ppg || 0) * 1.8 + trendBoost + momentumBoost, 0, 100));
   }
 
   if (position === 'QB') {
     const rushWork = clamp((usage.carries / Math.max(1, usage.games)) * 8, 0, 32);
-    return Math.round(clamp((ppg || 0) * 3 + rushWork + trendBoost, 0, 100));
+    return Math.round(clamp((ppg || 0) * 3 + rushWork + trendBoost + momentumBoost, 0, 100));
   }
 
   const receivingScore = [
@@ -131,7 +140,7 @@ function getUsageScore(details: PlayerDetails, position: string): number | null 
   ].filter((value): value is number => value !== null && Number.isFinite(value));
 
   if (!receivingScore.length) return null;
-  return Math.round(clamp(receivingScore.reduce((sum, value) => sum + value, 0) + trendBoost, 0, 100));
+  return Math.round(clamp(receivingScore.reduce((sum, value) => sum + value, 0) + trendBoost + momentumBoost, 0, 100));
 }
 
 function getOpportunityScore(details: PlayerDetails): number | null {
@@ -797,6 +806,9 @@ function buildCalibration(input: {
   if (input.details.newsValueMovement?.valueDeltaPct === null) cautionFlags.push('news attached without value baseline movement');
   if (input.marketProductionDelta !== null && Math.abs(input.marketProductionDelta) >= 30) cautionFlags.push('large market-production disagreement');
   if (input.details.usageTrend?.targetTrend === 'down' || input.details.usageTrend?.carryTrend === 'down') cautionFlags.push('declining recent usage window');
+  if (input.details.usageTrend?.momentum?.primaryDirection === 'declining') cautionFlags.push('declining usage momentum');
+  if (input.details.usageTrend?.momentum?.primaryDirection === 'volatile') cautionFlags.push('volatile usage momentum');
+  if (input.details.usageTrend?.momentum?.confidenceCapReason) cautionFlags.push('capped usage momentum evidence');
   if (input.details.rosterRoom?.competitionLevel === 'crowded') cautionFlags.push('crowded position room');
   if (input.details.rosterRoom?.premiumAdditions.length) cautionFlags.push('premium same-position addition');
   if (input.details.rosterRoom?.opportunityDelta?.qualitySignal === 'major-squeeze') cautionFlags.push('high-quality same-position addition pressure');
@@ -879,6 +891,7 @@ function buildTrace(input: {
     `Draft capital: ${input.draftCapital.label}; ${input.draftCapital.note}`,
     input.details.contractProfile ? `Contract context: ${input.details.contractProfile.note}` : 'Contract context is unavailable.',
     input.details.usageTrend ? `Usage trend: ${input.details.usageTrend.note}` : 'Usage trend is unavailable.',
+    input.details.usageTrend?.momentum ? `Usage momentum: ${input.details.usageTrend.momentum.note}` : 'Usage momentum is unavailable.',
     input.details.teamEnvironment ? `Team environment: ${input.details.teamEnvironment.note}` : 'Team pass/run environment is unavailable.',
     input.details.rosterRoom ? `Roster room: ${input.details.rosterRoom.note}` : 'Roster-room delta is unavailable.',
     input.details.rosterRoom?.opportunityDelta ? `Opportunity math: ${input.details.rosterRoom.opportunityDelta.note}` : 'Opportunity math is unavailable.',

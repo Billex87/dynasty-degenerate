@@ -704,6 +704,104 @@ describe("buildWaiverIntelligence", () => {
     expect(result.priorityWaiverTargets?.[0]?.opportunityWindows?.some((window) => window.type === "multi-week-staying-power")).toBe(true);
   });
 
+  it("uses stored usage momentum as waiver target evidence without projections", () => {
+    const usageMomentumTarget = {
+      player_id: "usagewr",
+      name: "Usage Receiver",
+      pos: "WR",
+      team: "DET",
+      owner: null,
+      count: 6,
+      ktcValue: 1200,
+      currentPositionRank: "WR62",
+      playerDetails: {
+        playerId: "usagewr",
+        fullName: "Usage Receiver",
+        position: "WR",
+        team: "DET",
+        usageTrend: {
+          season: "2026",
+          team: "DET",
+          games: 6,
+          targets: 36,
+          carries: 2,
+          receptions: 24,
+          fantasyPointsPpr: 66.9,
+          fantasyPointsPprPerGame: 11.2,
+          avgTargetShare: 0.17,
+          avgOffenseSnapPct: 0.62,
+          recentTargets: 31,
+          recentCarries: 2,
+          rollingWindows: [{
+            games: 3,
+            weeks: [4, 5, 6],
+            targetsPerGame: 9,
+            carriesPerGame: 0.7,
+            receptionsPerGame: 6,
+            fantasyPointsPprPerGame: 16.7,
+            targetDeltaPerGame: 3,
+            carryDeltaPerGame: 0.4,
+            note: "Last 3 tracked games: 9 targets/g (+3 vs season), 0.7 carries/g (+0.4 vs season).",
+          }],
+          momentum: {
+            gameCount: 6,
+            weeks: [1, 2, 3, 4, 5, 6],
+            seasonTargetsPerGame: 6,
+            seasonCarriesPerGame: 0.3,
+            seasonFantasyPointsPprPerGame: 11.2,
+            seasonOffenseSnapPct: 62,
+            windows: [{
+              games: 3,
+              weeks: [4, 5, 6],
+              targetsPerGame: 9,
+              carriesPerGame: 0.7,
+              fantasyPointsPprPerGame: 16.7,
+              offenseSnapPct: 75.7,
+              targetDeltaPerGame: 3,
+              carryDeltaPerGame: 0.4,
+              fantasyPointDeltaPerGame: 5.5,
+              snapDeltaPct: 13.7,
+              volatilityScore: 6,
+              momentumScore: 50,
+              direction: "sustained-growth",
+              note: "Last 3 tracked games: 9 targets/g, 0.7 carries/g, 75.7% snaps; momentum 50.",
+            }],
+            primaryDirection: "sustained-growth",
+            confidence: 76,
+            confidenceCapReason: null,
+            missingEvidence: [],
+            note: "Recent usage growth is backed by a multi-game confirmation window.",
+          },
+          targetTrend: "up",
+          carryTrend: "flat",
+          note: "Usage trend from 6 2026 regular-season games; recent four-game targets up and carries flat.",
+        },
+      },
+    };
+
+    const result = buildWaiverIntelligence(
+      [usageMomentumTarget],
+      [],
+      {},
+      {},
+      {},
+      {},
+      "redraft",
+      undefined,
+      { rosterPositions: ["QB", "RB", "WR", "TE", "FLEX", "BN"], currentWeek: 4 }
+    );
+
+    expect(result.priorityWaiverTargets?.[0]?.player.name).toBe("Usage Receiver");
+    expect(result.priorityWaiverTargets?.[0]?.reasons.join(" ")).toContain("sustained usage momentum");
+    expect(result.priorityWaiverTargets?.[0]?.opportunityWindows?.[0]).toMatchObject({
+      type: "usage-momentum",
+      source: "nflverse usage momentum",
+      weeks: [4, 5, 6],
+    });
+    expect(result.priorityWaiverTargets?.[0]?.confidenceReasons?.join(" ")).toContain("sustained role growth");
+    expect(result.priorityWaiverTargets?.[0]?.confidence).toBeGreaterThanOrEqual(55);
+  });
+
   it("uses SOS and playoff windows for priority waiver targets without projection rows", () => {
     const players = {
       playoffrunner: {

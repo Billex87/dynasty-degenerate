@@ -5884,11 +5884,51 @@ function getWaiverByeCoverageWeeks(window: any, candidateByeWeek: number | null)
     .filter((week) => week !== candidateByeWeek);
 }
 
+type WaiverUsageMomentum = NonNullable<NonNullable<PlayerDetails['usageTrend']>['momentum']>;
+
+function getWaiverUsageMomentum(player: TrendingPlayer): WaiverUsageMomentum | null {
+  return player.playerDetails?.usageTrend?.momentum || null;
+}
+
+function getWaiverUsageMomentumScore(momentum: WaiverUsageMomentum | null): number {
+  if (!momentum) return 0;
+  const capPenalty = momentum.confidenceCapReason ? 45 : 0;
+  if (momentum.primaryDirection === 'sustained-growth') return Math.max(70, 230 - capPenalty);
+  if (momentum.primaryDirection === 'short-spike') return Math.max(35, 115 - capPenalty);
+  if (momentum.primaryDirection === 'declining') return -180;
+  if (momentum.primaryDirection === 'volatile') return -70;
+  return 0;
+}
+
+function buildWaiverUsageMomentumWindow(momentum: WaiverUsageMomentum | null): WaiverPriorityOpportunityWindow | null {
+  if (!momentum) return null;
+  if (momentum.primaryDirection !== 'sustained-growth' && momentum.primaryDirection !== 'short-spike') return null;
+  const window = momentum.windows.find((row) => row.games === 6)
+    || momentum.windows.find((row) => row.games === 3)
+    || momentum.windows[0]
+    || null;
+  return {
+    type: 'usage-momentum',
+    label: momentum.primaryDirection === 'sustained-growth' ? 'Sustained usage momentum' : 'Short usage spike',
+    weeks: window?.weeks || momentum.weeks.slice(-6),
+    score: Math.max(40, getWaiverUsageMomentumScore(momentum)),
+    easyWeeks: 0,
+    hardWeeks: 0,
+    playableWeeks: window?.weeks?.length || momentum.weeks.length,
+    confidence: clampWaiverPriorityConfidence(momentum.confidence),
+    source: 'nflverse usage momentum',
+    note: momentum.confidenceCapReason
+      ? `${momentum.note} ${momentum.confidenceCapReason}`
+      : momentum.note,
+  };
+}
+
 function buildPriorityWaiverOpportunityWindows(input: {
   weeklyProjection: WeeklyProjectionContext | null;
   projectionPoints: number;
   scheduleSignal: WaiverWeeklyEcrSignal | null;
   value: number;
+  usageMomentum?: WaiverUsageMomentum | null;
   next3Window: any;
   next6Window: any;
   playoffWindow: any;
@@ -5988,6 +6028,11 @@ function buildPriorityWaiverOpportunityWindows(input: {
     'Playoff-week schedule window adds stash or advance-planning value.'
   );
 
+  const usageMomentumWindow = buildWaiverUsageMomentumWindow(input.usageMomentum || null);
+  if (usageMomentumWindow) {
+    windows.push(usageMomentumWindow);
+  }
+
   if (!windows.length && input.value >= 900) {
     windows.push({
       type: 'value-stash',
@@ -6010,6 +6055,7 @@ function buildPriorityWaiverConfidence(input: {
   weeklyProjection: WeeklyProjectionContext | null;
   projectionPoints: number;
   scheduleSignal: WaiverWeeklyEcrSignal | null;
+  usageMomentum: WaiverUsageMomentum | null;
   strongScheduleWindow: boolean;
   easyWeeks: number;
   next6EasyWeeks: number;
@@ -6080,10 +6126,41 @@ function buildPriorityWaiverConfidence(input: {
   if (input.opportunityWindows.length) {
     confidence += Math.min(8, input.opportunityWindows.length * 2);
   }
+  if (input.usageMomentum?.primaryDirection === 'sustained-growth') {
+    confidence += 7;
+    confidenceReasons.push('Stored usage momentum shows sustained role growth.');
+  } else if (input.usageMomentum?.primaryDirection === 'short-spike') {
+    confidence += 3;
+    confidenceReasons.push('Stored usage momentum shows a short role spike.');
+  } else if (input.usageMomentum?.primaryDirection === 'declining') {
+    confidence -= 8;
+    confidenceCapReason = confidenceCapReason
+      ? `${confidenceCapReason} Usage momentum is declining.`
+      : 'Usage momentum is declining; confidence is capped.';
+    confidenceReasons.push('Stored usage momentum is declining.');
+  } else if (input.usageMomentum?.primaryDirection === 'volatile') {
+    confidence -= 4;
+    confidenceCapReason = confidenceCapReason
+      ? `${confidenceCapReason} Usage momentum is volatile.`
+      : 'Usage momentum is volatile; confidence is capped.';
+    confidenceReasons.push('Stored usage momentum is volatile.');
+  }
+  if (input.usageMomentum?.confidenceCapReason) {
+    confidenceCapReason = confidenceCapReason
+      ? `${confidenceCapReason} ${input.usageMomentum.confidenceCapReason}`
+      : input.usageMomentum.confidenceCapReason;
+    confidenceReasons.push(input.usageMomentum.confidenceCapReason);
+  }
 
   let cap = input.weeklyProjection ? 92 : input.strongScheduleWindow ? 68 : 58;
   if (input.nearTermByeWeeks > 0) {
     cap = Math.min(cap, input.weeklyProjection ? 76 : 56);
+  }
+  if (input.usageMomentum?.confidenceCapReason) {
+    cap = Math.min(cap, input.weeklyProjection ? 82 : 66);
+  }
+  if (input.usageMomentum?.primaryDirection === 'declining' || input.usageMomentum?.primaryDirection === 'volatile') {
+    cap = Math.min(cap, input.weeklyProjection ? 78 : 62);
   }
   return {
     confidence: clampWaiverPriorityConfidence(Math.min(confidence, cap)),
@@ -6104,9 +6181,11 @@ function buildPriorityWaiverTargets(
     .map((player): WaiverPriorityTargetRow | null => {
       const weeklyProjection = player.weeklyProjection?.status === 'ready' ? player.weeklyProjection : null;
       const scheduleSignal = player.weeklyEcr || null;
+      const usageMomentum = getWaiverUsageMomentum(player);
       const value = Number(player.ktcValue || 0);
       const projectionPoints = Number(weeklyProjection?.projectedFantasyPoints || 0);
       const scheduleScore = getWaiverWeeklyEcrSignalScore(scheduleSignal, options);
+      const usageMomentumScore = getWaiverUsageMomentumScore(usageMomentum);
       const outlook = isScheduleWindowSignal(scheduleSignal)
         ? getShortTermMatchupOutlook(scheduleSignal.matchupWindows)
         : null;
@@ -6162,6 +6241,7 @@ function buildPriorityWaiverTargets(
         valueScore +
         projectionScore +
         scheduleScore * 0.45 +
+        usageMomentumScore +
         windowScore +
         next6WindowScore +
         playoffWindowScore +
@@ -6182,6 +6262,10 @@ function buildPriorityWaiverTargets(
         next6HardWeeks > next6EasyWeeks && !easyWeeks ? `${next6HardWeeks} rough six-week window weeks limit priority` : null,
         playoffHardWeeks > playoffEasyWeeks ? `${playoffHardWeeks} rough playoff-window week${playoffHardWeeks === 1 ? '' : 's'} limits priority` : null,
         !weeklyProjection && strongScheduleWindow ? 'schedule-backed priority without weekly projection dependency' : null,
+        usageMomentum?.primaryDirection === 'sustained-growth' ? 'sustained usage momentum from stored weekly rows' : null,
+        usageMomentum?.primaryDirection === 'short-spike' ? 'short usage spike from stored weekly rows' : null,
+        usageMomentum?.primaryDirection === 'declining' ? 'declining usage momentum limits priority' : null,
+        usageMomentum?.primaryDirection === 'volatile' ? 'volatile usage momentum limits priority' : null,
         scheduleSignal?.bestPositionRank ? `${scheduleSignal.source} ${scheduleSignal.bestPositionRank} signal` : null,
         value > 0 ? `${Math.round(value).toLocaleString('en-US')} value baseline` : null,
       ].filter((reason): reason is string => Boolean(reason));
@@ -6191,6 +6275,7 @@ function buildPriorityWaiverTargets(
         projectionPoints,
         scheduleSignal,
         value,
+        usageMomentum,
         next3Window,
         next6Window,
         playoffWindow,
@@ -6205,6 +6290,7 @@ function buildPriorityWaiverTargets(
         weeklyProjection,
         projectionPoints,
         scheduleSignal,
+        usageMomentum,
         strongScheduleWindow,
         easyWeeks,
         next6EasyWeeks,

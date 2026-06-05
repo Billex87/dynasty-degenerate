@@ -530,9 +530,10 @@
 - [x] Add nflverse combine and contract context snapshots so player AI reads can distinguish size/speed archetypes and veteran investment runway from pure market value.
 - [ ] Expand breakout and falloff detection into full year-over-year changes in snap share, targets, rush attempts, routes, touchdowns, and efficiency after route participation is available from an approved/stable source.
 - [x] Build first-pass player archetype inputs using size, athletic profile, draft capital, contract investment, usage profile, and scoring shape so the AI can explain similar historical outcomes instead of just raw ranks.
-- [ ] Add rolling trend, volatility, and momentum features across 3/6/12/24 game and season windows so the readouts distinguish sustained growth from short spikes.
+- [x] Add rolling trend, volatility, and momentum features across 3/6/12/24 game and season windows so the readouts distinguish sustained growth from short spikes.
   - [x] Add standalone backend usage momentum summarizer for weekly targets, rush attempts, snap share, and PPR points across 3/6/12/24-game windows, with short-spike versus sustained-growth classification and confidence caps for thin or missing evidence.
-  - [ ] Wire usage momentum into waiver/player/cohort reads after the currently dirty integration files are available; keep exact route-run/YPRR claims gated until an approved route-volume source exists.
+  - [x] Wire usage momentum into waiver/player/cohort reads after the currently dirty integration files are available; keep exact route-run/YPRR claims gated until an approved route-volume source exists.
+    - 2026-06-05 completion: stored nflverse weekly rows now attach optional `usageTrend.momentum` with 3/6/12/24-game classification, week-level snap evidence when available, and capped confidence when evidence is thin. Player situation, player cohort, and priority-waiver target paths consume sustained/spike/declining/volatile momentum without adding route-run/YPRR claims or live provider reads.
 - [x] Add first-pass 3/6/12/24 game usage windows from nflverse weekly `stats_player` rows so situation reads and manager summaries can notice role spikes/dips before the market value changes.
 - [ ] Separate opportunity-driven value from talent-driven value by modeling team context, depth-chart changes, injuries, QB changes, offensive environment, and role shifts.
 - [x] Build the all-player Player Situation Delta engine from stored public snapshots so rookies, sophomores, veterans on new teams, and veterans whose teams changed around them get role/opportunity reads instead of rookie-only context. See `docs/player-situation-delta-data-plan.md`.
@@ -825,8 +826,9 @@
 ## Waiver / Trade Intelligence Roadmap
 
 - [ ] Review waiver `won/lost` and trade `acted/blocked` outcomes after enough real samples accumulate, then tune confidence weights against actual results.
-- [ ] Track in-season usage trends over the course of the season, especially targets, rush attempts, and snap share, so waiver calculations can surface players whose role is growing before the box score catches up.
+- [x] Track in-season usage trends over the course of the season, especially targets, rush attempts, and snap share, so waiver calculations can surface players whose role is growing before the box score catches up.
   - [x] Add backend regression coverage for the existing nflverse usage normalizer so weekly target/carry/point rows, snap percentages, recent four-game trend direction, and rolling-window deltas are proven before waiver/model consumers rely on the field.
+  - 2026-06-05 completion: waiver priority targets now add a `usage-momentum` opportunity window, score adjustment, reason, and confidence cap from stored usage momentum; player situation and cohort reads also trace the same momentum evidence.
 - [x] Add all-position rolling FantasyPros ECR context to waiver intelligence so AI Targets can score QB/RB/WR/TE/K/DEF pickups from the next three-week window without defaulting to D/ST or K, while rank gates keep low-quality players from being over-promoted.
 - [x] Add an admin accuracy panel for prediction quality by module: waiver bid range, waiver competition, trade resistance, and depth-chart role confidence.
 - [x] Extend Full Trade Ledger balancing-piece suggestions from trade-time players to trade-time picks by reconstructing historical pick inventory per roster/date; never suggest a pick unless that manager actually controlled it at the time of the deal.

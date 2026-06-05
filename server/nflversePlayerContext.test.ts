@@ -287,9 +287,12 @@ describe('nflverse player context', () => {
         { season: '2025', season_type: 'REG', week: '6', player_id: '00-usage', player_display_name: 'Usage Riser', recent_team: 'DET', position: 'WR', targets: '10', carries: '2', receptions: '7', fantasy_points_ppr: '19.8', target_share: '0.26' },
       ],
       snapRows: [
-        { season: '2025', game_type: 'REG', player: 'Usage Riser', position: 'WR', offense_pct: '0.42' },
-        { season: '2025', game_type: 'REG', player: 'Usage Riser', position: 'WR', offense_pct: '0.64' },
-        { season: '2025', game_type: 'REG', player: 'Usage Riser', position: 'WR', offense_pct: '0.76' },
+        { season: '2025', game_type: 'REG', week: '1', player: 'Usage Riser', position: 'WR', offense_pct: '0.42' },
+        { season: '2025', game_type: 'REG', week: '2', player: 'Usage Riser', position: 'WR', offense_pct: '0.48' },
+        { season: '2025', game_type: 'REG', week: '3', player: 'Usage Riser', position: 'WR', offense_pct: '0.55' },
+        { season: '2025', game_type: 'REG', week: '4', player: 'Usage Riser', position: 'WR', offense_pct: '0.7' },
+        { season: '2025', game_type: 'REG', week: '5', player: 'Usage Riser', position: 'WR', offense_pct: '0.75' },
+        { season: '2025', game_type: 'REG', week: '6', player: 'Usage Riser', position: 'WR', offense_pct: '0.82' },
       ],
     });
 
@@ -304,11 +307,17 @@ describe('nflverse player context', () => {
       fantasyPointsPpr: 66.9,
       fantasyPointsPprPerGame: 11.2,
       avgTargetShare: 0.172,
-      avgOffenseSnapPct: 0.607,
+      avgOffenseSnapPct: 0.62,
       recentTargets: 31,
       recentCarries: 6,
       targetTrend: 'up',
       carryTrend: 'up',
+      momentum: {
+        gameCount: 6,
+        primaryDirection: 'sustained-growth',
+        missingEvidence: [],
+        confidenceCapReason: null,
+      },
     });
 
     expect(row.rollingWindows?.find((window) => window.games === 3)).toMatchObject({
@@ -319,6 +328,12 @@ describe('nflverse player context', () => {
       fantasyPointsPprPerGame: 16.7,
       targetDeltaPerGame: 3,
       carryDeltaPerGame: 0.7,
+    });
+    expect(row.momentum?.windows.find((window) => window.games === 3)).toMatchObject({
+      weeks: [4, 5, 6],
+      offenseSnapPct: 75.7,
+      snapDeltaPct: 13.7,
+      direction: 'sustained-growth',
     });
     expect(row.note).toContain('recent four-game targets up and carries up');
   });

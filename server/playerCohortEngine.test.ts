@@ -41,6 +41,35 @@ describe('player cohort engine', () => {
             avgOffenseSnapPct: 0.83,
             recentTargets: 33,
             recentCarries: 1,
+            momentum: {
+              gameCount: 6,
+              weeks: [12, 13, 14, 15, 16, 17],
+              seasonTargetsPerGame: 7.3,
+              seasonCarriesPerGame: 0.3,
+              seasonFantasyPointsPprPerGame: 16,
+              seasonOffenseSnapPct: 76,
+              windows: [{
+                games: 3,
+                weeks: [15, 16, 17],
+                targetsPerGame: 9.7,
+                carriesPerGame: 0.3,
+                fantasyPointsPprPerGame: 21,
+                offenseSnapPct: 84,
+                targetDeltaPerGame: 2.4,
+                carryDeltaPerGame: 0,
+                fantasyPointDeltaPerGame: 5,
+                snapDeltaPct: 8,
+                volatilityScore: 5,
+                momentumScore: 46,
+                direction: 'sustained-growth',
+                note: 'Last 3 tracked games: 9.7 targets/g, 0.3 carries/g, 84% snaps; momentum 46.',
+              }],
+              primaryDirection: 'sustained-growth',
+              confidence: 76,
+              confidenceCapReason: null,
+              missingEvidence: [],
+              note: 'Recent usage growth is backed by a multi-game confirmation window.',
+            },
             targetTrend: 'up',
             carryTrend: 'flat',
             note: 'Usage trend from 16 2025 regular-season games; recent four-game targets up and carries flat.',
@@ -163,6 +192,7 @@ describe('player cohort engine', () => {
     });
     expect(profiles.wr1.confidence).toBeGreaterThanOrEqual(70);
     expect(profiles.wr1.trace.join(' ')).toContain('Strong read eligible');
+    expect(profiles.wr1.trace.join(' ')).toContain('Usage momentum: Recent usage growth is backed by a multi-game confirmation window.');
     expect(profiles.wr1.trace.join(' ')).toContain('Opportunity math: BUF WR net opportunity major-opening');
     expect(profiles.wr1.historicalComps).toMatchObject({
       archetype: 'early WR opportunity riser',

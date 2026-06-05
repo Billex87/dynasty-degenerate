@@ -184,6 +184,7 @@ function fantasyProsNewsCategory(details: PlayerDetails): {
 function buildDynamicSignals(details: PlayerDetails): PlayerSituationDynamicSignal[] {
   const signals: PlayerSituationDynamicSignal[] = [];
   const delta = details.rosterRoom?.opportunityDelta;
+  const usageMomentum = details.usageTrend?.momentum || null;
   const rollingWindow = details.usageTrend?.rollingWindows?.find((window) => window.games === 3)
     || details.usageTrend?.rollingWindows?.[0]
     || null;
@@ -255,6 +256,28 @@ function buildDynamicSignals(details: PlayerDetails): PlayerSituationDynamicSign
         detail: rollingWindow.note,
       });
     }
+  }
+  if (usageMomentum && usageMomentum.primaryDirection !== 'flat' && usageMomentum.primaryDirection !== 'thin-sample') {
+    const direction: PlayerSituationDynamicSignal['direction'] = usageMomentum.primaryDirection === 'declining'
+      ? 'risk'
+      : usageMomentum.primaryDirection === 'volatile'
+      ? 'neutral'
+      : 'boost';
+    const label = usageMomentum.primaryDirection === 'sustained-growth'
+      ? 'Sustained usage growth'
+      : usageMomentum.primaryDirection === 'short-spike'
+      ? 'Short usage spike'
+      : usageMomentum.primaryDirection === 'declining'
+      ? 'Usage momentum declining'
+      : 'Usage volatility';
+    addDynamicSignal(signals, {
+      type: 'usage',
+      label,
+      direction,
+      detail: usageMomentum.confidenceCapReason
+        ? `${usageMomentum.note} ${usageMomentum.confidenceCapReason}`
+        : usageMomentum.note,
+    });
   }
 
   if (details.injuryStatus && !['healthy', 'active'].includes(String(details.injuryStatus).toLowerCase())) {
@@ -338,6 +361,10 @@ function buildFreshnessProfile(
     if (details.usageTrend.rollingWindows?.length) {
       score += 7;
       signals.push('rolling usage windows');
+    }
+    if (details.usageTrend.momentum) {
+      score += details.usageTrend.momentum.confidenceCapReason ? 3 : 6;
+      signals.push(details.usageTrend.momentum.confidenceCapReason ? 'capped usage momentum' : 'usage momentum');
     }
   }
   if (details.rosterRoom?.opportunityDelta) {
@@ -427,6 +454,15 @@ function getPriorOpportunityComponent(details: PlayerDetails, position: string):
   const trendBoost =
     (usage.targetTrend === 'up' ? 9 : usage.targetTrend === 'down' ? -11 : 0)
     + (usage.carryTrend === 'up' ? 8 : usage.carryTrend === 'down' ? -10 : 0);
+  const momentumBoost = usage.momentum?.primaryDirection === 'sustained-growth'
+    ? 9
+    : usage.momentum?.primaryDirection === 'short-spike'
+    ? 4
+    : usage.momentum?.primaryDirection === 'declining'
+    ? -10
+    : usage.momentum?.primaryDirection === 'volatile'
+    ? -4
+    : 0;
 
   const receiverScore = 34
     + (snapPct ?? 0) * 0.24
@@ -435,14 +471,16 @@ function getPriorOpportunityComponent(details: PlayerDetails, position: string):
     + (wopr ?? 0) * 0.18
     + targetsPerGame * 2.6
     + (ppg ?? 0) * 0.8
-    + trendBoost;
+    + trendBoost
+    + momentumBoost;
   const runnerScore = 34
     + (snapPct ?? 0) * 0.22
     + carriesPerGame * 3.5
     + targetsPerGame * 1.8
     + (ppg ?? 0) * 0.9
-    + trendBoost;
-  const qbScore = 38 + (ppg ?? 0) * 1.8 + trendBoost + (snapPct ?? 0) * 0.18;
+    + trendBoost
+    + momentumBoost;
+  const qbScore = 38 + (ppg ?? 0) * 1.8 + trendBoost + momentumBoost + (snapPct ?? 0) * 0.18;
   const score = position === 'QB'
     ? qbScore
     : position === 'RB'
@@ -454,7 +492,9 @@ function getPriorOpportunityComponent(details: PlayerDetails, position: string):
     labelForScore(score, 'Bankable role', 'Thin prior role', 'Usable role'),
     score,
     directionForScore(score),
-    `Prior usage: ${usage.note}`
+    usage.momentum
+      ? `Prior usage: ${usage.note} Momentum: ${usage.momentum.note}`
+      : `Prior usage: ${usage.note}`
   );
 }
 
