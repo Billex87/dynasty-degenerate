@@ -13,9 +13,7 @@ const sourceLogo = path.join(
   "client",
   "public",
   "brand",
-  "logos",
-  "png",
-  "dd-mark-3d-transparent.png"
+  "dd-logo-transparent.png"
 );
 
 const iconSizes = [16, 32, 48, 128];
@@ -23,24 +21,36 @@ const iconSizes = [16, 32, 48, 128];
 async function generateIcons() {
   const iconRoot = path.join(extensionRoot, "icons");
   const tempRoot = path.join(distRoot, "icon-work");
+  const squareLogo = path.join(tempRoot, "dd-logo-square.png");
   await mkdir(iconRoot, { recursive: true });
-  await rm(tempRoot, { recursive: true, force: true });
   await mkdir(tempRoot, { recursive: true });
 
+  const logoInfo = execFileSync("sips", [
+    "-g",
+    "pixelWidth",
+    "-g",
+    "pixelHeight",
+    sourceLogo
+  ], { encoding: "utf8" });
+  const width = Number(logoInfo.match(/pixelWidth:\s*(\d+)/)?.[1]);
+  const height = Number(logoInfo.match(/pixelHeight:\s*(\d+)/)?.[1]);
+  const cropSize = Math.min(width, height);
+
+  execFileSync("sips", [
+    "-c",
+    String(cropSize),
+    String(cropSize),
+    sourceLogo,
+    "--out",
+    squareLogo
+  ], { stdio: "ignore" });
+
   iconSizes.forEach((size) => {
-    const resizedPath = path.join(tempRoot, `icon-${size}-resized.png`);
     execFileSync("sips", [
-      "-Z",
-      String(size),
-      sourceLogo,
-      "--out",
-      resizedPath
-    ], { stdio: "ignore" });
-    execFileSync("sips", [
-      "-p",
+      "-z",
       String(size),
       String(size),
-      resizedPath,
+      squareLogo,
       "--out",
       path.join(iconRoot, `icon-${size}.png`)
     ], { stdio: "ignore" });
