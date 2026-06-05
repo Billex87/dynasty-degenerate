@@ -237,6 +237,24 @@ function createModalFixture(leagueId = 'player-modal-regression-league') {
   return cachedReport;
 }
 
+function stripPlayerProjection(
+  cachedReport: ReturnType<typeof createCachedRedraftReport>,
+  playerId = 'player-1',
+) {
+  const details = cachedReport.reportData.playerDetailsById[playerId] as any;
+  if (!details) return;
+  delete details.weeklyProjection;
+  if (details.valueProfile) {
+    delete details.valueProfile.weeklyProjection;
+    delete details.valueProfile.projectedPoints;
+    delete details.valueProfile.projectedFantasyPoints;
+    delete details.valueProfile.projection;
+    delete details.valueProfile.fantasyProjection;
+    delete details.valueProfile.fantasyProsProjection;
+    delete details.valueProfile.fantasyProsProjectedPoints;
+  }
+}
+
 async function loadModalReport(
   page: import('@playwright/test').Page,
   cachedReport: ReturnType<typeof createCachedRedraftReport>,
@@ -263,10 +281,15 @@ async function loadModalReport(
         totalRosters: 2,
         standingsRank: 1,
         powerRank: 1,
+        managerAnchors: [],
       },
     ],
     adminViewMode,
     savedAt: Date.now(),
+  };
+  const report = {
+    ...cachedReport,
+    savedAt: Math.max(Number(cachedReport.savedAt) || 0, Date.now() + 60_000),
   };
 
   await page.addInitScript(
@@ -274,15 +297,21 @@ async function loadModalReport(
       window.localStorage.clear();
       window.sessionStorage.clear();
       window.localStorage.setItem(reportKey, JSON.stringify(report));
+      window.localStorage.setItem(`${reportKey}:${report.leagueId}`, JSON.stringify(report));
       window.localStorage.setItem(sessionKey, JSON.stringify(session));
-      window.localStorage.setItem(usersKey, JSON.stringify([session.user]));
+      window.localStorage.setItem(usersKey, JSON.stringify([{
+        ...session.user,
+        leagues: session.leagues,
+        recentLeagueIds: [report.leagueId],
+        savedAt: Date.now(),
+      }]));
       if (admin) {
         window.sessionStorage.setItem(adminPassphraseSessionKey, 'true');
       }
     },
     {
       reportKey: REPORT_CACHE_KEY,
-      report: cachedReport,
+      report,
       sessionKey: SLEEPER_SESSION_KEY,
       session: sleeperSession,
       usersKey: SLEEPER_USERS_KEY,
@@ -485,6 +514,20 @@ test.describe('player detail modal', () => {
     expect(fallbackDialogText).toContain('40 Time-');
     await expect(fallbackDialog.getByText('Vertical')).toBeVisible();
     expect(fallbackDialogText).toContain('Vertical-');
+  });
+
+  test('hides weekly projection receipt when player projection context is disabled', async ({ page }) => {
+    const cachedReport = createModalFixture('player-modal-projection-disabled');
+    stripPlayerProjection(cachedReport);
+    await loadModalReport(page, cachedReport, 'regular');
+    await openRankings(page);
+
+    const dialog = await openPlayerModal(page, 'Bijan Robinson');
+
+    await expect(dialog.getByTestId('weekly-projection-receipt')).toHaveCount(0);
+    await expect(dialog.getByText('Stored weekly projection')).toHaveCount(0);
+    await expect(dialog.getByText('14.8 pts')).toHaveCount(0);
+    await expect(dialog.getByText('Half PPR')).toHaveCount(0);
   });
 
   test('hides admin-only source inputs in regular view', async ({ page }) => {
