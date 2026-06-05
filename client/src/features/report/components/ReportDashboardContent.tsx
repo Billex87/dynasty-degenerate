@@ -421,7 +421,7 @@ export function ReportDashboardContent({
                   reportData={reportData}
                   reportDataForView={reportDataForView}
                   showManagerPersonalityIntel={canViewAdminDiagnostics}
-                  showPendingSleeperActivity={canViewAdminDiagnostics}
+                  showPendingSleeperActivity={true}
                   onScoutLeaguemates={onScoutLeaguemates}
                   leagueId={leagueId}
                   leagueLogo={leagueLogo}
