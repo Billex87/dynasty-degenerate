@@ -241,17 +241,16 @@ async function sanitizeAnalyzePayloadForPaidAccess(input: {
   payload: any;
 }) {
   if (!input.payload?.reportData) return input.payload;
-  const applyProjectionPolicy = (payload: any) => stripWeeklyProjectionContextFromPayload(payload);
 
   if (input.ctx.user?.role === "admin") {
-    return applyProjectionPolicy(sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+    return applyAnalyzeResponseProjectionPolicy(sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
       canViewSourceTraceDetails: true,
       canViewAiConfidenceHistory: true,
     }).payload);
   }
 
   if (process.env.ENABLE_PAID_FEATURES !== "true") {
-    return applyProjectionPolicy(sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+    return applyAnalyzeResponseProjectionPolicy(sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
       canViewSourceTraceDetails: false,
       canViewAiConfidenceHistory: false,
     }).payload);
@@ -295,7 +294,7 @@ async function sanitizeAnalyzePayloadForPaidAccess(input: {
       });
 
     if (!sourceTraceUsage?.allowed) {
-      return applyProjectionPolicy(sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+      return applyAnalyzeResponseProjectionPolicy(sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
         canViewSourceTraceDetails: false,
         canViewAiConfidenceHistory: aiConfidenceHistoryAccess.allowed,
       }).payload);
@@ -318,14 +317,14 @@ async function sanitizeAnalyzePayloadForPaidAccess(input: {
       });
 
     if (!recordedSourceTraceUsage) {
-      return applyProjectionPolicy(sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+      return applyAnalyzeResponseProjectionPolicy(sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
         canViewSourceTraceDetails: false,
         canViewAiConfidenceHistory: aiConfidenceHistoryAccess.allowed,
       }).payload);
     }
   }
 
-  return applyProjectionPolicy(sanitized.payload);
+  return applyAnalyzeResponseProjectionPolicy(sanitized.payload);
 }
 
 function assertSessionJwtSecretConfigured() {
@@ -2964,6 +2963,10 @@ function stripWeeklyProjectionContextFromPayload(payload: any): any {
     ...payload,
     reportData: stripWeeklyProjectionContextFromReportData(payload.reportData),
   };
+}
+
+export function applyAnalyzeResponseProjectionPolicy(payload: any): any {
+  return stripWeeklyProjectionContextFromPayload(payload);
 }
 
 function createLeagueAnalyzeTimer(leagueId: string) {

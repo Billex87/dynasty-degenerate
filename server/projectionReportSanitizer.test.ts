@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stripWeeklyProjectionContextFromReportData } from "./routers";
+import { applyAnalyzeResponseProjectionPolicy, stripWeeklyProjectionContextFromReportData } from "./routers";
 
 const projection = {
   source: "stored-weekly-projection",
@@ -11,6 +11,26 @@ const projection = {
   status: "ready",
   note: "Stored weekly projection fixture.",
 };
+
+function withEnv<T>(overrides: Record<string, string>, callback: () => T): T {
+  const previous = new Map<string, string | undefined>();
+  for (const [key, value] of Object.entries(overrides)) {
+    previous.set(key, process.env[key]);
+    process.env[key] = value;
+  }
+
+  try {
+    return callback();
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
 
 describe("projection report sanitizer", () => {
   it("strips waiver priority projection context and projection-backed matchup claims", () => {
@@ -128,5 +148,86 @@ describe("projection report sanitizer", () => {
     expect(JSON.stringify(sanitized.waiverIntelligence?.recentlyDroppedValuable)).not.toContain("weeklyProjection");
     expect(sanitized.waiverIntelligence?.priorityWaiverTargets?.[0]?.weeklyProjection).toBeNull();
     expect(JSON.stringify(sanitized.waiverIntelligence?.priorityWaiverTargets?.[0]?.player)).not.toContain("weeklyProjection");
+  });
+
+  it("applies projection-off policy to fresh analyze response payloads", () => {
+    const sanitized = withEnv({
+      ENABLE_PROJECTION_FEATURES: "false",
+      ENABLE_SLEEPER_PROJECTIONS: "false",
+      ENABLE_WEEKLY_PROJECTIONS: "false",
+      DISABLE_PROJECTION_FEATURES: "false",
+      DISABLE_PROJECTION_SNAPSHOTS: "false",
+      DISABLE_PROJECTION_READOUTS: "false",
+      DISABLE_PROJECTION_JOINS: "false",
+    }, () => applyAnalyzeResponseProjectionPolicy({
+      reportData: {
+        leagueDiagnostics: {
+          currentSeason: "2026",
+          currentWeek: 1,
+        },
+        weeklyProjectionDiagnostics: {
+          status: "ready",
+          source: "stored-weekly-projection",
+          provider: "sleeper",
+          season: "2026",
+          week: 1,
+          scoringProfile: "PPR",
+          rowCount: 492,
+          rosteredCoveragePct: 100,
+          attachedPlayerCount: 120,
+          note: "Ready.",
+          warnings: [],
+        },
+        playerDetailsById: {
+          wr1: { id: "wr1", name: "Projection Receiver", weeklyProjection: projection },
+        },
+        managerPositionCounts: [],
+        lineupStrength: null,
+        redraftValuation: null,
+        playoffSchedulePlanning: {
+          source: "NFL.com 2026 bye weeks + Sleeper league data + DraftSharks SOS",
+          status: "ready",
+          updatedAt: "2026-06-01T00:00:00.000Z",
+          weeks: [15, 16, 17],
+          managerPlans: [{
+            manager: "A",
+            riskScore: 2,
+            upsideScore: 1,
+            weeks: [{
+              week: 15,
+              projectedStarterPoints: 112.4,
+              projectionCoverage: {
+                coveredPlayerCount: 8,
+                totalPlayerCount: 9,
+                mode: "stored-weekly-projection-blend",
+              },
+              byePlayers: [],
+              avoidPlayers: [],
+              streamerPlayers: [],
+              note: "A has stored weekly projection context.",
+            }],
+            priorityAdds: [],
+            note: "A should cover playoff risk.",
+          }],
+        },
+        matchupPreviews: [
+          { source: "Submitted lineup + stored weekly projection blend", teams: [] },
+          { source: "Schedule/value model", teams: [] },
+        ],
+      },
+    } as any));
+
+    expect(sanitized.reportData.weeklyProjectionDiagnostics.status).toBe("blocked");
+    expect(sanitized.reportData.weeklyProjectionDiagnostics.rowCount).toBe(0);
+    expect(sanitized.reportData.playoffSchedulePlanning.managerPlans[0].weeks[0]).toMatchObject({
+      projectedStarterPoints: null,
+      projectionCoverage: {
+        coveredPlayerCount: 0,
+        totalPlayerCount: 9,
+        mode: "schedule-value",
+      },
+    });
+    expect(sanitized.reportData.matchupPreviews.map((preview: any) => preview.source)).toEqual(["Schedule/value model"]);
+    expect(JSON.stringify(sanitized.reportData.playerDetailsById)).not.toContain("weeklyProjection");
   });
 });
