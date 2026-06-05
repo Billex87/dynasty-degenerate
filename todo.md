@@ -792,7 +792,8 @@
 - [x] Add FantasyPros value-profile rows to the admin per-player source trace UI so admins can see dynasty/current-season FantasyPros fields, preserved endpoint keys when available, and honest fallback copy when a blended row no longer has endpoint lineage.
 - [x] Extend the per-player source trace beyond value-profile rows to normalized `DEVY`, `ROOKIES`, ADP, news, injuries, projections, and player-points snapshot context as those feeds start directly affecting player readouts.
   - 2026-06-05 completion: backend per-player FantasyPros source traces now merge capped normalized snapshot context for projections, player-points history, draft/ROS/ADP/dynasty/devy/rookie rankings, news, and injuries when a FantasyPros ID or stored Sleeper external-ID reference is available. The report path passes already-loaded snapshot context into value-profile generation, so report loads remain snapshot-only with no new live provider dependency; missing or unmatched rows fall back to the existing value-profile trace behavior.
-- [ ] Add unit tests for each FantasyPros payload normalizer and integration tests for dynasty, redraft, devy, rookie, ADP, injury, news, projection, and player-points diagnostics.
+- [x] Add unit tests for each FantasyPros payload normalizer and integration tests for dynasty, redraft, devy, rookie, ADP, injury, news, projection, and player-points diagnostics.
+  - 2026-06-05 completion: focused coverage now includes FantasyPros endpoint snapshot persistence/rate-limit behavior, stored snapshot normalization for draft/ROS/dynasty/devy/rookie/ADP/DYNADP/RKADP/WW/projection/player-points/player-reference/compare/news/injury payloads, external-ID indexing, per-player source traces for projection/player-points/news/injury/ranking context, FantasyPros draft-cost ADP integration, rookie ranking valuation fallback, and rookie-development source signals.
 
 ## Draft Baseline / League Mode Roadmap
 
