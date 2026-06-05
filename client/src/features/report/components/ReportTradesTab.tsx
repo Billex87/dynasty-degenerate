@@ -15,6 +15,7 @@ import {
   Loader2,
   ShieldCheck,
 } from "lucide-react";
+import { track } from "@vercel/analytics";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import { ModalReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import { Button } from "@/components/ui/button";
@@ -144,6 +145,80 @@ const TRANSACTION_SYNC_CHROME_WEB_STORE_URL =
 const CURRENT_PENDING_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const SLEEPER_HELPER_IMPORT_TIMEOUT_MS = 60 * 1000;
 const COPY_REPORT_LINK_FEEDBACK_MS = 2400;
+const LOCAL_TELEMETRY_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+
+type TransactionSyncTelemetryAction =
+  | "helper_detected"
+  | "mobile_fallback_shown"
+  | "desktop_link_copied"
+  | "desktop_link_copy_failed"
+  | "install_link_clicked"
+  | "import_started"
+  | "import_completed"
+  | "import_failed"
+  | "import_timeout";
+
+type TransactionSyncTelemetryProperties = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
+
+function shouldSendTransactionSyncTelemetry(): boolean {
+  if (!import.meta.env.PROD || typeof window === "undefined") return false;
+  return !LOCAL_TELEMETRY_HOSTS.has(window.location.hostname);
+}
+
+function classifyTransactionSyncError(detail?: string | null): string {
+  const normalized = String(detail || "").toLowerCase();
+  if (!normalized) return "unknown";
+  if (normalized.includes("not installed") || normalized.includes("enabled")) {
+    return "extension_missing";
+  }
+  if (normalized.includes("still waiting") || normalized.includes("timeout")) {
+    return "timeout";
+  }
+  if (normalized.includes("captured league") || normalized.includes("this report is")) {
+    return "league_mismatch";
+  }
+  if (normalized.includes("invalid snapshot")) return "invalid_snapshot";
+  if (normalized.includes("could not reach") || normalized.includes("could not start")) {
+    return "extension_unreachable";
+  }
+  if (normalized.includes("desktop chrome")) return "mobile_unsupported";
+  return "unknown";
+}
+
+function trackTransactionSyncEvent(
+  action: TransactionSyncTelemetryAction,
+  properties: TransactionSyncTelemetryProperties = {}
+) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("dynasty-degens:transaction-sync-telemetry", {
+        detail: {
+          action,
+          ...properties,
+        },
+      })
+    );
+  }
+
+  if (!shouldSendTransactionSyncTelemetry()) {
+    if (!import.meta.env.PROD) {
+      console.info("[TransactionSyncTelemetry]", { action, ...properties });
+    }
+    return;
+  }
+
+  try {
+    track("Transaction Sync", {
+      action,
+      ...properties,
+    });
+  } catch {
+    // Analytics must never block the import flow.
+  }
+}
 
 function isLikelyMobileBrowser(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -1574,6 +1649,8 @@ export function ReportTradesTab({
   const tradeWarRoomRef = useRef<HTMLDivElement | null>(null);
   const autoImportPendingRef = useRef(false);
   const helperImportTimeoutRef = useRef<number | null>(null);
+  const helperDetectedTelemetryRef = useRef(false);
+  const mobileFallbackTelemetryRef = useRef(false);
   const isMobileBrowser = useMemo(() => isLikelyMobileBrowser(), []);
   const hasImportedSleeperActivity =
     Boolean(reportData.sleeperHiddenLeagueSnapshot) ||
@@ -1637,18 +1714,26 @@ export function ReportTradesTab({
 
       await navigator.clipboard.writeText(reportUrl);
       setCopyReportLinkStatus("copied");
+      trackTransactionSyncEvent("desktop_link_copied", {
+        leagueId,
+        surface: "mobile_fallback",
+      });
       window.setTimeout(
         () => setCopyReportLinkStatus("idle"),
         COPY_REPORT_LINK_FEEDBACK_MS
       );
     } catch {
       setCopyReportLinkStatus("error");
+      trackTransactionSyncEvent("desktop_link_copy_failed", {
+        leagueId,
+        surface: "mobile_fallback",
+      });
       window.setTimeout(
         () => setCopyReportLinkStatus("idle"),
         COPY_REPORT_LINK_FEEDBACK_MS
       );
     }
-  }, []);
+  }, [leagueId]);
 
   const clearHelperImportTimeout = useCallback(() => {
     if (helperImportTimeoutRef.current === null) return;
@@ -1664,11 +1749,14 @@ export function ReportTradesTab({
       setIsHelperCaptureRunning(false);
       setIsHelperSuccessCollapsed(false);
       setHelperStatus(null);
+      trackTransactionSyncEvent("import_timeout", {
+        leagueId,
+      });
       setHelperError(
         "Still waiting on Sleeper. Refresh the Sleeper Trades and Players/Waivers tabs, then click Import Pending Transactions again."
       );
     }, SLEEPER_HELPER_IMPORT_TIMEOUT_MS);
-  }, [clearHelperImportTimeout]);
+  }, [clearHelperImportTimeout, leagueId]);
 
   const importCapturedSnapshot = useCallback(
     async (
@@ -1686,6 +1774,13 @@ export function ReportTradesTab({
 
       try {
         const result = await onImportSleeperTradeCenterSnapshot(snapshot);
+        trackTransactionSyncEvent("import_completed", {
+          leagueId,
+          automatic: Boolean(options.automatic),
+          transactionCount: result.transactionCount,
+          tradeCount: result.tradeCount,
+          waiverCount: result.waiverCount,
+        });
         setHelperStatus(
           result.transactionCount > 0
             ? `Imported ${pluralizeImportCount(result.tradeCount, "pending trade")} and ${pluralizeImportCount(result.waiverCount, "waiver claim")} from Sleeper.`
@@ -1695,6 +1790,13 @@ export function ReportTradesTab({
       } catch (error: unknown) {
         setIsHelperSuccessCollapsed(false);
         setHelperStatus(null);
+        trackTransactionSyncEvent("import_failed", {
+          leagueId,
+          stage: "server_import",
+          reason: classifyTransactionSyncError(
+            error instanceof Error ? error.message : null
+          ),
+        });
         setHelperError(
           error instanceof Error
             ? error.message
@@ -1704,8 +1806,17 @@ export function ReportTradesTab({
         setIsHelperCaptureRunning(false);
       }
     },
-    [clearHelperImportTimeout, onImportSleeperTradeCenterSnapshot]
+    [clearHelperImportTimeout, leagueId, onImportSleeperTradeCenterSnapshot]
   );
+
+  useEffect(() => {
+    if (!showSleeperPendingActivity || !isMobileBrowser) return;
+    if (mobileFallbackTelemetryRef.current) return;
+    mobileFallbackTelemetryRef.current = true;
+    trackTransactionSyncEvent("mobile_fallback_shown", {
+      leagueId,
+    });
+  }, [isMobileBrowser, leagueId, showSleeperPendingActivity]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1718,6 +1829,12 @@ export function ReportTradesTab({
 
       if (message.type === "DYNASTY_DEGENS_SLEEPER_HELPER_READY") {
         setHelperDetected(true);
+        if (!helperDetectedTelemetryRef.current) {
+          helperDetectedTelemetryRef.current = true;
+          trackTransactionSyncEvent("helper_detected", {
+            leagueId,
+          });
+        }
         return;
       }
 
@@ -1730,6 +1847,11 @@ export function ReportTradesTab({
           setIsHelperCaptureRunning(false);
           setIsHelperSuccessCollapsed(false);
           setHelperStatus(null);
+          trackTransactionSyncEvent("import_failed", {
+            leagueId,
+            stage: "extension_status",
+            reason: classifyTransactionSyncError(payload.detail),
+          });
           setHelperError(payload.detail || "Transaction Sync could not import transactions.");
           return;
         }
@@ -1752,6 +1874,11 @@ export function ReportTradesTab({
         autoImportPendingRef.current = false;
         setIsHelperCaptureRunning(false);
         setIsHelperSuccessCollapsed(false);
+        trackTransactionSyncEvent("import_failed", {
+          leagueId,
+          stage: "snapshot_validation",
+          reason: "invalid_snapshot",
+        });
         setHelperError("Transaction Sync sent an invalid snapshot.");
         return;
       }
@@ -1762,6 +1889,11 @@ export function ReportTradesTab({
         setIsHelperCaptureRunning(false);
         setIsHelperSuccessCollapsed(false);
         setHelperSnapshot(null);
+        trackTransactionSyncEvent("import_failed", {
+          leagueId,
+          stage: "snapshot_validation",
+          reason: "league_mismatch",
+        });
         setHelperError(
           `Transaction Sync captured league ${payload.leagueId}, but this report is ${leagueId}.`
         );
@@ -1804,6 +1936,11 @@ export function ReportTradesTab({
 
   const importHelperSnapshot = async () => {
     if (isMobileBrowser) {
+      trackTransactionSyncEvent("import_failed", {
+        leagueId,
+        stage: "browser_support",
+        reason: "mobile_unsupported",
+      });
       setHelperError(
         "Transaction Sync requires desktop Chrome. Chrome extensions do not run on iPhone, iPad, or Android Chrome, so open this report on desktop Chrome to import pending Sleeper trades and waivers."
       );
@@ -1811,6 +1948,10 @@ export function ReportTradesTab({
     }
 
     if (!helperDetected) {
+      trackTransactionSyncEvent("install_link_clicked", {
+        leagueId,
+        surface: "primary_button",
+      });
       window.open(
         TRANSACTION_SYNC_CHROME_WEB_STORE_URL,
         "_blank",
@@ -1827,6 +1968,10 @@ export function ReportTradesTab({
     setIsHelperSuccessCollapsed(false);
     setIsHelperCaptureRunning(true);
     setHelperStatus("Opening Sleeper and importing pending transactions...");
+    trackTransactionSyncEvent("import_started", {
+      leagueId,
+      hasCachedSnapshot: Boolean(helperSnapshot),
+    });
     startHelperImportTimeout();
     window.postMessage(
       {
@@ -1986,6 +2131,12 @@ export function ReportTradesTab({
                         href={TRANSACTION_SYNC_CHROME_WEB_STORE_URL}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={() =>
+                          trackTransactionSyncEvent("install_link_clicked", {
+                            leagueId,
+                            surface: "mobile_fallback",
+                          })
+                        }
                         className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black text-slate-200 transition hover:border-white/20 hover:bg-white/10"
                       >
                         Desktop extension
@@ -1998,6 +2149,12 @@ export function ReportTradesTab({
                         href={TRANSACTION_SYNC_CHROME_WEB_STORE_URL}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={() =>
+                          trackTransactionSyncEvent("install_link_clicked", {
+                            leagueId,
+                            surface: "install_help",
+                          })
+                        }
                         className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1.5 text-xs font-black text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/20"
                       >
                         Install from Chrome Web Store

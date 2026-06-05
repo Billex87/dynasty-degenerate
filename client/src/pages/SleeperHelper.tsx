@@ -53,6 +53,21 @@ const troubleshooting = [
   }
 ];
 
+const supportNotes = [
+  {
+    title: "Use the same Chrome profile",
+    body: "Sign into Sleeper in the same desktop Chrome profile where Transaction Sync is installed. The helper cannot capture pending activity from another browser, profile, or the Sleeper mobile app."
+  },
+  {
+    title: "If import keeps waiting",
+    body: "Open Sleeper in that Chrome profile, confirm you are logged in, then retry from the Dynasty Degens Trades tab. The helper needs Sleeper's logged-in trade and player pages to finish loading."
+  },
+  {
+    title: "Mobile is a fallback for now",
+    body: "On iPhone, iPad, Android Chrome, or Safari, copy the report link and open it on desktop Chrome. A Safari iOS extension would be a separate App Store build."
+  }
+];
+
 function SleeperHelperPage() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#050914] text-slate-100">
@@ -152,6 +167,19 @@ function SleeperHelperPage() {
                 <article key={item.issue} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                   <h3 className="font-black text-white">{item.issue}</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-300">{item.fix}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-[2rem] border border-white/10 bg-white/[0.055] p-6">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-200">Production notes</p>
+            <h2 className="mt-3 text-3xl font-black uppercase tracking-[-0.04em] text-white">How to avoid sync issues</h2>
+            <div className="mt-6 grid gap-3 md:grid-cols-3">
+              {supportNotes.map((note) => (
+                <article key={note.title} className="rounded-2xl border border-white/10 bg-slate-950/65 p-4">
+                  <h3 className="font-black text-white">{note.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">{note.body}</p>
                 </article>
               ))}
             </div>
