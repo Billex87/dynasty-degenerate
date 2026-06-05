@@ -28,6 +28,7 @@ import { buildMatchupPreviews, buildPlayoffSchedulePlanningSummary, buildSchedul
 import { buildLineupStrength } from "./lineupStrength";
 import { buildRedraftValuation } from "./redraftValuation";
 import { buildDynastyContentionContext } from "./dynastyContentionContext";
+import { buildRookieDevelopmentContext } from "./rookieDevelopmentContext";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
 import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadResponse, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
@@ -3089,6 +3090,56 @@ export function stripWeeklyProjectionContextFromReportData(reportData: ReportDat
       })),
     };
   };
+  const stripRookieDevelopmentRead = (
+    read: NonNullable<ReportData['rookieDevelopmentContext']>['rows'][number]
+  ): NonNullable<ReportData['rookieDevelopmentContext']>['rows'][number] => ({
+    ...read,
+    projectedFantasyPoints: null,
+    projectionStatus: 'blocked',
+    confidence: Math.min(Number.isFinite(Number(read.confidence)) ? Number(read.confidence) : 58, 58),
+    confidenceReasons: [
+      'Weekly projections are disabled for this response; rookie development confidence is capped to draft, usage, depth-chart, and comp context.',
+      ...stripStoredProjectionReasons(read.confidenceReasons),
+    ].slice(0, 6),
+    confidenceCapReason: 'Weekly projections are disabled for this response; rookie development confidence is capped to draft, usage, depth-chart, and comp context.',
+    signals: stripStoredProjectionReasons(read.signals),
+    sourceTrace: (read.sourceTrace || []).filter((trace) => !hasStoredProjectionClaim(trace)),
+  });
+  const stripRookieDevelopmentReads = (
+    reads: NonNullable<ReportData['rookieDevelopmentContext']>['rows'] = []
+  ): NonNullable<ReportData['rookieDevelopmentContext']>['rows'] =>
+    reads.map(stripRookieDevelopmentRead);
+  const stripRookieDevelopmentContext = (
+    context: ReportData['rookieDevelopmentContext']
+  ): ReportData['rookieDevelopmentContext'] => {
+    if (!context) return context;
+    return {
+      ...context,
+      projectionStatus: 'blocked',
+      status: context.status === 'ready' ? 'partial' : context.status,
+      note: 'Rookie and sophomore development context is capped because weekly projections are disabled for this response.',
+      rows: stripRookieDevelopmentReads(context.rows || []),
+      managers: (context.managers || []).map((manager) => {
+        const managerRows = stripRookieDevelopmentReads([
+          ...(manager.promoteWindow || []),
+          ...(manager.holdDevelopment || []),
+          ...(manager.usageRamp || []),
+          ...(manager.blockedByDepthChart || []),
+          ...(manager.stashPatience || []),
+          ...(manager.fragileProfile || []),
+        ]);
+        return {
+          ...manager,
+          promoteWindow: managerRows.filter((read) => read.action === 'promote-window'),
+          holdDevelopment: managerRows.filter((read) => read.action === 'hold-development'),
+          usageRamp: managerRows.filter((read) => read.action === 'usage-ramp'),
+          blockedByDepthChart: managerRows.filter((read) => read.action === 'blocked-by-depth-chart'),
+          stashPatience: managerRows.filter((read) => read.action === 'stash-patience'),
+          fragileProfile: managerRows.filter((read) => read.action === 'fragile-profile'),
+        };
+      }),
+    };
+  };
 
   return {
     ...reportData,
@@ -3124,6 +3175,7 @@ export function stripWeeklyProjectionContextFromReportData(reportData: ReportDat
     lineupStrength: stripWeeklyProjectionFromLineupStrength(reportData.lineupStrength),
     redraftValuation: stripWeeklyProjectionFromRedraftValuation(reportData.redraftValuation),
     dynastyContentionContext: stripDynastyContentionContext(reportData.dynastyContentionContext),
+    rookieDevelopmentContext: stripRookieDevelopmentContext(reportData.rookieDevelopmentContext),
     playoffSchedulePlanning: stripWeeklyProjectionFromPlayoffSchedulePlanning(reportData.playoffSchedulePlanning),
     matchupPreviews: (reportData.matchupPreviews || []).map((preview) => {
       const hasProjectionClaim =
@@ -10142,6 +10194,12 @@ export const appRouter = router({
           }, {
             currentWeek: currentScheduleWeek,
           });
+          const rookieDevelopmentContext = buildRookieDevelopmentContext({
+            ...reportData,
+            managerRosterIntelligence: managerRosterIntelligenceWithSituation,
+            playerDetailsById: playerDetailsWithSituationById,
+            weeklyProjectionDiagnostics,
+          });
           const dynastyContentionContext = buildDynastyContentionContext({
             ...reportData,
             managerRosterIntelligence: managerRosterIntelligenceWithSituation,
@@ -10151,6 +10209,7 @@ export const appRouter = router({
             matchupPreviews,
             lineupStrength,
             redraftValuation,
+            rookieDevelopmentContext,
           });
           const reportPayloadData = {
             ...reportData,
@@ -10186,6 +10245,7 @@ export const appRouter = router({
             lineupStrength,
             redraftValuation,
             dynastyContentionContext,
+            rookieDevelopmentContext,
             recentTransactions: allRecentTransactions,
             transactionBackfillDiagnostics,
             adminTradeProposalSignals,

@@ -829,6 +829,59 @@ export interface DynastyContentionContext {
   note: string;
 }
 
+export type RookieDevelopmentStage = 'rookie' | 'sophomore';
+export type RookieDevelopmentAction =
+  | 'promote-window'
+  | 'hold-development'
+  | 'usage-ramp'
+  | 'blocked-by-depth-chart'
+  | 'stash-patience'
+  | 'fragile-profile';
+
+export interface RookieDevelopmentRead {
+  id: string;
+  manager: string | null;
+  player: ManagerIntelPlayer;
+  stage: RookieDevelopmentStage;
+  action: RookieDevelopmentAction;
+  score: number;
+  confidence: number;
+  confidenceReasons: string[];
+  confidenceCapReason?: string | null;
+  draftCapitalTier?: PlayerDraftCapitalTier | null;
+  opportunityWindow?: PlayerOpportunityWindow | null;
+  teamInvestmentScore: number;
+  earlyUsageScore: number;
+  depthChartBarrierScore: number;
+  similarPlayerOpportunityScore: number | null;
+  opportunityRunwayWeeks: number | null;
+  projectedFantasyPoints?: number | null;
+  projectionStatus: 'ready' | 'blocked' | 'warning' | 'missing';
+  signals: string[];
+  sourceTrace: string[];
+}
+
+export interface RookieDevelopmentManagerRead {
+  manager: string;
+  readCount: number;
+  promoteWindow: RookieDevelopmentRead[];
+  holdDevelopment: RookieDevelopmentRead[];
+  usageRamp: RookieDevelopmentRead[];
+  blockedByDepthChart: RookieDevelopmentRead[];
+  stashPatience: RookieDevelopmentRead[];
+  fragileProfile: RookieDevelopmentRead[];
+}
+
+export interface RookieDevelopmentContext {
+  status: 'ready' | 'partial' | 'value-only';
+  source: 'stored-report-rookie-development';
+  projectionStatus: 'ready' | 'blocked' | 'warning' | 'missing';
+  generatedAt: string;
+  rows: RookieDevelopmentRead[];
+  managers: RookieDevelopmentManagerRead[];
+  note: string;
+}
+
 export interface PickPortfolio {
   manager: string;
   value2026: number;
@@ -2452,6 +2505,7 @@ export interface ReportData {
   lineupStrength?: LineupStrengthSummary;
   redraftValuation?: RedraftValuationSummary;
   dynastyContentionContext?: DynastyContentionContext;
+  rookieDevelopmentContext?: RookieDevelopmentContext;
   matchupPreviews?: MatchupPreview[];
   schedulePlanning?: SchedulePlanningSummary;
   playoffSchedulePlanning?: PlayoffSchedulePlanningSummary;
