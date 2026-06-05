@@ -434,7 +434,7 @@ export function getTeamTileStyle(team?: string | null): CSSProperties | undefine
   const teamCode = getKnownNflTeamCode(team);
   if (!teamCode) return undefined;
 
-  const [primary, secondary, accent] = getNflTeamHeaderGradientStops(teamCode);
+  const { primary, secondary, accent } = NFL_TEAM_COLORS[teamCode];
 
   return {
     '--team-primary': primary,

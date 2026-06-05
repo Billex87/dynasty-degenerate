@@ -40,17 +40,17 @@ describe('teamTileStyle NFL metadata colors', () => {
     expect(getNflTeamHeaderGradient('DAL')).toBe('linear-gradient(135deg, #869397, #000000, #041E42)');
   });
 
-  it('uses the modal header color order for NFL player tile CSS variables', () => {
-    expect(getTeamTileStyle('CHI')).toEqual({
-      '--team-primary': '#C83803',
+  it('uses canonical metadata color order for NFL player tile CSS variables', () => {
+    expect(getTeamTileStyle('ATL')).toEqual({
+      '--team-primary': '#A71930',
       '--team-secondary': '#000000',
-      '--team-accent': '#0B162A',
+      '--team-accent': '#A5ACAF',
     });
 
-    expect(getTeamTileStyle('TEN')).toEqual({
-      '--team-primary': '#A5ACAF',
-      '--team-secondary': '#000000',
-      '--team-accent': '#4495D2',
+    expect(getTeamTileStyle('WAS')).toEqual({
+      '--team-primary': '#5A1414',
+      '--team-secondary': '#FFB612',
+      '--team-accent': '#FFFFFF',
     });
   });
 

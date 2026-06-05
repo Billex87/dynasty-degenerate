@@ -24,8 +24,16 @@
 .player-team-tile {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--team-accent, #22d3ee) 28%, rgba(34, 211, 238, 0.15)) !important;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #0f172a) 34%, rgba(15, 23, 42, 0.84)), rgba(2, 6, 23, 0.72) 58%, color-mix(in srgb, var(--team-secondary, #020617) 30%, rgba(2, 6, 23, 0.72))), radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--team-accent, #22d3ee) 18%, transparent), transparent 42%), radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--team-primary, #0f172a) 22%, transparent), transparent 44%) !important;
+  border: 1px solid color-mix(in srgb, var(--team-primary, #22d3ee) 58%, rgba(255, 255, 255, 0.18)) !important;
+  background:
+    radial-gradient(circle at 7% 0%, color-mix(in srgb, var(--team-primary, #0f172a) 58%, transparent), transparent 42%),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--team-secondary, #020617) 48%, transparent), transparent 46%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--team-primary, #0f172a) 62%, rgba(2, 6, 23, 0.76)) 0%,
+      rgba(2, 6, 23, 0.82) 54%,
+      color-mix(in srgb, var(--team-secondary, #020617) 56%, rgba(2, 6, 23, 0.76)) 100%
+    ) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.045),
     0 14px 30px rgba(0, 0, 0, 0.18);
@@ -12595,7 +12603,15 @@ body,
   width: 100%;
   min-height: 4.35rem;
   border-radius: 0.9rem !important;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--team-primary, #0f172a) 25%, rgba(15, 23, 42, 0.9)), rgba(2, 6, 23, 0.76) 58%, color-mix(in srgb, var(--team-secondary, #020617) 22%, rgba(2, 6, 23, 0.8))), radial-gradient(circle at 5% 0%, color-mix(in srgb, var(--team-accent, #22d3ee) 10%, transparent), transparent 38%), radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--team-primary, #0f172a) 12%, transparent), transparent 42%) !important;
+  background:
+    radial-gradient(circle at 6% 0%, color-mix(in srgb, var(--team-primary, #0f172a) 52%, transparent), transparent 38%),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--team-secondary, #020617) 42%, transparent), transparent 42%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--team-primary, #0f172a) 56%, rgba(2, 6, 23, 0.82)) 0%,
+      rgba(2, 6, 23, 0.84) 58%,
+      color-mix(in srgb, var(--team-secondary, #020617) 48%, rgba(2, 6, 23, 0.8)) 100%
+    ) !important;
   padding: 0.44rem 0.7rem !important;
   text-align: left;
 }
