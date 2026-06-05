@@ -217,6 +217,37 @@ function getTopAndWeakestStarter(input: {
   };
 }
 
+function buildOptimalStarterRead(input: {
+  starters: ManagerStarterPlayer[];
+  benchAlternatives: LineupStrengthManagerRead["benchAlternatives"];
+}): {
+  optimalStarters: ManagerStarterPlayer[];
+  optimalStarterScoreDelta: number;
+} {
+  const usedAlternativeIds = new Set<string>();
+  const upgradeByStarterId = new Map<string, LineupStrengthManagerRead["benchAlternatives"][number]>();
+
+  for (const alternative of [...input.benchAlternatives].sort((a, b) => b.scoreDelta - a.scoreDelta)) {
+    if (alternative.decision !== "upgrade") continue;
+    if (usedAlternativeIds.has(alternative.alternative.player_id)) continue;
+    if (upgradeByStarterId.has(alternative.starter.player_id)) continue;
+    upgradeByStarterId.set(alternative.starter.player_id, alternative);
+    usedAlternativeIds.add(alternative.alternative.player_id);
+  }
+
+  const optimalStarters = input.starters.map(starter =>
+    upgradeByStarterId.get(starter.player_id)?.alternative || starter
+  );
+  const optimalStarterScoreDelta = round(
+    Array.from(upgradeByStarterId.values()).reduce((sum, alternative) => sum + Math.max(0, alternative.scoreDelta), 0)
+  );
+
+  return {
+    optimalStarters,
+    optimalStarterScoreDelta,
+  };
+}
+
 function getProjectionStatus(reportData: ReportData): LineupStrengthSummary["projectionStatus"] {
   return reportData.weeklyProjectionDiagnostics?.status || "missing";
 }
@@ -418,6 +449,17 @@ export function buildLineupStrength(reportData: ReportData, options: { generated
       playerDetailsById: reportData.playerDetailsById,
       projectionReady,
     });
+    const benchAlternatives = buildBenchAlternatives({
+      starters,
+      lineupPool,
+      playerDetailsById: reportData.playerDetailsById,
+      projectionReady,
+    });
+    const { optimalStarters, optimalStarterScoreDelta } = buildOptimalStarterRead({
+      starters,
+      benchAlternatives,
+    });
+    const opponentStarters = opponentRow ? getManagerPlayers(opponentRow).starters : [];
     const status: LineupStrengthManagerRead["status"] = projectionReady
       ? scheduleScore === null ? "partial" : "ready"
       : "value-only";
@@ -428,6 +470,10 @@ export function buildLineupStrength(reportData: ReportData, options: { generated
       status,
       starterSource: row.starterSource,
       starterCount: starters.length,
+      currentStarters: starters,
+      optimalStarters,
+      opponentStarters,
+      optimalStarterScoreDelta,
       valueScore,
       projectionPoints,
       projectionScore,
@@ -458,12 +504,7 @@ export function buildLineupStrength(reportData: ReportData, options: { generated
           : `${row.manager} trails ${opponentManager} by ${Math.abs(edge)} lineup-strength points.`,
       topStarter,
       weakestStarter,
-      benchAlternatives: buildBenchAlternatives({
-        starters,
-        lineupPool,
-        playerDetailsById: reportData.playerDetailsById,
-        projectionReady,
-      }),
+      benchAlternatives,
       positionEdges: buildPositionEdges({
         row,
         opponentRow,

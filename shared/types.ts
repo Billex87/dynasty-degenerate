@@ -429,6 +429,10 @@ export interface LineupStrengthManagerRead {
   status: 'ready' | 'value-only' | 'partial';
   starterSource?: 'Sleeper' | 'Projected';
   starterCount: number;
+  currentStarters?: ManagerStarterPlayer[];
+  optimalStarters?: ManagerStarterPlayer[];
+  opponentStarters?: ManagerStarterPlayer[];
+  optimalStarterScoreDelta?: number;
   valueScore: number;
   projectionPoints: number | null;
   projectionScore: number;

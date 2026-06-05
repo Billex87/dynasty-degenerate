@@ -191,6 +191,10 @@ describe("buildLineupStrength", () => {
       confidence: 60,
       closeCallReason: "Projection edge is under two points or the composite score edge is thin.",
     });
+    expect(alpha?.currentStarters?.map(player => player.name)).toEqual(["Alpha QB", "Alpha RB"]);
+    expect(alpha?.optimalStarters?.map(player => player.name)).toEqual(["Alpha QB", "Alpha RB"]);
+    expect(alpha?.opponentStarters?.map(player => player.name)).toEqual(["Beta QB", "Beta RB"]);
+    expect(alpha?.optimalStarterScoreDelta).toBe(0);
     expect(alpha?.positionEdges.find(edge => edge.position === "QB")).toMatchObject({
       opponentScore: 130,
       edge: 44,
@@ -234,6 +238,32 @@ describe("buildLineupStrength", () => {
       confidence: 56,
       closeCallReason: "Projection edge is unavailable, so the positive value/SOS score stays review-only.",
     });
+    expect(alpha?.currentStarters?.map(player => player.name)).toEqual(["Alpha QB", "Alpha RB"]);
+    expect(alpha?.optimalStarters?.map(player => player.name)).toEqual(["Alpha QB", "Alpha RB"]);
+    expect(alpha?.opponentStarters?.map(player => player.name)).toEqual(["Beta QB", "Beta RB"]);
+    expect(alpha?.optimalStarterScoreDelta).toBe(0);
+  });
+
+  it("promotes only upgrade-grade bench alternatives into the optimal starter read", () => {
+    const report = reportWithLineups();
+    const alphaBenchQb = report.managerPositionCounts?.[0]?.lineupPlayers?.find(player => player.player_id === "alpha-bench-qb");
+    if (alphaBenchQb) {
+      alphaBenchQb.seasonValue = 7600;
+      alphaBenchQb.value = 7600;
+      alphaBenchQb.weeklyProjection = projection("alpha-bench-qb", 28);
+    }
+
+    const result = buildLineupStrength(report);
+    const alpha = result.rows.find(row => row.manager === "Alpha");
+
+    expect(alpha?.benchAlternatives[0]).toMatchObject({
+      starter: { name: "Alpha QB" },
+      alternative: { name: "Alpha Bench QB" },
+      decision: "upgrade",
+    });
+    expect(alpha?.currentStarters?.map(player => player.name)).toEqual(["Alpha QB", "Alpha RB"]);
+    expect(alpha?.optimalStarters?.map(player => player.name)).toEqual(["Alpha Bench QB", "Alpha RB"]);
+    expect(alpha?.optimalStarterScoreDelta || 0).toBeGreaterThan(0);
   });
 
   it("does not emit projection range or win probability when starter projection coverage is partial", () => {
