@@ -27,6 +27,14 @@ describe('dynamic data jobs', () => {
         fantasyPros: 9,
         sportsDataIo: 5,
       },
+      sourceDiagnostics: [{
+        sourceKey: 'fantasypros-news-v1',
+        source: 'FantasyPros news snapshot',
+        status: 'loaded',
+        rowCount: 9,
+        sourceMode: 'live',
+        message: 'FantasyPros loaded.',
+      }],
     });
 
     const result = await refreshPlayerNewsSnapshots();
@@ -41,6 +49,14 @@ describe('dynamic data jobs', () => {
       playerNewsCount: 14,
       fantasyProsNewsCount: 9,
       sportsDataIoNewsCount: 5,
+      newsSourceDiagnostics: [{
+        sourceKey: 'fantasypros-news-v1',
+        source: 'FantasyPros news snapshot',
+        status: 'loaded',
+        rowCount: 9,
+        sourceMode: 'live',
+        message: 'FantasyPros loaded.',
+      }],
     });
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
   });

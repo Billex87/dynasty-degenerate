@@ -4,12 +4,12 @@ import { loadKTCValuesLastWeek, loadLatestLocalWeeklyMomentumSnapshot, loadBlend
 import { getKtcSnapshotFromDaysAgo } from './ktcSnapshotJob';
 import { getLeagueReportCacheTtlMs } from './leagueReportCachePolicy';
 import { getUserLoadSnapshotOptions } from './loadTimeProviderPolicy';
-import { loadPlayerNewsBundle, type PlayerNewsSourceCounts } from './playerNews';
+import { loadPlayerNewsBundle, type PlayerNewsSourceCounts, type PlayerNewsSourceDiagnostic } from './playerNews';
 import { loadProspectContext } from './prospectSource';
 import type { KTCValues } from './reportGenerator';
 import type { ValueBlendOptions } from './valueBlend';
 
-const REPORT_STATIC_INPUTS_CACHE_VERSION = 'league-report-static-inputs-v2';
+const REPORT_STATIC_INPUTS_CACHE_VERSION = 'league-report-static-inputs-v3';
 
 export type ReportStaticInputs = {
   cacheKey: string;
@@ -21,6 +21,7 @@ export type ReportStaticInputs = {
   prospectContext: Awaited<ReturnType<typeof loadProspectContext>>;
   playerNews: Awaited<ReturnType<typeof loadPlayerNewsBundle>>['items'];
   newsSourceCounts: PlayerNewsSourceCounts;
+  newsSourceDiagnostics: PlayerNewsSourceDiagnostic[];
 };
 
 export function getReportStaticInputsCacheKey(input: {
@@ -50,7 +51,8 @@ export function isReportStaticInputsPayload(value: unknown): value is Omit<Repor
     isRecord(value.draftSharksScheduleContext) &&
     isRecord(value.prospectContext) &&
     Array.isArray(value.playerNews) &&
-    isRecord(value.newsSourceCounts)
+    isRecord(value.newsSourceCounts) &&
+    Array.isArray(value.newsSourceDiagnostics)
   );
 }
 
@@ -127,6 +129,7 @@ export async function loadReportStaticInputs(input: {
     prospectContext,
     playerNews: playerNewsBundle.items,
     newsSourceCounts: playerNewsBundle.sourceCounts,
+    newsSourceDiagnostics: playerNewsBundle.sourceDiagnostics,
   };
 
   await upsertLeagueReportCache({

@@ -63,8 +63,17 @@ const input = {
   lastCompletedSeason: '2025',
 };
 
+const newsSourceDiagnostics = [{
+  sourceKey: 'sportsdataio-news-v1',
+  source: 'SportsDataIO/RotoBaller news snapshot',
+  status: 'loaded',
+  rowCount: 1,
+  sourceMode: 'snapshot',
+  message: 'SportsDataIO/RotoBaller news snapshot returned 1 news row from snapshot mode.',
+}];
+
 const cachedPayload = {
-  cacheKey: 'league-report-static-inputs-v2:12_sf_ppr_base:2026:2025',
+  cacheKey: 'league-report-static-inputs-v3:12_sf_ppr_base:2026:2025',
   generatedAt: '2026-05-15T00:00:00.000Z',
   ktcValues: { cached: { value: 100 } },
   ktcValuesLastWeek: { cached: { value: 90 } },
@@ -72,6 +81,7 @@ const cachedPayload = {
   prospectContext: { profiles: [] },
   playerNews: [],
   newsSourceCounts: { total: 0, fantasyPros: 0, sportsDataIo: 0 },
+  newsSourceDiagnostics: [],
 };
 
 describe('report static inputs cache loading', () => {
@@ -83,6 +93,7 @@ describe('report static inputs cache loading', () => {
     mocks.loadPlayerNewsBundle.mockResolvedValue({
       items: [{ playerName: 'A Player' }],
       sourceCounts: { total: 1, fantasyPros: 0, sportsDataIo: 1 },
+      sourceDiagnostics: newsSourceDiagnostics,
     });
     mocks.loadKTCValuesLastWeek.mockResolvedValue({ fallback: { value: 70 } });
     mocks.loadLatestLocalWeeklyMomentumSnapshot.mockReturnValue({});
@@ -174,12 +185,12 @@ describe('report static inputs', () => {
       leagueValueProfileKey: '12_sf_ppr_base',
       currentSeason: '2026',
       lastCompletedSeason: '2025',
-    })).toBe('league-report-static-inputs-v2:12_sf_ppr_base:2026:2025');
+    })).toBe('league-report-static-inputs-v3:12_sf_ppr_base:2026:2025');
   });
 
   it('accepts only payloads with the static snapshot-backed inputs', () => {
     expect(isReportStaticInputsPayload({
-      cacheKey: 'league-report-static-inputs-v2:12_sf_ppr_base:2026:2025',
+      cacheKey: 'league-report-static-inputs-v3:12_sf_ppr_base:2026:2025',
       generatedAt: '2026-05-15T00:00:00.000Z',
       ktcValues: {},
       ktcValuesLastWeek: {},
@@ -187,10 +198,11 @@ describe('report static inputs', () => {
       prospectContext: {},
       playerNews: [],
       newsSourceCounts: { total: 0, fantasyPros: 0, sportsDataIo: 0 },
+      newsSourceDiagnostics: [],
     })).toBe(true);
 
     expect(isReportStaticInputsPayload({
-      cacheKey: 'league-report-static-inputs-v2:12_sf_ppr_base:2026:2025',
+      cacheKey: 'league-report-static-inputs-v3:12_sf_ppr_base:2026:2025',
       generatedAt: '2026-05-15T00:00:00.000Z',
       reportData: { leagueOverview: [] },
     })).toBe(false);

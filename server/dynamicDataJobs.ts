@@ -569,6 +569,7 @@ export async function refreshReportEnrichmentSnapshots(options: {
     playerNewsCount: playerNews.sourceCounts.total,
     fantasyProsNewsCount: playerNews.sourceCounts.fantasyPros,
     sportsDataIoNewsCount: playerNews.sourceCounts.sportsDataIo,
+    newsSourceDiagnostics: playerNews.sourceDiagnostics,
     draftSharksStatus: draftSharksSchedule.status,
     draftSharksProfileCount: Object.keys(draftSharksSchedule.profiles || {}).length,
     depthChartWarmCache,
@@ -594,6 +595,7 @@ export async function refreshPlayerNewsSnapshots() {
     playerNewsCount: playerNews.sourceCounts.total,
     fantasyProsNewsCount: playerNews.sourceCounts.fantasyPros,
     sportsDataIoNewsCount: playerNews.sourceCounts.sportsDataIo,
+    newsSourceDiagnostics: playerNews.sourceDiagnostics,
   };
 }
 

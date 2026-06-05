@@ -37,6 +37,14 @@ function isEnabled(): boolean {
   return /^(?:1|true|yes|on)$/i.test(String(process.env.ENABLE_SPORTSDATAIO_NEWS || ''));
 }
 
+export function isSportsDataIoNewsSourceEnabled(): boolean {
+  return isEnabled();
+}
+
+export function hasSportsDataIoNewsApiKey(): boolean {
+  return Boolean(getSportsDataIoApiKey());
+}
+
 function stripHtml(value: unknown): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   if (typeof value !== 'string') return null;

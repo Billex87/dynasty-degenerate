@@ -1202,7 +1202,7 @@
 - [ ] Add `FANTASY_NERDS_API_KEY` to production env after confirming the live package returns current-season rows, then verify Fantasy Nerds redraft and dynasty diagnostics load cleanly.
 - [ ] Revisit GridIron Data once a key or package is available and decide whether it belongs in redraft projections, player news, or source health only.
 - [ ] Revisit MySportsFeeds if they approve access, and keep it out of the blend until endpoint coverage and licensing are confirmed.
-- [ ] Add source and status diagnostics when news payloads are unavailable.
+- [x] Add source and status diagnostics when news payloads are unavailable.
 - [x] Add first-pass value-movement-after-news analysis when player news exists and current/baseline value snapshots overlap; player detail AI traces now say whether news coincided with meaningful stored value movement.
 - [ ] Add role and depth-chart change detection when reliable source data exists.
 - [x] Add a snapshot-backed nflverse/ffverse draft-capital source so player detail and cohort AI reads can use public Sleeper/GSIS/FantasyPros/ESPN IDs, draft year, round, overall pick, draft team, and college without live provider calls during report loads.

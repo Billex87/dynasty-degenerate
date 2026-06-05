@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { findLatestPlayerNewsForPlayer, mergePlayerNewsItems } from './playerNews';
+import { afterEach, describe, expect, it } from 'vitest';
+import { buildPlayerNewsSourceDiagnostics, findLatestPlayerNewsForPlayer, mergePlayerNewsItems } from './playerNews';
 
 describe('player news aggregation', () => {
+  afterEach(() => {
+    delete process.env.FANTASYPROS_API_KEY;
+    delete process.env.ENABLE_FANTASYPROS_NEWS;
+    delete process.env.SPORTSDATAIO_API_KEY;
+    delete process.env.SPORTSDATA_IO_API_KEY;
+    delete process.env.ENABLE_SPORTSDATAIO_NEWS;
+  });
+
   it('merges duplicate provider headlines and keeps source attribution', () => {
     const items = mergePlayerNewsItems([
       {
@@ -120,5 +129,43 @@ describe('player news aggregation', () => {
 
     expect(items).toHaveLength(2);
     expect(items.map((item) => item.playerName).sort()).toEqual(['Malik Nabers', 'Rome Odunze']);
+  });
+
+  it('reports source statuses when news payloads are unavailable', () => {
+    process.env.ENABLE_SPORTSDATAIO_NEWS = 'true';
+
+    const diagnostics = buildPlayerNewsSourceDiagnostics({
+      sourceMode: 'live',
+      fantasyProsCount: 0,
+      sportsDataIoCount: 0,
+    });
+
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        sourceKey: 'fantasypros-news-v1',
+        status: 'missing_config',
+        rowCount: 0,
+        message: 'FantasyPros news snapshot news source is enabled but required API configuration is missing.',
+      }),
+      expect.objectContaining({
+        sourceKey: 'sportsdataio-news-v1',
+        status: 'missing_config',
+        rowCount: 0,
+        message: 'SportsDataIO/RotoBaller news snapshot news source is enabled but required API configuration is missing.',
+      }),
+    ]);
+  });
+
+  it('reports missing snapshot status for snapshot-only report loads', () => {
+    const diagnostics = buildPlayerNewsSourceDiagnostics({
+      sourceMode: 'snapshot',
+      fantasyProsCount: 0,
+      sportsDataIoCount: 0,
+    });
+
+    expect(diagnostics.map((row) => [row.sourceKey, row.status, row.sourceMode])).toEqual([
+      ['fantasypros-news-v1', 'missing_snapshot', 'snapshot'],
+      ['sportsdataio-news-v1', 'missing_snapshot', 'snapshot'],
+    ]);
   });
 });
