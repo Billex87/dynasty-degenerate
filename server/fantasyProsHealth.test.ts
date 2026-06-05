@@ -90,6 +90,36 @@ describe('FantasyPros API health checks', () => {
     expect(JSON.stringify(dynastyEvent?.payload)).not.toContain('Bijan Robinson');
   });
 
+  it('keeps missing expert metadata unknown instead of treating it as zero', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      players: [{ player_name: 'Sample Player' }],
+      total_experts: null,
+      totalExperts: '',
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }));
+
+    const rows = await checkFantasyProsApiHealth({
+      season: '2026',
+      apiKey: 'test-key',
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      requestDelayMs: 0,
+    });
+    const draftRow = rows.find((row) => row.key === 'fantasypros-draft');
+    const draftEvent = buildFantasyProsSourceHealthEvents(rows)
+      .find((event) => event.sourceKey === 'fantasypros-draft');
+
+    expect(draftRow).toMatchObject({
+      status: 'loaded',
+      rowCount: 1,
+      totalExperts: null,
+    });
+    expect(draftEvent?.payload).toMatchObject({
+      totalExperts: null,
+    });
+  });
+
   it('records rate limited endpoints as danger events and skips the remaining probes', async () => {
     const fetchMock = vi.fn(async () => new Response('rate limited', {
       status: 429,
