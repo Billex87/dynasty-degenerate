@@ -1140,35 +1140,40 @@ function DraftBuzzScoreboard({ entries, onSelectEntry }: { entries: DraftBuzzSco
             );
           })}
         </div>
-        {pageRows.map((player, index) => (
-          <button type="button" key={`${player.id}-${index}`} className="draftbuzz-table__row" style={getTeamTileStyle(player.nflTeam || player.team) || getCollegeTileStyle(player.college)} onClick={() => onSelectEntry(player)}>
-            <span className="draftbuzz-table__class">{player.draftYear}</span>
-            <span className="draftbuzz-table__rank">{formatDraftBuzzRank(player.overallRank)}</span>
-            <span className="draftbuzz-table__player">
-              <DraftBuzzEntryIdentity entry={player} />
-            </span>
-            <span className="draftbuzz-table__team">
-              <DraftBuzzTeamLogo entry={player} />
-            </span>
-            <span className="draftbuzz-table__top-meta">
-              <span className="draftbuzz-table__school">
-                <DraftBuzzSchoolLogo entry={player} />
+        {pageRows.map((player, index) => {
+          const nflTeam = player.nflTeam || player.team;
+          const rowStyle = nflTeam ? getTeamTileStyle(nflTeam) : getCollegeTileStyle(player.college);
+
+          return (
+            <button type="button" key={`${player.id}-${index}`} className="draftbuzz-table__row" style={rowStyle} onClick={() => onSelectEntry(player)}>
+              <span className="draftbuzz-table__class">{player.draftYear}</span>
+              <span className="draftbuzz-table__rank">{formatDraftBuzzRank(player.overallRank)}</span>
+              <span className="draftbuzz-table__player">
+                <DraftBuzzEntryIdentity entry={player} />
               </span>
-              <span className={`draftbuzz-table__meta-chip ${getRankClass(player.position)}`}>{getDraftBuzzPositionRankLabel(player)}</span>
-              <strong className="draftbuzz-table__meta-chip draftbuzz-table__score">{formatDraftBuzzScore(player.rating)}</strong>
-            </span>
-            <span className="draftbuzz-table__forty">{formatDraftBuzzForty(player.fortyYardDash)}</span>
-            <span className="draftbuzz-table__vertical">{formatDraftBuzzVertical(getDraftBuzzVertical(player))}</span>
-            <span className="draftbuzz-table__height">{formatDraftBuzzTrait(player.height)}</span>
-            <span className="draftbuzz-table__weight">{formatDraftBuzzTrait(player.weight)}</span>
-            <span className="draftbuzz-table__mobile-measurables" aria-label={`${player.name} measurables`}>
-              <span className="draftbuzz-table__meta-chip">40 {formatDraftBuzzForty(player.fortyYardDash)}</span>
-              <span className="draftbuzz-table__meta-chip">VJ {formatDraftBuzzVertical(getDraftBuzzVertical(player))}</span>
-              <span className="draftbuzz-table__meta-chip">HT {formatDraftBuzzTrait(player.height)}</span>
-              <span className="draftbuzz-table__meta-chip">WT {formatDraftBuzzTrait(player.weight)}</span>
-            </span>
-          </button>
-        ))}
+              <span className="draftbuzz-table__team">
+                <DraftBuzzTeamLogo entry={player} />
+              </span>
+              <span className="draftbuzz-table__top-meta">
+                <span className="draftbuzz-table__school">
+                  <DraftBuzzSchoolLogo entry={player} />
+                </span>
+                <span className={`draftbuzz-table__meta-chip ${getRankClass(player.position)}`}>{getDraftBuzzPositionRankLabel(player)}</span>
+                <strong className="draftbuzz-table__meta-chip draftbuzz-table__score">{formatDraftBuzzScore(player.rating)}</strong>
+              </span>
+              <span className="draftbuzz-table__forty">{formatDraftBuzzForty(player.fortyYardDash)}</span>
+              <span className="draftbuzz-table__vertical">{formatDraftBuzzVertical(getDraftBuzzVertical(player))}</span>
+              <span className="draftbuzz-table__height">{formatDraftBuzzTrait(player.height)}</span>
+              <span className="draftbuzz-table__weight">{formatDraftBuzzTrait(player.weight)}</span>
+              <span className="draftbuzz-table__mobile-measurables" aria-label={`${player.name} measurables`}>
+                <span className="draftbuzz-table__meta-chip">40 {formatDraftBuzzForty(player.fortyYardDash)}</span>
+                <span className="draftbuzz-table__meta-chip">VJ {formatDraftBuzzVertical(getDraftBuzzVertical(player))}</span>
+                <span className="draftbuzz-table__meta-chip">HT {formatDraftBuzzTrait(player.height)}</span>
+                <span className="draftbuzz-table__meta-chip">WT {formatDraftBuzzTrait(player.weight)}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {filteredRows.length === 0 ? (

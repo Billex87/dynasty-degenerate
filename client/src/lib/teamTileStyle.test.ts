@@ -40,7 +40,7 @@ describe('teamTileStyle NFL metadata colors', () => {
     expect(getNflTeamHeaderGradient('DAL')).toBe('linear-gradient(135deg, #869397, #000000, #041E42)');
   });
 
-  it('uses canonical metadata color order for NFL player tile CSS variables', () => {
+  it('uses readable canonical team colors for NFL player tile CSS variables', () => {
     expect(getTeamTileStyle('ATL')).toEqual({
       '--team-primary': '#A71930',
       '--team-secondary': '#000000',
@@ -52,6 +52,12 @@ describe('teamTileStyle NFL metadata colors', () => {
       '--team-secondary': '#FFB612',
       '--team-accent': '#FFFFFF',
     });
+
+    expect(getTeamTileStyle('CHI')).toEqual({
+      '--team-primary': '#C83803',
+      '--team-secondary': '#0B162A',
+      '--team-accent': '#C83803',
+    });
   });
 
   it('normalizes vendor and historical aliases through metadata aliases', () => {
@@ -60,6 +66,7 @@ describe('teamTileStyle NFL metadata colors', () => {
     expect(normalizeNflTeamAbbr('ARZ')).toBe('ARI');
     expect(normalizeNflTeamAbbr('SD')).toBe('LAC');
     expect(normalizeNflTeamAbbr('OAK')).toBe('LV');
+    expect(normalizeNflTeamAbbr('FREE AGENT')).toBeNull();
     expect(normalizeNflTeamAbbr('New York Jets')).toBe('NYJ');
   });
 
@@ -80,6 +87,13 @@ describe('teamTileStyle NFL metadata colors', () => {
       secondary: teamBackgrounds.fallback.gradient[1],
       accent: teamBackgrounds.fallback.gradient[2],
     });
+    expect(getTeamTileStyle('FA')).toEqual({
+      '--team-primary': teamBackgrounds.fallback.gradient[0],
+      '--team-secondary': teamBackgrounds.fallback.gradient[1],
+      '--team-accent': teamBackgrounds.fallback.gradient[2],
+    });
+    expect(getTeamTileStyle('FREE AGENT')).toEqual(getTeamTileStyle('FA'));
+    expect(getTeamTileStyle(null)).toEqual(getTeamTileStyle('FA'));
     expect(getNflTeamHeaderBackgroundUrl('FA')).toBe('/assets/nfl-team-backgrounds/nfl-fa.jpg');
     expect(getNflTeamHeaderBackgroundUrl('NOT_A_TEAM')).toBe('/assets/nfl-team-backgrounds/nfl-fa.jpg');
   });

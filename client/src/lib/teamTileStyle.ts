@@ -13,11 +13,22 @@ const NFL_FALLBACK_CODES = new Set(
   [teamBackgrounds.fallback.code, ...(teamBackgrounds.fallback.aliases || [])].map((code) => code.trim().toUpperCase())
 );
 const NFL_HEADER_BLACK_STOP = '#000000';
+const NFL_TILE_DARK_PRIMARY_LUMINANCE = 0.1;
+const NFL_TILE_PROMOTED_PRIMARY_LUMINANCE = 0.16;
 const NFL_TEAM_BACKGROUND_BASE = '/assets/nfl-team-backgrounds';
 const NFL_FALLBACK_BACKGROUND_FILE = 'nfl-fa.jpg';
 
 function isNflTeamCode(code: string): code is NflTeamCode {
   return Object.prototype.hasOwnProperty.call(teamBackgrounds.teams, code);
+}
+
+function normalizeNflFallbackValue(team?: string | null): string {
+  return (team || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+}
+
+function isNflFallbackTeamValue(team?: string | null): boolean {
+  const normalized = normalizeNflFallbackValue(team);
+  return Boolean(normalized && NFL_FALLBACK_CODES.has(normalized));
 }
 
 function getKnownNflTeamCode(team?: string | null): NflTeamCode | null {
@@ -102,6 +113,36 @@ export function getNflFallbackTeamColors(): NflTeamColors {
 
 export function getNflTeamColorsWithFallback(team?: string | null): NflTeamColors {
   return getNflTeamColors(team) || getNflFallbackTeamColors();
+}
+
+function getNflTeamTileColors(team?: string | null): NflTeamColors | null {
+  const teamCode = getKnownNflTeamCode(team);
+  const hasTeamValue = Boolean((team || '').trim());
+  const colors = teamCode
+    ? NFL_TEAM_COLORS[teamCode]
+    : !hasTeamValue || isNflFallbackTeamValue(team)
+      ? getNflFallbackTeamColors()
+      : null;
+  if (!colors) return null;
+
+  const primary = parseHexColor(colors.primary);
+  const secondary = parseHexColor(colors.secondary);
+  if (
+    primary &&
+    secondary &&
+    primary.luminance < NFL_TILE_DARK_PRIMARY_LUMINANCE &&
+    secondary.luminance >= NFL_TILE_PROMOTED_PRIMARY_LUMINANCE &&
+    !isBlackStop(secondary) &&
+    !isWhiteStop(secondary)
+  ) {
+    return {
+      primary: colors.secondary,
+      secondary: colors.primary,
+      accent: colors.accent,
+    };
+  }
+
+  return colors;
 }
 
 export function getNflTeamGradientStops(team?: string | null): string[] {
@@ -431,15 +472,13 @@ export function getCachedDraftBuzzImageUrl(url?: string | null): string | null {
 }
 
 export function getTeamTileStyle(team?: string | null): CSSProperties | undefined {
-  const teamCode = getKnownNflTeamCode(team);
-  if (!teamCode) return undefined;
-
-  const { primary, secondary, accent } = NFL_TEAM_COLORS[teamCode];
+  const colors = getNflTeamTileColors(team);
+  if (!colors) return undefined;
 
   return {
-    '--team-primary': primary,
-    '--team-secondary': secondary,
-    '--team-accent': accent,
+    '--team-primary': colors.primary,
+    '--team-secondary': colors.secondary,
+    '--team-accent': colors.accent,
   } as CSSProperties;
 }
 
@@ -456,7 +495,7 @@ export function getCollegeTileStyle(college?: string | null): CSSProperties | un
 
 export function normalizeNflTeamAbbr(team?: string | null): string | null {
   const normalized = (team || '').trim().toUpperCase();
-  if (!normalized || NFL_FALLBACK_CODES.has(normalized)) return null;
+  if (!normalized || isNflFallbackTeamValue(normalized)) return null;
   if (NFL_TEAM_NAME_ALIASES[normalized]) return NFL_TEAM_NAME_ALIASES[normalized];
   return NFL_TEAM_CODE_ALIASES[normalized] || normalized;
 }
