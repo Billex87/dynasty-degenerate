@@ -94,7 +94,8 @@ function getScheduleSignal(input: {
   byeAdjustment?: number | null;
 }): string | null {
   const score = finiteNumber(input.scheduleContextScore);
-  if (score === null || score === 0) return finiteNumber(input.byeAdjustment) ? 'bye-context' : null;
+  if (score === null) return finiteNumber(input.byeAdjustment) ? 'bye-context' : null;
+  if (score === 0) return 'schedule-context';
   return score > 0 ? 'positive-schedule-stretch' : 'negative-schedule-stretch';
 }
 

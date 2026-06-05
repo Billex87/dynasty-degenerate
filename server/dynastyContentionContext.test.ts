@@ -188,6 +188,7 @@ describe('buildDynastyContentionContext', () => {
     expect(result?.rows.every((read) => read.confidence >= 0 && read.confidence <= 100)).toBe(true);
     const startRead = contender?.startNow.find((read) => read.player.name === 'Start Veteran');
     expect(startRead?.scheduleContextScore).toBe(150);
+    expect(startRead?.signals).toContain('schedule-context');
     expect(startRead?.signals).toContain('positive-schedule-stretch');
     expect(startRead?.signals).toContain('bye-context');
     expect(startRead?.sourceTrace.join(' ')).toContain('redraft-schedule-adjustment:120');

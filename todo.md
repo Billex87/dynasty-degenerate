@@ -1161,7 +1161,7 @@
 - [x] Feed schedule context into redraft lineup strength, valuation, and confidence only after freshness checks pass.
   - 2026-06-05 verification: lineup strength and redraft valuation now use snapshot-backed schedule/SOS, bye timing, confidence reasons, and confidence caps only when projection readiness passes; projection-off readiness keeps these outputs value/schedule fallback-safe.
 - [x] Add schedule-aware trade and dynasty context for short-term contention windows, playoff pushes, and easy/hard stretches.
-  - 2026-06-05 backend completion: dynasty contention and trade recommendation rows now carry redraft schedule/bye adjustment fields, schedule context scores, schedule-stretch signals, and rollout summary counts so short-term contention windows and trade reads can account for easy/hard stretches without UI or AI wording changes.
+  - 2026-06-05 backend completion: dynasty contention and trade recommendation rows now carry redraft schedule/bye adjustment fields, schedule context scores, schedule-context/stretch signals, and rollout summary counts so short-term contention windows and trade reads can account for easy/hard stretches without UI or AI wording changes.
 - [ ] Add schedule badges or notes in Overview and owner-level surfaces when schedule context changes the read.
 - [x] Add tests for schedule normalization, matchup mapping, bye-window rendering, streamer candidate generation, and fallback/offseason states.
 - [ ] Add QA coverage for schedule-dependent surfaces across Overview, Command Center, Matchup Preview, Player Detail, Autopilot, Rankings, and trade/waiver modules.

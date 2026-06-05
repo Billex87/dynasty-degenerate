@@ -247,6 +247,7 @@ function buildRead(input: {
     confidenceCapReason: projectionBlockedCapReason,
     signals: Array.from(new Set([
       ...input.signals,
+      scheduleContext.scheduleContextScore !== null ? 'schedule-context' : null,
       scheduleContext.scheduleContextScore !== null && scheduleContext.scheduleContextScore > 0 ? 'positive-schedule-stretch' : null,
       scheduleContext.scheduleContextScore !== null && scheduleContext.scheduleContextScore < 0 ? 'negative-schedule-stretch' : null,
       scheduleContext.byeAdjustment ? 'bye-context' : null,
