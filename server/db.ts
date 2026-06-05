@@ -115,6 +115,7 @@ export type StoredSnapshotMetadata = {
   snapshotKey: string | null;
   updatedAt: Date | null;
   payloadSizeBytes: number | null;
+  rowCount?: number | null;
   tableName: string;
 };
 
@@ -2782,6 +2783,7 @@ export async function listLatestSnapshotMetadata(): Promise<StoredSnapshotMetada
         to_char("snapshotDate" AT TIME ZONE 'America/Vancouver', 'YYYY-MM-DD') AS "snapshotKey",
         "createdAt" AS "updatedAt",
         octet_length(COALESCE("ktcData", '')) AS "payloadSizeBytes",
+        NULL::integer AS "rowCount",
         'ktcSnapshots'::text AS "tableName"
       FROM "ktcSnapshots"
       ORDER BY "snapshotDate" DESC
@@ -2794,6 +2796,7 @@ export async function listLatestSnapshotMetadata(): Promise<StoredSnapshotMetada
         "snapshotMonth" AS "snapshotKey",
         "createdAt" AS "updatedAt",
         octet_length(COALESCE("prospectData", '')) AS "payloadSizeBytes",
+        NULL::integer AS "rowCount",
         'prospectSnapshots'::text AS "tableName"
       FROM "prospectSnapshots"
       ORDER BY source, "snapshotMonth" DESC
@@ -2805,6 +2808,7 @@ export async function listLatestSnapshotMetadata(): Promise<StoredSnapshotMetada
         "snapshotKey",
         "updatedAt",
         octet_length(COALESCE(payload, '')) AS "payloadSizeBytes",
+        NULL::integer AS "rowCount",
         'redraftSourceSnapshots'::text AS "tableName"
       FROM "redraftSourceSnapshots"
       ORDER BY season, "snapshotKey" DESC
@@ -2816,6 +2820,7 @@ export async function listLatestSnapshotMetadata(): Promise<StoredSnapshotMetada
         "snapshotKey",
         "updatedAt",
         octet_length(COALESCE(payload, '')) AS "payloadSizeBytes",
+        NULL::integer AS "rowCount",
         'devySourceSnapshots'::text AS "tableName"
       FROM "devySourceSnapshots"
       ORDER BY "profileKey", "snapshotKey" DESC
@@ -2827,6 +2832,13 @@ export async function listLatestSnapshotMetadata(): Promise<StoredSnapshotMetada
         "snapshotKey",
         "updatedAt",
         octet_length(COALESCE(payload, '')) AS "payloadSizeBytes",
+        CASE
+          WHEN COALESCE(payload, '') = '' THEN NULL::integer
+          WHEN payload::jsonb ? 'rowCount' THEN NULLIF(payload::jsonb->>'rowCount', '')::integer
+          WHEN jsonb_typeof(payload::jsonb->'rows') = 'array' THEN jsonb_array_length(payload::jsonb->'rows')
+          WHEN jsonb_typeof(payload::jsonb) = 'array' THEN jsonb_array_length(payload::jsonb)
+          ELSE NULL::integer
+        END AS "rowCount",
         'providerDataSnapshots'::text AS "tableName"
       FROM "providerDataSnapshots"
       ORDER BY "sourceKey", "updatedAt" DESC NULLS LAST, "snapshotKey" DESC
@@ -2843,6 +2855,7 @@ export async function listLatestSnapshotMetadata(): Promise<StoredSnapshotMetada
     snapshotKey?: string | null;
     updatedAt?: Date | string | null;
     payloadSizeBytes?: number | string | null;
+    rowCount?: number | string | null;
     tableName?: string | null;
   }>;
 
@@ -2854,6 +2867,9 @@ export async function listLatestSnapshotMetadata(): Promise<StoredSnapshotMetada
     payloadSizeBytes: row.payloadSizeBytes === null || row.payloadSizeBytes === undefined
       ? null
       : Number(row.payloadSizeBytes),
+    rowCount: row.rowCount === null || row.rowCount === undefined
+      ? null
+      : Number(row.rowCount),
     tableName: String(row.tableName || 'unknown'),
   }));
 }

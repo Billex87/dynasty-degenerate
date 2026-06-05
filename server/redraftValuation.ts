@@ -475,11 +475,14 @@ export function buildRedraftValuation(
     .sort((a, b) => b.finalValue - a.finalValue || b.confidence - a.confidence)
     .slice(0, options.limit ?? DEFAULT_ROW_LIMIT);
   const readyCount = rows.filter(row => row.status === "ready").length;
+  const projectionBackedCount = rows.filter(row => row.status === "ready" || row.status === "partial").length;
   const status: RedraftValuationSummary["status"] = !projectionReady
     ? "value-only"
     : readyCount === rows.length && rows.length > 0
       ? "ready"
-      : "partial";
+      : projectionBackedCount > 0
+        ? "ready"
+        : "value-only";
 
   return {
     status,

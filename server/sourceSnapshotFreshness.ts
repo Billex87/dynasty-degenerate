@@ -5,6 +5,7 @@ import {
   type StoredSourceHealthEvent,
 } from './db';
 import { getFantasyProsRollingWeeks, type FantasyProsWeeklyEcrPosition } from './fantasyProsHealth';
+import { isAnyProjectionTypeEnabled, type ProjectionTypeKey } from './projectionFeatureFlags';
 import type { SourceSnapshotFreshnessDiagnostic } from '../shared/types';
 
 type ExpectedSnapshotSource = {
@@ -51,7 +52,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   'fantasypros-news-v1': 'FantasyPros news snapshot',
   'fantasypros-endpoint:weekly-ecr': 'FantasyPros weekly ECR endpoint snapshot',
   'fantasypros-endpoint:ww': 'FantasyPros waiver-wire endpoint snapshot',
-  'fantasypros-endpoint:projections': 'FantasyPros projections endpoint snapshot',
+  'fantasypros-endpoint:projections': 'FantasyPros endpoint snapshot: projections',
   'fantasypros-endpoint:player-points': 'FantasyPros player-points endpoint snapshot',
   'fantasypros-endpoint:players': 'FantasyPros players endpoint snapshot',
   'fantasypros-endpoint:compare-players': 'FantasyPros compare-players endpoint snapshot',
@@ -137,6 +138,20 @@ function fantasyProsEndpointSnapshotKey(season: string, scoring: string, endpoin
 }
 
 const FANTASYPROS_WEEKLY_ECR_POSITIONS: FantasyProsWeeklyEcrPosition[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DST'];
+const FANTASYPROS_PROJECTION_TYPES: ProjectionTypeKey[] = [
+  'weekly',
+  'restOfSeason',
+  'preseason',
+  'playoffWeeks',
+  'positionSpecific',
+  'teamDefense',
+  'kicker',
+  'injuryAdjusted',
+];
+
+function shouldExpectFantasyProsProjectionEndpoint(): boolean {
+  return isAnyProjectionTypeEnabled('fantasypros', FANTASYPROS_PROJECTION_TYPES);
+}
 
 function fantasyProsWeeklyEcrExpectedSources(
   season: string,
@@ -160,7 +175,7 @@ function fantasyProsEndpointExpectedSources(
   currentWeek?: number | null,
   weekWindow?: number | null,
 ): ExpectedSnapshotSource[] {
-  return [
+  const sources: ExpectedSnapshotSource[] = [
     {
       sourceKey: fantasyProsEndpointSnapshotKey(season, scoring, 'fantasypros-weekly-ecr'),
       source: PROVIDER_LABELS['fantasypros-endpoint:weekly-ecr'],
@@ -171,13 +186,6 @@ function fantasyProsEndpointExpectedSources(
     {
       sourceKey: fantasyProsEndpointSnapshotKey(season, scoring, 'fantasypros-ww'),
       source: PROVIDER_LABELS['fantasypros-endpoint:ww'],
-      tableName: 'providerDataSnapshots',
-      staleAfterHours: DAILY_STALE_HOURS,
-      missingLevel: 'info',
-    },
-    {
-      sourceKey: fantasyProsEndpointSnapshotKey(season, scoring, 'fantasypros-projections'),
-      source: PROVIDER_LABELS['fantasypros-endpoint:projections'],
       tableName: 'providerDataSnapshots',
       staleAfterHours: DAILY_STALE_HOURS,
       missingLevel: 'info',
@@ -205,6 +213,18 @@ function fantasyProsEndpointExpectedSources(
     },
     ...fantasyProsWeeklyEcrExpectedSources(season, scoring, currentWeek, weekWindow),
   ];
+
+  if (shouldExpectFantasyProsProjectionEndpoint()) {
+    sources.splice(2, 0, {
+      sourceKey: fantasyProsEndpointSnapshotKey(season, scoring, 'fantasypros-projections'),
+      source: PROVIDER_LABELS['fantasypros-endpoint:projections'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: DAILY_STALE_HOURS,
+      missingLevel: 'info',
+    });
+  }
+
+  return sources;
 }
 
 function normalizeMetadataSource(metadata: StoredSnapshotMetadata): StoredSnapshotMetadata {
@@ -212,6 +232,18 @@ function normalizeMetadataSource(metadata: StoredSnapshotMetadata): StoredSnapsh
     ...metadata,
     source: sourceLabel(metadata.sourceKey, metadata.source),
   };
+}
+
+function getMetadataRowCount(metadata: StoredSnapshotMetadata | null): number | null {
+  const raw = (metadata as { rowCount?: unknown } | null)?.rowCount;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return raw;
+  }
+  if (typeof raw === "string" && raw.trim().length > 0) {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 function buildNote(input: {
@@ -265,7 +297,7 @@ export function buildSourceSnapshotFreshnessDiagnostics(input: BuildInput): Sour
       const ageHours = hoursBetween(now, metadata?.updatedAt || null);
       const rowCount = rowCountBySource.has(expected.sourceKey)
         ? rowCountBySource.get(expected.sourceKey)!
-        : health?.rowCount ?? null;
+        : health?.rowCount ?? getMetadataRowCount(metadata);
       const missing = !metadata;
       const stale = ageHours !== null && ageHours > expected.staleAfterHours;
       const status: SourceSnapshotFreshnessDiagnostic['status'] = missing
@@ -346,13 +378,6 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
     },
     ...fantasyProsEndpointExpectedSources(input.currentSeason, 'PPR', input.currentWeek, input.weekWindow),
     {
-      sourceKey: 'sportsdataio-news-v1',
-      source: PROVIDER_LABELS['sportsdataio-news-v1'],
-      tableName: 'providerDataSnapshots',
-      staleAfterHours: DAILY_STALE_HOURS,
-      missingLevel: 'info',
-    },
-    {
       sourceKey: 'espn-depth-charts-v1',
       source: PROVIDER_LABELS['espn-depth-charts-v1'],
       tableName: 'providerDataSnapshots',
@@ -379,13 +404,6 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       staleAfterHours: DAILY_STALE_HOURS,
       missingLevel: envFlag('ENABLE_SLEEPER_PROJECTIONS') ? 'warn' as const : 'info' as const,
     })),
-    {
-      sourceKey: 'player-props-opticodds-v1',
-      source: PROVIDER_LABELS['player-props-opticodds-v1'],
-      tableName: 'providerDataSnapshots',
-      staleAfterHours: DAILY_STALE_HOURS,
-      missingLevel: envFlag('ENABLE_OPTICODDS_PLAYER_PROPS') ? 'warn' : 'info',
-    },
     {
       sourceKey: 'nflverse-draft-capital-v1',
       source: PROVIDER_LABELS['nflverse-draft-capital-v1'],
@@ -443,6 +461,27 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       missingLevel: 'info',
     },
   ];
+
+  if (envFlag('ENABLE_SPORTSDATAIO_NEWS')) {
+    expectedSources.push({
+      sourceKey: 'sportsdataio-news-v1',
+      source: PROVIDER_LABELS['sportsdataio-news-v1'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: DAILY_STALE_HOURS,
+      missingLevel: 'warn',
+    });
+  }
+
+  if (envFlag('ENABLE_OPTICODDS_PLAYER_PROPS')) {
+    expectedSources.push({
+      sourceKey: 'player-props-opticodds-v1',
+      source: PROVIDER_LABELS['player-props-opticodds-v1'],
+      tableName: 'providerDataSnapshots',
+      staleAfterHours: DAILY_STALE_HOURS,
+      missingLevel: 'warn',
+    });
+  }
+
   const [metadata, healthEvents] = await Promise.all([
     listLatestSnapshotMetadata(),
     listSourceHealthEventsSince(new Date((input.now || new Date()).getTime() - DEFAULT_LOOKBACK_MS), 200),
