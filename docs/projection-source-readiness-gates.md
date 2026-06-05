@@ -43,7 +43,7 @@ Every source needs the same evidence before provider-attributed projection, sche
 | Fantasy Nerds API | `blocked` | Blocked | No | June 5 local shell has no Fantasy Nerds key configured; do not add or enable production key/features until current-season non-TEST rows are confirmed. |
 | GridIron Data | `research` | Blocked | No | No key/package, endpoint, row, freshness, rate-limit, or mapping evidence exists; revisit only after key/package access exists. |
 | Dynasty Daddy source selector | `research` | Blocked | No | June 5 audit captured public source-selector labels and player endpoint candidates; keep integration blocked until terms, cadence/rate limits, upstream attribution, player mapping, and privacy review pass. |
-| Official transaction source | `research` | Blocked | No | Add only after a source can classify signings, releases, waivers, and reserve moves without inference. |
+| Official transaction source | `research` | Blocked | No | Current roster-room deltas infer non-trade movement from nflverse rosters/weekly rosters/depth charts/trades; add only after an approved source can classify signings, releases, waivers, reserve moves, and exact dates. |
 
 Run the gate audit with:
 
