@@ -188,4 +188,17 @@ describe('AI prediction league backtest', () => {
       confidenceAction: 'hold-no-baseline-edge',
     });
   });
+
+  it('averages confidence only across events with finite scores', () => {
+    const summary = buildLeagueWidePredictionBacktest([
+      hit(1, { finalScore: 80 }),
+      hit(2, { finalScore: Number.NaN }),
+    ]);
+    const all = summary.rows.find(row => row.key === 'all');
+
+    expect(all).toMatchObject({
+      eventCount: 2,
+      avgConfidence: 80,
+    });
+  });
 });

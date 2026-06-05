@@ -60,6 +60,7 @@ type MutableBacktestRow = Omit<
   | 'note'
 > & {
   confidenceTotal: number;
+  confidenceCount: number;
 };
 
 function cleanText(value: unknown): string {
@@ -127,6 +128,7 @@ function createMutableRow(key: string, leagueId: string, module: AIPredictionBac
     pushCount: 0,
     blockedCount: 0,
     confidenceTotal: 0,
+    confidenceCount: 0,
     baselineComparisonCount: 0,
     modelBeatBaselineCount: 0,
     baselineBeatModelCount: 0,
@@ -137,7 +139,10 @@ function createMutableRow(key: string, leagueId: string, module: AIPredictionBac
 function addEvent(row: MutableBacktestRow, event: AIPredictionEvent) {
   row.eventCount += 1;
   const confidence = Number(event.finalScore);
-  if (Number.isFinite(confidence)) row.confidenceTotal += confidence;
+  if (Number.isFinite(confidence)) {
+    row.confidenceTotal += confidence;
+    row.confidenceCount += 1;
+  }
 
   const status = event.outcome.status;
   if (status === 'pending') row.pendingCount += 1;
@@ -214,7 +219,7 @@ function finalizeRow(row: MutableBacktestRow): AIPredictionBacktestRow {
     missCount: row.missCount,
     pushCount: row.pushCount,
     blockedCount: row.blockedCount,
-    avgConfidence: roundedAverage(row.confidenceTotal, row.eventCount),
+    avgConfidence: roundedAverage(row.confidenceTotal, row.confidenceCount),
     modelHitRate: roundedPct(row.hitCount, row.hitCount + row.missCount),
     baselineComparisonCount: row.baselineComparisonCount,
     modelBeatBaselineCount: row.modelBeatBaselineCount,
