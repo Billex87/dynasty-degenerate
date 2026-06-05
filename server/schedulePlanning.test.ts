@@ -417,6 +417,15 @@ describe('schedule planning', () => {
     expect(bill?.projectedPoints).toBe(35.7);
     expect(bill?.opponentProjectedPoints).toBe(22.5);
     expect(bill?.source).toBe('Submitted lineup + stored weekly projection model');
+    expect(bill?.projectionCoverage).toEqual({
+      managerCoveredPlayerCount: 2,
+      managerTotalPlayerCount: 2,
+      opponentCoveredPlayerCount: 2,
+      opponentTotalPlayerCount: 2,
+      mode: 'stored-weekly-projection',
+    });
+    expect(bill?.confidence).toBe(88);
+    expect(bill?.confidenceCapReason).toBeNull();
     expect(bill?.mustStarts?.[0]?.weeklyProjection?.projectedFantasyPoints).toBe(21.5);
     expect(bill?.positionEdges?.[0]?.note).toContain('stored weekly projections');
   });
@@ -453,6 +462,15 @@ describe('schedule planning', () => {
     const bill = previews.find((preview) => preview.manager === 'Bill');
     expect(bill?.source).toBe('Submitted lineup + stored weekly projection blend');
     expect(bill?.projectedPoints || 0).toBeGreaterThan(21.5);
+    expect(bill?.projectionCoverage).toEqual({
+      managerCoveredPlayerCount: 1,
+      managerTotalPlayerCount: 2,
+      opponentCoveredPlayerCount: 0,
+      opponentTotalPlayerCount: 2,
+      mode: 'stored-weekly-projection-blend',
+    });
+    expect(bill?.confidence).toBe(76);
+    expect(bill?.confidenceCapReason).toContain('capped');
     expect(bill?.positionEdges?.[0]?.note).toContain('stored weekly projections');
     expect(bill?.howToWin).toContain('stored projection blend');
   });
@@ -503,6 +521,9 @@ describe('schedule planning', () => {
     const bill = previews.find((preview) => preview.manager === 'Bill');
     expect(bill?.source).toBe('Sleeper + Dynasty Degenerates schedule model');
     expect(bill?.projectedPoints).not.toBe(35.7);
+    expect(bill?.projectionCoverage?.mode).toBe('schedule-value');
+    expect(bill?.confidence).toBe(54);
+    expect(bill?.confidenceCapReason).toBe('Projection readiness blocked by schedule snapshot missing.');
     expect(bill?.mustStarts?.[0]?.weeklyProjection).toBeNull();
     expect(bill?.positionEdges?.[0]?.note).not.toContain('stored weekly projections');
   });
@@ -527,6 +548,8 @@ describe('schedule planning', () => {
 
     const bill = previews.find((preview) => preview.manager === 'Bill');
     expect(bill?.source).toBe('Sleeper + Dynasty Degenerates schedule model');
+    expect(bill?.projectionCoverage?.mode).toBe('schedule-value');
+    expect(bill?.confidence).toBe(58);
     expect(bill?.positionEdges?.[0]?.note).not.toContain('stored weekly projections');
   });
 });

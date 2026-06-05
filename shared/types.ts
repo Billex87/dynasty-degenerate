@@ -965,6 +965,16 @@ export interface MatchupPreview {
   vulnerableSpots?: ManagerStarterPlayer[];
   boomBustRisks?: ManagerStarterPlayer[];
   howToWin?: string | null;
+  projectionCoverage?: {
+    managerCoveredPlayerCount: number;
+    managerTotalPlayerCount: number;
+    opponentCoveredPlayerCount: number;
+    opponentTotalPlayerCount: number;
+    mode: 'stored-weekly-projection' | 'stored-weekly-projection-blend' | 'schedule-value';
+  };
+  confidence?: number;
+  confidenceReasons?: string[];
+  confidenceCapReason?: string | null;
   source?: 'Sleeper' | 'FantasyPros' | 'manual' | string;
   updatedAt?: string | null;
 }

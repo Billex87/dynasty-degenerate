@@ -26,6 +26,100 @@ type LineupProjectionResult = {
   totalPlayerCount: number;
 };
 
+type MatchupProjectionCoverageMode = LineupProjectionResult['mode'];
+
+type MatchupProjectionCoverage = {
+  managerCoveredPlayerCount: number;
+  managerTotalPlayerCount: number;
+  opponentCoveredPlayerCount: number;
+  opponentTotalPlayerCount: number;
+  mode: MatchupProjectionCoverageMode;
+};
+
+function getMatchupProjectionCoverageMode(
+  managerProjection: LineupProjectionResult,
+  opponentProjection: LineupProjectionResult,
+): MatchupProjectionCoverageMode {
+  if (
+    managerProjection.mode === 'stored-weekly-projection' &&
+    opponentProjection.mode === 'stored-weekly-projection'
+  ) {
+    return 'stored-weekly-projection';
+  }
+
+  if (
+    managerProjection.mode === 'stored-weekly-projection' ||
+    managerProjection.mode === 'stored-weekly-projection-blend' ||
+    opponentProjection.mode === 'stored-weekly-projection' ||
+    opponentProjection.mode === 'stored-weekly-projection-blend'
+  ) {
+    return 'stored-weekly-projection-blend';
+  }
+
+  return 'schedule-value';
+}
+
+function buildMatchupProjectionCoverage(
+  managerProjection: LineupProjectionResult,
+  opponentProjection: LineupProjectionResult,
+): MatchupProjectionCoverage {
+  return {
+    managerCoveredPlayerCount: managerProjection.coveredPlayerCount,
+    managerTotalPlayerCount: managerProjection.totalPlayerCount,
+    opponentCoveredPlayerCount: opponentProjection.coveredPlayerCount,
+    opponentTotalPlayerCount: opponentProjection.totalPlayerCount,
+    mode: getMatchupProjectionCoverageMode(managerProjection, opponentProjection),
+  };
+}
+
+function buildMatchupConfidence(
+  coverage: MatchupProjectionCoverage,
+  weeklyProjectionReadiness?: WeeklyProjectionReadiness | null,
+): { confidence: number; confidenceReasons: string[]; confidenceCapReason: string | null } {
+  if (weeklyProjectionReadiness?.enabled === false) {
+    const reason =
+      weeklyProjectionReadiness.reason ||
+      'Weekly projection snapshots are not ready for this report load; using schedule/value fallback.';
+
+    return {
+      confidence: 54,
+      confidenceReasons: [
+        'Matchup math is capped because weekly projection snapshots are not ready.',
+        reason,
+      ],
+      confidenceCapReason: reason,
+    };
+  }
+
+  if (coverage.mode === 'stored-weekly-projection') {
+    return {
+      confidence: 88,
+      confidenceReasons: ['Both submitted starter groups have full stored weekly projection coverage.'],
+      confidenceCapReason: null,
+    };
+  }
+
+  if (coverage.mode === 'stored-weekly-projection-blend') {
+    return {
+      confidence: 76,
+      confidenceReasons: [
+        'Stored weekly projection coverage is partial; remaining starters use schedule/value fallback.',
+      ],
+      confidenceCapReason:
+        'Projection-backed matchup confidence is capped until both starter groups have full stored weekly projection coverage.',
+    };
+  }
+
+  return {
+    confidence: 58,
+    confidenceReasons: [
+      'Weekly projection rows are unavailable for this matchup; using schedule/value fallback.',
+    ],
+    confidenceCapReason:
+      'Projection-backed matchup confidence is capped because this matchup has no usable stored weekly projection coverage.',
+  };
+}
+
 type PlayoffConfidenceResult = {
   confidence: number;
   confidenceReasons: string[];
@@ -952,6 +1046,11 @@ export function buildMatchupPreviews(input: {
       const matchupUsesAnyWeeklyProjection = [starterProjectionMode, opponentProjectionMode]
         .some((mode) => mode === 'stored-weekly-projection' || mode === 'stored-weekly-projection-blend');
       const matchupUsesWeeklyProjectionBlend = !matchupUsesWeeklyProjectionTotals && matchupUsesAnyWeeklyProjection;
+      const projectionCoverage = buildMatchupProjectionCoverage(
+        { ...starterProjectionResult, mode: starterProjectionMode },
+        { ...opponentProjectionResult, mode: opponentProjectionMode },
+      );
+      const matchupConfidence = buildMatchupConfidence(projectionCoverage, input.weeklyProjectionReadiness);
       const projectedPoints = Number.isFinite(actualPoints) && actualPoints > 0
         ? Math.round(actualPoints * 10) / 10
         : starterProjectionResult.points;
@@ -980,6 +1079,10 @@ export function buildMatchupPreviews(input: {
         mustStarts: starterPlayers.slice(0, 3),
         vulnerableSpots: starterPlayers.slice(-3).reverse(),
         boomBustRisks: starterPlayers.filter((player) => player.pos === 'RB' || player.pos === 'WR').slice(-2),
+        projectionCoverage,
+        confidence: matchupConfidence.confidence,
+        confidenceReasons: matchupConfidence.confidenceReasons,
+        confidenceCapReason: matchupConfidence.confidenceCapReason,
         positionEdges: SCHEDULE_POSITIONS.map((position) => {
           const managerProjected = starterPlayers
             .filter((player) => player.pos === position)

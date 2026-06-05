@@ -115,7 +115,7 @@ function hasOnlyScheduleValuePlayoffWeeks(reportData: any): boolean {
 }
 
 function containsStoredWeeklyProjectionClaim(value: unknown): boolean {
-  return /stored-weekly-projection|stored weekly projection blend/i.test(JSON.stringify(value || null));
+  return /stored-weekly-projection|stored weekly projection|stored projection/i.test(JSON.stringify(value || null));
 }
 
 function asArray(value: unknown): any[] {
@@ -204,6 +204,45 @@ function summarizePlayoffActionItems(playoffSchedulePlanning: any) {
   };
 }
 
+function summarizeMatchupPreviews(reportData: any) {
+  const previews = asArray(reportData?.matchupPreviews);
+  const confidences = previews
+    .map((preview: any) => finiteNumber(preview?.confidence))
+    .filter((value: number | null): value is number => value !== null);
+  const coverageRows = previews
+    .map((preview: any) => preview?.projectionCoverage)
+    .filter(Boolean);
+  const capReasonCount = previews.filter((preview: any) =>
+    typeof preview?.confidenceCapReason === 'string' && preview.confidenceCapReason.trim().length > 0
+  ).length;
+  const confidenceReasonCount = previews
+    .flatMap((preview: any) => asArray(preview?.confidenceReasons))
+    .filter((reason: unknown): reason is string => typeof reason === 'string' && reason.trim().length > 0)
+    .length;
+  const projectionBackedCount = coverageRows.filter((coverage: any) =>
+    coverage?.mode === 'stored-weekly-projection' ||
+    coverage?.mode === 'stored-weekly-projection-blend'
+  ).length;
+  const scheduleValueCount = coverageRows.filter((coverage: any) =>
+    coverage?.mode === 'schedule-value'
+  ).length;
+
+  return {
+    count: previews.length,
+    confidenceCount: confidences.length,
+    coverageCount: coverageRows.length,
+    confidenceReasonCount,
+    capReasonCount,
+    projectionBackedCount,
+    scheduleValueCount,
+    minConfidence: confidences.length ? Math.min(...confidences) : null,
+    maxConfidence: confidences.length ? Math.max(...confidences) : null,
+    hasProjectionBackedPreview: projectionBackedCount > 0,
+    hasConfidenceCapEvidence: capReasonCount > 0 || confidenceReasonCount > 0,
+    containsProjectionClaim: containsStoredWeeklyProjectionClaim(previews),
+  };
+}
+
 function getPriorityWaiverTargets(reportData: any): any[] {
   return asArray(reportData?.waiverIntelligence?.priorityWaiverTargets || reportData?.priorityWaiverTargets);
 }
@@ -267,6 +306,7 @@ function validateReportContract(input: {
   const matchupPreviews = Array.isArray(reportData.matchupPreviews) ? reportData.matchupPreviews : [];
   const playoffConfidence = summarizePlayoffConfidence(playoffSchedulePlanning);
   const playoffActionItems = summarizePlayoffActionItems(playoffSchedulePlanning);
+  const matchupPreviewSummary = summarizeMatchupPreviews(reportData);
   const priorityWaiverTargets = summarizePriorityWaiverTargets(reportData);
 
   if (!schedulePlanning) failures.push('missing schedulePlanning');
@@ -278,6 +318,18 @@ function validateReportContract(input: {
   if (!reportData.lineupStrength) failures.push('missing lineupStrength');
   if (!reportData.redraftValuation) failures.push('missing redraftValuation');
   if (!matchupPreviews.length) failures.push('missing matchupPreviews');
+  if (matchupPreviewSummary.count > 0 && matchupPreviewSummary.confidenceCount !== matchupPreviewSummary.count) {
+    failures.push('missing matchup preview confidence');
+  }
+  if (matchupPreviewSummary.count > 0 && matchupPreviewSummary.coverageCount !== matchupPreviewSummary.count) {
+    failures.push('missing matchup preview projection coverage');
+  }
+  if (
+    matchupPreviewSummary.minConfidence !== null &&
+    (matchupPreviewSummary.minConfidence < 0 || (matchupPreviewSummary.maxConfidence ?? 0) > 100)
+  ) {
+    failures.push(`matchup preview confidence out of range: ${matchupPreviewSummary.minConfidence}-${matchupPreviewSummary.maxConfidence}`);
+  }
   if (!priorityWaiverTargets.hasPriorityWaiverTargets) failures.push('missing priorityWaiverTargets');
   if (priorityWaiverTargets.hasPriorityWaiverTargets && !priorityWaiverTargets.hasScheduleWindowBackedTarget) {
     failures.push('priorityWaiverTargets missing source-backed matchup window evidence');
@@ -321,6 +373,9 @@ function validateReportContract(input: {
     if (!hasProjectionBackedPlayoffWeek(reportData) && !playoffConfidence.hasConfidenceCapEvidence) {
       failures.push('playoffSchedulePlanning has no projection-backed week or confidence cap evidence');
     }
+    if (!matchupPreviewSummary.hasProjectionBackedPreview && !matchupPreviewSummary.hasConfidenceCapEvidence) {
+      failures.push('matchupPreviews have no projection-backed preview or confidence cap evidence');
+    }
   } else {
     if (reportData.weeklyProjectionDiagnostics?.status !== 'blocked') {
       failures.push(`weekly projections not blocked: ${reportData.weeklyProjectionDiagnostics?.status || 'missing'}`);
@@ -351,6 +406,15 @@ function validateReportContract(input: {
     }
     if (playoffActionItems.containsProjectionClaim) {
       failures.push('projection-off playoff actionItems still contain stored weekly projection claims');
+    }
+    if (matchupPreviewSummary.projectionBackedCount > 0) {
+      failures.push('projection-off matchupPreviews still expose projection-backed coverage');
+    }
+    if (matchupPreviewSummary.maxConfidence !== null && matchupPreviewSummary.maxConfidence > 58) {
+      failures.push(`projection-off matchup preview confidence exceeds fallback cap: ${matchupPreviewSummary.maxConfidence}`);
+    }
+    if (matchupPreviewSummary.containsProjectionClaim) {
+      failures.push('projection-off matchupPreviews still contain stored weekly projection claims');
     }
   }
 
@@ -387,6 +451,14 @@ function validateReportContract(input: {
       playoffActionAffectedPlayerCount: playoffActionItems.affectedPlayerCount,
       playoffActionMinConfidence: playoffActionItems.minConfidence,
       playoffActionMaxConfidence: playoffActionItems.maxConfidence,
+      matchupPreviewConfidenceCount: matchupPreviewSummary.confidenceCount,
+      matchupPreviewCoverageCount: matchupPreviewSummary.coverageCount,
+      matchupPreviewConfidenceReasonCount: matchupPreviewSummary.confidenceReasonCount,
+      matchupPreviewConfidenceCapReasonCount: matchupPreviewSummary.capReasonCount,
+      matchupPreviewProjectionBackedCount: matchupPreviewSummary.projectionBackedCount,
+      matchupPreviewScheduleValueCount: matchupPreviewSummary.scheduleValueCount,
+      matchupPreviewMinConfidence: matchupPreviewSummary.minConfidence,
+      matchupPreviewMaxConfidence: matchupPreviewSummary.maxConfidence,
       priorityWaiverTargetCount: priorityWaiverTargets.count,
       priorityWaiverTargetsWithScheduleWindows: priorityWaiverTargets.targetsWithScheduleWindows,
       priorityWaiverTargetsWithScheduleReasons: priorityWaiverTargets.targetsWithScheduleReasons,

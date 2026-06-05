@@ -679,8 +679,8 @@
 
 ### Product Surfaces To Upgrade
 
-- [ ] Upgrade matchup previews from internal schedule/value estimates to source-backed projected points once projection snapshots pass freshness gates.
-  - 2026-06-04 partial completion: matchup preview totals now use stored weekly projection rows only when both sides of the matchup have full ready starter coverage for the target week. Partial, missing, stale, or readiness-blocked projection coverage falls back to the existing schedule/value model and suppresses stored-projection source claims.
+- [x] Upgrade matchup previews from internal schedule/value estimates to source-backed projected points once projection snapshots pass freshness gates.
+  - 2026-06-04 completion: matchup preview totals now use stored weekly projection rows only when both sides of the matchup have full ready starter coverage for the target week. Partial, missing, stale, readiness-blocked, or stripped projection coverage falls back to schedule/value, suppresses stored-projection source claims, and exposes coverage/confidence/cap metadata for verifier and consumer gating.
 - [ ] Add lineup-strength reads that compare current starters, optimal starters, bench alternatives, opponent starters, positional edges, floor/ceiling gap, and projected win probability.
   - 2026-06-04 partial completion: backend `lineupStrength` report data now compares starter strength, opponent total/position edges, and bench alternatives with projection/SOS readiness gates. Floor/ceiling gap and projected win probability remain open.
   - 2026-06-04 partial completion: backend `lineupStrength` now emits derived projection floor/ceiling range and projected win-probability confidence details only when full ready starter projection coverage exists. Blocked or partial projection coverage leaves those fields null.

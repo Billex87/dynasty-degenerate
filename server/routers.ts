@@ -2891,7 +2891,7 @@ function stripWeeklyProjectionFromLineupStrength(lineupStrength: ReportData['lin
     ...lineupStrength,
     projectionStatus: 'blocked',
     status: lineupStrength.status === 'ready' ? 'partial' : lineupStrength.status,
-    note: 'Stored weekly projections are disabled, so lineup strength is served with value/rank context only.',
+    note: 'Weekly projection snapshots are disabled, so lineup strength is served with value/rank context only.',
     rows: (lineupStrength.rows || []).map((row) => ({
       ...row,
       projectionPoints: null,
@@ -2919,7 +2919,7 @@ function stripWeeklyProjectionFromRedraftValuation(redraftValuation: ReportData[
     ...redraftValuation,
     status: 'value-only',
     projectionStatus: 'blocked',
-    note: 'Stored weekly projections are disabled, so redraft valuation is served with current-season value fallback only.',
+    note: 'Weekly projection snapshots are disabled, so redraft valuation is served with current-season value fallback only.',
     rows: (redraftValuation.rows || []).map((row) => ({
       ...row,
       projectionValue: null,
@@ -2992,7 +2992,7 @@ export function stripWeeklyProjectionContextFromReportData(reportData: ReportDat
       rowCount: 0,
       rosteredCoveragePct: null,
       attachedPlayerCount: 0,
-      note: 'Stored weekly projections are disabled, so cached projection context was stripped before serving this report.',
+      note: 'Weekly projection snapshots are disabled, so cached projection context was stripped before serving this report.',
       warnings: ['Projection feature flags are disabled.'],
     },
     playerDetailsById: Object.fromEntries(
@@ -3014,7 +3014,57 @@ export function stripWeeklyProjectionContextFromReportData(reportData: ReportDat
     lineupStrength: stripWeeklyProjectionFromLineupStrength(reportData.lineupStrength),
     redraftValuation: stripWeeklyProjectionFromRedraftValuation(reportData.redraftValuation),
     playoffSchedulePlanning: stripWeeklyProjectionFromPlayoffSchedulePlanning(reportData.playoffSchedulePlanning),
-    matchupPreviews: (reportData.matchupPreviews || []).filter((preview) => !/stored weekly projection/i.test(preview.source || '')),
+    matchupPreviews: (reportData.matchupPreviews || []).map((preview) => {
+      const hasProjectionClaim =
+        /stored-weekly-projection|stored weekly projection|stored projection/i.test(JSON.stringify(preview || null)) ||
+        /stored weekly projection|stored projection/i.test(preview.source || '') ||
+        preview.projectionCoverage?.mode === 'stored-weekly-projection' ||
+        preview.projectionCoverage?.mode === 'stored-weekly-projection-blend';
+
+      const strippedPreview = {
+        ...preview,
+        mustStarts: stripWeeklyProjectionFromPlayerArray(preview.mustStarts),
+        vulnerableSpots: stripWeeklyProjectionFromPlayerArray(preview.vulnerableSpots),
+        boomBustRisks: stripWeeklyProjectionFromPlayerArray(preview.boomBustRisks),
+        positionEdges: (preview.positionEdges || []).map((edge) => ({
+          ...edge,
+          note: (edge.note || '').replace(/ and stored weekly projections/gi, ' and stored bye/SOS profiles'),
+        })),
+      };
+
+      if (!hasProjectionClaim) {
+        return strippedPreview;
+      }
+
+      const confidenceCapReason =
+        'Weekly projection context is disabled or not ready; matchup preview is limited to schedule/value fallback.';
+
+      return {
+        ...strippedPreview,
+        source: 'Sleeper + Dynasty Degenerates schedule model',
+        howToWin: 'Use submitted lineups, schedule context, and value-based alternatives until weekly projection snapshots are ready.',
+        projectionCoverage: preview.projectionCoverage
+          ? {
+              ...preview.projectionCoverage,
+              managerCoveredPlayerCount: 0,
+              opponentCoveredPlayerCount: 0,
+              mode: 'schedule-value' as const,
+            }
+          : {
+              managerCoveredPlayerCount: 0,
+              managerTotalPlayerCount: 0,
+              opponentCoveredPlayerCount: 0,
+              opponentTotalPlayerCount: 0,
+              mode: 'schedule-value' as const,
+            },
+        confidence: Math.min(preview.confidence ?? 58, 58),
+        confidenceReasons: [
+          confidenceCapReason,
+          ...(preview.confidenceReasons || []).filter((reason) => !/stored weekly projection|stored projection/i.test(reason)),
+        ],
+        confidenceCapReason,
+      };
+    }),
     waiverIntelligence: reportData.waiverIntelligence
       ? {
           ...reportData.waiverIntelligence,

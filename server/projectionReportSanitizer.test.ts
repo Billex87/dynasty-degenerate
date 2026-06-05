@@ -33,7 +33,7 @@ function withEnv<T>(overrides: Record<string, string>, callback: () => T): T {
 }
 
 describe("projection report sanitizer", () => {
-  it("strips waiver priority projection context and projection-backed matchup claims", () => {
+  it("strips waiver priority projection context and downgrades projection-backed matchup claims", () => {
     const sanitized = stripWeeklyProjectionContextFromReportData({
       leagueDiagnostics: {
         currentSeason: "2026",
@@ -106,7 +106,27 @@ describe("projection report sanitizer", () => {
         }],
       },
       matchupPreviews: [
-        { source: "Submitted lineup + stored weekly projection blend", teams: [] },
+        {
+          source: "Submitted lineup + stored weekly projection blend",
+          mustStarts: [{ player_id: "wr1", name: "Projection Receiver", weeklyProjection: projection }],
+          positionEdges: [{
+            position: "WR",
+            managerProjected: 12.4,
+            opponentProjected: 8.1,
+            edge: 4.3,
+            note: "WR edge from submitted lineup context and stored weekly projections.",
+          }],
+          projectionCoverage: {
+            managerCoveredPlayerCount: 1,
+            managerTotalPlayerCount: 2,
+            opponentCoveredPlayerCount: 1,
+            opponentTotalPlayerCount: 2,
+            mode: "stored-weekly-projection-blend",
+          },
+          confidence: 76,
+          confidenceReasons: ["Stored weekly projection coverage is partial; remaining starters use schedule/value fallback."],
+          teams: [],
+        },
         { source: "Schedule/value model", teams: [] },
       ],
       waiverIntelligence: {
@@ -169,7 +189,19 @@ describe("projection report sanitizer", () => {
       confidenceCapReason: "Weekly projections are disabled for this response; playoff planning confidence is capped to schedule/value context.",
       note: "Review this playoff action with schedule/value context because weekly projections are disabled for this response.",
     });
-    expect(sanitized.matchupPreviews?.map((preview) => preview.source)).toEqual(["Schedule/value model"]);
+    expect(sanitized.matchupPreviews?.map((preview) => preview.source)).toEqual([
+      "Sleeper + Dynasty Degenerates schedule model",
+      "Schedule/value model",
+    ]);
+    expect(sanitized.matchupPreviews?.[0]?.projectionCoverage).toMatchObject({
+      managerCoveredPlayerCount: 0,
+      opponentCoveredPlayerCount: 0,
+      mode: "schedule-value",
+    });
+    expect(sanitized.matchupPreviews?.[0]?.confidence).toBe(58);
+    expect(sanitized.matchupPreviews?.[0]?.confidenceCapReason).toMatch(/projection context is disabled/i);
+    expect(sanitized.matchupPreviews?.[0]?.mustStarts?.[0]).not.toHaveProperty("weeklyProjection");
+    expect(sanitized.matchupPreviews?.[0]?.positionEdges?.[0]?.note).not.toContain("stored weekly projection");
     expect(JSON.stringify(sanitized.playerDetailsById)).not.toContain("weeklyProjection");
     expect(JSON.stringify(sanitized.playoffSchedulePlanning)).not.toContain("stored weekly projection blend");
     expect(JSON.stringify(sanitized.waiverIntelligence?.availableTrendingAdds)).not.toContain("weeklyProjection");
@@ -258,7 +290,10 @@ describe("projection report sanitizer", () => {
         mode: "schedule-value",
       },
     });
-    expect(sanitized.reportData.matchupPreviews.map((preview: any) => preview.source)).toEqual(["Schedule/value model"]);
+    expect(sanitized.reportData.matchupPreviews.map((preview: any) => preview.source)).toEqual([
+      "Sleeper + Dynasty Degenerates schedule model",
+      "Schedule/value model",
+    ]);
     expect(JSON.stringify(sanitized.reportData.playerDetailsById)).not.toContain("weeklyProjection");
   });
 });
