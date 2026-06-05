@@ -200,6 +200,30 @@ describe('AI prediction outcome resolver', () => {
     expect(resolved.note).toContain('Sleeper winning bid was 18 FAAB');
   });
 
+  it('does not grade FAAB ranges when the winning bid amount is explicitly missing', () => {
+    const resolved = resolveAIPredictionOutcome(event({
+      metadata: { faabMin: 7, faabMax: 11 },
+    }), {
+      resolvedAt: '2026-09-02T00:00:00.000Z',
+      transactions: [
+        {
+          type: 'add',
+          playerId: 'p1',
+          playerName: 'Waiver Receiver',
+          manager: 'Sample Manager',
+          bidAmount: null,
+          waiverBudget: 100,
+        },
+      ],
+      playerStats: [],
+    });
+
+    expect(resolved).toMatchObject({
+      status: 'pending',
+      note: 'Recommended player was added by Sample Manager; waiting for production to grade realized edge.',
+    });
+  });
+
   it('marks waiver pickup reads as misses when another manager beat the user to the add', () => {
     const resolved = resolveAIPredictionOutcome(event(), {
       transactions: [
@@ -232,6 +256,26 @@ describe('AI prediction outcome resolver', () => {
         status: 'beat-baseline',
         realizedEdge: 4,
       },
+    });
+  });
+
+  it('does not treat explicit null fantasy points as a real zero-point result', () => {
+    const resolved = resolveAIPredictionOutcome(event({
+      surface: 'schedule',
+      action: 'stream',
+      entityType: 'schedule',
+      entityId: 'def-ne',
+      entityName: 'New England Patriots',
+      finalScore: 70,
+    }), {
+      playerStats: [
+        { playerId: 'def-ne', fantasyPoints: null, projectedFantasyPoints: 8 },
+      ],
+    });
+
+    expect(resolved).toMatchObject({
+      status: 'pending',
+      note: 'No matching outcome fact was available yet.',
     });
   });
 
