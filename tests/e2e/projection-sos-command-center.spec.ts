@@ -102,6 +102,9 @@ async function loadCachedReport(
   await page.goto(`/?leagueId=${cachedReport.leagueId}${hash}`, {
     waitUntil: "domcontentloaded",
   });
+  await expect(page.locator("details.report-disclosure").first()).toBeVisible({
+    timeout: 45_000,
+  });
 }
 
 async function openReportSection(page: Page, title: string) {
