@@ -2164,9 +2164,7 @@ export function ReportTradesTab({
                           : "Copy report link"}
                       </Button>
                       <a
-                        href={TRANSACTION_SYNC_CHROME_WEB_STORE_URL}
-                        target="_blank"
-                        rel="noreferrer"
+                        href="/sleeper-helper"
                         onClick={() =>
                           trackTransactionSyncEvent("install_link_clicked", {
                             leagueId,
@@ -2175,7 +2173,7 @@ export function ReportTradesTab({
                         }
                         className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black text-slate-200 transition hover:border-white/20 hover:bg-white/10"
                       >
-                        Desktop extension
+                        Handoff guide
                         <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                       </a>
                     </div>
