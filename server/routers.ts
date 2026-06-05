@@ -3599,7 +3599,7 @@ async function fetchSleeperTradeCenterTransactions(leagueId: string, authToken: 
   const isUnauthorized = response.status === 401 || response.status === 403 || /unauthor/i.test(String(graphqlErrorMessage || ''));
   if (!response.ok || graphqlErrorMessage) {
     const message = isUnauthorized
-      ? 'Sleeper auth token was rejected.'
+      ? 'Sleeper rejected that Authorization header. Copy it from a fresh Sleeper graphql request and try again.'
       : graphqlErrorMessage || `Sleeper returned ${response.status} while loading hidden trade center data`;
     throw new TRPCError({
       code: isUnauthorized ? 'UNAUTHORIZED' : 'BAD_REQUEST',

@@ -639,7 +639,7 @@ export default function Home() {
     }
 
     if (!normalizedAuthToken) {
-      throw new Error("Paste the Sleeper authorization value first.");
+      throw new Error("Paste the Sleeper Authorization header first.");
     }
 
     const result = await importSleeperTradeCenterMutation.mutateAsync({

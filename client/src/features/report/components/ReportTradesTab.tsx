@@ -1,5 +1,12 @@
-import { type ComponentType, type FormEvent, useMemo, useState } from "react";
-import { ClipboardPaste, Loader2, ShieldCheck } from "lucide-react";
+import { type ComponentType, type FormEvent, useId, useMemo, useState } from "react";
+import {
+  ClipboardPaste,
+  ExternalLink,
+  Info,
+  Loader2,
+  LockKeyhole,
+  ShieldCheck,
+} from "lucide-react";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import { ModalReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import { Button } from "@/components/ui/button";
@@ -108,6 +115,21 @@ type ReportTradesTabProps = {
 
 type TradeProposalSignal = NonNullable<ReportData["tradeProposalSignals"]>[number];
 
+const SLEEPER_AUTH_COPY_STEPS = [
+  "Open this league's Sleeper Trades page in the same browser where you are signed in.",
+  "Open DevTools, go to Network, then refresh the Sleeper trades page.",
+  "Click the Sleeper graphql request and copy its Authorization request header.",
+  "Paste the full header or just the header value here, then import.",
+];
+
+function pluralizeImportCount(
+  count: number,
+  singular: string,
+  plural = `${singular}s`
+): string {
+  return `${count.toLocaleString()} ${count === 1 ? singular : plural}`;
+}
+
 function mapWaiverSignalToTradeProposalSignal(
   signal: NonNullable<ReportData["adminSleeperWaiverSignals"]>[number]
 ): TradeProposalSignal {
@@ -175,6 +197,9 @@ export function ReportTradesTab({
   TradeTheftDetector,
   TradeHistoryTable,
 }: ReportTradesTabProps) {
+  const sleeperAuthInputId = useId();
+  const sleeperAuthHelpId = useId();
+  const sleeperAuthStatusId = useId();
   const [sleeperAuthToken, setSleeperAuthToken] = useState("");
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -182,17 +207,25 @@ export function ReportTradesTab({
   const pendingTradeSignals = useMemo(
     () =>
       dedupeTradeProposalSignals([
-      ...(reportData.adminSleeperTradeProposalSignals || []),
-      ...(reportData.adminTradeProposalSignals || []),
-      ...(reportData.tradeProposalSignals || []),
-      ...(reportData.adminSleeperWaiverSignals || []).map(
-        mapWaiverSignalToTradeProposalSignal
-      ),
+        ...(reportData.adminSleeperTradeProposalSignals || []),
+        ...(reportData.adminTradeProposalSignals || []),
+        ...(reportData.tradeProposalSignals || []),
+        ...(reportData.adminSleeperWaiverSignals || []).map(
+          mapWaiverSignalToTradeProposalSignal
+        ),
       ]),
-    [reportData.adminSleeperTradeProposalSignals, reportData.adminTradeProposalSignals, reportData.adminSleeperWaiverSignals, reportData.tradeProposalSignals]
+    [
+      reportData.adminSleeperTradeProposalSignals,
+      reportData.adminTradeProposalSignals,
+      reportData.adminSleeperWaiverSignals,
+      reportData.tradeProposalSignals,
+    ]
   );
 
   const warRoomProposalSignals = pendingTradeSignals;
+  const sleeperTradesUrl = leagueId
+    ? `https://sleeper.com/leagues/${encodeURIComponent(leagueId)}/trades`
+    : "https://sleeper.com/";
   const hiddenSnapshot = reportData.sleeperHiddenLeagueSnapshot;
   const importedTradeCount =
     hiddenSnapshot?.tradeCount ??
@@ -203,6 +236,7 @@ export function ReportTradesTab({
   const importedTransactionCount =
     hiddenSnapshot?.transactionCount ??
     importedTradeCount + importedWaiverCount;
+  const hasImportedSnapshot = importedTransactionCount > 0;
 
   const handlePasteFromClipboard = async () => {
     if (typeof navigator === "undefined" || !navigator.clipboard?.readText) {
@@ -213,16 +247,16 @@ export function ReportTradesTab({
     try {
       const clipboardText = await navigator.clipboard.readText();
       if (!clipboardText.trim()) {
-        setImportError("Clipboard is empty.");
+        setImportError("Clipboard is empty. Copy the Sleeper Authorization header first.");
         return;
       }
 
       setSleeperAuthToken(clipboardText.trim());
-      setImportStatus("Clipboard value added. Review it, then import.");
+      setImportStatus("Header pasted locally. Import when ready.");
       setImportError(null);
     } catch {
       setImportError(
-        "Unable to read clipboard. Paste your token manually in the input."
+        "Browser blocked clipboard access. Click the field and use Cmd+V instead."
       );
     }
   };
@@ -231,22 +265,23 @@ export function ReportTradesTab({
     event.preventDefault();
     const token = sleeperAuthToken.trim();
     if (!token) {
-      setImportError("Paste the Sleeper authorization value first.");
+      setImportError("Paste the Sleeper Authorization header first.");
       return;
     }
 
     setImportError(null);
-    setImportStatus("Importing Sleeper trade center activity...");
+    setImportStatus("Importing pending Sleeper trades and waivers...");
 
     try {
       const result = await onImportSleeperTradeCenter(token);
       setImportStatus(
         result.transactionCount > 0
-          ? `Imported ${result.tradeCount} trade ${result.tradeCount === 1 ? "item" : "items"} and ${result.waiverCount} waiver ${result.waiverCount === 1 ? "item" : "items"}.`
-          : "Sleeper accepted the token, but there are no pending trade or waiver items right now."
+          ? `Imported ${pluralizeImportCount(result.tradeCount, "pending trade")} and ${pluralizeImportCount(result.waiverCount, "waiver claim")}. Trade War Room now includes this snapshot.`
+          : "Sleeper accepted the header, but there are no pending trade or waiver items right now."
       );
       setSleeperAuthToken("");
     } catch (error: unknown) {
+      setImportStatus(null);
       setImportError(
         error instanceof Error ? error.message : "Could not import Sleeper offers."
       );
@@ -286,24 +321,93 @@ export function ReportTradesTab({
         defaultOpen
       >
         <form
-          className="mb-5 space-y-3 border-b border-white/10 pb-5"
+          className="mb-5 space-y-4 rounded-2xl border border-emerald-300/20 bg-emerald-950/20 p-4 shadow-[0_24px_80px_rgba(16,185,129,0.10)] sm:p-5"
           onSubmit={importSleeperOffers}
         >
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <label className="min-w-0 flex-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-              Sleeper authorization
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 space-y-2">
+              <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em] text-emerald-200">
+                <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
+                Sleeper bridge beta
+              </p>
+              <h3 className="text-base font-black text-slate-50 sm:text-lg">
+                Import live pending trades and waiver claims
+              </h3>
+              <p className="max-w-3xl text-sm leading-6 text-slate-300">
+                Sleeper's public API only exposes completed transactions. This
+                one-time bridge lets a commissioner or league member import
+                their visible pending activity from an active Sleeper tab.
+              </p>
+            </div>
+            <Button
+              type="button"
+              asChild
+              variant="outline"
+              className="h-10 border-white/20 bg-white/5 text-slate-100 hover:bg-white/10"
+            >
+              <a href={sleeperTradesUrl} target="_blank" rel="noreferrer">
+                Open Sleeper trades
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </Button>
+          </div>
+
+          <div className="grid gap-3 rounded-xl border border-white/10 bg-slate-950/40 p-3 text-sm text-slate-300 sm:grid-cols-3">
+            <div>
+              <p className="font-bold text-slate-100">1. Open Sleeper</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">
+                Use the button above for this league's Trades page.
+              </p>
+            </div>
+            <div>
+              <p className="font-bold text-slate-100">2. Copy the header</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">
+                Copy the Authorization request header from Sleeper's graphql
+                request.
+              </p>
+            </div>
+            <div>
+              <p className="font-bold text-slate-100">3. Import once</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">
+                The header is cleared after import; the report keeps the
+                imported snapshot.
+              </p>
+            </div>
+          </div>
+
+          <details className="group rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-300">
+            <summary className="flex cursor-pointer list-none items-center gap-2 font-bold text-slate-100">
+              <Info className="h-4 w-4 text-emerald-200" aria-hidden="true" />
+              Exact copy steps
+            </summary>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs leading-5 text-slate-400">
+              {SLEEPER_AUTH_COPY_STEPS.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </details>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label
+              htmlFor={sleeperAuthInputId}
+              className="min-w-0 flex-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"
+            >
+              One-time Sleeper session header
               <Input
+                id={sleeperAuthInputId}
                 type="password"
                 value={sleeperAuthToken}
                 onChange={(event) => {
                   setSleeperAuthToken(event.target.value);
                   if (importError) setImportError(null);
+                  if (importStatus) setImportStatus(null);
                 }}
-                placeholder="Paste token or copied Authorization header"
+                placeholder="Paste Authorization header or copied header value"
                 spellCheck={false}
                 autoCapitalize="off"
                 autoCorrect="off"
                 autoComplete="off"
+                aria-describedby={`${sleeperAuthHelpId} ${sleeperAuthStatusId}`}
                 className="mt-2 normal-case tracking-normal"
               />
             </label>
@@ -332,25 +436,33 @@ export function ReportTradesTab({
               </Button>
             </div>
           </div>
-          <div className="flex flex-col gap-1 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              The token is used once for pending Sleeper activity and is not saved.
+          <div
+            id={sleeperAuthHelpId}
+            className="flex flex-col gap-1 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p className="max-w-3xl">
+              The session header is used once and never saved. Imported pending
+              activity is stored as a report snapshot so this league can reuse it.
             </p>
-            {importedTransactionCount > 0 ? (
+            {hasImportedSnapshot ? (
               <p className="font-semibold text-emerald-200">
                 Imported snapshot: {importedTradeCount} trades,{" "}
                 {importedWaiverCount} waivers
               </p>
             ) : null}
           </div>
-          {importError ? (
-            <p className="text-sm font-semibold text-rose-300">{importError}</p>
-          ) : null}
-          {importStatus ? (
-            <p className="text-sm font-semibold text-emerald-300">
-              {importStatus}
-            </p>
-          ) : null}
+          <div id={sleeperAuthStatusId} aria-live="polite">
+            {importError ? (
+              <p className="rounded-xl border border-rose-300/20 bg-rose-950/30 px-3 py-2 text-sm font-semibold text-rose-200">
+                {importError}
+              </p>
+            ) : null}
+            {importStatus ? (
+              <p className="rounded-xl border border-emerald-300/20 bg-emerald-950/30 px-3 py-2 text-sm font-semibold text-emerald-200">
+                {importStatus}
+              </p>
+            ) : null}
+          </div>
         </form>
         <TradeProposalSignalsTable
           data={pendingTradeSignals}
