@@ -815,4 +815,100 @@ describe("buildWaiverIntelligence", () => {
     expect(result.priorityWaiverTargets?.[0]?.opportunityWindows?.some((window) => window.type === "playoff-window")).toBe(true);
     expect(result.priorityWaiverTargets?.[0]?.opportunityWindows?.some((window) => window.type === "bye-coverage")).toBe(true);
   });
+
+  it("attaches waiver-priority calibration metadata for priority-waiver leagues", () => {
+    const result = buildWaiverIntelligence(
+      [],
+      [],
+      {},
+      {},
+      {},
+      {},
+      "dynasty",
+      undefined,
+      {
+        waiverMode: "priority",
+        waiverPriorityCalibrationRosters: [
+          {
+            rosterId: 1,
+            manager: "Original Manager",
+            ownerId: "owner-1",
+            settings: {
+              waiver_position: 1,
+              wins: 2,
+              losses: 4,
+              fpts: 612,
+              fpts_decimal: 45,
+              total_moves: 18,
+            },
+          },
+          {
+            rosterId: 2,
+            manager: "Quiet Manager",
+            ownerId: "owner-2",
+            settings: {
+              waiver_position: 8,
+              wins: 5,
+              losses: 1,
+              fpts: 744,
+              fpts_decimal: 12,
+              total_moves: 2,
+            },
+          },
+        ],
+        waiverPriorityManagerNameByRosterId: {
+          "1": "Mapped Manager",
+        },
+      }
+    );
+
+    expect(result.waiverPriorityCalibration).toMatchObject({
+      status: "ready",
+      rowCount: 2,
+      rankedRowCount: 2,
+      maxConfidence: 72,
+    });
+    expect(result.waiverPriorityCalibration?.rows[0]).toMatchObject({
+      rosterId: "1",
+      manager: "Mapped Manager",
+      waiverPosition: 1,
+      priorityBurnCost: "high",
+      activityLevel: "active",
+      confidence: 72,
+    });
+    expect(result.waiverPriorityCalibration?.rows[1]).toMatchObject({
+      rosterId: "2",
+      priorityBurnCost: "low",
+      activityLevel: "quiet",
+    });
+    expect(result.waiverPriorityCalibration?.confidenceCapReason).toContain("skipped, losing, pending, or cancelled claim evidence is not approved");
+  });
+
+  it("does not attach waiver-priority calibration metadata for FAAB leagues", () => {
+    const result = buildWaiverIntelligence(
+      [],
+      [],
+      {},
+      {},
+      {},
+      {},
+      "dynasty",
+      undefined,
+      {
+        waiverMode: "faab",
+        waiverPriorityCalibrationRosters: [
+          {
+            rosterId: 1,
+            manager: "FAAB Manager",
+            settings: {
+              waiver_position: 1,
+              total_moves: 12,
+            },
+          },
+        ],
+      }
+    );
+
+    expect(result.waiverPriorityCalibration).toBeUndefined();
+  });
 });

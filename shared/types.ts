@@ -1029,6 +1029,34 @@ export interface PickPortfolio {
   }>;
 }
 
+export type WaiverPriorityBurnCost = 'high' | 'medium' | 'low' | 'unknown';
+export type WaiverPriorityCalibrationStatus = 'ready' | 'partial' | 'missing';
+
+export interface WaiverPriorityCalibrationRow {
+  rosterId: string;
+  manager: string;
+  waiverPosition: number | null;
+  priorityPercentile: number | null;
+  priorityBurnCost: WaiverPriorityBurnCost;
+  standingsRank: number | null;
+  pointsFor: number | null;
+  totalMoves: number | null;
+  activityLevel: 'active' | 'normal' | 'quiet' | 'unknown';
+  confidence: number;
+  confidenceCapReason: string;
+  cohortKey: string;
+  reasons: string[];
+}
+
+export interface WaiverPriorityCalibrationSummary {
+  status: WaiverPriorityCalibrationStatus;
+  rowCount: number;
+  rankedRowCount: number;
+  maxConfidence: number | null;
+  confidenceCapReason: string;
+  rows: WaiverPriorityCalibrationRow[];
+}
+
 export interface WaiverIntelligence {
   rosteredTrendingAdds: TrendingPlayer[];
   availableTrendingAdds: TrendingPlayer[];
@@ -1041,6 +1069,7 @@ export interface WaiverIntelligence {
   specialTeamsStreamerTargets?: WaiverWeeklyEcrTarget[];
   defensePairingTargets?: WaiverWeeklyEcrTarget[];
   omittedCandidates?: WaiverOmittedCandidate[];
+  waiverPriorityCalibration?: WaiverPriorityCalibrationSummary;
 }
 
 export interface WaiverWeeklyEcrWeek {

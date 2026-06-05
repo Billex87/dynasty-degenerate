@@ -88,6 +88,10 @@ import {
 } from "./valueBlend";
 import { buildProjectionSnapshotHealthDiagnostic } from "./projectionAdminDiagnostics";
 import { getProjectionGate, getProjectionReadinessGate, type ProjectionSnapshotStatus } from "./projectionFeatureFlags";
+import {
+  summarizeWaiverPriorityCalibration,
+  type WaiverPriorityRosterInput,
+} from "./waiverPriorityCalibration";
 import { buildNflScheduleCoverageDiagnostics, loadLatestNflScheduleSnapshot } from "./nflScheduleSnapshots";
 import {
   applySleeperTightEndPremium,
@@ -114,7 +118,7 @@ import {
   sendMagicLinkEmail,
 } from "./transactionalEmail";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
-import type { LeagueDraftStatus, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperExtensionSanitizedTransaction, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverPriorityOpportunityWindow, WaiverSourceTraceEntry, WaiverSpecialTeamsProjectionSupport, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
+import type { LeagueDraftStatus, LeagueValueMode, LeagueWaiverMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperExtensionSanitizedTransaction, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverPriorityOpportunityWindow, WaiverSourceTraceEntry, WaiverSpecialTeamsProjectionSupport, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
 import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
 import type { AICounterfactualRead, AIDecisionSnapshot, AIPredictionDecayProfile, AIRealizedEdge } from "../shared/aiDecisionSnapshots";
 import type { RecommendationObservedOutcome } from "../shared/recommendationOutcome";
@@ -7029,6 +7033,46 @@ function buildFuturePickInventory({
     .filter((pick): pick is { manager: string; originalOwner: string; season: string; round: number; value: number } => Boolean(pick));
 }
 
+type WaiverPriorityRosterSource = {
+  roster_id?: string | number | null;
+  owner_id?: string | number | null;
+  settings?: WaiverPriorityRosterInput['settings'] | null;
+};
+
+function getSleeperWaiverModeFromType(value: unknown): LeagueWaiverMode {
+  const waiverType = Number(value);
+  if (waiverType === 2) return 'faab';
+  if (waiverType === 0 || waiverType === 1) return 'priority';
+  return 'unknown';
+}
+
+function buildWaiverPriorityCalibrationReportInput(
+  rosters: WaiverPriorityRosterSource[] = [],
+  rosterMap: Record<string, string | undefined> | Record<number, string | undefined> = {}
+) {
+  const managerMap = rosterMap as Record<string, string | undefined>;
+  const managerNameByRosterId: Record<string, string | undefined> = {};
+  const calibrationRosters: WaiverPriorityRosterInput[] = rosters.map((roster, index) => {
+    const rosterId = String(roster?.roster_id ?? index + 1);
+    const manager = managerMap[rosterId];
+    if (manager) managerNameByRosterId[rosterId] = manager;
+
+    return {
+      rosterId,
+      ownerId: roster?.owner_id === null || roster?.owner_id === undefined
+        ? null
+        : String(roster.owner_id),
+      manager: manager || null,
+      settings: roster?.settings || null,
+    };
+  });
+
+  return {
+    waiverPriorityCalibrationRosters: calibrationRosters,
+    waiverPriorityManagerNameByRosterId: managerNameByRosterId,
+  };
+}
+
 export function buildWaiverIntelligence(
   trendingAdds: TrendingPlayer[],
   trendingDrops: TrendingPlayer[],
@@ -7047,6 +7091,9 @@ export function buildWaiverIntelligence(
     playoffWeeks?: number[] | null;
     playoffWeekStart?: number | null;
     weeklyProjectionByPlayerId?: Record<string, WeeklyProjectionContext | null | undefined>;
+    waiverMode?: LeagueWaiverMode;
+    waiverPriorityCalibrationRosters?: WaiverPriorityRosterInput[];
+    waiverPriorityManagerNameByRosterId?: Record<string, string | undefined>;
   } = {}
 ): WaiverIntelligence {
   const availableAdds = trendingAdds.filter((player) => !player.owner);
@@ -7270,6 +7317,12 @@ export function buildWaiverIntelligence(
       return rookieYear === new Date().getFullYear() && !usedPlayerIds.has(player.player_id);
     })
     .slice(0, 2);
+  const waiverPriorityCalibration = options.waiverMode === 'priority' && options.waiverPriorityCalibrationRosters?.length
+    ? summarizeWaiverPriorityCalibration({
+        rosters: options.waiverPriorityCalibrationRosters,
+        managerNameByRosterId: options.waiverPriorityManagerNameByRosterId,
+      })
+    : undefined;
 
   return {
     rosteredTrendingAdds: rosteredAdds,
@@ -7288,6 +7341,7 @@ export function buildWaiverIntelligence(
     specialTeamsStreamerTargets,
     defensePairingTargets,
     omittedCandidates,
+    ...(waiverPriorityCalibration ? { waiverPriorityCalibration } : {}),
   };
 }
 
@@ -7577,6 +7631,8 @@ async function buildLiveSleeperActivityPatch(
         currentWeek: currentScheduleWeek,
         playoffWeeks,
         playoffWeekStart,
+        waiverMode: getSleeperWaiverModeFromType(leagueInfo.settings?.waiver_type),
+        ...buildWaiverPriorityCalibrationReportInput(rosters, rosterUserMap),
       }
     );
     const scheduleEdgeTargets = buildScheduleEdgeTargetsFromDraftSharksContext({
@@ -10283,6 +10339,8 @@ export const appRouter = router({
               playoffWeeks,
               playoffWeekStart,
               weeklyProjectionByPlayerId,
+              waiverMode: getSleeperWaiverModeFromType(currentSeasonData.waiverType),
+              ...buildWaiverPriorityCalibrationReportInput(currentSeasonData.rosters, currentSeasonData.rosterMap),
             }
           );
           const scheduleEdgeTargets = buildScheduleEdgeTargetsFromDraftSharksContext({
