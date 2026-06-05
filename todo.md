@@ -1237,6 +1237,8 @@
 - [x] Add source and status diagnostics when news payloads are unavailable.
 - [x] Add first-pass value-movement-after-news analysis when player news exists and current/baseline value snapshots overlap; player detail AI traces now say whether news coincided with meaningful stored value movement.
 - [ ] Add role and depth-chart change detection when reliable source data exists.
+  - [x] Add standalone backend depth-chart role-change detector for previous/current snapshot rows, covering starter promotions, demotions, rank changes, newly listed players, removed players, source evidence, missing evidence, and confidence caps when reliable source approval is absent.
+  - [ ] Wire depth-chart role-change signals into player situation, waiver, trade, and confidence calibration paths after the currently dirty integration files are available and reliable 2026 depth-chart/practice-report snapshots are live.
 - [x] Add a snapshot-backed nflverse/ffverse draft-capital source so player detail and cohort AI reads can use public Sleeper/GSIS/FantasyPros/ESPN IDs, draft year, round, overall pick, draft team, and college without live provider calls during report loads.
 - [x] Add `pnpm audit:situation-delta-sources` to the normal source-audit review before Player Situation Delta work so public dataset coverage, prospect snapshot years, and missing licensed route data stay visible.
 
