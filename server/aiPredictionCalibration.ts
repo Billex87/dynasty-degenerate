@@ -384,7 +384,7 @@ function normalizedBucketValue(value: unknown, fallback = 'unknown'): string {
 
 function normalizeQbFormat(value: unknown): string {
   const normalized = normalizedBucketValue(value);
-  if (normalized === 'sf' || normalized === 'super_flex' || normalized === 'super-flex') return 'superflex';
+  if (normalized === 'sf' || normalized === 'superflex' || normalized === 'super_flex' || normalized === 'super-flex') return 'superflex';
   if (normalized === '1qb' || normalized === 'one-qb') return 'one_qb';
   return normalized;
 }
@@ -1446,19 +1446,24 @@ function adjustmentSpecificity(adjustment: AICalibrationAdjustment): number {
   return Object.keys(adjustment.group).length;
 }
 
+function isSpecificAdjustmentValue(value: unknown): boolean {
+  const normalized = normalizedBucketValue(value);
+  return Boolean(normalized && normalized !== 'unknown' && normalized !== 'global');
+}
+
 function adjustmentFallbackPriority(adjustment: AICalibrationAdjustment): number {
-  if (adjustment.group.manager) return 600;
-  if (adjustment.group.league) return 500;
-  if (adjustment.group.managerArchetype) return 400;
-  if (adjustment.group.leagueSharpness) return 300;
+  if (isSpecificAdjustmentValue(adjustment.group.manager)) return 600;
+  if (isSpecificAdjustmentValue(adjustment.group.league)) return 500;
+  if (isSpecificAdjustmentValue(adjustment.group.managerArchetype)) return 400;
+  if (isSpecificAdjustmentValue(adjustment.group.leagueSharpness)) return 300;
   if (
-    adjustment.group.leagueFormat ||
-    adjustment.group.waiverMode ||
-    adjustment.group.qbFormat ||
-    adjustment.group.teamCountBucket ||
-    adjustment.group.scoring ||
-    adjustment.group.lineupFormat ||
-    adjustment.group.activityLevel
+    isSpecificAdjustmentValue(adjustment.group.leagueFormat) ||
+    isSpecificAdjustmentValue(adjustment.group.waiverMode) ||
+    isSpecificAdjustmentValue(adjustment.group.qbFormat) ||
+    isSpecificAdjustmentValue(adjustment.group.teamCountBucket) ||
+    isSpecificAdjustmentValue(adjustment.group.scoring) ||
+    isSpecificAdjustmentValue(adjustment.group.lineupFormat) ||
+    isSpecificAdjustmentValue(adjustment.group.activityLevel)
   ) return 220;
   if (adjustment.scope === 'global') return 0;
   return 100;

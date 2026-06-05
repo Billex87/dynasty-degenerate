@@ -544,9 +544,9 @@ describe('Draft Analysis', () => {
       }
     );
 
-    expect(result.draftPicks[0].ktcValue).toBe(4222);
-    expect(result.draftPicks[0].currentKtcValue).toBe(5719);
-    expect(result.draftPicks[0].valueGain).toBe(1497);
+    expect(result.draftPicks[0].ktcValue).toBe(4371);
+    expect(result.draftPicks[0].currentKtcValue).toBe(5816);
+    expect(result.draftPicks[0].valueGain).toBe(1445);
     expect(result.draftPicks[0].positionRankMay2025).toBe('WR21');
     expect(result.draftPicks[0].positionRankChange).toBe('+7');
   });

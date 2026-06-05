@@ -1160,12 +1160,17 @@ function getConsensusAlignment(
     const value = rowValue(row);
     if (!value) continue;
 
-    const otherValues = (Object.entries(sourceMaps) as Array<[RedraftRankingSourceKey, Record<string, RedraftSourceRow> | undefined]>)
+    const otherValues = (Object.entries(sourceMaps) as Array<[string, Record<string, RedraftSourceRow> | undefined]>)
       .filter(([otherSource]) => otherSource !== source)
-      .map(([otherSource, otherRows]) => ({
-        value: otherRows?.[canonicalPlayerNameKey(key)] ? rowValue(otherRows[canonicalPlayerNameKey(key)]) : null,
-        weight: REDRAFT_SOURCE_CONFIG[otherSource].weight,
-      }))
+      .flatMap(([otherSource, otherRows]) => {
+        const config = REDRAFT_SOURCE_CONFIG[otherSource as RedraftRankingSourceKey];
+        if (!config) return [];
+        const otherRow = otherRows?.[canonicalPlayerNameKey(key)];
+        return [{
+          value: otherRow ? rowValue(otherRow) : null,
+          weight: config.weight,
+        }];
+      })
       .filter((item) => item.value && item.value > 0);
     if (!otherValues.length) continue;
 

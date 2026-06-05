@@ -226,6 +226,9 @@ describe("buildPlayerAiRead", () => {
       details: {
         team: "DAL",
         isStarter: false,
+        weeklyProjection: {
+          status: "loaded",
+        },
       } as PlayerDetails,
     });
 
