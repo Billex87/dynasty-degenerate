@@ -1048,6 +1048,7 @@ export function ReportTradesTab({
   const [helperStatus, setHelperStatus] = useState<string | null>(null);
   const [helperError, setHelperError] = useState<string | null>(null);
   const [isHelperCaptureRunning, setIsHelperCaptureRunning] = useState(false);
+  const [isHelperSuccessCollapsed, setIsHelperSuccessCollapsed] = useState(false);
   const [tradeWarRoomOpenSignal, setTradeWarRoomOpenSignal] = useState(0);
   const [tradeWarRoomSignal, setTradeWarRoomSignal] =
     useState<TradeProposalSignal | null>(null);
@@ -1113,6 +1114,7 @@ export function ReportTradesTab({
       helperImportTimeoutRef.current = null;
       autoImportPendingRef.current = false;
       setIsHelperCaptureRunning(false);
+      setIsHelperSuccessCollapsed(false);
       setHelperStatus(null);
       setHelperError(
         "Still waiting on Sleeper. Refresh the Sleeper Trades and Players/Waivers tabs, then click Import Pending Transactions again."
@@ -1126,6 +1128,7 @@ export function ReportTradesTab({
       options: { automatic?: boolean } = {}
     ) => {
       clearHelperImportTimeout();
+      setIsHelperSuccessCollapsed(false);
       setHelperError(null);
       setHelperStatus(
         options.automatic
@@ -1140,7 +1143,9 @@ export function ReportTradesTab({
             ? `Imported ${pluralizeImportCount(result.tradeCount, "pending trade")} and ${pluralizeImportCount(result.waiverCount, "waiver claim")} from Sleeper.`
             : "Sleeper connected, but there are no pending trade or waiver items right now."
         );
+        setIsHelperSuccessCollapsed(result.transactionCount > 0);
       } catch (error: unknown) {
+        setIsHelperSuccessCollapsed(false);
         setHelperStatus(null);
         setHelperError(
           error instanceof Error
@@ -1174,6 +1179,7 @@ export function ReportTradesTab({
           clearHelperImportTimeout();
           autoImportPendingRef.current = false;
           setIsHelperCaptureRunning(false);
+          setIsHelperSuccessCollapsed(false);
           setHelperStatus(null);
           setHelperError(payload.detail || "Sleeper Helper could not import transactions.");
           return;
@@ -1196,6 +1202,7 @@ export function ReportTradesTab({
         clearHelperImportTimeout();
         autoImportPendingRef.current = false;
         setIsHelperCaptureRunning(false);
+        setIsHelperSuccessCollapsed(false);
         setHelperError("The Chrome Helper sent an invalid snapshot.");
         return;
       }
@@ -1204,6 +1211,7 @@ export function ReportTradesTab({
         clearHelperImportTimeout();
         autoImportPendingRef.current = false;
         setIsHelperCaptureRunning(false);
+        setIsHelperSuccessCollapsed(false);
         setHelperSnapshot(null);
         setHelperError(
           `Chrome Helper captured league ${payload.leagueId}, but this report is ${leagueId}.`
@@ -1255,6 +1263,7 @@ export function ReportTradesTab({
 
     autoImportPendingRef.current = true;
     setHelperError(null);
+    setIsHelperSuccessCollapsed(false);
     setIsHelperCaptureRunning(true);
     setHelperStatus("Opening Sleeper and importing pending transactions...");
     startHelperImportTimeout();
@@ -1267,6 +1276,12 @@ export function ReportTradesTab({
       window.location.origin
     );
   };
+
+  const showHelperSuccessStrip =
+    isHelperSuccessCollapsed &&
+    Boolean(helperSnapshot) &&
+    !isHelperImporting &&
+    !helperError;
 
   const viewSignalInTradeWarRoom = (signal: TradeProposalSignal) => {
     setTradeWarRoomSignal(signal);
@@ -1311,24 +1326,52 @@ export function ReportTradesTab({
         premium
         defaultOpen
       >
-        <div className="mb-5 space-y-4 rounded-2xl border border-emerald-300/20 bg-emerald-950/20 p-4 shadow-[0_24px_80px_rgba(16,185,129,0.10)] sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 space-y-2">
-              <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em] text-emerald-200">
-                <Cable className="h-3.5 w-3.5" aria-hidden="true" />
-                Chrome Helper MVP
-              </p>
-              <h3 className="text-base font-black text-slate-50 sm:text-lg">
-                Import pending Sleeper trades and waivers
-              </h3>
-              <p className="max-w-3xl text-sm leading-6 text-slate-300">
-                Click once. The Chrome Helper opens Sleeper, captures only
-                sanitized pending transaction data, and imports it back into this
-                report.
-              </p>
+        <div className={`mb-5 space-y-4 rounded-2xl border p-4 shadow-[0_24px_80px_rgba(16,185,129,0.10)] sm:p-5 ${
+          showHelperSuccessStrip
+            ? "border-emerald-300/15 bg-slate-950/45"
+            : "border-emerald-300/20 bg-emerald-950/20"
+        }`}>
+          {showHelperSuccessStrip ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em] text-emerald-200">
+                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                  Imported from Sleeper
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-200">
+                  {pluralizeImportCount(helperTradeCount, "trade")}, {pluralizeImportCount(helperWaiverCount, "waiver claim")} updated just now.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsHelperSuccessCollapsed(false);
+                  setHelperStatus(null);
+                }}
+                className="h-10 border-cyan-300/30 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/20"
+              >
+                Import again
+              </Button>
             </div>
-          </div>
-
+          ) : (
+            <>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 space-y-2">
+                  <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em] text-emerald-200">
+                    <Cable className="h-3.5 w-3.5" aria-hidden="true" />
+                    Chrome Helper MVP
+                  </p>
+                  <h3 className="text-base font-black text-slate-50 sm:text-lg">
+                    Import pending Sleeper trades and waivers
+                  </h3>
+                  <p className="max-w-3xl text-sm leading-6 text-slate-300">
+                    Click once. The Chrome Helper opens Sleeper, captures only
+                    sanitized pending transaction data, and imports it back into this
+                    report.
+                  </p>
+                </div>
+              </div>
           <div className={`rounded-xl border p-3 text-sm text-slate-300 transition-colors ${
             isHelperImporting
               ? "border-cyan-300/25 bg-cyan-950/20 shadow-[0_0_36px_rgba(34,211,238,0.12)]"
@@ -1401,7 +1444,8 @@ export function ReportTradesTab({
               </p>
             ) : null}
           </div>
-
+            </>
+          )}
         </div>
         <PendingSleeperActivityList
           signals={pendingTradeSignals}
