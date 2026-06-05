@@ -144,7 +144,7 @@ function getPublishedAt(payload: unknown): string | null {
 function getTotalExperts(payload: unknown): number | null {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
   const record = payload as Record<string, unknown>;
-  return numberField(record.total_experts) || numberField(record.totalExperts);
+  return numberField(record.total_experts) ?? numberField(record.totalExperts);
 }
 
 function parseRetryAfterMs(value: string | null): number | null {

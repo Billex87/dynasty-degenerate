@@ -317,6 +317,90 @@ describe('FantasyPros snapshot context', () => {
     ]));
   });
 
+  it('keeps blank snapshot numeric fields unknown while preserving explicit zeroes', () => {
+    const context = buildFantasyProsSnapshotContext({
+      season: '2026',
+      scoring: 'PPR',
+      currentWeek: 1,
+      weekWindow: 1,
+      snapshots: {
+        'fantasypros-weekly-ecr-wr-week-1': snapshot('fantasypros-weekly-ecr-wr-week-1', 'FantasyPros Weekly ECR WR Week 1', {
+          week: '',
+          players: [{
+            player_id: 'blank-1',
+            player_name: 'Blank WR',
+            player_position_id: 'WR',
+            player_team_id: 'MIA',
+            rank_ecr: '',
+            rank_min: null,
+            rank_max: '0',
+            rank_ave: ' ',
+            rank_std: '0.0',
+            player_bye_week: '',
+          }],
+        }, 1),
+        'fantasypros-projections': snapshot('fantasypros-projections', 'FantasyPros Projections', {
+          week: '',
+          players: [{
+            player_id: 'blank-1',
+            player_name: 'Blank WR',
+            player_position_id: 'WR',
+            player_team_id: 'MIA',
+            fpts: '',
+            rush_att: '0',
+            rec: null,
+            pass_yds: ' ',
+          }],
+        }, 1),
+        'fantasypros-player-points': snapshot('fantasypros-player-points', 'FantasyPros Player Points', {
+          players: [{
+            player_id: 'blank-1',
+            player_name: 'Blank WR',
+            player_position_id: 'WR',
+            player_team_id: 'MIA',
+            games: '',
+            points: null,
+            average: ' ',
+            weeks: { '1': '', '2': '0' },
+          }],
+        }, 1),
+        'fantasypros-players': snapshot('fantasypros-players', 'FantasyPros Players', {
+          players: [{
+            player_id: 'blank-1',
+            player_name: 'Blank WR',
+            player_position_id: 'WR',
+            player_team_id: 'MIA',
+            age: '',
+          }],
+        }, 1),
+      },
+    });
+
+    expect(context.weeklyEcrByPositionWeek.WR['1']['blank-1']).toMatchObject({
+      rankEcr: null,
+      bestRank: null,
+      worstRank: 0,
+      averageRank: null,
+      rankStdDev: 0,
+      byeWeek: null,
+      week: null,
+    });
+    expect(context.projectionsByFantasyProsId['blank-1']).toMatchObject({
+      projectedPoints: null,
+      week: null,
+      statLines: { rush_att: 0 },
+    });
+    expect(context.playerPointsByFantasyProsId['blank-1']).toMatchObject({
+      games: null,
+      points: null,
+      average: null,
+      weeks: { '2': 0 },
+    });
+    expect(context.playersByFantasyProsId['blank-1']).toMatchObject({
+      age: null,
+    });
+  });
+
   it('keeps rows when FantasyPros sends numeric player IDs', () => {
     const context = buildFantasyProsSnapshotContext({
       season: '2026',

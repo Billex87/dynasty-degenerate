@@ -223,6 +223,8 @@ function normalizeExternalIdSource(source: string): string | null {
 }
 
 function numberField(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && !value.trim()) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
