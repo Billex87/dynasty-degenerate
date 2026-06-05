@@ -167,6 +167,43 @@ function summarizePlayoffConfidence(playoffSchedulePlanning: any) {
   };
 }
 
+function summarizePlayoffActionItems(playoffSchedulePlanning: any) {
+  const actionItems = asArray(playoffSchedulePlanning?.actionItems);
+  const confidenceValues = actionItems
+    .map((item: any) => finiteNumber(item?.confidence))
+    .filter((value: number | null): value is number => value !== null);
+  const capReasonCount = actionItems.filter((item: any) =>
+    typeof item?.confidenceCapReason === 'string' && item.confidenceCapReason.trim().length > 0
+  ).length;
+  const confidenceReasonCount = actionItems
+    .flatMap((item: any) => asArray(item?.confidenceReasons))
+    .filter((reason: unknown): reason is string => typeof reason === 'string' && reason.trim().length > 0)
+    .length;
+  const coverRiskCount = actionItems.filter((item: any) => item?.type === 'cover-risk').length;
+  const reviewFallbackCount = actionItems.filter((item: any) => item?.type === 'review-fallback').length;
+  const exploitUpsideCount = actionItems.filter((item: any) => item?.type === 'exploit-upside').length;
+  const replacementTargetCount = actionItems.reduce((sum: number, item: any) =>
+    sum + asArray(item?.replacementTargets).length, 0);
+  const affectedPlayerCount = actionItems.reduce((sum: number, item: any) =>
+    sum + asArray(item?.affectedPlayers).length, 0);
+
+  return {
+    count: actionItems.length,
+    coverRiskCount,
+    reviewFallbackCount,
+    exploitUpsideCount,
+    confidenceCount: confidenceValues.length,
+    confidenceReasonCount,
+    capReasonCount,
+    replacementTargetCount,
+    affectedPlayerCount,
+    minConfidence: confidenceValues.length ? Math.min(...confidenceValues) : null,
+    maxConfidence: confidenceValues.length ? Math.max(...confidenceValues) : null,
+    hasRiskOrFallbackAction: coverRiskCount > 0 || reviewFallbackCount > 0,
+    containsProjectionClaim: containsStoredWeeklyProjectionClaim(actionItems),
+  };
+}
+
 function getPriorityWaiverTargets(reportData: any): any[] {
   return asArray(reportData?.waiverIntelligence?.priorityWaiverTargets || reportData?.priorityWaiverTargets);
 }
@@ -229,6 +266,7 @@ function validateReportContract(input: {
   const playoffWeeks = Array.isArray(playoffSchedulePlanning?.weeks) ? playoffSchedulePlanning.weeks : [];
   const matchupPreviews = Array.isArray(reportData.matchupPreviews) ? reportData.matchupPreviews : [];
   const playoffConfidence = summarizePlayoffConfidence(playoffSchedulePlanning);
+  const playoffActionItems = summarizePlayoffActionItems(playoffSchedulePlanning);
   const priorityWaiverTargets = summarizePriorityWaiverTargets(reportData);
 
   if (!schedulePlanning) failures.push('missing schedulePlanning');
@@ -258,6 +296,21 @@ function validateReportContract(input: {
       (playoffConfidence.confidence < 0 || playoffConfidence.confidence > 100)
     ) {
       failures.push(`playoffSchedulePlanning confidence out of range: ${playoffConfidence.confidence}`);
+    }
+    if (!playoffActionItems.count) {
+      failures.push('missing playoffSchedulePlanning actionItems');
+    }
+    if (playoffActionItems.count > 0 && playoffActionItems.confidenceCount !== playoffActionItems.count) {
+      failures.push('missing playoff action item confidence');
+    }
+    if (playoffActionItems.count > 0 && !playoffActionItems.hasRiskOrFallbackAction) {
+      failures.push('playoff actionItems missing cover-risk or review-fallback action');
+    }
+    if (
+      playoffActionItems.minConfidence !== null &&
+      (playoffActionItems.minConfidence < 0 || (playoffActionItems.maxConfidence ?? 0) > 100)
+    ) {
+      failures.push(`playoff action item confidence out of range: ${playoffActionItems.minConfidence}-${playoffActionItems.maxConfidence}`);
     }
   }
 
@@ -293,6 +346,12 @@ function validateReportContract(input: {
     if (playoffConfidence.maxWeekConfidence !== null && playoffConfidence.maxWeekConfidence > 58) {
       failures.push(`projection-off week playoff confidence exceeds fallback cap: ${playoffConfidence.maxWeekConfidence}`);
     }
+    if (playoffActionItems.maxConfidence !== null && playoffActionItems.maxConfidence > 58) {
+      failures.push(`projection-off playoff action confidence exceeds fallback cap: ${playoffActionItems.maxConfidence}`);
+    }
+    if (playoffActionItems.containsProjectionClaim) {
+      failures.push('projection-off playoff actionItems still contain stored weekly projection claims');
+    }
   }
 
   return {
@@ -317,6 +376,17 @@ function validateReportContract(input: {
       playoffWeekConfidenceCapReasonCount: playoffConfidence.weekConfidenceCapReasonCount,
       playoffWeekConfidenceReasonCount: playoffConfidence.weekConfidenceReasonCount,
       hasPlayoffConfidenceCapEvidence: playoffConfidence.hasConfidenceCapEvidence,
+      playoffActionItemCount: playoffActionItems.count,
+      playoffCoverRiskActionCount: playoffActionItems.coverRiskCount,
+      playoffReviewFallbackActionCount: playoffActionItems.reviewFallbackCount,
+      playoffExploitUpsideActionCount: playoffActionItems.exploitUpsideCount,
+      playoffActionConfidenceCount: playoffActionItems.confidenceCount,
+      playoffActionConfidenceReasonCount: playoffActionItems.confidenceReasonCount,
+      playoffActionConfidenceCapReasonCount: playoffActionItems.capReasonCount,
+      playoffActionReplacementTargetCount: playoffActionItems.replacementTargetCount,
+      playoffActionAffectedPlayerCount: playoffActionItems.affectedPlayerCount,
+      playoffActionMinConfidence: playoffActionItems.minConfidence,
+      playoffActionMaxConfidence: playoffActionItems.maxConfidence,
       priorityWaiverTargetCount: priorityWaiverTargets.count,
       priorityWaiverTargetsWithScheduleWindows: priorityWaiverTargets.targetsWithScheduleWindows,
       priorityWaiverTargetsWithScheduleReasons: priorityWaiverTargets.targetsWithScheduleReasons,
