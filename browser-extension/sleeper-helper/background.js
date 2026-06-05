@@ -156,15 +156,24 @@ async function runSleeperImportFlow({ leagueId, appTabId }) {
   }
 
   if (!latestCapture) {
-    latestCapture = {
-      source: "chrome-extension",
-      leagueId,
-      capturedAt: Date.now(),
-      transactions: []
-    };
+    await sendAppStatus(
+      appTabId,
+      "error",
+      "Sleeper did not return a pending-transaction snapshot. Make sure you are signed into Sleeper, keep the opened tabs available, then try again."
+    );
+    return;
   }
 
-  await sendAppStatus(appTabId, "captured", "Captured Sleeper snapshot. Importing into Dynasty Degens...");
+  const pendingCount = Array.isArray(latestCapture.transactions)
+    ? latestCapture.transactions.length
+    : 0;
+  await sendAppStatus(
+    appTabId,
+    "captured",
+    pendingCount > 0
+      ? "Captured Sleeper snapshot. Importing into Dynasty Degens..."
+      : "Sleeper responded, but no pending trades or waiver claims were visible."
+  );
   await sendSnapshotToAppTab(appTabId, latestCapture);
 }
 

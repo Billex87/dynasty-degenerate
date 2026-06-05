@@ -1,11 +1,23 @@
 {
   "manifest_version": 3,
   "name": "Dynasty Degens Sleeper Helper",
-  "version": "0.1.1",
-  "description": "Read-only helper that captures pending Sleeper trade and waiver snapshots for Dynasty Degens.",
+  "version": "0.2.0",
+  "description": "Read-only helper that imports pending Sleeper trades and waivers into Dynasty Degens.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "action": {
     "default_title": "Sleeper Helper",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   },
   "background": {
     "service_worker": "background.js"

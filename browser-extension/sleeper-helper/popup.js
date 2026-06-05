@@ -1,4 +1,5 @@
 const DEFAULT_APP_ORIGIN = "https://dynastydegens.com";
+const HELP_PATH = "/sleeper-helper";
 const APP_ORIGINS = [
   "https://dynastydegens.com",
   "https://www.dynastydegens.com",
@@ -17,6 +18,7 @@ const detailEl = document.getElementById("detail");
 const messageEl = document.getElementById("message");
 const sendButton = document.getElementById("send");
 const openButton = document.getElementById("open");
+const helpButton = document.getElementById("help");
 let latestSnapshot = null;
 
 function summarize(snapshot) {
@@ -73,7 +75,7 @@ function render(snapshot) {
 
   if (!latestSnapshot) {
     statusEl.textContent = "Listening for Sleeper activity.";
-    detailEl.textContent = "Use Import Pending Transactions in Dynasty Degens for the one-click flow.";
+    detailEl.textContent = "Open Dynasty Degens, go to Trades, then click Import Pending Transactions.";
     return;
   }
 
@@ -196,6 +198,10 @@ openButton.addEventListener("click", async () => {
   await chrome.tabs.create({ url, active: true });
 });
 
+helpButton.addEventListener("click", async () => {
+  await chrome.tabs.create({ url: `${DEFAULT_APP_ORIGIN}${HELP_PATH}`, active: true });
+});
+
 chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === "SLEEPER_CAPTURE_UPDATED") {
     render(message.payload || null);
@@ -205,6 +211,6 @@ chrome.runtime.onMessage.addListener((message) => {
 
 loadLatestCapture().catch(() => {
   statusEl.textContent = "Listening for Sleeper activity.";
-  detailEl.textContent = "Use Import Pending Transactions in Dynasty Degens for the one-click flow.";
+  detailEl.textContent = "Open Dynasty Degens, go to Trades, then click Import Pending Transactions.";
   sendButton.disabled = true;
 });

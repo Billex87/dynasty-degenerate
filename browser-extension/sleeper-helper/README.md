@@ -16,6 +16,7 @@ Chrome extension helper for importing pending Sleeper trade and waiver activity 
 2. Enable Developer mode.
 3. Click Load unpacked.
 4. Select `browser-extension/sleeper-helper`.
+5. Confirm the extension shows version `0.2.0` or newer.
 
 ## Local test flow
 
@@ -32,3 +33,20 @@ Chrome extension helper for importing pending Sleeper trade and waiver activity 
 3. Click `Import Pending Transactions`.
 4. The helper opens/refreshes Sleeper Trades and Players pages.
 5. Dynasty Degens automatically imports the sanitized pending trade/waiver snapshot.
+
+## Package for Chrome Web Store review
+
+From the repo root:
+
+```bash
+pnpm package:sleeper-helper
+```
+
+The script regenerates extension icons and writes the review zip to `dist/browser-extension/sleeper-helper/`.
+
+## Troubleshooting
+
+- If Dynasty Degens says the helper is not detected, reload the extension in `chrome://extensions`, then reload Dynasty Degens.
+- If Sleeper does not return a snapshot, make sure the same Chrome profile is signed into Sleeper and retry.
+- If no pending items are imported, Sleeper responded but did not expose any current pending trades or waiver claims on the refreshed pages.
+- If the popup cannot send manually, open Dynasty Degens first and retry from the Trades tab.

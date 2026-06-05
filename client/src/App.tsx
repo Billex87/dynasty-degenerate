@@ -13,6 +13,7 @@ import Home from "./pages/Home";
 const ReportComponentShowcase = lazy(() => import("./pages/ReportComponentShowcase"));
 const LoaderKitPreview = lazy(() => import("./pages/LoaderKitPreview"));
 const LegalPage = lazy(() => import("./pages/LegalPage"));
+const SleeperHelperPage = lazy(() => import("./pages/SleeperHelper"));
 const LOCAL_TELEMETRY_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
 function shouldRenderVercelTelemetry() {
@@ -48,6 +49,11 @@ function Router() {
       <Route path={"/support"}>
         <Suspense fallback={<RouteSuspenseFallback />}>
           <LegalPage section="support" />
+        </Suspense>
+      </Route>
+      <Route path={"/sleeper-helper"}>
+        <Suspense fallback={<RouteSuspenseFallback />}>
+          <SleeperHelperPage />
         </Suspense>
       </Route>
       <Route path={"/components"}>

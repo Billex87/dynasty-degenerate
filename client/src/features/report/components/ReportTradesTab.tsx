@@ -1269,7 +1269,7 @@ export function ReportTradesTab({
                     ? `${helperTradeCount} trades, ${helperWaiverCount} waiver claims captured ${new Date(helperSnapshot.capturedAt).toLocaleString()}.`
                     : helperDetected
                       ? "Ready. The helper will open Sleeper, refresh the right pages, and import the latest pending snapshot."
-                      : "Install or enable the local Chrome Helper, then click the import button again."}
+                      : "Install or reload the Chrome Helper from /sleeper-helper, then click this button again."}
                 </p>
               </div>
               <Button

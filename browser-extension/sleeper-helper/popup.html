@@ -5,15 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Dynasty Degens Sleeper Helper</title>
     <style>
-      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-      body { width: 320px; margin: 0; background: #07111f; color: #e5f2ff; }
+      :root { color-scheme: dark; font-family: Sora, ui-sans-serif, system-ui, sans-serif; }
+      body { width: 360px; margin: 0; background: radial-gradient(circle at 18% 0%, rgba(251, 146, 60, .2), transparent 34%), radial-gradient(circle at 96% 10%, rgba(34, 211, 238, .18), transparent 30%), #06111d; color: #e5f2ff; }
       main { padding: 16px; display: grid; gap: 12px; }
-      h1 { margin: 0; font-size: 16px; letter-spacing: -0.02em; }
+      h1 { margin: 0; font-size: 18px; letter-spacing: -0.03em; line-height: 1.05; }
       p { margin: 0; color: #a9bdd3; font-size: 12px; line-height: 1.45; }
-      .badge { display: inline-flex; width: fit-content; border: 1px solid rgba(52, 211, 153, .35); border-radius: 999px; padding: 4px 8px; color: #a7f3d0; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-      .card { border: 1px solid rgba(148, 163, 184, .18); border-radius: 14px; padding: 12px; background: rgba(15, 23, 42, .72); }
+      .badge { display: inline-flex; width: fit-content; border: 1px solid rgba(52, 211, 153, .35); border-radius: 999px; padding: 4px 8px; color: #a7f3d0; background: rgba(16, 185, 129, .12); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+      .card { border: 1px solid rgba(148, 163, 184, .18); border-radius: 16px; padding: 12px; background: linear-gradient(135deg, rgba(15, 23, 42, .88), rgba(2, 6, 23, .74)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04); }
       .status { font-weight: 800; color: #f8fafc; }
-      button { width: 100%; border: 0; border-radius: 10px; padding: 10px 12px; font-weight: 800; cursor: pointer; color: #04111f; background: #6ee7b7; }
+      .safe-list { display: grid; gap: 6px; }
+      .safe-list span { display: block; color: #c7d2fe; font-size: 11px; }
+      button { width: 100%; border: 0; border-radius: 12px; padding: 10px 12px; font-weight: 900; cursor: pointer; color: #04111f; background: linear-gradient(135deg, #6ee7b7, #22d3ee); }
       button.secondary { background: rgba(148, 163, 184, .14); color: #e5f2ff; border: 1px solid rgba(148, 163, 184, .24); }
       button:disabled { opacity: .55; cursor: not-allowed; }
       #message { min-height: 18px; color: #a7f3d0; }
@@ -23,15 +25,21 @@
   </head>
   <body>
     <main>
-      <span class="badge">Read only MVP</span>
+      <span class="badge">Read only helper</span>
       <h1>Dynasty Degens Sleeper Helper</h1>
-      <p>Use Dynasty Degens' Import Pending Transactions button for the one-click flow. This popup is only a manual fallback.</p>
+      <p>Use the Dynasty Degens Trades tab for the one-click import. This popup is a fallback and status check.</p>
+      <section class="card safe-list" aria-label="Privacy boundaries">
+        <span>Never reads or sends Sleeper cookies.</span>
+        <span>Never displays Authorization headers.</span>
+        <span>Only sends sanitized pending trade and waiver data.</span>
+      </section>
       <section class="card">
         <p class="status" id="status">Checking for captured activity...</p>
         <p id="detail"></p>
       </section>
       <button id="send" disabled>Send Snapshot Manually</button>
       <button id="open" class="secondary">Open Dynasty Degens</button>
+      <button id="help" class="secondary">Install + Privacy Help</button>
       <p id="message"></p>
     </main>
     <script src="popup.js"></script>
