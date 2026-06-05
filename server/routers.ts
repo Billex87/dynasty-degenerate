@@ -241,19 +241,20 @@ async function sanitizeAnalyzePayloadForPaidAccess(input: {
   payload: any;
 }) {
   if (!input.payload?.reportData) return input.payload;
+  const applyProjectionPolicy = (payload: any) => stripWeeklyProjectionContextFromPayload(payload);
 
   if (input.ctx.user?.role === "admin") {
-    return sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+    return applyProjectionPolicy(sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
       canViewSourceTraceDetails: true,
       canViewAiConfidenceHistory: true,
-    }).payload;
+    }).payload);
   }
 
   if (process.env.ENABLE_PAID_FEATURES !== "true") {
-    return sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+    return applyProjectionPolicy(sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
       canViewSourceTraceDetails: false,
       canViewAiConfidenceHistory: false,
-    }).payload;
+    }).payload);
   }
 
   const persistedAccess = await loadPersistedFeatureAccess({
@@ -294,10 +295,10 @@ async function sanitizeAnalyzePayloadForPaidAccess(input: {
       });
 
     if (!sourceTraceUsage?.allowed) {
-      return sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+      return applyProjectionPolicy(sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
         canViewSourceTraceDetails: false,
         canViewAiConfidenceHistory: aiConfidenceHistoryAccess.allowed,
-      }).payload;
+      }).payload);
     }
 
     const recordedSourceTraceUsage = await recordLimitedUsageEvent({
@@ -317,14 +318,14 @@ async function sanitizeAnalyzePayloadForPaidAccess(input: {
       });
 
     if (!recordedSourceTraceUsage) {
-      return sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
+      return applyProjectionPolicy(sanitizeLeagueReportPayloadForPaidAccess(input.payload, {
         canViewSourceTraceDetails: false,
         canViewAiConfidenceHistory: aiConfidenceHistoryAccess.allowed,
-      }).payload;
+      }).payload);
     }
   }
 
-  return sanitized.payload;
+  return applyProjectionPolicy(sanitized.payload);
 }
 
 function assertSessionJwtSecretConfigured() {
