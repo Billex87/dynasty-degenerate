@@ -711,7 +711,8 @@
 - [ ] Add Autopilot actions that can say exactly why to start, bench, claim, stash, trade for, trade away, or hold a player based on the joined schedule/projection context.
 - [ ] Add player-detail projection cards for weekly outlook, ROS outlook, schedule stretch, opponent notes, role security, draft-capital runway, confidence, and source freshness.
 - [ ] Add Overview badges or notes only when projection/schedule context changes the conclusion; avoid duplicating the same read across matchup, roster, and owner tables.
-- [ ] Add playoff-week views for contenders: Weeks 15-17 projected lineup strength, opponent difficulty, bye/bench pressure, handcuff value, and stash recommendations.
+- [x] Add playoff-week views for contenders: Weeks 15-17 projected lineup strength, opponent difficulty, bye/bench pressure, handcuff value, and stash recommendations.
+  - 2026-06-05 backend completion: `contenderPlayoffContext` now summarizes contender Weeks 15-17 projected lineup strength, schedule/opponent difficulty, bye/bench pressure, and stash recommendations from existing playoff planning. Projection-off stripping clears projected starter points, downgrades coverage to schedule/value, and caps confidence.
 - [ ] Add D/ST streamer and kicker streamer projection support only if the source coverage is stable enough; otherwise keep those reads schedule/SOS based.
 
 ### AI Readout Rules

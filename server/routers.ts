@@ -30,6 +30,7 @@ import { buildRedraftValuation } from "./redraftValuation";
 import { buildDynastyContentionContext } from "./dynastyContentionContext";
 import { buildRookieDevelopmentContext } from "./rookieDevelopmentContext";
 import { buildTradeRecommendationContext } from "./tradeRecommendationContext";
+import { buildContenderPlayoffContext } from "./contenderPlayoffContext";
 import { buildProspectLookup, findProspectProfile, loadProspectContext } from "./prospectSource";
 import { fetchSleeperSeasonStats, MIN_SLEEPER_SEASON } from "./sleeperSeasonStats";
 import { assertUserLoadAllowedLiveProviderUrl, fetchUserLoadJson, fetchUserLoadResponse, getUserLoadSnapshotOptions } from "./loadTimeProviderPolicy";
@@ -3188,6 +3189,52 @@ export function stripWeeklyProjectionContextFromReportData(reportData: ReportDat
       }),
     };
   };
+  const contenderPlayoffProjectionCapReason =
+    'Weekly projections are disabled for this response; contender playoff context is capped to schedule/value evidence.';
+  const stripContenderPlayoffWeek = (
+    week: NonNullable<ReportData['contenderPlayoffContext']>['rows'][number]
+  ): NonNullable<ReportData['contenderPlayoffContext']>['rows'][number] => ({
+    ...week,
+    projectedStarterPoints: null,
+    projectionCoverage: {
+      coveredPlayerCount: 0,
+      totalPlayerCount: week.projectionCoverage?.totalPlayerCount || 0,
+      mode: 'schedule-value',
+    },
+    confidence: Math.min(Number.isFinite(Number(week.confidence)) ? Number(week.confidence) : 58, 58),
+    confidenceReasons: [
+      contenderPlayoffProjectionCapReason,
+      ...stripStoredProjectionReasons(week.confidenceReasons),
+    ].slice(0, 6),
+    confidenceCapReason: contenderPlayoffProjectionCapReason,
+    sourceTrace: (week.sourceTrace || []).filter((trace) => !hasStoredProjectionClaim(trace)),
+  });
+  const stripContenderPlayoffContext = (
+    context: ReportData['contenderPlayoffContext']
+  ): ReportData['contenderPlayoffContext'] => {
+    if (!context) return context;
+    return {
+      ...context,
+      projectionStatus: 'blocked',
+      status: context.status === 'ready' ? 'partial' : context.status,
+      note: 'Contender playoff context is capped because weekly projections are disabled for this response.',
+      rows: (context.rows || []).map(stripContenderPlayoffWeek),
+      managers: (context.managers || []).map((manager) => {
+        const weeks = (manager.weeks || []).map(stripContenderPlayoffWeek);
+        return {
+          ...manager,
+          projectedLineupStrength: null,
+          confidence: Math.min(Number.isFinite(Number(manager.confidence)) ? Number(manager.confidence) : 58, 58),
+          confidenceReasons: [
+            contenderPlayoffProjectionCapReason,
+            ...stripStoredProjectionReasons(manager.confidenceReasons),
+          ].slice(0, 6),
+          confidenceCapReason: contenderPlayoffProjectionCapReason,
+          weeks,
+        };
+      }),
+    };
+  };
 
   return {
     ...reportData,
@@ -3225,6 +3272,7 @@ export function stripWeeklyProjectionContextFromReportData(reportData: ReportDat
     dynastyContentionContext: stripDynastyContentionContext(reportData.dynastyContentionContext),
     rookieDevelopmentContext: stripRookieDevelopmentContext(reportData.rookieDevelopmentContext),
     tradeRecommendationContext: stripTradeRecommendationContext(reportData.tradeRecommendationContext),
+    contenderPlayoffContext: stripContenderPlayoffContext(reportData.contenderPlayoffContext),
     playoffSchedulePlanning: stripWeeklyProjectionFromPlayoffSchedulePlanning(reportData.playoffSchedulePlanning),
     matchupPreviews: (reportData.matchupPreviews || []).map((preview) => {
       const hasProjectionClaim =
@@ -10270,6 +10318,13 @@ export const appRouter = router({
             dynastyContentionContext,
             rookieDevelopmentContext,
           });
+          const contenderPlayoffContext = buildContenderPlayoffContext({
+            ...reportData,
+            weeklyProjectionDiagnostics,
+            playoffSchedulePlanning,
+            dynastyContentionContext,
+            tradeRecommendationContext,
+          });
           const reportPayloadData = {
             ...reportData,
             leagueDiagnostics: reportData.leagueDiagnostics
@@ -10306,6 +10361,7 @@ export const appRouter = router({
             dynastyContentionContext,
             rookieDevelopmentContext,
             tradeRecommendationContext,
+            contenderPlayoffContext,
             recentTransactions: allRecentTransactions,
             transactionBackfillDiagnostics,
             adminTradeProposalSignals,

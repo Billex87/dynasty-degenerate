@@ -927,6 +927,73 @@ export interface TradeRecommendationContext {
   note: string;
 }
 
+export interface ContenderPlayoffStashRecommendation {
+  playerId: string;
+  name: string;
+  position: string;
+  team?: string | null;
+  targetWeeks: number[];
+  seasonSOS?: number | null;
+  scheduleTier?: ScheduleTier | null;
+  score: number;
+  note?: string | null;
+}
+
+export interface ContenderPlayoffWeekRead {
+  id: string;
+  manager: string;
+  week: number;
+  projectedStarterPoints: number | null;
+  projectionCoverage: {
+    coveredPlayerCount: number;
+    totalPlayerCount: number;
+    mode: 'stored-weekly-projection' | 'stored-weekly-projection-blend' | 'schedule-value';
+  };
+  opponentDifficultyScore: number;
+  byeBenchPressureScore: number;
+  stashValueScore: number;
+  affectedPlayers: Array<{
+    playerId: string;
+    name: string;
+    position: string;
+    team?: string | null;
+    scheduleTier?: ScheduleTier | null;
+    reason: 'bye' | 'avoid' | 'streamer';
+  }>;
+  stashRecommendations: ContenderPlayoffStashRecommendation[];
+  confidence: number;
+  confidenceReasons: string[];
+  confidenceCapReason?: string | null;
+  sourceTrace: string[];
+}
+
+export interface ContenderPlayoffManagerRead {
+  manager: string;
+  rosterWindow: DynastyContentionRosterWindow;
+  contenderScore: number;
+  rebuildScore: number;
+  projectedLineupStrength: number | null;
+  opponentDifficultyScore: number;
+  byeBenchPressureScore: number;
+  stashValueScore: number;
+  confidence: number;
+  confidenceReasons: string[];
+  confidenceCapReason?: string | null;
+  weeks: ContenderPlayoffWeekRead[];
+  stashRecommendations: ContenderPlayoffStashRecommendation[];
+}
+
+export interface ContenderPlayoffContext {
+  status: 'ready' | 'partial' | 'value-only';
+  source: 'stored-report-contender-playoff';
+  projectionStatus: 'ready' | 'blocked' | 'warning' | 'missing';
+  generatedAt: string;
+  weeks: number[];
+  rows: ContenderPlayoffWeekRead[];
+  managers: ContenderPlayoffManagerRead[];
+  note: string;
+}
+
 export interface PickPortfolio {
   manager: string;
   value2026: number;
@@ -2552,6 +2619,7 @@ export interface ReportData {
   dynastyContentionContext?: DynastyContentionContext;
   rookieDevelopmentContext?: RookieDevelopmentContext;
   tradeRecommendationContext?: TradeRecommendationContext;
+  contenderPlayoffContext?: ContenderPlayoffContext;
   matchupPreviews?: MatchupPreview[];
   schedulePlanning?: SchedulePlanningSummary;
   playoffSchedulePlanning?: PlayoffSchedulePlanningSummary;
