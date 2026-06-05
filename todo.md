@@ -1194,6 +1194,7 @@
 - [ ] Add QA coverage for schedule-dependent surfaces across Overview, Command Center, Matchup Preview, Player Detail, Autopilot, Rankings, and trade/waiver modules.
   - 2026-06-05 expanded coverage: projection/SOS command-center Playwright checks now exercise rendered schedule-dependent Assistant Feature Radar, Matchup Preview, Projected Roster Board, Rankings/Schedule Edge, and Waiver behavior in projection-enabled and projection-disabled fixtures. Backend verifier coverage covers trade/playoff schedule contexts until direct UI sections exist.
   - 2026-06-05 player-detail disabled-state coverage: Player Detail Playwright now verifies the weekly projection receipt and stored-projection copy disappear when the cached player projection context is stripped.
+  - 2026-06-05 matchup-preview disabled-state coverage: Projection/SOS command-center Playwright now asserts the direct Matchup Preview card falls back to `Schedule pending` / `NFL schedule dependent` copy when stored weekly projections are stripped from the cached fixture.
 - [x] Keep pre-schedule and offseason empty states honest until the data exists.
 
 ### Watch Alerts - Server Persistence

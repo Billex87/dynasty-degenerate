@@ -534,6 +534,13 @@ test.describe("projection/SOS command center smoke", () => {
     await expect(assistantSection.getByText("Projection Scout")).toHaveCount(0);
     await expect(assistantSection.getByText("10.7 stored projection pts")).toHaveCount(0);
     await expect(assistantSection.getByText("123.4")).toHaveCount(0);
+    const pendingMatchupCard = assistantSection
+      .locator(".assistant-feature-card")
+      .filter({ hasText: "Matchup Preview" })
+      .first();
+    await expect(pendingMatchupCard).toBeVisible();
+    await expect(pendingMatchupCard.getByText("Schedule pending")).toBeVisible();
+    await expect(pendingMatchupCard.getByText("NFL schedule dependent")).toBeVisible();
 
     const rosterBoardSection = await openReportSection(page, "Projected Roster Board");
     await rosterBoardSection
