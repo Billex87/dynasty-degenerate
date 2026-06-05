@@ -72,11 +72,13 @@ function render(snapshot) {
   sendButton.disabled = !latestSnapshot;
 
   if (!latestSnapshot) {
-    statusEl.textContent = "Listening for Sleeper activity.";
-    detailEl.textContent = "Open Dynasty Degens, go to Trades, then click Import Pending Transactions.";
+    sendButton.textContent = "Waiting for Capture";
+    statusEl.textContent = "Ready for app import.";
+    detailEl.textContent = "Return to Dynasty Degens and click Import Pending Transactions. Manual send turns on after Sleeper data is captured.";
     return;
   }
 
+  sendButton.textContent = "Send to Dynasty Degens";
   statusEl.textContent = summary.total > 0
     ? `Captured ${summary.tradeCount} trade item${summary.tradeCount === 1 ? "" : "s"} and ${summary.waiverCount} waiver item${summary.waiverCount === 1 ? "" : "s"}.`
     : "Captured Sleeper activity, but no current pending items were visible.";
@@ -184,7 +186,10 @@ async function sendSnapshotToApp(snapshot) {
 }
 
 sendButton.addEventListener("click", async () => {
-  if (!latestSnapshot) return;
+  if (!latestSnapshot) {
+    setMessage("Click Import Pending Transactions in Dynasty Degens first.", "warn");
+    return;
+  }
   sendButton.disabled = true;
   setMessage("Sending captured snapshot...");
   try {

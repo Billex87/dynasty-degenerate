@@ -1935,17 +1935,27 @@ export function ReportTradesTab({
       );
     };
 
+    const requestHelperStatus = () => {
+      window.postMessage(
+        {
+          source: SLEEPER_HELPER_APP_SOURCE,
+          type: "DYNASTY_DEGENS_REQUEST_SLEEPER_HELPER_STATUS",
+        },
+        window.location.origin
+      );
+    };
+    const helperStatusPoll = window.setInterval(requestHelperStatus, 1500);
+    const helperStatusPollStop = window.setTimeout(() => {
+      window.clearInterval(helperStatusPoll);
+    }, 12000);
+
     window.addEventListener("message", handleHelperMessage);
-    window.postMessage(
-      {
-        source: SLEEPER_HELPER_APP_SOURCE,
-        type: "DYNASTY_DEGENS_REQUEST_SLEEPER_HELPER_STATUS",
-      },
-      window.location.origin
-    );
+    requestHelperStatus();
 
     return () => {
       window.removeEventListener("message", handleHelperMessage);
+      window.clearInterval(helperStatusPoll);
+      window.clearTimeout(helperStatusPollStop);
       clearHelperImportTimeout();
     };
   }, [clearHelperImportTimeout, importCapturedSnapshot, leagueId, showSleeperPendingActivity]);
@@ -1976,17 +1986,13 @@ export function ReportTradesTab({
     }
 
     if (!helperDetected) {
-      trackTransactionSyncEvent("install_link_clicked", {
+      trackTransactionSyncEvent("import_failed", {
         leagueId,
-        surface: "primary_button",
+        stage: "extension_detection",
+        reason: "helper_not_detected",
       });
-      window.open(
-        TRANSACTION_SYNC_CHROME_WEB_STORE_URL,
-        "_blank",
-        "noopener,noreferrer"
-      );
       setHelperError(
-        "Install Transaction Sync from the Chrome Web Store, refresh this Dynasty Degens tab after Chrome finishes installing it, then click Import Pending Transactions again."
+        "Install the Chrome extension, then refresh this Dynasty Degens tab and click Import Pending Transactions again."
       );
       return;
     }
@@ -2142,7 +2148,7 @@ export function ReportTradesTab({
                         ? "This browser cannot run Transaction Sync. Open this report in desktop Chrome, install the extension once, then import pending trades and waivers there."
                       : helperDetected
                         ? "Ready. The helper will open Sleeper, refresh the right pages, and import the latest pending snapshot."
-                        : "Install Transaction Sync from the Chrome Web Store, refresh this Dynasty Degens tab, then click Import Pending Transactions."}
+                        : "Install Transaction Sync from the Chrome Web Store. If it is already installed, refresh this Dynasty Degens tab so Chrome can connect it here."}
                   </p>
                   {isMobileBrowser ? (
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -2221,7 +2227,7 @@ export function ReportTradesTab({
                         }
                         className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1.5 text-xs font-black text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/20"
                       >
-                        Install from Chrome Web Store
+                        Install Chrome Extension
                         <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                       </a>
                       <a
@@ -2255,14 +2261,10 @@ export function ReportTradesTab({
                   >
                     {isHelperImporting ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                    ) : !helperDetected ? (
-                      <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
                     ) : (
                       <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
                     )}
-                    {!helperDetected
-                      ? "Install Transaction Sync"
-                      : "Import Pending Transactions"}
+                    Import Pending Transactions
                   </Button>
                 ) : null}
               </div>
