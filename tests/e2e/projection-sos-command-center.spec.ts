@@ -14,7 +14,7 @@ async function loadCachedReport(
   page: Page,
   cachedReport: CachedCommandCenterReport,
   hash = "#rankings",
-  options: { admin?: boolean } = {}
+  options: { admin?: boolean; readySelector?: string } = {}
 ) {
   const useAdminSession = options.admin === true;
   const user = {
@@ -96,13 +96,18 @@ async function loadCachedReport(
 
   await Promise.all([
     page.request.get("/src/components/reportTables/WaiverIntelligencePanel.tsx", { timeout: 60_000 }).catch(() => null),
+    page.request.get("/src/components/AITeamAutopilot.tsx", { timeout: 60_000 }).catch(() => null),
+    page.request.get("/src/components/RankingsBoard.tsx", { timeout: 60_000 }).catch(() => null),
+    page.request.get("/src/components/reportTables/TradeWarRoom.tsx", { timeout: 60_000 }).catch(() => null),
     page.request.get("/src/features/admin/components/AdminScheduleEdgeSections.tsx", { timeout: 60_000 }).catch(() => null),
+    page.request.get("/src/features/report/components/ReportRankingsTab.tsx", { timeout: 60_000 }).catch(() => null),
+    page.request.get("/src/features/report/components/ReportTradesTab.tsx", { timeout: 60_000 }).catch(() => null),
   ]);
 
   await page.goto(`/?leagueId=${cachedReport.leagueId}${hash}`, {
     waitUntil: "domcontentloaded",
   });
-  await expect(page.locator("details.report-disclosure").first()).toBeVisible({
+  await expect(page.locator(options.readySelector || "details.report-disclosure").first()).toBeVisible({
     timeout: 45_000,
   });
 }
@@ -565,6 +570,64 @@ test.describe("projection/SOS command center smoke", () => {
     await expect(waiverSection.getByTestId("projection-player-detail-trigger")).toHaveCount(0);
     await expect(waiverSection.getByText(/stored weekly projection/i)).toHaveCount(0);
     await expect(waiverSection.getByText(/projected pts/i)).toHaveCount(0);
+  });
+
+  test("admin Autopilot stays source-safe while Rankings reads cached SOS evidence", async ({ page }) => {
+    const report = createCachedCommandCenterReport("projection-sos-autopilot-enabled-smoke");
+    attachProjectionBackedReportMechanics(report);
+    attachSpecialTeamsStreamerTarget(report);
+
+    await loadCachedReport(page, report, "#autopilot", {
+      admin: true,
+      readySelector: ".autopilot-dashboard",
+    });
+
+    const autopilot = page.locator(".autopilot-dashboard");
+    await expect(autopilot.getByText("AI Team Autopilot")).toBeVisible();
+    await expect(autopilot.getByText("Daily AI Verdict")).toBeVisible();
+    await expect(autopilot.getByText(/stored weekly projection/i)).toHaveCount(0);
+    await expect(autopilot.getByText(/DraftSharks SOS/i)).toHaveCount(0);
+    await expect(autopilot.getByText(/FantasyPros matchup/i)).toHaveCount(0);
+
+    await loadCachedReport(page, report, "#rankings", { admin: true });
+    const scheduleSection = await openReportSection(page, "Schedule Edge Table");
+    await expect(scheduleSection.getByText("Streaming Kicker").first()).toBeVisible();
+    await expect(scheduleSection.getByText("DraftSharks SOS windows")).toBeVisible();
+    await expect(scheduleSection.getByText(/FantasyPros matchup/i)).toHaveCount(0);
+
+    await loadCachedReport(page, report, "#trades", { admin: true });
+    const tradeWarSection = await openReportSection(page, "Trade War Room");
+    await expect(tradeWarSection.getByText("Side A").first()).toBeVisible();
+    await expect(tradeWarSection.getByText("Side B").first()).toBeVisible();
+    await expect(tradeWarSection.getByText("Scout Leaguemates")).toBeVisible();
+    await expect(tradeWarSection.getByText(/stored weekly projection/i)).toHaveCount(0);
+    await expect(tradeWarSection.getByText(/DraftSharks SOS/i)).toHaveCount(0);
+    await expect(tradeWarSection.getByText(/FantasyPros matchup/i)).toHaveCount(0);
+  });
+
+  test("admin Autopilot and Trade surfaces stay projection-safe when weekly projections are disabled", async ({ page }) => {
+    const report = createCachedCommandCenterReport("projection-sos-autopilot-disabled-smoke");
+    attachProjectionBackedReportMechanics(report);
+    stripWeeklyProjectionContext(report);
+
+    await loadCachedReport(page, report, "#autopilot", {
+      admin: true,
+      readySelector: ".autopilot-dashboard",
+    });
+
+    const autopilot = page.locator(".autopilot-dashboard");
+    await expect(autopilot.getByText("AI Team Autopilot")).toBeVisible();
+    await expect(autopilot.getByText("Daily AI Verdict")).toBeVisible();
+    await expect(autopilot.getByText(/stored weekly projection edge/i)).toHaveCount(0);
+    await expect(autopilot.getByText("Stored weekly projection")).toHaveCount(0);
+
+    await loadCachedReport(page, report, "#trades", { admin: true });
+    const tradeWarSection = await openReportSection(page, "Trade War Room");
+    await expect(tradeWarSection.getByText("Side A").first()).toBeVisible();
+    await expect(tradeWarSection.getByText("Side B").first()).toBeVisible();
+    await expect(tradeWarSection.getByText(/stored weekly projection/i)).toHaveCount(0);
+    await expect(tradeWarSection.getByText(/projected pts/i)).toHaveCount(0);
+    await expect(tradeWarSection.getByText(/FantasyPros matchup/i)).toHaveCount(0);
   });
 
   test("regular command center view does not expose raw SOS source-trace detail", async ({ page }) => {
