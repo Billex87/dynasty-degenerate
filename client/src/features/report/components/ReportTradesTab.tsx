@@ -1098,6 +1098,8 @@ export function ReportTradesTab({
   const helperWaiverCount =
     helperSnapshot?.transactions.filter(transaction => transaction.type === "waiver")
       .length ?? 0;
+  const isHelperImporting =
+    isHelperCaptureRunning || isImportingSleeperTradeCenterSnapshot;
 
   const clearHelperImportTimeout = useCallback(() => {
     if (helperImportTimeoutRef.current === null) return;
@@ -1327,11 +1329,15 @@ export function ReportTradesTab({
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-slate-950/40 p-3 text-sm text-slate-300">
+          <div className={`rounded-xl border p-3 text-sm text-slate-300 transition-colors ${
+            isHelperImporting
+              ? "border-cyan-300/25 bg-cyan-950/20 shadow-[0_0_36px_rgba(34,211,238,0.12)]"
+              : "border-white/10 bg-slate-950/40"
+          }`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-bold text-slate-100">
-                  {isHelperCaptureRunning || isImportingSleeperTradeCenterSnapshot
+                  {isHelperImporting
                     ? "Importing pending transactions"
                     : helperSnapshot
                     ? `Captured ${helperTransactionCount} pending item${helperTransactionCount === 1 ? "" : "s"}`
@@ -1340,20 +1346,35 @@ export function ReportTradesTab({
                       : "Waiting for Chrome Helper"}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-slate-400">
-                  {helperSnapshot
+                  {isHelperImporting
+                    ? "Sleeper sync in progress. Keep this tab open while the helper captures trades and waivers."
+                    : helperSnapshot
                     ? `${helperTradeCount} trades, ${helperWaiverCount} waiver claims captured ${new Date(helperSnapshot.capturedAt).toLocaleString()}.`
                     : helperDetected
                       ? "Ready. The helper will open Sleeper, refresh the right pages, and import the latest pending snapshot."
                       : "Install or reload the Chrome Helper in Chrome Extensions, then click this button again."}
                 </p>
+                {isHelperImporting ? (
+                  <div className="mt-3 max-w-sm" aria-hidden="true">
+                    <div className="loading-progress-bar-wrap !mt-0">
+                      <div className="loading-progress-fill" style={{ width: "76%" }}>
+                        <span className="loading-progress-shimmer" />
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
               <Button
                 type="button"
                 onClick={importHelperSnapshot}
-                disabled={isHelperCaptureRunning || isImportingSleeperTradeCenterSnapshot}
-                className="h-10 bg-emerald-300 text-slate-950 hover:bg-emerald-200 disabled:opacity-60"
+                disabled={isHelperImporting}
+                className={`h-10 text-slate-950 disabled:opacity-80 ${
+                  isHelperImporting
+                    ? "bg-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.22)] hover:bg-cyan-300"
+                    : "bg-emerald-300 hover:bg-emerald-200"
+                }`}
               >
-                {isHelperCaptureRunning || isImportingSleeperTradeCenterSnapshot ? (
+                {isHelperImporting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
                   <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -1362,7 +1383,11 @@ export function ReportTradesTab({
               </Button>
             </div>
             {helperStatus ? (
-              <p className="mt-3 rounded-xl border border-emerald-300/20 bg-emerald-950/30 px-3 py-2 text-sm font-semibold text-emerald-200">
+              <p className={`mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ${
+                isHelperImporting
+                  ? "border-cyan-300/25 bg-cyan-950/35 text-cyan-100"
+                  : "border-emerald-300/20 bg-emerald-950/30 text-emerald-200"
+              }`}>
                 {helperStatus}
               </p>
             ) : null}
