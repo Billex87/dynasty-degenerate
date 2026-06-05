@@ -29,6 +29,32 @@ describe('source readiness gates', () => {
     );
   });
 
+  it('keeps remaining source-readiness blockers out of normal report loads and public claims', () => {
+    const gatesById = new Map(SOURCE_READINESS_GATES.map((gate) => [gate.id, gate]));
+    const expectedBoundaries = [
+      ['fantasypros-ww', 'research', 'snapshot-only'],
+      ['fantasypros-targets', 'blocked', 'blocked'],
+      ['fantasypros-articles', 'blocked', 'blocked'],
+      ['fantasy-nerds-api', 'blocked', 'blocked'],
+      ['gridiron-data', 'research', 'blocked'],
+      ['dynasty-daddy-source-selector', 'research', 'blocked'],
+      ['sleeper-hidden-account-transactions', 'blocked', 'blocked'],
+      ['official-transactions', 'research', 'blocked'],
+    ] as const;
+
+    for (const [id, status, normalReportLoad] of expectedBoundaries) {
+      expect(gatesById.get(id)).toMatchObject({
+        id,
+        status,
+        normalReportLoad,
+        publicClaimAllowed: false,
+        evidence: {
+          allowedAttributionLanguage: null,
+        },
+      });
+    }
+  });
+
   it('rejects public claims without complete evidence', () => {
     const gate: SourceReadinessGate = {
       id: 'bad-public-claim',
