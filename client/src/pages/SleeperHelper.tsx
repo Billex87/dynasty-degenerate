@@ -65,7 +65,7 @@ function SleeperHelperPage() {
           <div className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-end">
             <div>
               <p className="mb-4 w-fit rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-xs font-black uppercase tracking-[0.24em] text-emerald-200">
-                Chrome Helper
+                Transaction Sync
               </p>
               <h1 className="max-w-4xl text-4xl font-black uppercase leading-[0.9] tracking-[-0.05em] text-white sm:text-6xl lg:text-7xl">
                 Import pending Sleeper trades without copying tokens.

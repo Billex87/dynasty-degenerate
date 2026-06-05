@@ -1181,7 +1181,7 @@ export function ReportTradesTab({
           setIsHelperCaptureRunning(false);
           setIsHelperSuccessCollapsed(false);
           setHelperStatus(null);
-          setHelperError(payload.detail || "Sleeper Helper could not import transactions.");
+          setHelperError(payload.detail || "Transaction Sync could not import transactions.");
           return;
         }
         if (payload?.detail) {
@@ -1203,7 +1203,7 @@ export function ReportTradesTab({
         autoImportPendingRef.current = false;
         setIsHelperCaptureRunning(false);
         setIsHelperSuccessCollapsed(false);
-        setHelperError("The Chrome Helper sent an invalid snapshot.");
+        setHelperError("Transaction Sync sent an invalid snapshot.");
         return;
       }
 
@@ -1214,7 +1214,7 @@ export function ReportTradesTab({
         setIsHelperSuccessCollapsed(false);
         setHelperSnapshot(null);
         setHelperError(
-          `Chrome Helper captured league ${payload.leagueId}, but this report is ${leagueId}.`
+          `Transaction Sync captured league ${payload.leagueId}, but this report is ${leagueId}.`
         );
         return;
       }
@@ -1233,8 +1233,8 @@ export function ReportTradesTab({
       setIsHelperCaptureRunning(false);
       setHelperStatus(
         payload.transactions.length > 0
-          ? `Chrome Helper captured ${pluralizeImportCount(payload.transactions.length, "pending item")}. Click Import Pending Transactions to import it.`
-          : "Chrome Helper connected, but the Sleeper page did not expose pending trades or waivers."
+          ? `Transaction Sync captured ${pluralizeImportCount(payload.transactions.length, "pending item")}. Click Import Pending Transactions to import it.`
+          : "Transaction Sync connected, but the Sleeper page did not expose pending trades or waivers."
       );
     };
 
@@ -1256,7 +1256,7 @@ export function ReportTradesTab({
   const importHelperSnapshot = async () => {
     if (!helperDetected) {
       setHelperError(
-        "Chrome Helper is not installed or enabled yet. Enable the extension, refresh this page, then click Import Pending Transactions again."
+        "Transaction Sync is not installed or enabled yet. Enable the extension, refresh this page, then click Import Pending Transactions again."
       );
       return;
     }
@@ -1360,13 +1360,13 @@ export function ReportTradesTab({
                 <div className="min-w-0 space-y-2">
                   <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em] text-emerald-200">
                     <Cable className="h-3.5 w-3.5" aria-hidden="true" />
-                    Chrome Helper MVP
+                    Transaction Sync
                   </p>
                   <h3 className="text-base font-black text-slate-50 sm:text-lg">
                     Import pending Sleeper trades and waivers
                   </h3>
                   <p className="max-w-3xl text-sm leading-6 text-slate-300">
-                    Click once. The Chrome Helper opens Sleeper, captures only
+                    Click once. Transaction Sync opens Sleeper, captures only
                     sanitized pending transaction data, and imports it back into this
                     report.
                   </p>
@@ -1385,8 +1385,8 @@ export function ReportTradesTab({
                     : helperSnapshot
                     ? `Captured ${helperTransactionCount} pending item${helperTransactionCount === 1 ? "" : "s"}`
                     : helperDetected
-                      ? "Chrome Helper detected"
-                      : "Waiting for Chrome Helper"}
+                      ? "Transaction Sync detected"
+                      : "Waiting for Transaction Sync"}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-slate-400">
                   {isHelperImporting
@@ -1395,7 +1395,7 @@ export function ReportTradesTab({
                     ? `${helperTradeCount} trades, ${helperWaiverCount} waiver claims captured ${new Date(helperSnapshot.capturedAt).toLocaleString()}.`
                     : helperDetected
                       ? "Ready. The helper will open Sleeper, refresh the right pages, and import the latest pending snapshot."
-                      : "Install or reload the Chrome Helper in Chrome Extensions, then click this button again."}
+                      : "Install or reload Transaction Sync in Chrome Extensions, then click this button again."}
                 </p>
                 {isHelperImporting ? (
                   <div className="mt-3 max-w-sm" aria-hidden="true">
