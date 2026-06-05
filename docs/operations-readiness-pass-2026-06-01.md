@@ -45,7 +45,7 @@
 - The stale and missing source families are accepted limitations for this release, not blockers:
   - Devy/prospect snapshots are stale and should remain lower-confidence until refreshed.
   - FantasyPros weekly ECR endpoint snapshots are stale; projection-specific and weekly-rank claims must stay gated by source freshness and source-policy checks.
-  - DraftSharks SOS, player props, SportsDataIO/RotoBaller news, FantasyPros projections, NFL Draft Buzz, Fantasy Nerds, Flock, Yahoo/Fantrax/FFPC, and other blocked/research sources remain non-critical or approval-gated.
+  - DraftSharks SOS, player props, SportsDataIO/RotoBaller news, FantasyPros projections, NFL Draft Buzz, Flock, Yahoo/Fantrax/FFPC, and other blocked/research sources remain non-critical or approval-gated.
 - The app should continue to avoid implying certainty where source coverage is stale, missing, blocked, or research-only.
 
 ## Remaining Follow-up

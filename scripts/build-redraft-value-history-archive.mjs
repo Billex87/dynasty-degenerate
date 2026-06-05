@@ -18,7 +18,6 @@ const redraftRankingTypes = new Set(['DRAFT', 'ADP', 'ROS']);
 const playablePositions = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DST', 'DEF']);
 const sourceLabels = {
   fantasyPros: 'FantasyPros',
-  fantasyNerds: 'Fantasy Nerds',
   internalSeasonBlend: 'Dynasty Degen Redraft Blend',
   mflAdp: 'MFL ADP',
   mflRankings: 'MFL Rankings',

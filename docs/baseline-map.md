@@ -84,7 +84,6 @@ Referenced environment variables include:
 - `CRON_SECRET`
 - `LEAGUE_REPORT_WARM_LEAGUE_IDS`
 - `FANTASYPROS_API_KEY`
-- `FANTASY_NERDS_API_KEY`
 - `DRAFTSHARKS_API_KEY`
 - `SPORTSDATA_IO_API_KEY`
 - `OPTICODDS_API_KEY`
@@ -94,7 +93,7 @@ Referenced environment variables include:
 - `VITE_SUPPORT_URL`
 - `VITE_VALUE_HISTORY_SHARDS_BASE_URL`
 
-External integrations include Sleeper, FantasyPros, KeepTradeCut/local KTC snapshots, FantasyCalc, DynastyProcess, Flock, Fantasy Nerds, Dynasty Nerds-style sources, DraftSharks, SportsDataIO, OpticOdds, nflverse data, Formspree, Vercel Analytics, Vercel Speed Insights, Drizzle/MySQL, and optional S3-compatible storage for value-history shards.
+External integrations include Sleeper, FantasyPros, KeepTradeCut/local KTC snapshots, FantasyCalc, DynastyProcess, Flock, Dynasty Nerds-style sources, DraftSharks, SportsDataIO, OpticOdds, nflverse data, Formspree, Vercel Analytics, Vercel Speed Insights, Drizzle/MySQL, and optional S3-compatible storage for value-history shards.
 
 ## High-Risk Files
 

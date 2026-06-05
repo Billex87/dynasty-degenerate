@@ -41,7 +41,6 @@ const RANK_FIELDS = [
   'fantasypros_dynasty_position_rank',
   'fantasypros_position_rank',
   'dynastynerds_position_rank',
-  'fantasynerds_position_rank',
   'flock_position_rank',
 ];
 const OVERALL_RANK_FIELDS = [
@@ -51,7 +50,6 @@ const OVERALL_RANK_FIELDS = [
   'fantasypros_dynasty_rank',
   'fantasypros_rank',
   'dynastynerds_rank',
-  'fantasynerds_rank',
   'flock_rank',
 ];
 

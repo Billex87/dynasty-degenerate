@@ -3,7 +3,7 @@ import { findLatestProviderDataSnapshot, findProviderDataSnapshot, upsertProvide
 import { normalizeNflTeamCode, type NflTeamCode } from './nflTeamCodes';
 import { parseProviderSnapshotPayload } from './providerDataSnapshots';
 
-export type PlayerProjectionSource = 'fantasypros' | 'draftsharks' | 'sportsdataio' | 'fantasynerds' | 'sleeper' | 'internal';
+export type PlayerProjectionSource = 'fantasypros' | 'draftsharks' | 'sportsdataio' | 'sleeper' | 'internal';
 export type PlayerProjectionType = 'weekly' | 'rest_of_season' | 'preseason' | 'playoff_weeks';
 export type PlayerProjectionPosition = 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF' | 'FLEX' | 'UNKNOWN';
 

@@ -35,7 +35,6 @@ describe('source readiness gates', () => {
       ['fantasypros-ww', 'research', 'snapshot-only'],
       ['fantasypros-targets', 'blocked', 'blocked'],
       ['fantasypros-articles', 'blocked', 'blocked'],
-      ['fantasy-nerds-api', 'blocked', 'blocked'],
       ['gridiron-data', 'research', 'blocked'],
       ['dynasty-daddy-source-selector', 'research', 'blocked'],
       ['sleeper-hidden-account-transactions', 'blocked', 'blocked'],

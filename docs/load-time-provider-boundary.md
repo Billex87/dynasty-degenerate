@@ -28,7 +28,7 @@ Current guardrails:
 ## Runtime Contract
 
 - User login, league lookup, report generation, ranking preview, player detail, and hidden Sleeper import may call Sleeper live when they need current league state.
-- FantasyPros, ESPN, DraftSharks, OpticOdds, KTC, FantasyCalc, DynastyProcess, Flock, Dynasty Nerds, Fantasy Nerds, and prospect sources must not be called live from normal user-load paths.
+- FantasyPros, ESPN, DraftSharks, OpticOdds, KTC, FantasyCalc, DynastyProcess, Flock, Dynasty Nerds, and prospect sources must not be called live from normal user-load paths.
 - Non-Sleeper refreshes belong in scheduled jobs, admin-only diagnostics, maintenance scripts, or explicit one-off probes.
 - Stored snapshot reads can be used freely during report loads because they do not add live provider latency or API cost.
 - Cache status checks should use metadata-only helpers/endpoints unless the caller needs to render the actual report.

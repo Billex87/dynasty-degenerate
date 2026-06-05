@@ -12,7 +12,6 @@ type SnapshotValue = RookieValueRecord & {
   market_value_ktc?: number;
   fantasypros_position_rank?: string | null;
   dynastynerds_position_rank?: string | null;
-  fantasynerds_position_rank?: string | null;
   value_sources?: string[];
   benchmark_sources?: string[];
 };
@@ -404,7 +403,6 @@ function getPositionRank(row: Partial<SnapshotValue>): string | null {
     || row.position_rank_may2025
     || row.fantasypros_position_rank
     || row.dynastynerds_position_rank
-    || row.fantasynerds_position_rank
     || null;
   return value ? String(value) : null;
 }

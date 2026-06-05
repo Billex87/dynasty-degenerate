@@ -27,7 +27,6 @@ const sourceKeys = new Set(String(process.env.SOURCES || [
   'fantasyPros',
   'dynastyProcess',
   'dynastyNerds',
-  'fantasyNerds',
 ].join(','))
   .split(',')
   .map((source) => source.trim())
@@ -61,13 +60,6 @@ const SOURCE_DEFINITIONS = {
     overallRankFields: ['dynastynerds_rank'],
     expertKey: 'dynastyNerds',
   },
-  fantasyNerds: {
-    label: 'FantasyNerds',
-    valueFields: ['expert_value_fantasynerds'],
-    rankFields: ['fantasynerds_position_rank'],
-    overallRankFields: ['fantasynerds_rank'],
-    expertKey: 'fantasyNerds',
-  },
 };
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
@@ -77,7 +69,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     'Environment:',
     '  SNAPSHOT_DIR=server/ktc-snapshots',
     '  VALUE_PROFILE_KEYS=12_sf_ppr_base,12_sf_ppr_tep_1_0',
-    '  SOURCES=fantasyCalc,fantasyPros,dynastyProcess,dynastyNerds,fantasyNerds',
+    '  SOURCES=fantasyCalc,fantasyPros,dynastyProcess,dynastyNerds',
     '  SINCE=2026-05-01',
     '  OUT_FILE=server/value-history-archive/local-weighted-source-history.json',
     '',

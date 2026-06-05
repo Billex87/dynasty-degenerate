@@ -39,7 +39,6 @@ type SnapshotValue = {
   fantasypros_dynasty_rank?: number | null;
   fantasypros_dynasty_position_rank?: string | null;
   expert_value_dynastynerds?: number;
-  expert_value_fantasynerds?: number;
   market_value_fantasycalc?: number;
   expert_value_dynastyprocess?: number;
   position_rank?: string | null;
@@ -50,7 +49,6 @@ const DYNASTY_SOURCE_LABELS: Record<DynastySourceWeightKey, string> = {
   flock: 'Flock Fantasy',
   fantasyPros: 'FantasyPros Dynasty',
   dynastyNerds: 'Dynasty Nerds',
-  fantasyNerds: 'Fantasy Nerds',
   ktc: 'KTC',
   fantasyCalc: 'FantasyCalc',
   dynastyProcess: 'DynastyProcess',
@@ -121,7 +119,6 @@ export function getDynastySourceRowsFromSnapshotValues(values: Record<string, Sn
     flock: {},
     fantasyPros: {},
     dynastyNerds: {},
-    fantasyNerds: {},
     ktc: {},
     fantasyCalc: {},
     dynastyProcess: {},
@@ -136,7 +133,6 @@ export function getDynastySourceRowsFromSnapshotValues(values: Record<string, Sn
       ['flock', toNumber(value.expert_value_flock)],
       ['fantasyPros', toNumber(value.expert_value_fantasypros)],
       ['dynastyNerds', toNumber(value.expert_value_dynastynerds)],
-      ['fantasyNerds', toNumber(value.expert_value_fantasynerds)],
       ['ktc', ktcValue],
       ['fantasyCalc', toNumber(value.market_value_fantasycalc)],
       ['dynastyProcess', toNumber(value.expert_value_dynastyprocess)],
@@ -375,7 +371,6 @@ export function applyDynastySourceTrust(
     flock: sourceTrust.flock?.effectiveWeight ?? baseWeights.flock,
     fantasyPros: sourceTrust.fantasyPros?.effectiveWeight ?? baseWeights.fantasyPros,
     dynastyNerds: sourceTrust.dynastyNerds?.effectiveWeight ?? baseWeights.dynastyNerds,
-    fantasyNerds: sourceTrust.fantasyNerds?.effectiveWeight ?? baseWeights.fantasyNerds,
     ktc: sourceTrust.ktc?.effectiveWeight ?? baseWeights.ktc,
     fantasyCalc: sourceTrust.fantasyCalc?.effectiveWeight ?? baseWeights.fantasyCalc,
     dynastyProcess: sourceTrust.dynastyProcess?.effectiveWeight ?? baseWeights.dynastyProcess,

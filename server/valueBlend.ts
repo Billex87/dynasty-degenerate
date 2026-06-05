@@ -1,6 +1,5 @@
 import { canonicalPlayerNameKey, cleanName } from './leagueAnalysis';
 import { fetchFantasyProsDraftRankings, fetchFantasyProsDynastyRankings, type FantasyProsRanking } from './fantasyPros';
-import { fetchFantasyNerdsDynastyRankings, type FantasyNerdsRanking } from './fantasyNerds';
 import { fetchFlockFantasyBestBallValues, fetchFlockFantasyValues, loadFlockFantasyValueProfiles, type FlockFantasyValue } from './flockFantasy';
 import { fetchDynastyNerdsValues, getDynastyNerdsFormat, loadDynastyNerdsValueProfiles, type DynastyNerdsValue } from './dynastyNerds';
 import { fetchDynastyDealerPlayerValues, type DynastyDealerValue } from './dynastyDealer';
@@ -36,9 +35,6 @@ export interface BlendedValue {
   market_value_fantasycalc?: number;
   expert_value_dynastyprocess?: number;
   expert_value_dynastynerds?: number;
-  expert_value_fantasynerds?: number;
-  fantasynerds_rank?: number;
-  fantasynerds_position_rank?: string | null;
   dynastynerds_rank?: number;
   dynastynerds_position_rank?: string | null;
   dynastynerds_format?: string | null;
@@ -265,7 +261,6 @@ interface BlendSourceValues {
   flockValues: Record<string, FlockFantasyValue>;
   flockBestBallValues: Record<string, FlockFantasyValue>;
   dynastyNerdsValues: Record<string, DynastyNerdsValue>;
-  fantasyNerdsValues: Record<string, FantasyNerdsRanking>;
   dynastyDealerValues: Record<string, DynastyDealerValue>;
 }
 
@@ -274,7 +269,6 @@ export interface ValueProfileSourceValues {
   dynastyProcess: Record<'one_qb' | 'superflex', Record<string, ExternalValue>>;
   fantasyPros: Record<FantasyProsScoring, Record<string, FantasyProsRanking>>;
   fantasyProsDynasty: Record<string, FantasyProsRanking>;
-  fantasyNerds: Record<string, FantasyNerdsRanking>;
   flockFantasy: Awaited<ReturnType<typeof loadFlockFantasyValueProfiles>>;
   dynastyNerds: Awaited<ReturnType<typeof loadDynastyNerdsValueProfiles>>;
   dynastyDealerBenchmark: Record<string, DynastyDealerValue>;
@@ -347,7 +341,7 @@ function getFantasyCalcSourceProfileKey(options: ValueBlendOptions = {}): string
   ].join('_');
 }
 
-function getValueScore(value?: ExternalValue | FlockFantasyValue | DynastyNerdsValue | DynastyDealerValue | BlendedValue | FantasyProsRanking | FantasyNerdsRanking): number {
+function getValueScore(value?: ExternalValue | FlockFantasyValue | DynastyNerdsValue | DynastyDealerValue | BlendedValue | FantasyProsRanking): number {
   const candidate = value as Record<string, any>;
   return Number(
     candidate.dynastyValue
@@ -514,7 +508,7 @@ function rankBlendedValues(values: ValueMap): ValueMap {
 
 async function loadBlendSourceValues(options: ValueBlendOptions = {}): Promise<BlendSourceValues> {
   const rankingSeason = getCurrentRankingSeason();
-  const [fantasyCalcValues, dynastyProcessValues, fantasyProsRankings, fantasyProsDynastyRankings, flockValues, flockBestBallValues, dynastyNerdsValues, fantasyNerdsValues, dynastyDealerValues] = await Promise.all([
+  const [fantasyCalcValues, dynastyProcessValues, fantasyProsRankings, fantasyProsDynastyRankings, flockValues, flockBestBallValues, dynastyNerdsValues, dynastyDealerValues] = await Promise.all([
     fetchFantasyCalcValues(options),
     fetchDynastyProcessValues(options),
     fetchFantasyProsDraftRankings(rankingSeason, options.fantasyProsScoring || 'HALF'),
@@ -522,7 +516,6 @@ async function loadBlendSourceValues(options: ValueBlendOptions = {}): Promise<B
     fetchFlockFantasyValues(options),
     fetchFlockFantasyBestBallValues(options),
     fetchDynastyNerdsValues(options),
-    fetchFantasyNerdsDynastyRankings(),
     fetchDynastyDealerPlayerValues(),
   ]);
 
@@ -534,7 +527,6 @@ async function loadBlendSourceValues(options: ValueBlendOptions = {}): Promise<B
     flockValues,
     flockBestBallValues,
     dynastyNerdsValues,
-    fantasyNerdsValues,
     dynastyDealerValues,
   };
 }
@@ -547,7 +539,6 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
   const flockValues = canonicalizeValueMap(sourceValues.flockValues);
   const flockBestBallValues = canonicalizeValueMap(sourceValues.flockBestBallValues);
   const dynastyNerdsValues = canonicalizeValueMap(sourceValues.dynastyNerdsValues);
-  const fantasyNerdsValues = canonicalizeValueMap(sourceValues.fantasyNerdsValues);
   const dynastyDealerValues = canonicalizeValueMap(sourceValues.dynastyDealerValues);
   const canonicalKtcValues = canonicalizeValueMap(ktcValues);
   const dynastyWeights = getDynastySourceWeights(options);
@@ -565,12 +556,6 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
       rank: row.overallRank || null,
     })),
     dynastyNerds: createDynastySourceRows(dynastyNerdsValues, (row, key) => ({
-      name: row.name || key,
-      position: row.position || null,
-      value: row.dynastyValue || null,
-      rank: row.overallRank || null,
-    })),
-    fantasyNerds: createDynastySourceRows(fantasyNerdsValues, (row, key) => ({
       name: row.name || key,
       position: row.position || null,
       value: row.dynastyValue || null,
@@ -606,7 +591,6 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
     ...Object.keys(flockValues),
     ...Object.keys(fantasyProsDynastyRankings),
     ...Object.keys(dynastyNerdsValues),
-    ...Object.keys(fantasyNerdsValues),
     ...Object.keys(fantasyCalcValues),
     ...Object.keys(dynastyProcessValues),
     ...Object.keys(fantasyProsRankings),
@@ -624,9 +608,8 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
     const dynastyProcess = dynastyProcessValues[key];
     const fantasyPros = fantasyProsRankings[key];
     const dynastyNerds = dynastyNerdsValues[key];
-    const fantasyNerds = fantasyNerdsValues[key];
     const dynastyDealer = dynastyDealerValues[key];
-    const name = ktc?.name || dynastyNerds?.name || fantasyNerds?.name || flock?.name || fantasyProsDynasty?.name || fantasyCalc?.name || dynastyProcess?.name || fantasyPros?.name || dynastyDealer?.name || key;
+    const name = ktc?.name || dynastyNerds?.name || flock?.name || fantasyProsDynasty?.name || fantasyCalc?.name || dynastyProcess?.name || fantasyPros?.name || dynastyDealer?.name || key;
     const position = getPosition(
       ktc || { name, ktc_value: 0, position_rank: fantasyProsDynasty?.positionRank || fantasyPros?.positionRank || undefined },
       fantasyCalc,
@@ -636,14 +619,12 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
       fantasyProsDynasty
     )
       || dynastyNerds?.position
-      || fantasyNerds?.position
       || flock?.position
       || fantasyProsDynasty?.position
       || fantasyPros?.position
       || dynastyDealer?.position
       || null;
     const dynastyNerdsValue = dynastyNerds?.dynastyValue;
-    const fantasyNerdsValue = fantasyNerds?.dynastyValue ?? undefined;
     const fantasyCalcDynasty = fantasyCalc?.dynastyValue;
     const ktcValue = ktc?.ktc_value;
     const fantasyProsDynastyValue = fantasyProsDynasty?.dynastyValue ?? fantasyProsDynasty?.value;
@@ -655,7 +636,6 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
       { value: flockValue, weight: effectiveDynastyWeights.flock },
       { value: fantasyProsDynastyValue, weight: effectiveDynastyWeights.fantasyPros },
       { value: dynastyNerdsValue, weight: effectiveDynastyWeights.dynastyNerds },
-      { value: fantasyNerdsValue, weight: effectiveDynastyWeights.fantasyNerds },
       { value: ktcValue, weight: effectiveDynastyWeights.ktc },
       { value: fantasyCalcDynasty, weight: effectiveDynastyWeights.fantasyCalc },
       { value: dynastyProcessValue, weight: effectiveDynastyWeights.dynastyProcess },
@@ -698,9 +678,6 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
       market_value_fantasycalc: fantasyCalcDynasty,
       expert_value_dynastyprocess: dynastyProcessValue,
       expert_value_dynastynerds: dynastyNerdsValue,
-      expert_value_fantasynerds: fantasyNerdsValue,
-      fantasynerds_rank: fantasyNerds?.overallRank ?? undefined,
-      fantasynerds_position_rank: fantasyNerds?.positionRank ?? undefined,
       dynastynerds_rank: dynastyNerds?.overallRank,
       dynastynerds_position_rank: dynastyNerds?.positionRank ?? undefined,
       dynastynerds_format: dynastyNerds?.format ?? undefined,
@@ -715,7 +692,6 @@ function blendPlayerValues(ktcValues: ValueMap, sourceValues: BlendSourceValues,
         flockValue ? 'FlockFantasy' : null,
         fantasyProsDynastyValue ? 'FantasyPros' : null,
         dynastyNerdsValue ? 'DynastyNerds' : null,
-        fantasyNerdsValue ? 'FantasyNerds' : null,
         ktcValue ? 'KTC' : null,
         fantasyCalcDynasty ? 'FantasyCalc' : null,
         dynastyProcessValue ? 'DynastyProcess' : null,
@@ -772,12 +748,11 @@ export { loadFlockFantasyValueProfiles };
 
 export async function loadValueProfileSources(): Promise<ValueProfileSourceValues> {
   const rankingSeason = getCurrentRankingSeason();
-  const [fantasyCalc, dynastyProcess, fantasyPros, fantasyProsDynasty, fantasyNerds, flockFantasy, dynastyNerds, dynastyDealerBenchmark] = await Promise.all([
+  const [fantasyCalc, dynastyProcess, fantasyPros, fantasyProsDynasty, flockFantasy, dynastyNerds, dynastyDealerBenchmark] = await Promise.all([
     loadFantasyCalcValueProfiles(),
     loadDynastyProcessValueProfiles(),
     loadFantasyProsValueProfiles(),
     fetchFantasyProsDynastyRankings(rankingSeason, 'PPR'),
-    fetchFantasyNerdsDynastyRankings(),
     loadFlockFantasyValueProfiles(),
     loadDynastyNerdsValueProfiles(),
     fetchDynastyDealerPlayerValues(),
@@ -788,7 +763,6 @@ export async function loadValueProfileSources(): Promise<ValueProfileSourceValue
     dynastyProcess,
     fantasyPros,
     fantasyProsDynasty,
-    fantasyNerds,
     flockFantasy,
     dynastyNerds,
     dynastyDealerBenchmark,
@@ -834,7 +808,6 @@ export async function loadBlendedValueProfiles(
         dynastyProcessValues: sources.dynastyProcess[dynastyProcessKey] || {},
         fantasyProsRankings: sources.fantasyPros[profile.fantasyProsScoring] || {},
         fantasyProsDynastyRankings: sources.fantasyProsDynasty || {},
-        fantasyNerdsValues: sources.fantasyNerds || {},
         flockValues: getFlockProfileValues(sources.flockFantasy, profile),
         flockBestBallValues: getFlockBestBallProfileValues(sources.flockFantasy, profile),
         dynastyNerdsValues: getDynastyNerdsProfileValues(sources.dynastyNerds, profile),

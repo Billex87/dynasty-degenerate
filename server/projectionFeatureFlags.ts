@@ -2,7 +2,6 @@ export type ProjectionSourceKey =
   | 'fantasypros'
   | 'draftsharks'
   | 'sportsdataio'
-  | 'fantasynerds'
   | 'sleeper'
   | 'internal';
 
@@ -49,7 +48,6 @@ export const PROJECTION_SOURCE_FLAGS: Record<ProjectionSourceKey, string> = {
   fantasypros: 'ENABLE_FANTASYPROS_PROJECTIONS',
   draftsharks: 'ENABLE_DRAFTSHARKS_PROJECTIONS',
   sportsdataio: 'ENABLE_SPORTSDATAIO_PROJECTIONS',
-  fantasynerds: 'ENABLE_FANTASY_NERDS_PROJECTIONS',
   sleeper: 'ENABLE_SLEEPER_PROJECTIONS',
   internal: 'ENABLE_INTERNAL_PROJECTION_ESTIMATES',
 };

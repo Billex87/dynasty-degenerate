@@ -30,8 +30,7 @@ These items should wait until the required external data/auth paths are availabl
 ## Source Onboarding Queue
 
 - Store the FantasyPros key only in server env as `FANTASYPROS_API_KEY`, keep it out of source control/client bundles/logs, and document the production deployment step. The app now loads `.env.local` for local development.
-- Add the Fantasy Nerds API key as `FANTASY_NERDS_API_KEY` and run a redraft/dynasty source-health check once the live package is active.
-- Confirm FantasyPros and Fantasy Nerds license/API terms before enabling them as primary production sources.
+- Confirm FantasyPros license/API terms before enabling it as a primary production source.
 - Keep MyFantasyLeague and Fleaflicker as preferred no-key redraft integrations because they expose API-style data without brittle page scraping.
 - Keep ESPN below official/API sources because the JSON route is useful but not formally documented as a public rankings API.
 - Keep Yahoo and NFL Fantasy as opt-in scraping fallbacks only; production should not depend on them unless they stay stable through draft season.

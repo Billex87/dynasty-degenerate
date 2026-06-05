@@ -7,7 +7,7 @@ This archive is the frozen raw source history used to regenerate player value ti
 ## Stored Files
 
 - `server/value-history-archive/one-time-source-history.json`
-  - Raw source archive from direct KTC player pages, direct Flock player history endpoints, official DynastyProcess GitHub `values-players.csv` commit history, direct FantasyCalc player history endpoints, FantasyPros API ranking snapshots, and local stored Dynasty Nerds/Fantasy Nerds source snapshots.
+  - Raw source archive from direct KTC player pages, direct Flock player history endpoints, official DynastyProcess GitHub `values-players.csv` commit history, direct FantasyCalc player history endpoints, FantasyPros API ranking snapshots, and local stored Dynasty Nerds source snapshots.
   - Identity-normalized after source merge so high-confidence suffix/name variants share one player record.
   - Keeps kicker, defense, IDP, and other ranked assets so league formats that use them can still value them.
   - 2,296 players.
@@ -19,8 +19,8 @@ This archive is the frozen raw source history used to regenerate player value ti
   - SHA-256: `45ea9497ac72752aa4c611228e1fd2ffd3ce62c634912cfe1076f7e053ace1c7`
 - `server/value-history-archive/source-coverage-audit.json`
   - Source coverage report for the raw archive.
-  - KeepTradeCut, Flock Fantasy, FantasyCalc, FantasyPros, DynastyProcess, Dynasty Nerds, and Fantasy Nerds are present.
-  - Dynasty Nerds/Fantasy Nerds history is partial local stored-source snapshot coverage, not full source-native direct history.
+  - KeepTradeCut, Flock Fantasy, FantasyCalc, FantasyPros, DynastyProcess, and Dynasty Nerds are present.
+  - Dynasty Nerds history is partial local stored-source snapshot coverage, not full source-native direct history.
   - SHA-256: `67c2f2c8ab9a92be6c0f4dcf308a5620cc87733223566b3a758149d8adeecfca`
 - `server/value-history-archive/fantasycalc-history.json`
   - Source-specific FantasyCalc archive from direct player history endpoints.
@@ -38,10 +38,10 @@ This archive is the frozen raw source history used to regenerate player value ti
   - 221,759 raw player/date/source/format points.
   - SHA-256: `d861bc9b7c4153cda30a54deda260704731a091c6f233be843557969cacfac3a`
 - `server/value-history-archive/local-nerds-source-history.json`
-  - Source-specific partial archive from locally stored Dynasty Degen source snapshots for Dynasty Nerds and Fantasy Nerds columns.
+  - Source-specific partial archive from locally stored Dynasty Degen source snapshots for Dynasty Nerds columns.
   - 358 players.
   - 5,366 raw player/date/source/format points.
-  - Includes 5,286 Dynasty Nerds points and 80 Fantasy Nerds points.
+  - Includes 5,286 Dynasty Nerds points.
   - SHA-256: `6e3dd6aa7eea0a05d980ad984a6c84010099862016666cf33b14ac6e52b22fb2`
 - `server/value-history-archive/player-value-history-reblended.json`
   - Derived timeline using audited 2026-05-17 default weights.
@@ -192,4 +192,4 @@ The bundles and `.sha256` manifests are gitignored. Copies are also stored under
 
 ## Approved Imports
 
-Use `docs/value-history-imports.md` and the CSV templates in `docs/value-history-import-templates/` when adding approved historical exports for FantasyCalc, FantasyPros, DynastyProcess, Dynasty Nerds, Fantasy Nerds, or future weighted sources.
+Use `docs/value-history-imports.md` and the CSV templates in `docs/value-history-import-templates/` when adding approved historical exports for FantasyCalc, FantasyPros, DynastyProcess, Dynasty Nerds, or future weighted sources.

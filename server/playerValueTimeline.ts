@@ -266,7 +266,6 @@ function getSnapshotTimelinePointForPlayer(
     fantasyProsDynasty: row.data.expert_value_fantasypros ?? null,
     dynastyProcess: row.data.expert_value_dynastyprocess ?? null,
     dynastyNerds: row.data.expert_value_dynastynerds ?? null,
-    fantasyNerds: row.data.expert_value_fantasynerds ?? null,
     flockFantasy: row.data.expert_value_flock ?? null,
   };
 }
@@ -766,7 +765,6 @@ function rowsToStoredSnapshots(rows: Awaited<ReturnType<typeof findPlayerValueSn
       expert_value_fantasypros: optionalNumber(sourceValues.fantasyProsDynasty),
       expert_value_dynastyprocess: optionalNumber(sourceValues.dynastyProcess),
       expert_value_dynastynerds: optionalNumber(sourceValues.dynastyNerds),
-      expert_value_fantasynerds: optionalNumber(sourceValues.fantasyNerds),
       expert_value_flock: optionalNumber(sourceValues.flockFantasy),
       value_sources: Array.isArray(row.sources) ? row.sources : [],
     };

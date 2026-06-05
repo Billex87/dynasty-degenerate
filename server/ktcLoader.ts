@@ -38,9 +38,6 @@ interface KTCValues {
     market_value_fantasycalc?: number;
     expert_value_dynastyprocess?: number;
     expert_value_dynastynerds?: number;
-    expert_value_fantasynerds?: number;
-    fantasynerds_rank?: number;
-    fantasynerds_position_rank?: string | null;
     dynastynerds_rank?: number;
     dynastynerds_position_rank?: string | null;
     dynastynerds_format?: string | null;
@@ -66,7 +63,7 @@ let storedBlendedKtcValuesCache: Record<string, KTCValues> = {};
 const localKtcSnapshotCache = new Map<string, KTCValues>();
 const KTC_SNAPSHOT_TIME_ZONE = 'America/Vancouver';
 const BLENDED_VALUE_PROFILE_KEY_PATTERN = /^(10|12|14)_(one_qb|sf)_(standard|half_ppr|ppr)_(base|tep_0_5|tep_1_0|tep_1_5)$/;
-const PRIMARY_VALUE_SOURCES = new Set(['FlockFantasy', 'FantasyPros', 'DynastyNerds', 'FantasyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess']);
+const PRIMARY_VALUE_SOURCES = new Set(['FlockFantasy', 'FantasyPros', 'DynastyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess']);
 
 export const KTC_SNAPSHOT_DIR = path.join(process.cwd(), 'server', 'ktc-snapshots');
 const KTC_STATIC_DIR = path.join(process.cwd(), 'server', 'ktc-static');
@@ -245,7 +242,6 @@ function sanitizeLowConfidenceFlockProspectValue(
     value.market_value_ktc,
     value.market_value_fantasycalc,
     value.expert_value_dynastynerds,
-    value.expert_value_fantasynerds,
     value.expert_value_fantasypros,
     value.expert_value_dynastyprocess,
   ].map(candidate => Number(candidate || 0)).find(candidate => Number.isFinite(candidate) && candidate > 0) || 0;

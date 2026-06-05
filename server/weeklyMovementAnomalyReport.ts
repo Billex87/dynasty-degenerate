@@ -19,7 +19,6 @@ type SnapshotValue = {
   position_rank?: string | null;
   fantasypros_position_rank?: string | null;
   dynastynerds_position_rank?: string | null;
-  fantasynerds_position_rank?: string | null;
   value_sources?: string[];
   benchmark_sources?: string[];
 };
@@ -297,7 +296,6 @@ function getPositionRank(row: SnapshotValue): string | null {
   return row.position_rank
     || row.fantasypros_position_rank
     || row.dynastynerds_position_rank
-    || row.fantasynerds_position_rank
     || null;
 }
 

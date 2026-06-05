@@ -24,7 +24,6 @@ const SOURCE_VALUE_FIELDS = {
   fantasyPros: 'fantasyProsDynasty',
   dynastyProcess: 'dynastyProcess',
   dynastyNerds: 'dynastyNerds',
-  fantasyNerds: 'fantasyNerds',
   flockFantasy: 'flockFantasy',
 };
 
@@ -36,7 +35,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     '  ARCHIVE_FILE=server/value-history-archive/one-time-source-history.json',
     '  OUT_FILE=server/value-history-archive/player-value-history-reblended.json',
     '  BLEND_NAME=2026-05-new-weights',
-    '  WEIGHTS=\'{"marketKtc":0.16,"fantasyCalc":0.1,"fantasyPros":0.12,"dynastyProcess":0.02,"dynastyNerds":0.21,"fantasyNerds":0.07,"flockFantasy":0.32}\'',
+    '  WEIGHTS=\'{"marketKtc":0.23,"fantasyCalc":0.1,"fantasyPros":0.12,"dynastyProcess":0.02,"dynastyNerds":0.21,"flockFantasy":0.32}\'',
     '  SOURCE_MATURITY_RAMP_DAYS=90',
     '  SOURCE_MATURITY_MIN_FACTOR=0.15',
     '  HISTORICAL_RANK_NORMALIZATION_WEIGHT=1',
@@ -114,7 +113,6 @@ function aggregatePlayerPoints(points) {
     mergeSourceValue(existing.expert, 'fantasyPros', point.expert?.fantasyPros);
     mergeSourceValue(existing.expert, 'dynastyProcess', point.expert?.dynastyProcess);
     mergeSourceValue(existing.expert, 'dynastyNerds', point.expert?.dynastyNerds);
-    mergeSourceValue(existing.expert, 'fantasyNerds', point.expert?.fantasyNerds);
     mergeSourceValue(existing.expert, 'flockFantasy', point.expert?.flockFantasy);
     const fallback = numberOrNull(point.value);
     if (fallback) existing.fallbackValues.push(fallback);
@@ -138,7 +136,6 @@ function getSourceValues(point) {
     fantasyPros: numberOrNull(point.expert?.fantasyPros),
     dynastyProcess: numberOrNull(point.expert?.dynastyProcess),
     dynastyNerds: numberOrNull(point.expert?.dynastyNerds),
-    fantasyNerds: numberOrNull(point.expert?.fantasyNerds),
     flockFantasy: numberOrNull(point.expert?.flockFantasy),
     fallback: numberOrNull(point.value),
   };
@@ -267,7 +264,6 @@ function buildRankCurvePoint(points, position) {
       fantasyPros: sourceValues.fantasyPros || null,
       dynastyProcess: sourceValues.dynastyProcess || null,
       dynastyNerds: sourceValues.dynastyNerds || null,
-      fantasyNerds: sourceValues.fantasyNerds || null,
       flockFantasy: sourceValues.flockFantasy || null,
     },
     value: latest.value,

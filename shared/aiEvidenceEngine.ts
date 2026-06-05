@@ -322,7 +322,7 @@ function getPlayerAvailabilityStatus(player: AIEvidencePlayerContext): string | 
     cleanText(player.weeklyProjectionStatus);
 }
 
-const PROVIDER_ATTRIBUTION_PATTERN = /\b(?:FantasyPros|DraftSharks|KeepTradeCut|KTC|FantasyCalc|Flock Fantasy|DynastyProcess|Dynasty Nerds|Fantasy Nerds|Dynasty Dealer)\b/i;
+const PROVIDER_ATTRIBUTION_PATTERN = /\b(?:FantasyPros|DraftSharks|KeepTradeCut|KTC|FantasyCalc|Flock Fantasy|DynastyProcess|Dynasty Nerds|Dynasty Dealer)\b/i;
 
 function sanitizeProviderDetail(value?: string | null): string | null {
   const clean = cleanText(value);

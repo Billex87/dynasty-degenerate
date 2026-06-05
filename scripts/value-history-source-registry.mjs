@@ -1,10 +1,9 @@
 export const DEFAULT_VALUE_HISTORY_WEIGHTS = {
-  marketKtc: 0.248,
+  marketKtc: 0.317,
   fantasyCalc: 0.181,
   fantasyPros: 0.033,
   dynastyProcess: 0.053,
   dynastyNerds: 0.228,
-  fantasyNerds: 0.069,
   flockFantasy: 0.188,
 };
 
@@ -68,16 +67,6 @@ export const VALUE_HISTORY_SOURCES = [
     captureMode: 'local-stored-source-snapshots',
     formats: ['PPR', 'SFLEX', 'STD', 'SFLEXTEP'],
     note: 'Archived from Dynasty Degen stored source snapshots where Dynasty Nerds columns were already captured. A direct source-native public history endpoint was not found; current page payload remains live/snapshot-backed only.',
-  },
-  {
-    key: 'fantasyNerds',
-    label: 'Fantasy Nerds',
-    archiveSourceNames: ['FantasyNerds'],
-    currentWeight: DEFAULT_VALUE_HISTORY_WEIGHTS.fantasyNerds,
-    status: 'archived',
-    captureMode: 'local-stored-source-snapshots',
-    formats: ['dynasty', 'redraft', 'projections'],
-    note: 'Archived from Dynasty Degen stored source snapshots where Fantasy Nerds columns were already captured. Local env does not have a real Fantasy Nerds API key; TEST rows are not treated as source history.',
   },
   {
     key: 'dynastyDealer',

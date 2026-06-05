@@ -75,7 +75,6 @@ function getSourceValues(valueProfile: ValueProfile, mode: LeagueValueMode): Sou
     { key: 'fantasyCalcDynasty', label: 'Market input B', value: valueProfile.fantasyCalcDynasty, primary: true },
     { key: 'dynastyProcess', label: 'Model input', value: valueProfile.dynastyProcess, primary: true },
     { key: 'dynastyNerds', label: 'Expert input B', value: valueProfile.dynastyNerds, primary: true },
-    { key: 'fantasyNerds', label: 'Expert input C', value: valueProfile.fantasyNerds, primary: true },
     { key: 'dynastyDealerBenchmark', label: 'Benchmark input', value: valueProfile.dynastyDealerBenchmark, primary: false },
     { key: 'fantasyProsSeasonValue', label: 'Season context input', value: valueProfile.fantasyProsSeasonValue, primary: false },
   ];

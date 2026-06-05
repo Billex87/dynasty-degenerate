@@ -89,10 +89,10 @@ describe('player projection snapshots', () => {
     const snapshot = buildPlayerProjectionSnapshot({
       season: 2026,
       week: 1,
-      source: 'fantasynerds',
+      source: 'sportsdataio',
       scoringProfile: 'PPR',
       projectionType: 'weekly',
-      sourceVersion: 'nerds-week1-v3',
+      sourceVersion: 'sportsdataio-week1-v3',
       fetchedAt: '2026-09-08T15:00:00Z',
       publishedAt: '2026-09-08T14:30:00Z',
       validForWeek: 1,
@@ -100,19 +100,19 @@ describe('player projection snapshots', () => {
       missingStarterCount: 2,
       parserVersion: 4,
       rows: [
-        { playerId: '1', sourcePlayerId: 'fn-1', playerName: 'QB One', team: 'WAS', position: 'QB', projectedFantasyPoints: 21.2, passingAttempts: 34, passingYards: 255, passingTouchdowns: 1.8 },
-        { playerId: '2', sourcePlayerId: 'fn-2', playerName: 'Defense One', team: 'LA', position: 'DST', projectedFantasyPoints: 7.4, defensiveSacks: 2.1 },
+        { playerId: '1', sourcePlayerId: 'sdio-1', playerName: 'QB One', team: 'WAS', position: 'QB', projectedFantasyPoints: 21.2, passingAttempts: 34, passingYards: 255, passingTouchdowns: 1.8 },
+        { playerId: '2', sourcePlayerId: 'sdio-2', playerName: 'Defense One', team: 'LA', position: 'DST', projectedFantasyPoints: 7.4, defensiveSacks: 2.1 },
       ],
     });
 
     expect(snapshot).toMatchObject({
       schemaVersion: 1,
-      sourceKey: 'player-projection-snapshots-v1:fantasynerds:PPR:weekly',
-      snapshotKey: '2026:w1:nerds-week1-v3',
-      source: 'fantasynerds',
+      sourceKey: 'player-projection-snapshots-v1:sportsdataio:PPR:weekly',
+      snapshotKey: '2026:w1:sportsdataio-week1-v3',
+      source: 'sportsdataio',
       scoringProfile: 'PPR',
       projectionType: 'weekly',
-      sourceVersion: 'nerds-week1-v3',
+      sourceVersion: 'sportsdataio-week1-v3',
       season: '2026',
       week: 1,
       validForWeek: 1,

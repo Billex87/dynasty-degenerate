@@ -79,9 +79,6 @@ type KtcValues = Record<string, {
   fantasypros_dynasty_position_rank?: string | null;
   market_value_fantasycalc?: number;
   expert_value_dynastynerds?: number;
-  expert_value_fantasynerds?: number;
-  fantasynerds_rank?: number;
-  fantasynerds_position_rank?: string | null;
   expert_value_dynastyprocess?: number;
   benchmark_value_dynastydealer?: number;
   dynastydealer_vote_rating?: number | null;
@@ -205,7 +202,6 @@ function buildDynastySourceRowsForProfile({
       rank: row.overallRank || null,
     })),
     fantasyPros: snapshotRows.fantasyPros || {},
-    fantasyNerds: snapshotRows.fantasyNerds || {},
     ktc: snapshotRows.ktc && Object.keys(snapshotRows.ktc).length
       ? snapshotRows.ktc
       : createDynastySourceRows(ktcRows, (row, key) => ({
@@ -591,7 +587,6 @@ function getSourceRanksForRow({
         : ktc?.position_rank
           || fantasyProsRookie?.positionRank
           || blended?.fantasypros_dynasty_position_rank
-          || blended?.fantasynerds_position_rank
           || blended?.fantasypros_position_rank
           || dynastyNerds?.positionRank
           || flock?.positionRank
@@ -1018,7 +1013,6 @@ function buildRowsForProfile({
     const flockValue = option.board === 'redraft' ? null : flock?.dynastyValue || null;
     const fantasyProsDynastyValue = option.board === 'dynasty' ? blended?.expert_value_fantasypros || null : null;
     const dynastyNerdsValue = option.board === 'redraft' ? null : dynastyNerds?.dynastyValue || blended?.expert_value_dynastynerds || null;
-    const fantasyNerdsValue = option.board === 'redraft' ? null : blended?.expert_value_fantasynerds || null;
     const fantasyCalcValue = option.board === 'redraft' ? redraft?.fantasyCalcRedraft || blended?.redraft_value || null : blended?.market_value_fantasycalc || null;
     const dynastyProcessValue = option.board === 'dynasty' ? blended?.expert_value_dynastyprocess || null : null;
     const dynastyDealerBenchmark = option.board === 'dynasty' ? blended?.benchmark_value_dynastydealer || null : null;
@@ -1051,7 +1045,6 @@ function buildRowsForProfile({
       { value: flockValue, weight: sourceWeights?.flock || 0 },
       { value: fantasyProsDynastyValue, weight: sourceWeights?.fantasyPros || 0 },
       { value: dynastyNerdsValue, weight: sourceWeights?.dynastyNerds || 0 },
-      { value: fantasyNerdsValue, weight: sourceWeights?.fantasyNerds || 0 },
       { value: ktcValue, weight: sourceWeights?.ktc || 0 },
       { value: option.board === 'dynasty' ? fantasyCalcValue : null, weight: sourceWeights?.fantasyCalc || 0 },
       { value: option.board === 'dynasty' ? dynastyProcessValue : null, weight: sourceWeights?.dynastyProcess || 0 },
@@ -1070,7 +1063,6 @@ function buildRowsForProfile({
       prospectProfile?.source === 'NFL Draft Buzz' && option.board === 'devy' ? 'NFL Draft Buzz' : null,
       (prospectProfile?.source === 'ESPN' || prospectProfile?.espnId) && option.board === 'devy' ? 'ESPN' : null,
       dynastyNerdsValue ? 'DynastyNerds' : null,
-      fantasyNerdsValue ? 'FantasyNerds' : null,
       fantasyCalcValue && option.board === 'dynasty' ? 'FantasyCalc' : null,
       dynastyProcessValue && option.board === 'dynasty' ? 'DynastyProcess' : null,
       ...(option.board === 'redraft' ? redraft?.sources || [] : []),
@@ -1121,7 +1113,6 @@ function buildRowsForProfile({
       flockRank: flock?.overallRank || null,
       fantasyProsDynastyValue,
       dynastyNerdsValue,
-      fantasyNerdsValue,
       fantasyCalcValue,
       dynastyProcessValue,
       dynastyDealerBenchmark,

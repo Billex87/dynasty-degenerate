@@ -51,13 +51,13 @@ describe('projection accuracy backtest', () => {
     const projectionSnapshot = buildPlayerProjectionSnapshot({
       season: 2026,
       week: 1,
-      source: 'fantasynerds',
+      source: 'sportsdataio',
       scoringProfile: 'PPR',
       projectionType: 'weekly',
       sourceVersion: 'week1-v1',
       rows: [
-        { playerId: 'wr-rookie', sourcePlayerId: 'fn-wr', playerName: 'Rookie WR', team: 'JAC', position: 'WR', projectedFantasyPoints: 14 },
-        { playerId: 'qb-vet', sourcePlayerId: 'fn-qb', playerName: 'Veteran QB', team: 'ARI', position: 'QB', projectedFantasyPoints: 21 },
+        { playerId: 'wr-rookie', sourcePlayerId: 'sdio-wr', playerName: 'Rookie WR', team: 'JAC', position: 'WR', projectedFantasyPoints: 14 },
+        { playerId: 'qb-vet', sourcePlayerId: 'sdio-qb', playerName: 'Veteran QB', team: 'ARI', position: 'QB', projectedFantasyPoints: 21 },
       ],
     });
     const schedule = buildNflScheduleSnapshot({

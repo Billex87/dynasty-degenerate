@@ -8,7 +8,6 @@ Use these templates when a provider gives us an approved CSV, JSON export, or li
 - `docs/value-history-import-templates/fantasypros.csv`
 - `docs/value-history-import-templates/dynastyprocess.csv`
 - `docs/value-history-import-templates/dynastynerds.csv`
-- `docs/value-history-import-templates/fantasynerds.csv`
 
 ## Required Fields
 
@@ -25,7 +24,6 @@ Provider-specific value columns should be filled when that source is the owner o
 - FantasyPros: `fantasyProsValue`
 - DynastyProcess: `dynastyProcessValue`
 - Dynasty Nerds: `dynastyNerdsValue`
-- Fantasy Nerds: `fantasyNerdsValue`
 
 Optional fields such as `overallRank`, `positionRank`, `tier`, `team`, `sourceUrl`, and `notes` are kept for review and audit context.
 
@@ -93,7 +91,7 @@ Then capture the provider values we already stored inside those same local blend
 
 ```bash
 VALUE_PROFILE_KEYS=12_sf_ppr_base,12_sf_ppr_tep_0_5,12_sf_ppr_tep_1_0,12_sf_ppr_tep_1_5,12_one_qb_ppr_base,12_one_qb_ppr_tep_0_5,12_one_qb_ppr_tep_1_0,12_one_qb_ppr_tep_1_5 \
-SOURCES=fantasyCalc,fantasyPros,dynastyProcess,dynastyNerds,fantasyNerds \
+SOURCES=fantasyCalc,fantasyPros,dynastyProcess,dynastyNerds \
 OUT_FILE=server/value-history-archive/local-weighted-source-history.json \
 pnpm export:value-history:sources
 ```
@@ -145,9 +143,7 @@ Archived direct/source-history targets:
 - FantasyCalc: direct player history endpoints can be replayed for dynasty Superflex and 1QB profiles. The endpoint does not expose TEP, PPR, or team-count-specific history splits, so the archive keeps only the source-supported base profiles.
 - FantasyPros: API consensus ranking snapshots can be captured by season/type/scoring with source `last_updated` dates. Dynasty rows are stored in app 1QB/SF base PPR formats because the endpoint does not expose QB-format or TEP splits; redraft, ROS, ADP, devy, and rookie ranking snapshots stay in source-specific formats.
 - Dynasty Nerds: local stored source snapshots preserve the Dynasty Nerds columns we already captured in Dynasty Degen value snapshots. The public page exposes current `DR_DATA`, but no direct public historical series was confirmed, so do not label this as a full source-native backfill.
-- Fantasy Nerds: local stored source snapshots preserve the Fantasy Nerds columns we already captured in Dynasty Degen value snapshots. The public API requires a real key and the public `TEST` key returns stale sample rows, so do not import `TEST` rows as history.
 
 Blocked until approved direct history/export path:
 
 - Full source-native Dynasty Nerds history beyond stored local snapshots.
-- Full source-native Fantasy Nerds history beyond stored local snapshots or a real API/export key.

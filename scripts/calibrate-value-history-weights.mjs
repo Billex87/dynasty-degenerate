@@ -21,7 +21,6 @@ const SOURCE_CONFIGS = [
   { key: 'fantasyPros', label: 'FantasyPros', read: (point) => point.expert?.fantasyPros },
   { key: 'dynastyProcess', label: 'DynastyProcess', read: (point) => point.expert?.dynastyProcess },
   { key: 'dynastyNerds', label: 'Dynasty Nerds', read: (point) => point.expert?.dynastyNerds },
-  { key: 'fantasyNerds', label: 'Fantasy Nerds', read: (point) => point.expert?.fantasyNerds },
   { key: 'flockFantasy', label: 'Flock Fantasy', read: (point) => point.expert?.flockFantasy },
 ];
 

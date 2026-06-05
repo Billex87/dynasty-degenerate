@@ -79,7 +79,6 @@ interface PositionRankData {
   expert_value_flock?: number;
   expert_value_fantasypros?: number;
   expert_value_dynastynerds?: number;
-  expert_value_fantasynerds?: number;
   market_value_fantasycalc?: number;
   expert_value_dynastyprocess?: number;
   fantasypros_season_value?: number;
@@ -332,11 +331,6 @@ export async function analyzeDraftPicks(
         baseline: getNumberValue(baseline, 'expert_value_dynastynerds'),
         current: getNumberValue(current, 'expert_value_dynastynerds'),
         weight: sourceWeights.dynastyNerds,
-      },
-      {
-        baseline: getNumberValue(baseline, 'expert_value_fantasynerds'),
-        current: getNumberValue(current, 'expert_value_fantasynerds'),
-        weight: sourceWeights.fantasyNerds,
       },
       {
         baseline: getKtcSourceValue(baseline),

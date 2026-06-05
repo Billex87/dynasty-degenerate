@@ -93,9 +93,9 @@ const SCOPE_LABELS: Record<RedraftTimelineScopeKey, string> = {
 };
 
 const SOURCE_PRIORITY: Record<RedraftTimelineScopeKey, string[]> = {
-  CURRENT: ['Dynasty Degen Redraft Blend', 'FantasyPros', 'MFL Rankings', 'NFL Fantasy', 'ESPN Fantasy', 'Fantasy Nerds'],
+  CURRENT: ['Dynasty Degen Redraft Blend', 'FantasyPros', 'MFL Rankings', 'NFL Fantasy', 'ESPN Fantasy'],
   DRAFT: ['FantasyPros'],
-  ADP: ['FantasyPros', 'MFL ADP', 'Fantasy Nerds', 'ESPN Fantasy'],
+  ADP: ['FantasyPros', 'MFL ADP', 'ESPN Fantasy'],
   ROS: ['FantasyPros'],
 };
 

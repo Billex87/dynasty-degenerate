@@ -85,7 +85,7 @@ The retained aggregate artifact is versioned as `redraft-draft-outcomes-v2`. It 
 
 ### 3. Redraft Player Outcome Labels
 
-Use FantasyPros/Fantasy Nerds/MFL/Fleaflicker redraft snapshots, FantasyPros player-points history, Sleeper stats, and public ADP/stat datasets to label player outcomes:
+Use FantasyPros/MFL/Fleaflicker redraft snapshots, FantasyPros player-points history, Sleeper stats, and public ADP/stat datasets to label player outcomes:
 
 - `league_winner_pick`
 - `adp_value_hit`

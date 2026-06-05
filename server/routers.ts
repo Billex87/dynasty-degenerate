@@ -4975,9 +4975,6 @@ function getPlayerValueProfile(
     fantasyCalcRedraft: data.redraft_value ?? null,
     dynastyProcess: isRedraftProfile ? null : data.expert_value_dynastyprocess ?? null,
     dynastyNerds: isRedraftProfile ? null : data.expert_value_dynastynerds ?? null,
-    fantasyNerds: isRedraftProfile ? null : data.expert_value_fantasynerds ?? null,
-    fantasyNerdsRank: isRedraftProfile ? null : data.fantasynerds_rank ?? null,
-    fantasyNerdsPositionRank: isRedraftProfile ? null : data.fantasynerds_position_rank ?? null,
     dynastyNerdsRank: isRedraftProfile ? null : data.dynastynerds_rank ?? null,
     dynastyNerdsPositionRank: isRedraftProfile ? null : data.dynastynerds_position_rank ?? null,
     dynastyNerdsFormat: isRedraftProfile ? null : data.dynastynerds_format ?? null,
@@ -5175,7 +5172,6 @@ function getWaiverCandidateSourceCount(profile?: PlayerDetails['valueProfile']):
     ['FantasyCalc', profile.fantasyCalcDynasty || profile.fantasyCalcRedraft],
     ['DynastyProcess', profile.dynastyProcess],
     ['DynastyNerds', profile.dynastyNerds],
-    ['FantasyNerds', profile.fantasyNerds],
   ].forEach(([source, value]) => {
     if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
       sourceKeys.add(String(source));

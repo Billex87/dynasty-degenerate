@@ -64,7 +64,6 @@ const PROVIDER_SOURCES = new Set<PlayerProjectionSource>([
   'fantasypros',
   'draftsharks',
   'sportsdataio',
-  'fantasynerds',
 ]);
 
 function cleanText(value: unknown): string | null {

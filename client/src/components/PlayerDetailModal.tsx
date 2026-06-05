@@ -510,7 +510,6 @@ export function PlayerDetailModal({
           ['Redraft context input', valueProfile.fantasyCalcRedraft],
           ['Model input', valueProfile.dynastyProcess],
           ['Expert input B', valueProfile.dynastyNerds],
-          ['Expert input C', valueProfile.fantasyNerds],
           ['Benchmark input', valueProfile.dynastyDealerBenchmark],
           ['Season context input', valueProfile.fantasyProsSeasonValue],
         ]
@@ -1940,7 +1939,6 @@ const timelineSourceFields = [
   { key: 'fantasyProsDynasty', label: 'Consensus input A', color: '#fbbf24' },
   { key: 'dynastyProcess', label: 'Model input', color: '#34d399' },
   { key: 'dynastyNerds', label: 'Expert input B', color: '#60a5fa' },
-  { key: 'fantasyNerds', label: 'Expert input C', color: '#f472b6' },
   { key: 'flockFantasy', label: 'Expert input A', color: '#fb7185' },
 ] as const;
 

@@ -61,7 +61,6 @@ vi.mock('./valueBlend', () => ({
       dynastyProcess: { one_qb: {}, superflex: {} },
       fantasyPros: { STD: {}, HALF: {}, PPR: {} },
       fantasyProsDynasty: {},
-      fantasyNerds: {},
       dynastyDealerBenchmark: {},
     })
   ),

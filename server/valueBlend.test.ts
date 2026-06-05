@@ -18,7 +18,6 @@ function buildSourceProfiles(overrides: Partial<ValueProfileSourceValues> = {}):
     dynastyProcess: { one_qb: {}, superflex: {} },
     fantasyPros: { STD: {}, HALF: {}, PPR: {} },
     fantasyProsDynasty: {},
-    fantasyNerds: {},
     flockFantasy: { SUPERFLEX: {}, ONEQB: {}, PROSPECTS_SF: {}, PROSPECTS: {}, BEST_BALL: {}, best_ball_sf: {} },
     dynastyNerds: { PPR: {}, SFLEX: {}, STD: {}, SFLEXTEP: {} },
     dynastyDealerBenchmark: {},

@@ -34,9 +34,6 @@ type KTCValueMap = Record<string, {
   market_value_fantasycalc?: number;
   expert_value_dynastyprocess?: number;
   expert_value_dynastynerds?: number;
-  expert_value_fantasynerds?: number;
-  fantasynerds_rank?: number;
-  fantasynerds_position_rank?: string | null;
   dynastynerds_rank?: number;
   dynastynerds_position_rank?: string | null;
   dynastynerds_format?: string | null;
@@ -80,7 +77,6 @@ type KtcSnapshotPayload = {
   ktcProfiles: Record<string, KTCValueMap>;
   sourceProfiles: {
     fantasyCalc: Record<string, KTCValueMap>;
-    fantasyNerds: KTCValueMap;
     flockFantasy: Record<string, KTCValueMap>;
     dynastyNerds: Record<string, KTCValueMap>;
     dynastyProcess: Record<string, KTCValueMap>;
@@ -106,7 +102,6 @@ function getSnapshotSourceValues(value: KTCValueMap[string]): Record<string, num
     fantasyProsDynasty: value.expert_value_fantasypros ?? null,
     dynastyProcess: value.expert_value_dynastyprocess ?? null,
     dynastyNerds: value.expert_value_dynastynerds ?? null,
-    fantasyNerds: value.expert_value_fantasynerds ?? null,
     flockFantasy: value.expert_value_flock ?? null,
     dynastyDealerBenchmark: value.benchmark_value_dynastydealer ?? null,
   };
@@ -182,7 +177,6 @@ function normalizeSnapshotData(data: unknown): KTCValueMap {
           const isDynastyNerdsSource = Boolean(rawFormat && ['PPR', 'SFLEX', 'STD', 'SFLEXTEP'].includes(rawFormat));
           const isFantasyProsSource = raw.rankingType === 'DYNASTY' || raw.rankingType === 'DRAFT' || numberField('seasonValue') !== undefined || numberField('rankOverall') !== undefined;
           const isFantasyProsDynastySource = raw.rankingType === 'DYNASTY' || (isFantasyProsSource && numberField('dynastyValue') !== undefined);
-          const isFantasyNerdsSource = numberField('dynastyValue') !== undefined && numberField('overallRank') !== undefined && !isDynastyNerdsSource && !isFlockSource && !isFantasyProsSource;
           const isDynastyDealerSource = numberField('currentValue') !== undefined || numberField('baseValue') !== undefined;
           const fallbackPositionRank = typeof raw.positionRank === 'string'
             ? raw.positionRank
@@ -239,17 +233,10 @@ function normalizeSnapshotData(data: unknown): KTCValueMap {
                   ? raw.fantasypros_dynasty_position_rank
                   : isFantasyProsDynastySource ? fallbackPositionRank : undefined,
                 market_value_fantasycalc: numberField('market_value_fantasycalc')
-                  ?? (!isFlockSource && !isDynastyNerdsSource && !isFantasyNerdsSource && !isFantasyProsSource && !isDynastyDealerSource ? numberField('dynastyValue') : undefined),
+                  ?? (!isFlockSource && !isDynastyNerdsSource && !isFantasyProsSource && !isDynastyDealerSource ? numberField('dynastyValue') : undefined),
                 expert_value_dynastyprocess: numberField('expert_value_dynastyprocess'),
                 expert_value_dynastynerds: numberField('expert_value_dynastynerds')
                   ?? (isDynastyNerdsSource ? numberField('dynastyValue') : undefined),
-                expert_value_fantasynerds: numberField('expert_value_fantasynerds')
-                  ?? (isFantasyNerdsSource ? numberField('dynastyValue') : undefined),
-                fantasynerds_rank: numberField('fantasynerds_rank')
-                  ?? (isFantasyNerdsSource ? numberField('overallRank') : undefined),
-                fantasynerds_position_rank: typeof raw.fantasynerds_position_rank === 'string'
-                  ? raw.fantasynerds_position_rank
-                  : isFantasyNerdsSource ? fallbackPositionRank : undefined,
                 dynastynerds_rank: numberField('dynastynerds_rank')
                   ?? (isDynastyNerdsSource ? numberField('overallRank') : undefined),
                 dynastynerds_position_rank: typeof raw.dynastynerds_position_rank === 'string'
@@ -312,9 +299,6 @@ function compactSnapshotData(data: KTCValueMap): KTCValueMap {
         market_value_fantasycalc: value.market_value_fantasycalc,
         expert_value_dynastyprocess: value.expert_value_dynastyprocess,
         expert_value_dynastynerds: value.expert_value_dynastynerds,
-        expert_value_fantasynerds: value.expert_value_fantasynerds,
-        fantasynerds_rank: value.fantasynerds_rank,
-        fantasynerds_position_rank: value.fantasynerds_position_rank,
         dynastynerds_rank: value.dynastynerds_rank,
         dynastynerds_position_rank: value.dynastynerds_position_rank,
         dynastynerds_format: value.dynastynerds_format,
@@ -371,7 +355,6 @@ export async function storeKtcSnapshot() {
       fantasyCalc: Object.fromEntries(
         Object.entries(rawSourceProfiles.fantasyCalc).map(([profileKey, values]) => [profileKey, normalizeSnapshotData(values)])
       ),
-      fantasyNerds: normalizeSnapshotData(rawSourceProfiles.fantasyNerds),
       flockFantasy: Object.fromEntries(
         Object.entries(rawSourceProfiles.flockFantasy).map(([profileKey, values]) => [profileKey, normalizeSnapshotData(values)])
       ),

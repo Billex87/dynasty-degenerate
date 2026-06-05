@@ -39,7 +39,6 @@ function getSourceValueCount(point) {
     point.expert?.fantasyPros,
     point.expert?.dynastyProcess,
     point.expert?.dynastyNerds,
-    point.expert?.fantasyNerds,
     point.expert?.flockFantasy,
     point.value,
   ].filter((value) => {

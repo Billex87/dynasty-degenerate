@@ -56,7 +56,6 @@ export interface RankingPlayer {
   flockRank?: number | null;
   fantasyProsDynastyValue?: number | null;
   dynastyNerdsValue?: number | null;
-  fantasyNerdsValue?: number | null;
   fantasyCalcValue?: number | null;
   dynastyProcessValue?: number | null;
   dynastyDealerBenchmark?: number | null;
@@ -1732,9 +1731,6 @@ export interface PlayerDetails {
     dynastyNerdsRank?: number | null;
     dynastyNerdsPositionRank?: string | null;
     dynastyNerdsFormat?: string | null;
-    fantasyNerds?: number | null;
-    fantasyNerdsRank?: number | null;
-    fantasyNerdsPositionRank?: string | null;
     dynastyDealerBenchmark?: number | null;
     dynastyDealerVoteRating?: number | null;
     dynastyDealerUpdatedAt?: string | null;
@@ -1790,7 +1786,6 @@ export interface PlayerDetails {
         fantasyProsDynasty?: number | null;
         dynastyProcess?: number | null;
         dynastyNerds?: number | null;
-        fantasyNerds?: number | null;
         flockFantasy?: number | null;
       }>;
     }>>;
@@ -1850,7 +1845,6 @@ export interface PlayerDetails {
       fantasyProsDynasty?: number | null;
       dynastyProcess?: number | null;
       dynastyNerds?: number | null;
-      fantasyNerds?: number | null;
       flockFantasy?: number | null;
     }>;
     summary: {

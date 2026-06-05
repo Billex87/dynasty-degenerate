@@ -2,7 +2,6 @@ export type DynastySourceWeightKey =
   | 'flock'
   | 'fantasyPros'
   | 'dynastyNerds'
-  | 'fantasyNerds'
   | 'ktc'
   | 'fantasyCalc'
   | 'dynastyProcess';
@@ -13,7 +12,6 @@ export interface DynastySourceWeights {
   flock: number;
   fantasyPros: number;
   dynastyNerds: number;
-  fantasyNerds: number;
   ktc: number;
   fantasyCalc: number;
   dynastyProcess: number;
@@ -49,7 +47,6 @@ const SOURCE_LABELS: Record<DynastySourceWeightKey, string> = {
   flock: 'Flock Fantasy',
   fantasyPros: 'FantasyPros Dynasty',
   dynastyNerds: 'Dynasty Nerds',
-  fantasyNerds: 'Fantasy Nerds',
   ktc: 'KTC',
   fantasyCalc: 'FantasyCalc',
   dynastyProcess: 'DynastyProcess',
@@ -89,7 +86,6 @@ export function getDynastySourceWeights(options: DynastySourceWeightOptions = {}
       fantasyPros: 0,
       ktc: 0.35,
       dynastyNerds: 0.20,
-      fantasyNerds: 0,
       fantasyCalc: 0,
       dynastyProcess: 0,
     };
@@ -100,8 +96,7 @@ export function getDynastySourceWeights(options: DynastySourceWeightOptions = {}
       flock: 0.23,
       fantasyPros: 0.06,
       dynastyNerds: 0.27,
-      fantasyNerds: 0.07,
-      ktc: 0.19,
+      ktc: 0.26,
       fantasyCalc: 0.13,
       dynastyProcess: 0.05,
     };
@@ -112,8 +107,7 @@ export function getDynastySourceWeights(options: DynastySourceWeightOptions = {}
       flock: 0.24,
       fantasyPros: 0.06,
       dynastyNerds: 0.23,
-      fantasyNerds: 0.07,
-      ktc: 0.18,
+      ktc: 0.25,
       fantasyCalc: 0.17,
       dynastyProcess: 0.05,
     };
@@ -124,8 +118,7 @@ export function getDynastySourceWeights(options: DynastySourceWeightOptions = {}
       flock: 0.25,
       fantasyPros: 0.06,
       dynastyNerds: 0.22,
-      fantasyNerds: 0.07,
-      ktc: 0.19,
+      ktc: 0.26,
       fantasyCalc: 0.16,
       dynastyProcess: 0.05,
     };
@@ -136,8 +129,7 @@ export function getDynastySourceWeights(options: DynastySourceWeightOptions = {}
       flock: 0.22,
       fantasyPros: 0.06,
       dynastyNerds: 0.25,
-      fantasyNerds: 0.07,
-      ktc: 0.24,
+      ktc: 0.31,
       fantasyCalc: 0.11,
       dynastyProcess: 0.05,
     };
@@ -148,8 +140,7 @@ export function getDynastySourceWeights(options: DynastySourceWeightOptions = {}
       flock: 0.23,
       fantasyPros: 0.06,
       dynastyNerds: 0.23,
-      fantasyNerds: 0.07,
-      ktc: 0.24,
+      ktc: 0.31,
       fantasyCalc: 0.12,
       dynastyProcess: 0.05,
     };
@@ -160,8 +151,7 @@ export function getDynastySourceWeights(options: DynastySourceWeightOptions = {}
       flock: 0.23,
       fantasyPros: 0.06,
       dynastyNerds: 0.25,
-      fantasyNerds: 0.07,
-      ktc: 0.17,
+      ktc: 0.24,
       fantasyCalc: 0.17,
       dynastyProcess: 0.05,
     };
@@ -171,8 +161,7 @@ export function getDynastySourceWeights(options: DynastySourceWeightOptions = {}
     flock: 0.25,
     fantasyPros: 0.06,
     dynastyNerds: 0.23,
-    fantasyNerds: 0.07,
-    ktc: 0.19,
+    ktc: 0.26,
     fantasyCalc: 0.15,
     dynastyProcess: 0.05,
   };
@@ -186,7 +175,6 @@ export function getDynastySourceWeightEntries(
     flock: 'Primary expert-ranking anchor when available; trimmed after the historical calibration so it does not overpower market movement.',
     fantasyPros: 'API-backed FantasyPros dynasty ECR support; reduced because historical error was higher and the public ranking type is not league-format specific.',
     dynastyNerds: 'Format-aware expert/community support, including PPR, 1QB, SF, and SF TEP buckets.',
-    fantasyNerds: 'API-backed consensus dynasty ranking support; kept modest because the endpoint is not league-format specific.',
     ktc: 'Market/liquidity signal raised by the historical calibration, but still balanced against ranking anchors to avoid crowd-noise whiplash.',
     fantasyCalc: 'Secondary market value support with team/QB/PPR format knobs; raised because the archive gives it enough forward samples.',
     dynastyProcess: 'Small stabilizer/fallback source because it is broad and public, with a larger baseline after calibration.',

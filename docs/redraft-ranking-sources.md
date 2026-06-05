@@ -5,7 +5,6 @@ Redraft rankings are built separately from dynasty and devy rankings. Dynasty bo
 ## Active Sources
 
 - FantasyPros API: used when `FANTASYPROS_API_KEY` is configured. Provides scoring-aware draft ECR for `PPR`, `HALF`, and `STD`.
-- Fantasy Nerds API: used when `FANTASY_NERDS_API_KEY` is configured. Provides scoring-aware draft rankings and ADP from the official API.
 - Flock Best Ball: uses Flock Fantasy `BEST_BALL` rankings as a shared market-style redraft signal across scoring formats. Flock also publishes redraft Superflex Best Ball at `https://flockfantasy.com/rankings?format=best_ball_sf`; the loader supports it for future SF redraft profiles, but the current app redraft profiles are PPR/Half/Standard 1QB.
 - MyFantasyLeague public API: uses `TYPE=adp`, `TYPE=playerRanks`, and `TYPE=players` JSON exports. No key required.
 - ESPN Fantasy JSON endpoint: uses the public league-default `lm-api-reads.fantasy.espn.com` player info endpoint. This is not formally documented by ESPN, so it is weighted below the official/public exports.
@@ -23,14 +22,12 @@ Redraft rankings are built separately from dynasty and devy rankings. Dynasty bo
 
 ```bash
 FANTASYPROS_API_KEY=
-FANTASY_NERDS_API_KEY=
 FLEAFLICKER_LEAGUE_ID=
 FLEAFLICKER_SEASON=
 REDRAFT_SOURCE_TIMEOUT_MS=8000
 ENABLE_REDRAFT_ADAPTIVE_TRUST=
 ENABLE_REDRAFT_SOURCE_SNAPSHOTS=
 ENABLE_REDRAFT_FANTASYPROS=
-ENABLE_REDRAFT_FANTASY_NERDS=
 ENABLE_REDRAFT_FLOCK_BEST_BALL=
 ENABLE_REDRAFT_INTERNAL_SEASON_BLEND=
 ENABLE_REDRAFT_MFL_ADP=
@@ -62,7 +59,7 @@ Set `ENABLE_REDRAFT_SOURCE_SNAPSHOTS=false` to disable snapshot writes.
 
 ## Terms And Licensing Notes
 
-- Prefer official/API-style sources first: FantasyPros, Fantasy Nerds, MyFantasyLeague, and Fleaflicker are the cleanest integrations here.
+- Prefer official/API-style sources first: FantasyPros, MyFantasyLeague, and Fleaflicker are the cleanest integrations here.
 - Treat ESPN as useful but undocumented. Keep its weight below official sources and keep diagnostics visible.
 - Treat Yahoo and NFL Fantasy as scraping fallbacks. Keep source toggles available and disable either quickly if markup changes or terms become a concern.
 - Do not redistribute raw third-party rankings as a standalone dataset. The app should expose normalized blended values and source attribution inside league reports.

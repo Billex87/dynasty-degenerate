@@ -11,9 +11,9 @@ Dynasty values use a long-term blend that stays separate from redraft. Redraft r
 - FantasyPros Dynasty: API-backed ECR support at a lower weight because the public dynasty board is full PPR and not league-format specific.
 - DynastyProcess: broad public fallback/stabilizer.
 
-Fantasy Nerds dynasty rankings are included as a modest API-backed consensus source when `FANTASY_NERDS_API_KEY` is configured. FantasyPros season rankings and Dynasty Dealer benchmark values can be stored for context, but they do not directly set primary dynasty values.
+FantasyPros season rankings and Dynasty Dealer benchmark values can be stored for context, but they do not directly set primary dynasty values.
 
-The default audited dynasty blend is KTC 19%, FantasyCalc 15%, FantasyPros 6%, DynastyProcess 5%, Dynasty Nerds 23%, Fantasy Nerds 7%, and Flock Fantasy 25%. Format-specific profiles rebalance around that baseline, especially for Superflex and TEP leagues.
+The default audited dynasty blend is KTC 26%, FantasyCalc 15%, FantasyPros 6%, DynastyProcess 5%, Dynasty Nerds 23%, and Flock Fantasy 25%. Format-specific profiles rebalance around that baseline, especially for Superflex and TEP leagues.
 
 ## Adaptive Trust
 

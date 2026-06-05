@@ -13,7 +13,7 @@ Use this when a third-party data provider key may have been exposed and the prov
 ## Verification Commands
 
 ```bash
-rg -n "FANTASYPROS_API_KEY|FANTASY_NERDS_API_KEY|SOURCE_HEALTH_ALERT_WEBHOOK_URL|x-api-key|Authorization" .
+rg -n "FANTASYPROS_API_KEY|SOURCE_HEALTH_ALERT_WEBHOOK_URL|x-api-key|Authorization" .
 pnpm build
 ```
 
@@ -22,7 +22,6 @@ Never paste the secret itself into shell history. Search for fixed prefixes, env
 ## Provider-Specific Posture
 
 - FantasyPros: keep `FANTASYPROS_API_KEY` server-only. Do not enable paid/public primary use until production terms are explicitly approved.
-- Fantasy Nerds: keep `FANTASY_NERDS_API_KEY` server-only. Do not rely on dev/test keys outside development.
 - Source health webhook: treat `SOURCE_HEALTH_ALERT_WEBHOOK_URL` as a write-capable secret because it can post externally.
 
 ## Recovery
@@ -32,4 +31,3 @@ Never paste the secret itself into shell history. Search for fixed prefixes, env
 3. Re-enable the provider behind the narrowest feature flag first.
 4. Run the provider diagnostics command and confirm it prints only status, row counts, freshness, expert counts, and errors.
 5. Record the incident in the overnight report or release notes with the affected provider, disabled flags, redeploy hash, and verification result.
-

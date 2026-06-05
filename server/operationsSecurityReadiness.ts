@@ -238,14 +238,6 @@ function buildChecks(env: Env): OperationsSecurityCheck[] {
       message: "FantasyPros features are disabled or have a server-side API key.",
       missingMessage: "Enabled FantasyPros feature flags require FANTASYPROS_API_KEY.",
     }),
-    checkRequired({
-      id: "fantasy-nerds-api-key",
-      env,
-      envNames: ["FANTASY_NERDS_API_KEY"],
-      required: production && anyEnabled(env, ["ENABLE_FANTASY_NERDS_PROJECTIONS", "ENABLE_REDRAFT_FANTASY_NERDS"]),
-      message: "Fantasy Nerds production features are disabled or have a server-side API key.",
-      missingMessage: "Production Fantasy Nerds feature flags require FANTASY_NERDS_API_KEY.",
-    }),
     validateWebhookUrl(env),
   ];
 }

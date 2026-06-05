@@ -83,7 +83,7 @@ describe('projection admin diagnostics', () => {
     const snapshot = buildPlayerProjectionSnapshot({
       season: 2026,
       week: 1,
-      source: 'fantasynerds',
+      source: 'sportsdataio',
       scoringProfile: 'PPR',
       projectionType: 'weekly',
       sourceVersion: 'week1-v1',
@@ -92,9 +92,9 @@ describe('projection admin diagnostics', () => {
       providerUpdatedAt: '2026-09-01T08:00:00Z',
       missingStarterCount: 2,
       rows: [
-        { playerId: 'qb1', sourcePlayerId: 'fn-1', playerName: 'QB One', team: 'JAC', position: 'QB', projectedFantasyPoints: 19.2 },
-        { playerId: 'wr1', sourcePlayerId: 'fn-dup', playerName: 'WR One', team: 'JAC', position: 'WR', projectedFantasyPoints: 14.5 },
-        { playerId: 'wr2', sourcePlayerId: 'fn-dup', playerName: 'WR Two', team: 'ARI', position: 'WR', projectedFantasyPoints: 12.1 },
+        { playerId: 'qb1', sourcePlayerId: 'sdio-1', playerName: 'QB One', team: 'JAC', position: 'QB', projectedFantasyPoints: 19.2 },
+        { playerId: 'wr1', sourcePlayerId: 'sdio-dup', playerName: 'WR One', team: 'JAC', position: 'WR', projectedFantasyPoints: 14.5 },
+        { playerId: 'wr2', sourcePlayerId: 'sdio-dup', playerName: 'WR Two', team: 'ARI', position: 'WR', projectedFantasyPoints: 12.1 },
       ],
     });
 
@@ -107,10 +107,10 @@ describe('projection admin diagnostics', () => {
     expect(health.status).toBe('warning');
     expect(health.coverageByPosition).toMatchObject({ QB: 1, WR: 2 });
     expect(health.coverageByTeam).toMatchObject({ JAX: 2, ARI: 1 });
-    expect(health.coverageBySource).toMatchObject({ fantasynerds: 3 });
+    expect(health.coverageBySource).toMatchObject({ sportsdataio: 3 });
     expect(health.staleRows).toBe(3);
     expect(health.missingStarterCount).toBe(2);
-    expect(health.duplicateSourcePlayerIds).toEqual(['fn-dup']);
+    expect(health.duplicateSourcePlayerIds).toEqual(['sdio-dup']);
     expect(health.scoringProfileGaps).toEqual(['HALF', 'STD']);
     expect(health.parserWarnings.join(' ')).toContain('stale');
   });

@@ -12,8 +12,7 @@ const baseWeights: DynastySourceWeights = {
   flock: 0.32,
   fantasyPros: 0.12,
   dynastyNerds: 0.23,
-  fantasyNerds: 0.07,
-  ktc: 0.14,
+  ktc: 0.21,
   fantasyCalc: 0.10,
   dynastyProcess: 0.02,
 };
@@ -108,17 +107,15 @@ describe('dynasty source trust', () => {
         expert_value_flock: 9600,
         expert_value_fantasypros: 9450,
         expert_value_dynastynerds: 9500,
-        expert_value_fantasynerds: 9400,
         market_value_fantasycalc: 9100,
         expert_value_dynastyprocess: 8700,
-        value_sources: ['FlockFantasy', 'FantasyPros', 'DynastyNerds', 'FantasyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess'],
+        value_sources: ['FlockFantasy', 'FantasyPros', 'DynastyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess'],
       },
     });
 
     expect(sourceRows.flock?.joshallen.value).toBe(9600);
     expect(sourceRows.fantasyPros?.joshallen.value).toBe(9450);
     expect(sourceRows.dynastyNerds?.joshallen.value).toBe(9500);
-    expect(sourceRows.fantasyNerds?.joshallen.value).toBe(9400);
     expect(sourceRows.ktc?.joshallen.value).toBe(9300);
     expect(sourceRows.fantasyCalc?.joshallen.value).toBe(9100);
     expect(sourceRows.dynastyProcess?.joshallen.value).toBe(8700);

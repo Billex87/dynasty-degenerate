@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { canonicalPlayerNameKey } from './leagueAnalysis';
 import { fetchFantasyProsDraftRankings, type FantasyProsRanking } from './fantasyPros';
-import { fetchFantasyNerdsDraftRankings, hasFantasyNerdsApiKey, type FantasyNerdsRanking, type FantasyNerdsScoring } from './fantasyNerds';
 import { fetchFlockFantasyBestBallValues, type FlockFantasyValue } from './flockFantasy';
 import { listRedraftSourceSnapshots, upsertRedraftSourceSnapshot } from './db';
 import { getCurrentRankingSeason } from './rankingSeason';
@@ -14,7 +13,6 @@ export type RedraftScoring = 'PPR' | 'HALF' | 'STD';
 
 export type RedraftRankingSourceKey =
   | 'fantasyPros'
-  | 'fantasyNerds'
   | 'flockBestBall'
   | 'internalSeasonBlend'
   | 'mflAdp'
@@ -118,11 +116,6 @@ const REDRAFT_SOURCE_CONFIG: Record<RedraftRankingSourceKey, {
     weight: 0.24,
     note: 'Format-aware current-season ECR and draft rankings when the FantasyPros API key is configured.',
   },
-  fantasyNerds: {
-    source: 'Fantasy Nerds',
-    weight: 0.12,
-    note: 'API-backed draft rankings and ADP by scoring format when the Fantasy Nerds API key is configured, or when development uses the public TEST fallback.',
-  },
   flockBestBall: {
     source: 'Flock Best Ball',
     weight: 0.12,
@@ -175,7 +168,6 @@ let cachedNflFantasy: CachedRows | null = null;
 
 const SOURCE_ENV_FLAGS: Record<RedraftRankingSourceKey, string> = {
   fantasyPros: 'ENABLE_REDRAFT_FANTASYPROS',
-  fantasyNerds: 'ENABLE_REDRAFT_FANTASY_NERDS',
   flockBestBall: 'ENABLE_REDRAFT_FLOCK_BEST_BALL',
   internalSeasonBlend: 'ENABLE_REDRAFT_INTERNAL_SEASON_BLEND',
   mflAdp: 'ENABLE_REDRAFT_MFL_ADP',
@@ -388,23 +380,6 @@ function sourceRowsFromFantasyPros(values: Record<string, FantasyProsRanking>, s
   return rows;
 }
 
-function sourceRowsFromFantasyNerds(values: Record<string, FantasyNerdsRanking>): Record<string, RedraftSourceRow> {
-  const rows: Record<string, RedraftSourceRow> = {};
-  for (const [key, value] of Object.entries(values || {})) {
-    upsertSourceRow(rows, key, {
-      name: value.name,
-      position: value.position || null,
-      team: value.team || null,
-      season: value.season || null,
-      rank: value.overallRank || null,
-      positionRank: value.positionRank || null,
-      adp: value.adp || null,
-      value: value.redraftValue || null,
-    });
-  }
-  return rows;
-}
-
 function sourceRowsFromFlockBestBall(values: Record<string, FlockFantasyValue>, season?: string): Record<string, RedraftSourceRow> {
   const rows: Record<string, RedraftSourceRow> = {};
   for (const [key, value] of Object.entries(values || {})) {
@@ -452,7 +427,7 @@ function mergeSourceRowMaps(...rowSets: Array<Record<string, RedraftSourceRow>>)
 }
 
 function getRepresentativeRow(rows: Array<{ source: RedraftRankingSourceKey; row: RedraftSourceRow }>): RedraftSourceRow {
-  const priority: RedraftRankingSourceKey[] = ['fantasyPros', 'flockBestBall', 'fantasyNerds', 'internalSeasonBlend', 'mflAdp', 'mflRankings', 'espnFantasy', 'yahooDraftAnalysis', 'fleaflicker', 'nflFantasy'];
+  const priority: RedraftRankingSourceKey[] = ['fantasyPros', 'flockBestBall', 'internalSeasonBlend', 'mflAdp', 'mflRankings', 'espnFantasy', 'yahooDraftAnalysis', 'fleaflicker', 'nflFantasy'];
   for (const source of priority) {
     const match = rows.find((item) => item.source === source && item.row.name);
     if (match) return match.row;
@@ -770,12 +745,6 @@ const ESPN_TEAM_BY_ID: Record<number, string> = {
 
 function getEspnRankType(scoring: RedraftScoring): 'PPR' | 'STANDARD' {
   return scoring === 'STD' ? 'STANDARD' : 'PPR';
-}
-
-function getFantasyNerdsScoring(scoring: RedraftScoring): FantasyNerdsScoring {
-  if (scoring === 'STD') return 'std';
-  if (scoring === 'HALF') return 'half';
-  return 'ppr';
 }
 
 export async function fetchEspnFantasyRows(scoring: RedraftScoring = 'PPR', season = getCurrentSeason()): Promise<Record<string, RedraftSourceRow>> {
@@ -1531,7 +1500,6 @@ export async function loadRedraftRankingProfiles({
       const sourceTrust = calculateRedraftSourceTrust({
         sourceMaps: {
           fantasyPros: latestSnapshot.sources.fantasyPros || {},
-          fantasyNerds: latestSnapshot.sources.fantasyNerds || {},
           flockBestBall: sharedSources.flockBestBall,
           internalSeasonBlend: sharedSources.internalSeasonBlend,
           mflAdp: sharedSources.mflAdp,
@@ -1546,7 +1514,6 @@ export async function loadRedraftRankingProfiles({
       });
       const snapshotSources = {
         fantasyPros: latestSnapshot.sources.fantasyPros || {},
-        fantasyNerds: latestSnapshot.sources.fantasyNerds || {},
         espnFantasy: latestSnapshot.sources.espnFantasy || {},
         ...sharedSources,
       };
@@ -1579,27 +1546,10 @@ export async function loadRedraftRankingProfiles({
       error: null,
     });
   }
-  if (!hasFantasyNerdsApiKey()) {
-    setRuntimeSourceDiagnostic('fantasyNerds', {
-      status: 'disabled',
-      note: 'Fantasy Nerds redraft rankings require FANTASY_NERDS_API_KEY.',
-      error: null,
-    });
-  } else if (!isRedraftSourceEnabled('fantasyNerds')) {
-    setRuntimeSourceDiagnostic('fantasyNerds', {
-      status: 'disabled',
-      note: 'Fantasy Nerds redraft rankings are disabled by ENABLE_REDRAFT_FANTASY_NERDS.',
-      error: null,
-    });
-  }
-
   const [
     fantasyProsPpr,
     fantasyProsHalfPpr,
     fantasyProsStandard,
-    fantasyNerdsPpr,
-    fantasyNerdsHalfPpr,
-    fantasyNerdsStandard,
     flockBestBall,
     internalSeasonBlend,
     mflAdp,
@@ -1619,15 +1569,6 @@ export async function loadRedraftRankingProfiles({
       : Promise.resolve({}),
     process.env.FANTASYPROS_API_KEY && isRedraftSourceEnabled('fantasyPros')
       ? loadSourceRows('fantasyPros', () => fetchFantasyProsDraftRankings(season, 'STD').then((values) => sourceRowsFromFantasyPros(values, season)), season)
-      : Promise.resolve({}),
-    hasFantasyNerdsApiKey() && isRedraftSourceEnabled('fantasyNerds')
-      ? loadSourceRows('fantasyNerds', () => fetchFantasyNerdsDraftRankings(getFantasyNerdsScoring('PPR')).then(sourceRowsFromFantasyNerds), season)
-      : Promise.resolve({}),
-    hasFantasyNerdsApiKey() && isRedraftSourceEnabled('fantasyNerds')
-      ? loadSourceRows('fantasyNerds', () => fetchFantasyNerdsDraftRankings(getFantasyNerdsScoring('HALF')).then(sourceRowsFromFantasyNerds), season)
-      : Promise.resolve({}),
-    hasFantasyNerdsApiKey() && isRedraftSourceEnabled('fantasyNerds')
-      ? loadSourceRows('fantasyNerds', () => fetchFantasyNerdsDraftRankings(getFantasyNerdsScoring('STD')).then(sourceRowsFromFantasyNerds), season)
       : Promise.resolve({}),
     isRedraftSourceEnabled('flockBestBall')
       ? loadSourceRows('flockBestBall', () => fetchFlockFantasyBestBallValues({ numQbs: 1 }).then((values) => sourceRowsFromFlockBestBall(values, season)), season)
@@ -1657,7 +1598,6 @@ export async function loadRedraftRankingProfiles({
 
   const trustSourceMaps = {
     fantasyPros: mergeSourceRowMaps(fantasyProsPpr, fantasyProsHalfPpr, fantasyProsStandard),
-    fantasyNerds: mergeSourceRowMaps(fantasyNerdsPpr, fantasyNerdsHalfPpr, fantasyNerdsStandard),
     flockBestBall,
     internalSeasonBlend,
     mflAdp,
@@ -1670,7 +1610,6 @@ export async function loadRedraftRankingProfiles({
 
   const baseDiagnostics: RankingSourceDiagnostic[] = [
     diagnosticForRows('fantasyPros', [fantasyProsPpr, fantasyProsHalfPpr, fantasyProsStandard], season),
-    diagnosticForRows('fantasyNerds', [fantasyNerdsPpr, fantasyNerdsHalfPpr, fantasyNerdsStandard], season),
     diagnosticForRows('flockBestBall', flockBestBall, season),
     diagnosticForRows('internalSeasonBlend', internalSeasonBlend, season),
     diagnosticForRows('mflAdp', mflAdp, season),
@@ -1690,14 +1629,13 @@ export async function loadRedraftRankingProfiles({
   const previousSourceTrust = calculatePreviousRedraftSourceTrust(recentSourceSnapshots);
 
   const profiles = {
-    redraft_ppr: blendRedraftRankingRows({ fantasyPros: fantasyProsPpr, fantasyNerds: fantasyNerdsPpr, espnFantasy: espnPpr, ...sharedSources }, { sourceTrust }),
-    redraft_half_ppr: blendRedraftRankingRows({ fantasyPros: fantasyProsHalfPpr, fantasyNerds: fantasyNerdsHalfPpr, espnFantasy: espnHalfPpr, ...sharedSources }, { sourceTrust }),
-    redraft_standard: blendRedraftRankingRows({ fantasyPros: fantasyProsStandard, fantasyNerds: fantasyNerdsStandard, espnFantasy: espnStandard, ...sharedSources }, { sourceTrust }),
+    redraft_ppr: blendRedraftRankingRows({ fantasyPros: fantasyProsPpr, espnFantasy: espnPpr, ...sharedSources }, { sourceTrust }),
+    redraft_half_ppr: blendRedraftRankingRows({ fantasyPros: fantasyProsHalfPpr, espnFantasy: espnHalfPpr, ...sharedSources }, { sourceTrust }),
+    redraft_standard: blendRedraftRankingRows({ fantasyPros: fantasyProsStandard, espnFantasy: espnStandard, ...sharedSources }, { sourceTrust }),
   };
 
   const diagnostics: RankingSourceDiagnostic[] = annotateDiagnosticsWithTrustHistory([
     diagnosticForRows('fantasyPros', [fantasyProsPpr, fantasyProsHalfPpr, fantasyProsStandard], season, sourceTrust.fantasyPros),
-    diagnosticForRows('fantasyNerds', [fantasyNerdsPpr, fantasyNerdsHalfPpr, fantasyNerdsStandard], season, sourceTrust.fantasyNerds),
     diagnosticForRows('flockBestBall', flockBestBall, season, sourceTrust.flockBestBall),
     diagnosticForRows('internalSeasonBlend', internalSeasonBlend, season, sourceTrust.internalSeasonBlend),
     diagnosticForRows('mflAdp', mflAdp, season, sourceTrust.mflAdp),
@@ -1713,7 +1651,6 @@ export async function loadRedraftRankingProfiles({
     season,
     sources: {
       fantasyPros: fantasyProsPpr,
-      fantasyNerds: fantasyNerdsPpr,
       flockBestBall,
       internalSeasonBlend,
       mflAdp,

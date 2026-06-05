@@ -126,7 +126,6 @@ function sourceCount(details: PlayerDetails): number {
       details.valueProfile?.fantasyProsSeasonValue,
       details.valueProfile?.fantasyCalcRedraft,
       details.valueProfile?.dynastyNerds,
-      details.valueProfile?.fantasyNerds,
       details.valueProfile?.dynastyProcess,
     ].filter((value) => numeric(value) !== null && Number(value) > 0).length,
   );

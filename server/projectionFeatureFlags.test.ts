@@ -128,7 +128,6 @@ describe('projection feature flags', () => {
       fantasypros: 'ENABLE_FANTASYPROS_PROJECTIONS',
       sleeper: 'ENABLE_SLEEPER_PROJECTIONS',
       sportsdataio: 'ENABLE_SPORTSDATAIO_PROJECTIONS',
-      fantasynerds: 'ENABLE_FANTASY_NERDS_PROJECTIONS',
     });
     expect(matrix.typeFlags).toMatchObject({
       weekly: 'ENABLE_WEEKLY_PROJECTIONS',

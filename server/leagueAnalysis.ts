@@ -8,7 +8,6 @@ interface KTCValues {
     market_value_ktc?: number;
     expert_value_flock?: number;
     expert_value_dynastynerds?: number;
-    expert_value_fantasynerds?: number;
     benchmark_value_dynastydealer?: number;
     value_sources?: string[];
     benchmark_sources?: string[];

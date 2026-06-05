@@ -28,7 +28,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
     '',
     'Accepted row fields:',
     '  date, playerName/name, playerId/playerKey, position, value, rank, format',
-    '  optional raw sources: ktcValue, fantasyCalcValue, fantasyProsValue, dynastyProcessValue, dynastyNerdsValue, fantasyNerdsValue, flockFantasyValue',
+    '  optional raw sources: ktcValue, fantasyCalcValue, fantasyProsValue, dynastyProcessValue, dynastyNerdsValue, flockFantasyValue',
     '',
     'Notes:',
     '  Use this only for data we are allowed to store: our own snapshots, licensed APIs, official exports, or manually provided files.',
@@ -152,7 +152,6 @@ function normalizeRow(row) {
         fantasyPros: firstNumber(row, ['fantasyPros', 'fantasyProsValue', 'expertFantasyPros', 'expert_value_fantasypros']),
         dynastyProcess: firstNumber(row, ['dynastyProcess', 'dynastyProcessValue', 'expertDynastyProcess', 'expert_value_dynastyprocess']),
         dynastyNerds: firstNumber(row, ['dynastyNerds', 'dynastyNerdsValue', 'expertDynastyNerds', 'expert_value_dynastynerds']),
-        fantasyNerds: firstNumber(row, ['fantasyNerds', 'fantasyNerdsValue', 'expertFantasyNerds', 'expert_value_fantasynerds']),
         flockFantasy: firstNumber(row, ['flockFantasy', 'flockFantasyValue', 'expertFlockFantasy', 'expert_value_flock']),
       },
       sourceMeta: {

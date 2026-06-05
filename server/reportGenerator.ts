@@ -18,7 +18,6 @@ import {
   getDynastySourceRowsFromSnapshotValues,
   loadRecentDynastySourceRowsFromLocalSnapshots,
 } from './dynastySourceTrust';
-import { isFantasyNerdsTestDataActive } from './fantasyNerds';
 import { loadStoredPlayerPropMarketSignals, type PlayerPropMarketSignal } from './playerPropSignals';
 import { getHistoricalPlayerValueAtDate, type HistoricalPlayerValueLookup } from './playerValueTimeline';
 import { buildLeaguePlayoffWeeks } from '../shared/matchupWindows';
@@ -63,9 +62,6 @@ export interface KTCValues {
     market_value_fantasycalc?: number;
     expert_value_dynastyprocess?: number;
     expert_value_dynastynerds?: number;
-    expert_value_fantasynerds?: number;
-    fantasynerds_rank?: number;
-    fantasynerds_position_rank?: string | null;
     dynastynerds_rank?: number;
     dynastynerds_position_rank?: string | null;
     dynastynerds_format?: string | null;
@@ -1112,7 +1108,7 @@ function buildLeagueDiagnostics(
   ).sort();
   const playerValues = Object.values(ktcValues).filter((value) => !/\d{4}.*(1st|2nd|3rd|4th|5th)/i.test(value.name));
   const sourceCoverage = (source: string) => playerValues.filter((value) => value.value_sources?.includes(source)).length;
-  const coverageParts = ['FlockFantasy', 'FantasyPros', 'DynastyNerds', 'FantasyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess']
+  const coverageParts = ['FlockFantasy', 'FantasyPros', 'DynastyNerds', 'KTC', 'FantasyCalc', 'DynastyProcess']
     .filter((source) => sourceCoverage(source) > 0)
     .map((source) => `${source}: ${sourceCoverage(source)}`);
   const fantasyProsDynastyCoverage = sourceCoverage('FantasyPros');
@@ -1166,10 +1162,6 @@ function buildLeagueDiagnostics(
       fantasyProsDynastyCoverage > 0
         ? `FantasyPros Dynasty API rankings stored for ${fantasyProsDynastyCoverage} players and included as a modest adaptive-trust dynasty source.`
         : 'FantasyPros Dynasty API support is wired, but no dynasty values were present in this snapshot.',
-      'Fantasy Nerds API dynasty consensus rankings when FANTASY_NERDS_API_KEY is configured, or when development uses the public TEST fallback',
-      ...(isFantasyNerdsTestDataActive()
-        ? ['Fantasy Nerds is currently using the public TEST fallback in local development; a real API key is required for live rankings.']
-        : []),
       'Dynasty Nerds PPR, Superflex, Standard, and Superflex TEP rankings with player values, Sleeper IDs, and movement',
       `Active dynasty source weights: ${sourceWeightLabel}`,
       'FantasyCalc format values and DynastyProcess 1QB/SF values support the audited dynasty blend as market/stabilizer inputs',
@@ -1186,8 +1178,8 @@ function buildLeagueDiagnostics(
     valueLimitations: [
       `Selected value profile: ${selectedValueProfile}. League analysis no longer uses the old default 12-team SF PPR blend when the league settings point elsewhere.`,
       `Daily snapshots now track ${VALUE_SOURCE_PROFILE_DEFINITIONS.length} blended format profiles across team count, QB format, reception scoring, and TEP bucket.`,
-      'Daily storage includes raw source profiles for KTC, Flock Fantasy, FantasyPros Dynasty, Dynasty Nerds, Fantasy Nerds, FantasyCalc, DynastyProcess, FantasyPros season ranks, and Dynasty Dealer benchmark values before the app builds league-matched blends.',
-      'The audited dynasty blend balances Flock Fantasy and Dynasty Nerds expert rankings with KTC/FantasyCalc market movement. FantasyPros Dynasty and Fantasy Nerds add API-backed consensus support at modest weights because those endpoints are not league-format specific. Redraft stays projection/season-source driven.',
+      'Daily storage includes raw source profiles for KTC, Flock Fantasy, FantasyPros Dynasty, Dynasty Nerds, FantasyCalc, DynastyProcess, FantasyPros season ranks, and Dynasty Dealer benchmark values before the app builds league-matched blends.',
+      'The audited dynasty blend balances Flock Fantasy and Dynasty Nerds expert rankings with KTC/FantasyCalc market movement. FantasyPros Dynasty adds API-backed consensus support at a modest weight because that endpoint is not league-format specific. Redraft stays projection/season-source driven.',
       'Expansion queue for primary data coverage: GridIron/DataSportsGroup-style season projection sources, MySportsFeeds if approved, LeagueLogs value/news verification, and a dedicated player-news feed. These stay out of the blend until they are reliably stored and attributable.',
       normalizeNumQbsForDiagnostics(lineupProfile) === 2 && tightEndPremium > 0
         ? 'Dynasty Nerds has a direct Superflex TEP source for this format bucket.'
@@ -2548,7 +2540,6 @@ function getWeeklyMomentumSourceValue(row: KTCValues[string], source: keyof Retu
   if (source === 'fantasyPros') return positiveNumber(row.expert_value_fantasypros);
   if (source === 'dynastyProcess') return positiveNumber(row.expert_value_dynastyprocess);
   if (source === 'dynastyNerds') return positiveNumber(row.expert_value_dynastynerds);
-  if (source === 'fantasyNerds') return positiveNumber(row.expert_value_fantasynerds);
   if (source === 'flock') return positiveNumber(row.expert_value_flock);
   return null;
 }

@@ -51,7 +51,7 @@ FantasyPros matchup pages are retired from the active SOS pipeline. They must no
 Projection features require:
 
 - `ENABLE_PROJECTION_FEATURES=true`
-- one source flag such as `ENABLE_FANTASYPROS_PROJECTIONS=true`, `ENABLE_DRAFTSHARKS_PROJECTIONS=true`, `ENABLE_SPORTSDATAIO_PROJECTIONS=true`, `ENABLE_FANTASY_NERDS_PROJECTIONS=true`, or `ENABLE_INTERNAL_PROJECTION_ESTIMATES=true`
+- one source flag such as `ENABLE_FANTASYPROS_PROJECTIONS=true`, `ENABLE_DRAFTSHARKS_PROJECTIONS=true`, `ENABLE_SPORTSDATAIO_PROJECTIONS=true`, `ENABLE_SLEEPER_PROJECTIONS=true`, or `ENABLE_INTERNAL_PROJECTION_ESTIMATES=true`
 - one projection-type flag such as `ENABLE_WEEKLY_PROJECTIONS=true`, `ENABLE_REST_OF_SEASON_PROJECTIONS=true`, `ENABLE_PRESEASON_PROJECTIONS=true`, `ENABLE_PLAYOFF_WEEK_PROJECTIONS=true`, `ENABLE_POSITION_PROJECTIONS=true`, `ENABLE_TEAM_DEFENSE_PROJECTIONS=true`, `ENABLE_KICKER_PROJECTIONS=true`, or `ENABLE_INJURY_ADJUSTED_PROJECTIONS=true`
 
 Any of these kill switches blocks projection paths even when the enabling flags are present:
@@ -70,13 +70,10 @@ Before projection or endpoint snapshots influence lineup, matchup, waiver, trade
 pnpm run audit:source-readiness-gates
 CHECK_FANTASYPROS_EXPANDED=true CHECK_FANTASYPROS_PROJECTIONS=true pnpm run check:fantasypros
 pnpm run probe:football-data-sources
-pnpm run probe:fantasy-nerds
 pnpm run audit:zero-row-valuation-sources
 ```
 
 FantasyPros `WW` waiver snapshots require a closer-to-season recheck and non-zero rows before use. FantasyPros targets and articles stay blocked until package access returns `200` and usage terms are approved. SportsDataIO/FantasyData players, teams, schedule, injuries, depth charts, scoring, projections, and usage/route fields stay research-only until package access, endpoint shape, rate limits, and player mapping pass metadata probes.
-
-Fantasy Nerds remains blocked for production features until `pnpm run probe:fantasy-nerds -- --require-current-season-rows` proves current-season non-TEST rows from an approved package key. The probe covers the official players, teams, draft rankings, ADP, dynasty rankings, draft projections, weekly projections, weekly rankings, and rest-of-season projection candidates, but TEST fallback rows do not count as production evidence and no normal report load may call those endpoints.
 
 Sleeper weekly projection snapshots can refresh without enabling public projection claims by setting `ENABLE_SLEEPER_PROJECTION_SNAPSHOTS=true`. User-facing projection mechanics still require the full rollout set: `ENABLE_PROJECTION_FEATURES=true`, `ENABLE_SLEEPER_PROJECTIONS=true`, and at least one projection-type flag such as `ENABLE_WEEKLY_PROJECTIONS=true`.
 
@@ -225,7 +222,6 @@ Rendered public and admin recommendation readouts should present projection evid
 - FantasyPros matchup-calendar access should stay retired unless a future non-SOS use case is approved; it should not drive or decorate public SOS recommendations.
 - FantasyPros targets, articles, and `WW` waiver rankings must not power public recommendations until package access, non-zero rows, freshness, and usage rights are approved.
 - SportsDataIO/FantasyData endpoints beyond stored news must not power model inputs until package access, endpoint shape, rate limits, and Sleeper/player mapping are documented.
-- Fantasy Nerds production flags must stay disabled until current-season non-TEST rows are confirmed.
 - GridIron Data and Dynasty Daddy source-selector work stays research-only until key/package access, source URLs/API paths, auth, terms, cadence, coverage, and feature mapping are documented.
 - A first real OpticOdds player-prop snapshot must be stored before prop thresholds are tuned.
 - Projection source/version metadata needs to be captured with stored snapshots before lineup-strength or confidence models should treat projections as first-class inputs.

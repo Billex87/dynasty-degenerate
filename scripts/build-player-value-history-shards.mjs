@@ -24,7 +24,6 @@ const SOURCE_VALUE_FIELDS = [
   'fantasyProsDynasty',
   'dynastyProcess',
   'dynastyNerds',
-  'fantasyNerds',
   'flockFantasy',
 ];
 
