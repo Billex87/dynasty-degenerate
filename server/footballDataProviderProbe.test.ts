@@ -5,6 +5,26 @@ import {
 } from './footballDataProviderProbe';
 
 describe('football data provider probe', () => {
+  it('covers every planned SportsDataIO/FantasyData metadata category without normal report-load access', () => {
+    const categories = new Set(FOOTBALL_DATA_PROVIDER_PROBES.map((probe) => probe.category));
+
+    expect([...categories].sort()).toEqual([
+      'depth-charts',
+      'injuries',
+      'news',
+      'players',
+      'projections',
+      'schedule',
+      'scoring',
+      'teams',
+      'usage-route-fields',
+    ]);
+    expect(FOOTBALL_DATA_PROVIDER_PROBES.every((probe) => probe.normalReportLoadAllowed === false)).toBe(true);
+    expect(FOOTBALL_DATA_PROVIDER_PROBES.filter((probe) => probe.credentialEnv.length > 0).every((probe) =>
+      probe.credentialEnv.some((name) => name === 'SPORTSDATAIO_API_KEY' || name === 'FANTASYDATA_API_KEY')
+    )).toBe(true);
+  });
+
   it('does not call provider endpoints when required credentials are missing', async () => {
     const fetchImpl = vi.fn<typeof fetch>();
     const probe = FOOTBALL_DATA_PROVIDER_PROBES.find((row) => row.id === 'sportsdataio-players')!;
