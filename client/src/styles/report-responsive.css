@@ -21092,3 +21092,134 @@
     z-index: 2 !important;
   }
 }
+
+/* Trade War Room phone layout: keep the sides readable and asset cards compact after broader tablet overrides. */
+@media (max-width: 760px) {
+  .report-shell .trade-war-room {
+    gap: 0.72rem !important;
+  }
+
+  .report-shell .trade-war-side-grid,
+  .report-shell .trade-war-read-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0.72rem !important;
+  }
+
+  .report-shell .trade-war-side {
+    gap: 0.58rem !important;
+    padding: 0.62rem !important;
+    border-radius: 1rem !important;
+  }
+
+  .report-shell .trade-war-side-header,
+  .report-shell .trade-war-side[data-side="B"] .trade-war-side-header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) max-content !important;
+    align-items: center !important;
+    gap: 0.48rem !important;
+    text-align: left !important;
+  }
+
+  .report-shell .trade-war-manager-lockup,
+  .report-shell .trade-war-side[data-side="B"] .trade-war-manager-lockup {
+    justify-content: flex-start !important;
+    gap: 0.48rem !important;
+  }
+
+  .report-shell .trade-war-manager-lockup > div,
+  .report-shell .trade-war-side[data-side="B"] .trade-war-manager-lockup > div {
+    text-align: left !important;
+  }
+
+  .report-shell .trade-war-manager-avatar,
+  .report-shell .trade-war-manager-avatar img,
+  .report-shell .trade-war-manager-avatar > span:not(.manager-accolade-crown):not(.manager-sacko-dunce) {
+    width: 2.05rem !important;
+    height: 2.05rem !important;
+  }
+
+  .report-shell .trade-war-manager-lockup strong {
+    max-width: min(10.5rem, 48vw) !important;
+    font-size: clamp(0.92rem, 4.2vw, 1.04rem) !important;
+  }
+
+  .report-shell .trade-war-side-total,
+  .report-shell .trade-war-side[data-side="B"] .trade-war-side-total {
+    justify-items: end !important;
+    min-width: 4.25rem !important;
+  }
+
+  .report-shell .trade-war-side-total span {
+    font-size: 0.58rem !important;
+    letter-spacing: 0.16em !important;
+  }
+
+  .report-shell .trade-war-side-total strong {
+    font-size: 1rem !important;
+    line-height: 1 !important;
+  }
+
+  .report-shell .trade-war-selected-assets,
+  .report-shell .trade-war-side .trade-war-player-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.42rem !important;
+  }
+
+  .report-shell .trade-war-selected-asset,
+  .report-shell .trade-war-player-card {
+    min-height: 4.72rem !important;
+    border-radius: 0.82rem !important;
+    padding: 0.45rem !important;
+  }
+
+  .report-shell .trade-war-player-add,
+  .report-shell .trade-war-selected-main {
+    min-height: auto !important;
+    gap: 0.32rem !important;
+  }
+
+  .report-shell .trade-war-player-name,
+  .report-shell .trade-war-selected-main > .player-chip,
+  .report-shell .trade-war-selected-main > .trade-war-pick-label {
+    min-height: 1.46rem !important;
+    font-size: 0.68rem !important;
+    line-height: 1.02 !important;
+  }
+
+  .report-shell .trade-war-player-name :is(.interactive-identity-avatar, .player-headshot, img),
+  .report-shell .trade-war-selected-main :is(.interactive-identity-avatar, .player-headshot, img) {
+    width: 1.28rem !important;
+    height: 1.28rem !important;
+  }
+
+  .report-shell .trade-war-player-pills {
+    flex-wrap: wrap !important;
+    gap: 0.22rem !important;
+  }
+
+  .report-shell .trade-war-player-pills :is(.team-logo-pill, [class*="position-rank-pill"]) {
+    min-height: 1.12rem !important;
+    font-size: 0.55rem !important;
+  }
+
+  .report-shell .trade-war-player-pills > span:not(.team-logo-pill):not([class*="position-rank-pill"]):not(.trade-war-owner-avatar) {
+    min-height: 1.12rem !important;
+    padding-inline: 0.34rem !important;
+    font-size: 0.56rem !important;
+  }
+
+  .report-shell .trade-war-meta-owner-avatar,
+  .report-shell .trade-war-meta-owner-avatar img,
+  .report-shell .trade-war-meta-owner-avatar > span:not(.manager-accolade-crown):not(.manager-sacko-dunce) {
+    width: 1.28rem !important;
+    height: 1.28rem !important;
+  }
+
+  .report-shell .trade-war-picker-toggle {
+    min-height: 2.36rem !important;
+    border-radius: 0.78rem !important;
+    padding: 0.58rem 0.7rem !important;
+    font-size: 0.66rem !important;
+    letter-spacing: 0.12em !important;
+  }
+}
