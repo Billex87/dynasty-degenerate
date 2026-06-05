@@ -787,7 +787,8 @@
 - [x] Add admin-only visibility for FantasyPros endpoint coverage, effective weights, trust movement, stale data, and high-impact valuation changes.
 - [x] Add FantasyPros weekly ECR source traces to waiver AI Targets so the card can show exact stored endpoint keys, weeks, row counts, freshness, and rank evidence behind the recommendation.
 - [x] Add FantasyPros value-profile rows to the admin per-player source trace UI so admins can see dynasty/current-season FantasyPros fields, preserved endpoint keys when available, and honest fallback copy when a blended row no longer has endpoint lineage.
-- [ ] Extend the per-player source trace beyond value-profile rows to normalized `DEVY`, `ROOKIES`, ADP, news, injuries, projections, and player-points snapshot context as those feeds start directly affecting player readouts.
+- [x] Extend the per-player source trace beyond value-profile rows to normalized `DEVY`, `ROOKIES`, ADP, news, injuries, projections, and player-points snapshot context as those feeds start directly affecting player readouts.
+  - 2026-06-05 completion: backend per-player FantasyPros source traces now merge capped normalized snapshot context for projections, player-points history, draft/ROS/ADP/dynasty/devy/rookie rankings, news, and injuries when a FantasyPros ID or stored Sleeper external-ID reference is available. The report path passes already-loaded snapshot context into value-profile generation, so report loads remain snapshot-only with no new live provider dependency; missing or unmatched rows fall back to the existing value-profile trace behavior.
 - [ ] Add unit tests for each FantasyPros payload normalizer and integration tests for dynasty, redraft, devy, rookie, ADP, injury, news, projection, and player-points diagnostics.
 
 ## Draft Baseline / League Mode Roadmap
