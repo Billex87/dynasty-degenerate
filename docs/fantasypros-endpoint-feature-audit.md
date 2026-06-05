@@ -9,13 +9,14 @@ Sources:
 
 ## Current Local Probe Result
 
-The local key is configured. The paced expanded/projection smoke on June 5, 2026 returned metadata-only evidence:
+The local key is configured. June 5, 2026 paced expanded/projection probes returned metadata-only evidence:
 
-- Loaded current rows: `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, `ROOKIES`, `ADP`, `DYNADP`, `RKADP`, `players` with 8,434 rows, `news` with 25 rows, `injuries` with 6 rows, `player-points` with 2,166 rows, `compare-players`, and `projections` with 597 rows.
+- Earlier same-day probe loaded current rows: `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, `ROOKIES`, `ADP`, `DYNADP`, `RKADP`, `players` with 8,434 rows, `news` with 25 rows, `injuries` with 6 rows, `player-points` with 2,166 rows, `compare-players`, and `projections` with 597 rows.
+- Later same-day full expanded/projection rerun stopped on `429` at `weekly-ecr:DST:week1` after loading ranking/player/news/injury/player-points metadata; remaining expanded endpoints and projections were skipped.
 - Weekly ECR: Week 1 position-specific `QB`/`RB`/`WR`/`TE`/`K`/`DST` requests returned rows with `last_updated` of `5/18`; Week 2 and Week 3 returned `200` with zero rows and `last_updated` of `1/01`.
 - Reachable but currently empty: `WW` rankings for Week 1 returned `200` with zero rows and `last_updated` of `1/01`.
 - Blocked for this key/package: `targets` and `articles` returned `403 Forbidden`.
-- Rate-limit behavior: this run did not hit `429`, but the two `403` endpoints mean the expanded check still exits non-zero until those entitlements change.
+- Rate-limit behavior: the latest full rerun hit `429`, so the expanded/projection cadence is not validated under normal rate limits.
 
 Current gate status:
 
