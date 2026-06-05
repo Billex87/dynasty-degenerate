@@ -134,3 +134,6 @@ interactive-globe/
 client/public/__manus__/version.json
 .vercel
 .env*.local
+
+# Claude Code local tooling (preview launch config, worktrees)
+.claude/
