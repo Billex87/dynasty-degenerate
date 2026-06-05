@@ -15,25 +15,38 @@ const sourceLogo = path.join(
   "brand",
   "logos",
   "png",
-  "mobile-dd-stacked-transparent.png"
+  "dd-mark-3d-transparent.png"
 );
 
 const iconSizes = [16, 32, 48, 128];
 
 async function generateIcons() {
   const iconRoot = path.join(extensionRoot, "icons");
+  const tempRoot = path.join(distRoot, "icon-work");
   await mkdir(iconRoot, { recursive: true });
+  await rm(tempRoot, { recursive: true, force: true });
+  await mkdir(tempRoot, { recursive: true });
 
   iconSizes.forEach((size) => {
+    const resizedPath = path.join(tempRoot, `icon-${size}-resized.png`);
     execFileSync("sips", [
-      "-z",
-      String(size),
+      "-Z",
       String(size),
       sourceLogo,
+      "--out",
+      resizedPath
+    ], { stdio: "ignore" });
+    execFileSync("sips", [
+      "-p",
+      String(size),
+      String(size),
+      resizedPath,
       "--out",
       path.join(iconRoot, `icon-${size}.png`)
     ], { stdio: "ignore" });
   });
+
+  await rm(tempRoot, { recursive: true, force: true });
 }
 
 async function copyExtensionFiles() {
