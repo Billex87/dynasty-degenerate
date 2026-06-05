@@ -6,6 +6,10 @@ import {
   type AIPredictionEvent,
   type AIPredictionReliabilitySummary,
 } from '../server/aiPredictionCalibration';
+import {
+  buildLeagueWidePredictionBacktest,
+  type AIPredictionLeagueBacktestSummary,
+} from '../server/aiPredictionLeagueBacktest';
 
 const rootDir = process.cwd();
 const inputPath = path.resolve(rootDir, process.env.AI_PREDICTIONS_FILE || '.cache/modeling/ai-prediction-events.json');
@@ -15,13 +19,14 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log([
     'Build offline AI prediction calibration summaries.',
     '',
-    'This turns saved AI prediction events into reliability buckets that can power admin calibration boards.',
+    'This turns saved AI prediction events into reliability buckets and league-wide backtests that can power admin calibration boards.',
     '',
     'Environment:',
     '  AI_PREDICTIONS_FILE=.cache/modeling/ai-prediction-events.json',
     '  OUT_DIR=.cache/modeling/ai-calibration',
     '',
     'Input may be an array or { events: [...] } of AIPredictionEvent objects.',
+    'Outputs reliability, source-agreement, and league-backtest JSON/Markdown summaries.',
   ].join('\n'));
   process.exit(0);
 }
@@ -73,15 +78,34 @@ function writeMarkdownSummary(filePath: string, title: string, summary: AIPredic
   fs.writeFileSync(filePath, markdown);
 }
 
+function writeBacktestMarkdownSummary(filePath: string, summary: AIPredictionLeagueBacktestSummary) {
+  const rows = summary.rows.slice(0, 60);
+  const markdown = [
+    '# AI Prediction League Backtest',
+    '',
+    `Generated from ${summary.eventCount} AI prediction events with ${summary.scoredCount} scored outcomes.`,
+    '',
+    '| Bucket | League | Module | Events | Scored | Hits | Misses | Pending | Avg confidence | Hit rate | Baseline comps | Model beat | Baseline beat | Matched | Model win rate | Action |',
+    '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |',
+    ...rows.map(row => `| ${row.key} | ${row.leagueId} | ${row.module} | ${row.eventCount} | ${row.scoredCount} | ${row.hitCount} | ${row.missCount} | ${row.pendingCount} | ${formatPct(row.avgConfidence)} | ${formatPct(row.modelHitRate)} | ${row.baselineComparisonCount} | ${row.modelBeatBaselineCount} | ${row.baselineBeatModelCount} | ${row.matchedBaselineCount} | ${formatPct(row.modelBaselineWinRate)} | ${row.confidenceAction} |`),
+    '',
+  ].join('\n');
+
+  fs.writeFileSync(filePath, markdown);
+}
+
 const events = readEvents(inputPath);
 const reliability = summarizeAIPredictionReliability(events);
 const sourceAgreement = summarizeSourceAgreementReliability(events);
+const leagueBacktest = buildLeagueWidePredictionBacktest(events);
 
 fs.mkdirSync(outputDir, { recursive: true });
 fs.writeFileSync(path.join(outputDir, 'reliability.json'), `${JSON.stringify(reliability, null, 2)}\n`);
 fs.writeFileSync(path.join(outputDir, 'source-agreement.json'), `${JSON.stringify(sourceAgreement, null, 2)}\n`);
+fs.writeFileSync(path.join(outputDir, 'league-backtest.json'), `${JSON.stringify(leagueBacktest, null, 2)}\n`);
 writeMarkdownSummary(path.join(outputDir, 'reliability.md'), 'AI Prediction Reliability', reliability);
 writeMarkdownSummary(path.join(outputDir, 'source-agreement.md'), 'AI Source Agreement Reliability', sourceAgreement);
+writeBacktestMarkdownSummary(path.join(outputDir, 'league-backtest.md'), leagueBacktest);
 
 console.log(`Wrote ${path.relative(rootDir, outputDir)}`);
 console.log(`Events: ${events.length}, scored: ${reliability.scoredCount}, pending: ${reliability.pendingCount}`);
