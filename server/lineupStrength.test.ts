@@ -201,6 +201,42 @@ describe("buildLineupStrength", () => {
     });
   });
 
+  it("uses stored FantasyPros injury traces to cap lineup confidence and prefer lower-risk bench alternatives", () => {
+    const report = reportWithLineups();
+    const details = report.playerDetailsById?.["alpha-qb"] as any;
+    details.valueProfile = {
+      fantasyProsSourceTrace: [{
+        source: "FantasyPros",
+        key: "INJURIES",
+        label: "FantasyPros Injuries",
+        status: "Questionable",
+        evidence: "status Questionable; injury Shoulder; practice Limited; endpoint metadata: fantasypros-injuries.",
+      }],
+    };
+
+    const result = buildLineupStrength(report);
+    const alpha = result.rows.find(row => row.manager === "Alpha");
+
+    expect(alpha).toMatchObject({
+      totalScore: 282,
+      edge: 48,
+      confidence: 76,
+      confidenceCapReason: "Stored FantasyPros injury/practice-report snapshot flags starter availability risk, so lineup confidence is capped.",
+      optimalStarterScoreDelta: 15,
+    });
+    expect(alpha?.benchAlternatives[0]).toMatchObject({
+      starter: { name: "Alpha QB" },
+      alternative: { name: "Alpha Bench QB" },
+      scoreDelta: 15,
+      projectionDelta: 1,
+      decision: "upgrade",
+      confidence: 74,
+      closeCallReason: null,
+      note: "Alpha Bench QB grades 15 points ahead of Alpha QB with lower stored availability risk.",
+    });
+    expect(alpha?.optimalStarters?.map(player => player.name)).toEqual(["Alpha Bench QB", "Alpha RB"]);
+  });
+
   it("fails closed to value-only lineup reads when weekly projections are blocked", () => {
     const report = reportWithLineups({
       weeklyProjectionDiagnostics: {

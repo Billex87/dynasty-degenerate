@@ -252,6 +252,35 @@ describe("buildRedraftValuation", () => {
     expect(row?.confidenceReasons).toContain("Stored player-points history calibrated the value.");
   });
 
+  it("uses stored FantasyPros injury traces as backend availability risk evidence", () => {
+    const report = baseReport("ready");
+    const details = report.playerDetailsById?.wr1 as any;
+    details.valueProfile.fantasyProsSourceTrace = [{
+      source: "FantasyPros",
+      key: "INJURIES",
+      label: "FantasyPros Injuries",
+      status: "Questionable",
+      evidence: "status Questionable; injury Hamstring; practice Limited; endpoint metadata: fantasypros-injuries.",
+    }];
+
+    const result = buildRedraftValuation(report, {
+      currentWeek: 1,
+    });
+    const row = result.rows.find(item => item.playerId === "wr1");
+
+    expect(row).toMatchObject({
+      injuryAdjustment: -325,
+      finalValue: 6097,
+      valueDelta: 897,
+      status: "ready",
+    });
+    expect(row?.components.find(component => component.key === "injury-news")).toMatchObject({
+      value: -325,
+      note: "Availability/news adjustment from FantasyPros injury/practice snapshot flags a questionable or limited-practice risk.",
+    });
+    expect(row?.confidenceReasons).toContain("Injury/news context adjusted the value.");
+  });
+
   it("fails closed to existing current-season value when projections are blocked", () => {
     const result = buildRedraftValuation(baseReport("blocked"), {
       currentWeek: 1,

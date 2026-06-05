@@ -3,6 +3,7 @@ import type {
   LineupStrengthSummary,
   ManagerStarterPlayer,
   MatchupPreview,
+  PlayerDetails,
   PlayerScheduleProfile,
   ReportData,
   WeeklyProjectionContext,
@@ -33,6 +34,13 @@ function getProjection(
   return projection?.status === "ready" ? projection : null;
 }
 
+function getPlayerDetails(
+  player: ManagerStarterPlayer,
+  playerDetailsById: ReportData["playerDetailsById"]
+): PlayerDetails | null {
+  return player.playerDetails || playerDetailsById?.[player.player_id] || null;
+}
+
 function getScheduleProfile(
   player: ManagerStarterPlayer,
   playerDetailsById: ReportData["playerDetailsById"]
@@ -48,6 +56,73 @@ function getSchedulePlayerScore(profile: PlayerScheduleProfile | null): number |
   return 0;
 }
 
+function normalizeStatus(value?: string | null): string {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function asNumber(value: unknown): number | null {
+  const numeric = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function normalizeProbability(value: unknown): number | null {
+  const numeric = asNumber(value);
+  if (numeric === null) return null;
+  if (numeric >= 0 && numeric <= 1) return numeric;
+  if (numeric > 1 && numeric <= 100) return numeric / 100;
+  return null;
+}
+
+function getFantasyProsInjuryRiskScore(details: PlayerDetails | null): number {
+  const trace = details?.valueProfile?.fantasyProsSourceTrace?.find(row => row.key === "INJURIES");
+  if (!trace) return 0;
+
+  const text = normalizeStatus([trace.status, trace.label, trace.evidence].filter(Boolean).join(" "));
+  if (!text) return 0;
+  const tokens = new Set(text.split(" "));
+  const playProbability = /PROBABILITY|AVAILABLE|AVAILABILITY|PLAY/.test(text)
+    ? normalizeProbability(trace.value)
+    : null;
+
+  if (
+    tokens.has("OUT") ||
+    tokens.has("IR") ||
+    text.includes("INJURED RESERVE") ||
+    tokens.has("PUP") ||
+    tokens.has("NFI") ||
+    tokens.has("SUSPENDED") ||
+    (playProbability !== null && playProbability <= 0.25)
+  ) {
+    return -35;
+  }
+
+  if (
+    text.includes("DOUBTFUL") ||
+    tokens.has("DNP") ||
+    text.includes("DID NOT PRACTICE") ||
+    text.includes("MISSED PRACTICE") ||
+    (playProbability !== null && playProbability <= 0.5)
+  ) {
+    return -18;
+  }
+
+  if (
+    text.includes("QUESTIONABLE") ||
+    tokens.has("Q") ||
+    text.includes("LIMITED") ||
+    (playProbability !== null && playProbability <= 0.75)
+  ) {
+    return -8;
+  }
+
+  return 0;
+}
+
 function getPlayerCompositeScore(input: {
   player: ManagerStarterPlayer;
   playerDetailsById: ReportData["playerDetailsById"];
@@ -57,19 +132,23 @@ function getPlayerCompositeScore(input: {
   projectionPoints: number | null;
   projectionScore: number;
   scheduleScore: number | null;
+  injuryRiskScore: number;
   totalScore: number;
 } {
   const value = getPlayerValue(input.player);
   const projection = getProjection(input.player, input.playerDetailsById, input.projectionReady);
   const projectionPoints = projection?.projectedFantasyPoints ?? null;
   const projectionScore = projectionPoints === null ? 0 : projectionPoints * PROJECTION_POINT_SCORE_MULTIPLIER;
+  const details = getPlayerDetails(input.player, input.playerDetailsById);
   const scheduleScore = getSchedulePlayerScore(getScheduleProfile(input.player, input.playerDetailsById));
-  const totalScore = value / 100 + projectionScore + (scheduleScore ?? 0);
+  const injuryRiskScore = input.projectionReady ? getFantasyProsInjuryRiskScore(details) : 0;
+  const totalScore = value / 100 + projectionScore + (scheduleScore ?? 0) + injuryRiskScore;
   return {
     value,
     projectionPoints,
     projectionScore,
     scheduleScore,
+    injuryRiskScore,
     totalScore,
   };
 }
@@ -99,11 +178,20 @@ function classifyBenchAlternative(input: {
   scoreDelta: number;
   projectionDelta: number | null;
   projectionReady: boolean;
+  availabilityRiskDelta: number;
 }): Pick<LineupStrengthManagerRead["benchAlternatives"][number], "decision" | "confidence" | "closeCallReason"> {
   if (input.scoreDelta <= 0) {
     return {
       decision: "hold",
       confidence: Math.max(48, Math.min(66, Math.round(58 + Math.abs(input.scoreDelta)))),
+      closeCallReason: null,
+    };
+  }
+
+  if (input.availabilityRiskDelta >= 8 && input.scoreDelta >= 8) {
+    return {
+      decision: "upgrade",
+      confidence: Math.min(78, Math.round(62 + Math.min(8, input.availabilityRiskDelta) + Math.min(8, input.scoreDelta / 4))),
       closeCallReason: null,
     };
   }
@@ -168,10 +256,12 @@ function buildBenchAlternatives(input: {
             : round(candidateScore.projectionPoints - starterScore.projectionPoints);
         const valueDelta = Math.round(candidateScore.value - starterScore.value);
         const scoreDelta = round(candidateScore.totalScore - starterScore.totalScore);
+        const availabilityRiskDelta = round(candidateScore.injuryRiskScore - starterScore.injuryRiskScore);
         const decision = classifyBenchAlternative({
           scoreDelta,
           projectionDelta,
           projectionReady: input.projectionReady,
+          availabilityRiskDelta,
         });
         return {
           starter,
@@ -181,7 +271,9 @@ function buildBenchAlternatives(input: {
           valueDelta,
           ...decision,
           note: scoreDelta > 0
-            ? `${candidate.name} grades ${scoreDelta} points ahead of ${starter.name}.`
+            ? availabilityRiskDelta > 0
+              ? `${candidate.name} grades ${scoreDelta} points ahead of ${starter.name} with lower stored availability risk.`
+              : `${candidate.name} grades ${scoreDelta} points ahead of ${starter.name}.`
             : `${candidate.name} is ${Math.abs(scoreDelta)} points behind ${starter.name}.`,
         };
       });
@@ -424,12 +516,13 @@ export function buildLineupStrength(reportData: ReportData, options: { generated
     const scheduleScore = scheduleScores.length
       ? round(scheduleScores.reduce((sum, score) => sum + score, 0))
       : null;
+    const starterAvailabilityRiskCount = playerScores.filter(score => score.injuryRiskScore < 0).length;
     const totalScore = totalScoreByManager.get(row.manager) || 0;
     const opponentTotalScore = opponentManager ? totalScoreByManager.get(opponentManager) ?? null : null;
     const opponentProjectionPoints = opponentManager ? projectionPointsByManager.get(opponentManager) ?? null : null;
     const opponentFullProjectionCoverage = opponentManager ? Boolean(fullProjectionCoverageByManager.get(opponentManager)) : false;
     const edge = opponentTotalScore === null ? null : round(totalScore - opponentTotalScore);
-    const confidence = Math.min(
+    const baseConfidence = Math.min(
       92,
       Math.round(
         48 +
@@ -439,8 +532,11 @@ export function buildLineupStrength(reportData: ReportData, options: { generated
         (opponentManager ? 8 : 0)
       )
     );
+    const confidence = Math.min(starterAvailabilityRiskCount ? 76 : 92, baseConfidence);
     const confidenceCapReason = !projectionReady
       ? "Weekly projection readiness failed, so lineup strength is value/rank first."
+      : starterAvailabilityRiskCount
+        ? "Stored FantasyPros injury/practice-report snapshot flags starter availability risk, so lineup confidence is capped."
       : scheduleScore === null
         ? "Schedule context is missing for these starters, so SOS does not affect the score."
         : null;

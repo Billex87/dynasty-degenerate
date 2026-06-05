@@ -82,11 +82,23 @@ function getReadyProjection(player: RedraftPlayerLike, details: PlayerDetails | 
   return projection;
 }
 
+function getFantasyProsSourceTrace(details: PlayerDetails | null, key: string) {
+  return details?.valueProfile?.fantasyProsSourceTrace?.find((row) => row.key === key) || null;
+}
+
+function normalizeProbability(value: unknown): number | null {
+  const numeric = asNumber(value);
+  if (numeric === null) return null;
+  if (numeric >= 0 && numeric <= 1) return numeric;
+  if (numeric > 1 && numeric <= 100) return numeric / 100;
+  return null;
+}
+
 function getPlayerPointsHistoryAdjustment(
   details: PlayerDetails | null,
   projection: WeeklyProjectionContext | null
 ): { adjustment: number; note: string | null } {
-  const trace = details?.valueProfile?.fantasyProsSourceTrace?.find((row) => row.key === "PLAYER_POINTS");
+  const trace = getFantasyProsSourceTrace(details, "PLAYER_POINTS");
   const historicalAverage = asNumber(trace?.value);
   if (historicalAverage === null || historicalAverage <= 0) return { adjustment: 0, note: null };
 
@@ -197,6 +209,60 @@ function normalizeStatus(value?: string | null): string {
     .trim();
 }
 
+function getFantasyProsInjuryTraceAdjustment(details: PlayerDetails | null): { adjustment: number; note: string | null } {
+  const trace = getFantasyProsSourceTrace(details, "INJURIES");
+  if (!trace) return { adjustment: 0, note: null };
+
+  const text = normalizeStatus([trace.status, trace.label, trace.evidence].filter(Boolean).join(" "));
+  if (!text) return { adjustment: 0, note: null };
+  const tokens = new Set(text.split(" "));
+  const playProbability = /PROBABILITY|AVAILABLE|AVAILABILITY|PLAY/.test(text)
+    ? normalizeProbability(trace.value)
+    : null;
+
+  if (
+    tokens.has("OUT") ||
+    tokens.has("IR") ||
+    text.includes("INJURED RESERVE") ||
+    tokens.has("PUP") ||
+    tokens.has("NFI") ||
+    tokens.has("SUSPENDED") ||
+    (playProbability !== null && playProbability <= 0.25)
+  ) {
+    return {
+      adjustment: -1400,
+      note: "FantasyPros injury/practice snapshot flags a hard availability risk",
+    };
+  }
+
+  if (
+    text.includes("DOUBTFUL") ||
+    tokens.has("DNP") ||
+    text.includes("DID NOT PRACTICE") ||
+    text.includes("MISSED PRACTICE") ||
+    (playProbability !== null && playProbability <= 0.5)
+  ) {
+    return {
+      adjustment: -750,
+      note: "FantasyPros injury/practice snapshot flags a doubtful or missed-practice risk",
+    };
+  }
+
+  if (
+    text.includes("QUESTIONABLE") ||
+    tokens.has("Q") ||
+    text.includes("LIMITED") ||
+    (playProbability !== null && playProbability <= 0.75)
+  ) {
+    return {
+      adjustment: -325,
+      note: "FantasyPros injury/practice snapshot flags a questionable or limited-practice risk",
+    };
+  }
+
+  return { adjustment: 0, note: null };
+}
+
 function getInjuryNewsAdjustment(details: PlayerDetails | null): { adjustment: number; note: string | null } {
   if (!details) return { adjustment: 0, note: null };
   const statuses = [
@@ -217,6 +283,14 @@ function getInjuryNewsAdjustment(details: PlayerDetails | null): { adjustment: n
   } else if (statuses.some(status => status.includes("QUESTIONABLE") || status === "Q")) {
     adjustment -= 325;
     notes.push("questionable availability status");
+  }
+
+  const fantasyProsInjuryRead = getFantasyProsInjuryTraceAdjustment(details);
+  if (fantasyProsInjuryRead.adjustment) {
+    adjustment = adjustment < 0
+      ? Math.min(adjustment, fantasyProsInjuryRead.adjustment)
+      : fantasyProsInjuryRead.adjustment;
+    notes.push(fantasyProsInjuryRead.note || "FantasyPros injury/practice snapshot");
   }
 
   for (const signal of details.playerSituationDelta?.dynamicSignals || []) {
