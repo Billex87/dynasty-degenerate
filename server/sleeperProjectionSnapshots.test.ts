@@ -82,6 +82,15 @@ describe('sleeper projection snapshots', () => {
           team: 'BAL',
           player: { first_name: 'Bye', last_name: 'Runner', position: 'RB', fantasy_positions: ['RB'] },
         },
+        {
+          stats: { pts_ppr: '   ' },
+          week: 1,
+          season: '2026',
+          player_id: 'blank1',
+          opponent: 'KC',
+          team: 'BUF',
+          player: { first_name: 'Blank', last_name: 'Receiver', position: 'WR', fantasy_positions: ['WR'] },
+        },
       ],
     });
 
@@ -97,7 +106,7 @@ describe('sleeper projection snapshots', () => {
       projectedFantasyPoints: 11.2,
       opponent: 'ARI',
     });
-    expect(snapshot.quarantinedRows.map((row) => row.reason)).toEqual(['missing-projection']);
+    expect(snapshot.quarantinedRows.map((row) => row.reason)).toEqual(['missing-projection', 'missing-projection']);
   });
 
   it('detects league scoring family and calculates custom points only when needed', () => {
