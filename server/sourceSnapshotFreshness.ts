@@ -363,13 +363,6 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       staleAfterHours: DAILY_STALE_HOURS,
     },
     {
-      sourceKey: `devy-source-snapshot:${input.devyProfileKey || input.valueProfileKey}`,
-      source: `Devy source snapshot: ${input.devyProfileKey || input.valueProfileKey}`,
-      tableName: 'devySourceSnapshots',
-      staleAfterHours: WEEKLY_STALE_HOURS,
-      missingLevel: envFlag('ENABLE_DEVY_SOURCE_SNAPSHOTS') ? 'warn' : 'info',
-    },
-    {
       sourceKey: 'fantasypros-news-v1',
       source: PROVIDER_LABELS['fantasypros-news-v1'],
       tableName: 'providerDataSnapshots',
@@ -461,6 +454,16 @@ export async function loadSourceSnapshotFreshnessDiagnostics(input: LoadInput): 
       missingLevel: 'info',
     },
   ];
+
+  if (envFlag('ENABLE_DEVY_SOURCE_SNAPSHOTS')) {
+    expectedSources.push({
+      sourceKey: `devy-source-snapshot:${input.devyProfileKey || input.valueProfileKey}`,
+      source: `Devy source snapshot: ${input.devyProfileKey || input.valueProfileKey}`,
+      tableName: 'devySourceSnapshots',
+      staleAfterHours: WEEKLY_STALE_HOURS,
+      missingLevel: 'warn',
+    });
+  }
 
   if (envFlag('ENABLE_SPORTSDATAIO_NEWS')) {
     expectedSources.push({
