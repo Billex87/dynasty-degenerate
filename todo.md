@@ -1207,8 +1207,10 @@
 
 ### News / Research Assistant
 - [ ] Confirm production FantasyPros news API coverage and rate limits.
+  - 2026-06-05 blocker evidence: the expanded FantasyPros metadata probe returned `news` with 25 rows and did not hit `429`, but this does not complete production coverage/cadence/rate-limit or attribution approval. Keep FantasyPros news snapshot/research-only until production package limits, freshness cadence, mapping coverage, and allowed attribution language are confirmed.
 - [x] Add a snapshot-backed alternate news source path for SportsDataIO/RotoBaller so player news can merge FantasyPros plus licensed SportsDataIO news when `ENABLE_SPORTSDATAIO_NEWS=true` and `SPORTSDATAIO_API_KEY` are configured.
 - [ ] Validate SportsDataIO/RotoBaller news production package access, endpoint shape, rate limits, and player ID mapping before making it a required source-health signal.
+  - 2026-06-05 blocker evidence: `pnpm run probe:football-data-sources` includes `/v3/nfl/scores/json/News`, but it reported `missing_config` because no SportsDataIO/FantasyData package key is configured. Keep SportsDataIO/RotoBaller news optional/snapshot-only until package access, current rows, freshness, rate limits, and Sleeper/player mapping are validated.
 - [ ] Add `FANTASY_NERDS_API_KEY` to production env after confirming the live package returns current-season rows, then verify Fantasy Nerds redraft and dynasty diagnostics load cleanly.
   - 2026-06-05 blocker evidence: local shell has neither `FANTASY_NERDS_API_KEY` nor `FANTASYNERDS_API_KEY` configured, and the code's `TEST` fallback is development-only. Do not add the production key or enable production features until non-TEST current-season rows, freshness, package limits, and player mapping are confirmed.
 - [ ] Revisit GridIron Data once a key or package is available and decide whether it belongs in redraft projections, player news, or source health only.
