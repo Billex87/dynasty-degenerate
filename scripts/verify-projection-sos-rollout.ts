@@ -382,6 +382,7 @@ function summarizeDynastyContentionContext(reportData: any) {
     .filter((value: number | null): value is number => value !== null);
   const projectedRows = rows.filter((row: any) => finiteNumber(row?.projectedFantasyPoints) !== null);
   const sellProjectionSpikeRows = rows.filter((row: any) => row?.action === 'sell-on-projection-spike');
+  const scheduleContextRows = rows.filter((row: any) => finiteNumber(row?.scheduleContextScore) !== null);
 
   return {
     exists: Boolean(context),
@@ -394,6 +395,7 @@ function summarizeDynastyContentionContext(reportData: any) {
     minConfidence: confidences.length ? Math.min(...confidences) : null,
     maxConfidence: confidences.length ? Math.max(...confidences) : null,
     projectedRowCount: projectedRows.length,
+    scheduleContextRowCount: scheduleContextRows.length,
     sellProjectionSpikeCount: sellProjectionSpikeRows.length,
     actionTypes: Array.from(new Set(rows.map((row: any) => row?.action).filter(Boolean))).sort(),
     containsProjectionClaim: containsStoredWeeklyProjectionClaim(context),
@@ -434,6 +436,7 @@ function summarizeTradeRecommendationContext(reportData: any) {
     .filter((value: number | null): value is number => value !== null);
   const projectedRows = rows.filter((row: any) => finiteNumber(row?.projectedFantasyPoints) !== null);
   const fragileProjectionSpikeRows = rows.filter((row: any) => row?.fragileProjectionSpike === true);
+  const scheduleContextRows = rows.filter((row: any) => finiteNumber(row?.scheduleContextScore) !== null);
 
   return {
     exists: Boolean(context),
@@ -445,6 +448,7 @@ function summarizeTradeRecommendationContext(reportData: any) {
     minConfidence: confidences.length ? Math.min(...confidences) : null,
     maxConfidence: confidences.length ? Math.max(...confidences) : null,
     projectedRowCount: projectedRows.length,
+    scheduleContextRowCount: scheduleContextRows.length,
     fragileProjectionSpikeCount: fragileProjectionSpikeRows.length,
     actionTypes: Array.from(new Set(rows.map((row: any) => row?.action).filter(Boolean))).sort(),
     containsProjectionClaim: containsStoredWeeklyProjectionClaim(context),
@@ -823,6 +827,7 @@ function validateReportContract(input: {
       dynastyContentionConfidenceCount: dynastyContentionContext.confidenceCount,
       dynastyContentionManagerConfidenceCount: dynastyContentionContext.managerConfidenceCount,
       dynastyContentionProjectedRowCount: dynastyContentionContext.projectedRowCount,
+      dynastyContentionScheduleContextRowCount: dynastyContentionContext.scheduleContextRowCount,
       dynastyContentionSellProjectionSpikeCount: dynastyContentionContext.sellProjectionSpikeCount,
       dynastyContentionActionTypes: dynastyContentionContext.actionTypes,
       rookieDevelopmentStatus: rookieDevelopmentContext.status,
@@ -839,6 +844,7 @@ function validateReportContract(input: {
       tradeRecommendationManagerCount: tradeRecommendationContext.managerCount,
       tradeRecommendationConfidenceCount: tradeRecommendationContext.confidenceCount,
       tradeRecommendationProjectedRowCount: tradeRecommendationContext.projectedRowCount,
+      tradeRecommendationScheduleContextRowCount: tradeRecommendationContext.scheduleContextRowCount,
       tradeRecommendationFragileProjectionSpikeCount: tradeRecommendationContext.fragileProjectionSpikeCount,
       tradeRecommendationActionTypes: tradeRecommendationContext.actionTypes,
       contenderPlayoffStatus: contenderPlayoffContext.status,

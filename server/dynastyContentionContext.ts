@@ -151,6 +151,27 @@ function isDevelopmentHold(player: ManagerIntelPlayer, details: PlayerDetails | 
   );
 }
 
+function getRedraftScheduleContext(redraftRead: RedraftValuationRow | null): {
+  scheduleAdjustment: number | null;
+  byeAdjustment: number | null;
+  scheduleContextScore: number | null;
+} {
+  if (!redraftRead) {
+    return {
+      scheduleAdjustment: null,
+      byeAdjustment: null,
+      scheduleContextScore: null,
+    };
+  }
+  const scheduleAdjustment = finiteNumber(redraftRead.scheduleAdjustment) ?? 0;
+  const byeAdjustment = finiteNumber(redraftRead.byeAdjustment) ?? 0;
+  return {
+    scheduleAdjustment,
+    byeAdjustment,
+    scheduleContextScore: scheduleAdjustment + byeAdjustment,
+  };
+}
+
 function buildRead(input: {
   action: DynastyContentionAction;
   manager: string;
@@ -170,16 +191,23 @@ function buildRead(input: {
   const projectionPoints = weeklyProjection?.projectedFantasyPoints ?? null;
   const draftCapital = input.details?.playerCohort?.draftCapital || null;
   const situationDelta = input.details?.playerSituationDelta || null;
+  const scheduleContext = getRedraftScheduleContext(input.redraftRead);
+  const scheduleScoreImpact = scheduleContext.scheduleContextScore !== null
+    ? Math.max(-90, Math.min(90, scheduleContext.scheduleContextScore * 0.12))
+    : 0;
+  const adjustedScore = input.score + scheduleScoreImpact;
   const confidenceReasons = [...input.reasons];
   const sourceTrace = [
     input.projectionStatus === 'ready' && weeklyProjection ? `${weeklyProjection.source}:${weeklyProjection.provider || 'unknown'}:${weeklyProjection.week || 'week'}` : null,
     input.redraftRead ? `stored-redraft-valuation:${input.redraftRead.status}` : null,
+    scheduleContext.scheduleAdjustment ? `redraft-schedule-adjustment:${scheduleContext.scheduleAdjustment}` : null,
+    scheduleContext.byeAdjustment ? `redraft-bye-adjustment:${scheduleContext.byeAdjustment}` : null,
     draftCapital ? `draft-capital:${draftCapital.tier}:${draftCapital.opportunityWindow}` : null,
     situationDelta ? `situation-delta:${situationDelta.primaryLabel}:${situationDelta.action}` : null,
     input.details?.valueProfile?.sources?.length ? `value-profile:${input.details.valueProfile.sources.length}-sources` : null,
   ].filter((value): value is string => Boolean(value));
 
-  let confidence = 48 + Math.min(22, Math.max(0, input.score) / 12);
+  let confidence = 48 + Math.min(22, Math.max(0, adjustedScore) / 12);
   if (weeklyProjection) {
     confidence += 10;
     confidenceReasons.push('Ready weekly projection evidence is attached.');
@@ -199,6 +227,9 @@ function buildRead(input: {
     confidence += Math.min(8, Math.max(0, situationDelta.confidence || 0) / 14);
     confidenceReasons.push('Role and situation delta is attached.');
   }
+  if (scheduleContext.scheduleContextScore !== null && scheduleContext.scheduleContextScore !== 0) {
+    confidence += 4;
+  }
 
   const projectionBlockedCapReason = input.projectionStatus === 'ready'
     ? null
@@ -210,17 +241,25 @@ function buildRead(input: {
     targetManager: input.targetManager || null,
     action: input.action,
     player: input.player,
-    score: Math.round(input.score),
+    score: Math.round(adjustedScore),
     confidence: clampScore(Math.min(confidence, cap)),
     confidenceReasons: Array.from(new Set(confidenceReasons.filter(Boolean))).slice(0, 6),
     confidenceCapReason: projectionBlockedCapReason,
-    signals: Array.from(new Set(input.signals.filter(Boolean))).slice(0, 6),
+    signals: Array.from(new Set([
+      ...input.signals,
+      scheduleContext.scheduleContextScore !== null && scheduleContext.scheduleContextScore > 0 ? 'positive-schedule-stretch' : null,
+      scheduleContext.scheduleContextScore !== null && scheduleContext.scheduleContextScore < 0 ? 'negative-schedule-stretch' : null,
+      scheduleContext.byeAdjustment ? 'bye-context' : null,
+    ].filter(Boolean) as string[])).slice(0, 6),
     dynastyValue,
     seasonValue,
     valueGap,
     projectedFantasyPoints: projectionPoints,
     projectionStatus: weeklyProjection ? 'ready' : input.projectionStatus,
     redraftStatus: input.redraftRead?.status || null,
+    scheduleAdjustment: scheduleContext.scheduleAdjustment,
+    byeAdjustment: scheduleContext.byeAdjustment,
+    scheduleContextScore: scheduleContext.scheduleContextScore,
     draftCapitalTier: draftCapital?.tier || null,
     opportunityWindow: draftCapital?.opportunityWindow || null,
     situationAction: situationDelta?.action || null,

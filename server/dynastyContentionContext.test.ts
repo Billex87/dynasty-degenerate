@@ -159,8 +159,8 @@ describe('buildDynastyContentionContext', () => {
         generatedAt: '2026-06-01T00:00:00.000Z',
         note: 'Ready.',
         rows: [
-          { playerId: 'start', name: 'Start Veteran', position: 'WR', team: 'BUF', owner: 'Contender', baseValue: 3200, projectionValue: 5200, scheduleAdjustment: 0, byeAdjustment: 0, roleAdjustment: 0, finalValue: 5200, valueDelta: 2000, confidence: 86, status: 'ready', sourceCount: 4, components: [], note: 'Ready.' },
-          { playerId: 'spike', name: 'Spike Flex', position: 'WR', team: 'BUF', owner: 'Contender', baseValue: 2100, projectionValue: 3600, scheduleAdjustment: 0, byeAdjustment: 0, roleAdjustment: 0, finalValue: 3600, valueDelta: 1500, confidence: 82, status: 'ready', sourceCount: 4, components: [], note: 'Ready.' },
+          { playerId: 'start', name: 'Start Veteran', position: 'WR', team: 'BUF', owner: 'Contender', baseValue: 3200, projectionValue: 5200, scheduleAdjustment: 120, byeAdjustment: 30, roleAdjustment: 0, finalValue: 5350, valueDelta: 2150, confidence: 86, status: 'ready', sourceCount: 4, components: [], note: 'Ready.' },
+          { playerId: 'spike', name: 'Spike Flex', position: 'WR', team: 'BUF', owner: 'Contender', baseValue: 2100, projectionValue: 3600, scheduleAdjustment: 160, byeAdjustment: -20, roleAdjustment: 0, finalValue: 3740, valueDelta: 1640, confidence: 82, status: 'ready', sourceCount: 4, components: [], note: 'Ready.' },
         ] as any,
       },
       managerRosterValueGrowth: [],
@@ -186,5 +186,10 @@ describe('buildDynastyContentionContext', () => {
     expect(contender?.sellOnProjectionSpike.map((read) => read.player.name)).toContain('Spike Flex');
     expect(contender?.buyBeforeRoleGrowth.map((read) => read.player.name)).toContain('Growth Receiver');
     expect(result?.rows.every((read) => read.confidence >= 0 && read.confidence <= 100)).toBe(true);
+    const startRead = contender?.startNow.find((read) => read.player.name === 'Start Veteran');
+    expect(startRead?.scheduleContextScore).toBe(150);
+    expect(startRead?.signals).toContain('positive-schedule-stretch');
+    expect(startRead?.signals).toContain('bye-context');
+    expect(startRead?.sourceTrace.join(' ')).toContain('redraft-schedule-adjustment:120');
   });
 });

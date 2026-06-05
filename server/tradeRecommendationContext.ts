@@ -89,6 +89,15 @@ function getRebuilderFit(input: {
   );
 }
 
+function getScheduleSignal(input: {
+  scheduleContextScore?: number | null;
+  byeAdjustment?: number | null;
+}): string | null {
+  const score = finiteNumber(input.scheduleContextScore);
+  if (score === null || score === 0) return finiteNumber(input.byeAdjustment) ? 'bye-context' : null;
+  return score > 0 ? 'positive-schedule-stretch' : 'negative-schedule-stretch';
+}
+
 function buildTradeRead(input: {
   manager: string;
   targetManager?: string | null;
@@ -101,6 +110,9 @@ function buildTradeRead(input: {
   projectedFantasyPoints: number | null;
   projectionStatus: TradeRecommendationContext['projectionStatus'];
   playoffLeverageScore: number | null;
+  scheduleAdjustment?: number | null;
+  byeAdjustment?: number | null;
+  scheduleContextScore?: number | null;
   sourceTrace: string[];
   baseScore: number;
 }): TradeRecommendationRead {
@@ -110,6 +122,12 @@ function buildTradeRead(input: {
   const contenderFitScore = getContenderFit(input);
   const rebuilderFitScore = getRebuilderFit(input);
   const fragileProjectionSpike = input.sourceAction === 'sell-on-projection-spike';
+  const scheduleContextScore = finiteNumber(input.scheduleContextScore);
+  const scheduleScoreImpact = scheduleContextScore !== null
+    ? Math.max(-70, Math.min(70, scheduleContextScore * 0.08))
+    : 0;
+  const adjustedBaseScore = input.baseScore + scheduleScoreImpact;
+  const scheduleSignal = getScheduleSignal(input);
   const confidenceReasons = [
     'Trade read separates short-term scoring value from dynasty value.',
     input.playoffLeverageScore !== null ? 'Playoff schedule leverage is attached.' : 'No direct playoff leverage match is attached.',
@@ -119,9 +137,10 @@ function buildTradeRead(input: {
   const projectionCapReason = input.projectionStatus === 'ready'
     ? null
     : 'Weekly projection readiness is not ready; trade confidence is capped to value, roster-window, and playoff context.';
-  let confidence = 50 + Math.min(20, Math.max(0, input.baseScore) / 10);
+  let confidence = 50 + Math.min(20, Math.max(0, adjustedBaseScore) / 10);
   confidence += input.projectedFantasyPoints !== null ? 8 : 0;
   confidence += input.playoffLeverageScore !== null ? 7 : 0;
+  confidence += scheduleSignal ? 4 : 0;
   confidence += Math.max(contenderFitScore, rebuilderFitScore) >= 55 ? 7 : 0;
 
   return {
@@ -132,7 +151,7 @@ function buildTradeRead(input: {
     sourceAction: input.sourceAction || null,
     rosterWindow: input.rosterWindow,
     player: input.player,
-    score: Math.round(input.baseScore),
+    score: Math.round(adjustedBaseScore),
     confidence: clampScore(Math.min(confidence, input.projectionStatus === 'ready' ? 90 : 62)),
     confidenceReasons,
     confidenceCapReason: projectionCapReason,
@@ -142,6 +161,9 @@ function buildTradeRead(input: {
     projectedFantasyPoints: input.projectedFantasyPoints,
     projectionStatus: input.projectedFantasyPoints !== null ? 'ready' : input.projectionStatus,
     playoffLeverageScore: input.playoffLeverageScore,
+    scheduleAdjustment: input.scheduleAdjustment ?? null,
+    byeAdjustment: input.byeAdjustment ?? null,
+    scheduleContextScore: input.scheduleContextScore ?? null,
     contenderFitScore,
     rebuilderFitScore,
     fragileProjectionSpike,
@@ -151,6 +173,7 @@ function buildTradeRead(input: {
       input.rosterWindow,
       input.projectedFantasyPoints !== null ? 'weekly-projection' : null,
       input.playoffLeverageScore !== null ? 'playoff-leverage' : null,
+      scheduleSignal,
       fragileProjectionSpike ? 'fragile-projection-spike' : null,
     ].filter((signal): signal is string => Boolean(signal)),
     sourceTrace: input.sourceTrace,
@@ -182,6 +205,9 @@ function fromContentionRead(input: {
     projectedFantasyPoints: input.read.projectedFantasyPoints ?? null,
     projectionStatus,
     playoffLeverageScore,
+    scheduleAdjustment: input.read.scheduleAdjustment ?? null,
+    byeAdjustment: input.read.byeAdjustment ?? null,
+    scheduleContextScore: input.read.scheduleContextScore ?? null,
     sourceTrace: input.read.sourceTrace || [],
     baseScore,
   });
@@ -207,6 +233,9 @@ function fromRookieRead(input: {
     projectedFantasyPoints: input.read.projectedFantasyPoints ?? null,
     projectionStatus,
     playoffLeverageScore,
+    scheduleAdjustment: null,
+    byeAdjustment: null,
+    scheduleContextScore: null,
     sourceTrace: input.read.sourceTrace || [],
     baseScore: input.read.score + (input.read.opportunityRunwayWeeks || 0) * 4,
   });

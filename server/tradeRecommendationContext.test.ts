@@ -99,7 +99,10 @@ describe('buildTradeRecommendationContext', () => {
             seasonValue: 4100,
             valueGap: 1900,
             projectedFantasyPoints: 14.2,
-            sourceTrace: ['stored-weekly-projection:sleeper:1'],
+            scheduleAdjustment: 140,
+            byeAdjustment: -20,
+            scheduleContextScore: 120,
+            sourceTrace: ['stored-weekly-projection:sleeper:1', 'redraft-schedule-adjustment:140', 'redraft-bye-adjustment:-20'],
           })],
         }],
       },
@@ -155,6 +158,8 @@ describe('buildTradeRecommendationContext', () => {
     expect(manager?.hold.map((read) => read.player.name)).toContain('Hold Rookie');
     expect(manager?.tradeAway[0]?.fragileProjectionSpike).toBe(true);
     expect(manager?.tradeAway[0]?.playoffLeverageScore).toBeGreaterThan(0);
+    expect(manager?.tradeAway[0]?.scheduleContextScore).toBe(120);
+    expect(manager?.tradeAway[0]?.signals).toContain('positive-schedule-stretch');
     expect(result?.rows.every((read) => read.confidence >= 0 && read.confidence <= 100)).toBe(true);
   });
 });

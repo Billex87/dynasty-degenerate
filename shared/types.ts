@@ -797,6 +797,9 @@ export interface DynastyContentionPlayerRead {
   projectedFantasyPoints?: number | null;
   projectionStatus: 'ready' | 'blocked' | 'warning' | 'missing';
   redraftStatus?: RedraftValuationRow['status'] | null;
+  scheduleAdjustment?: number | null;
+  byeAdjustment?: number | null;
+  scheduleContextScore?: number | null;
   draftCapitalTier?: PlayerDraftCapitalTier | null;
   opportunityWindow?: PlayerOpportunityWindow | null;
   situationAction?: PlayerSituationDeltaAction | null;
@@ -902,6 +905,9 @@ export interface TradeRecommendationRead {
   projectedFantasyPoints?: number | null;
   projectionStatus: 'ready' | 'blocked' | 'warning' | 'missing';
   playoffLeverageScore: number | null;
+  scheduleAdjustment?: number | null;
+  byeAdjustment?: number | null;
+  scheduleContextScore?: number | null;
   contenderFitScore: number;
   rebuilderFitScore: number;
   fragileProjectionSpike: boolean;
