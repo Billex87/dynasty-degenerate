@@ -281,6 +281,9 @@ export interface SourceSnapshotFreshnessDiagnostic {
   ageHours: number | null;
   payloadSizeBytes: number | null;
   rowCount: number | null;
+  totalExperts?: number | null;
+  providerUpdatedAt?: string | null;
+  publishedAt?: string | null;
   status: 'loaded' | 'stale' | 'missing' | 'error';
   level: 'info' | 'warn' | 'danger';
   note: string;

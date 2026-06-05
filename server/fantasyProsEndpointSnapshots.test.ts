@@ -22,6 +22,7 @@ describe('FantasyPros endpoint snapshots', () => {
 
       return new Response(JSON.stringify({
         last_updated: '5/19',
+        published_at: '2026-05-19T09:00:00Z',
         total_experts: 12,
         players: [{ player_name: 'Sample Player' }],
       }), {
@@ -76,6 +77,19 @@ describe('FantasyPros endpoint snapshots', () => {
       }),
       snapshotKey: '2026-05-19',
     }));
+    const weeklyEcrCall = upsertSpy.mock.calls.find(([input]) =>
+      input.sourceKey === getFantasyProsEndpointSnapshotSourceKey({
+        endpointKey: 'fantasypros-weekly-ecr',
+        season: '2026',
+        scoring: 'PPR',
+      })
+    );
+    const persistedPayload = JSON.parse(String(weeklyEcrCall?.[0].payload || '{}'));
+    expect(persistedPayload).toMatchObject({
+      totalExperts: 12,
+      lastUpdated: '5/19',
+      publishedAt: '2026-05-19T09:00:00Z',
+    });
     expect(JSON.stringify(upsertSpy.mock.calls)).not.toContain('test-key');
   });
 

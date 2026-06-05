@@ -32,6 +32,7 @@ export interface FantasyProsEndpointSnapshotPayload {
   rowCount: number;
   totalExperts: number | null;
   lastUpdated: string | null;
+  publishedAt: string | null;
   statusCode: number;
   data: unknown;
 }
@@ -48,6 +49,7 @@ export interface FantasyProsEndpointSnapshotResult {
   rowCount: number;
   totalExperts: number | null;
   lastUpdated: string | null;
+  publishedAt: string | null;
   statusCode: number | null;
   retryAfterMs: number | null;
   persisted: boolean;
@@ -127,6 +129,16 @@ function getLastUpdated(payload: unknown): string | null {
     || null;
 }
 
+function getPublishedAt(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  const record = payload as Record<string, unknown>;
+  return stringField(record.published_at)
+    || stringField(record.publishedAt)
+    || stringField(record.publication_date)
+    || stringField(record.publicationDate)
+    || getLastUpdated(payload);
+}
+
 function getTotalExperts(payload: unknown): number | null {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
   const record = payload as Record<string, unknown>;
@@ -203,6 +215,7 @@ function skippedResult(input: {
     rowCount: 0,
     totalExperts: null,
     lastUpdated: null,
+    publishedAt: null,
     statusCode: null,
     retryAfterMs: null,
     persisted: false,
@@ -217,10 +230,11 @@ async function persistEndpointPayload(input: {
   now: Date;
   payload: unknown;
   statusCode: number;
-}): Promise<{ persisted: boolean; rowCount: number; totalExperts: number | null; lastUpdated: string | null }> {
+}): Promise<{ persisted: boolean; rowCount: number; totalExperts: number | null; lastUpdated: string | null; publishedAt: string | null }> {
   const rowCount = countRows(input.payload);
   const totalExperts = getTotalExperts(input.payload);
   const lastUpdated = getLastUpdated(input.payload);
+  const publishedAt = getPublishedAt(input.payload);
   const sourceKey = getFantasyProsEndpointSnapshotSourceKey({
     endpointKey: input.endpoint.key,
     season: input.season,
@@ -240,6 +254,7 @@ async function persistEndpointPayload(input: {
     rowCount,
     totalExperts,
     lastUpdated,
+    publishedAt,
     statusCode: input.statusCode,
     data: input.payload,
   };
@@ -248,7 +263,7 @@ async function persistEndpointPayload(input: {
     snapshotKey: getProviderSnapshotDateKey(input.now),
     payload: JSON.stringify(snapshot),
   });
-  return { persisted, rowCount, totalExperts, lastUpdated };
+  return { persisted, rowCount, totalExperts, lastUpdated, publishedAt };
 }
 
 async function fetchEndpointSnapshot(
@@ -288,6 +303,7 @@ async function fetchEndpointSnapshot(
           rowCount: 0,
           totalExperts: null,
           lastUpdated: null,
+          publishedAt: null,
           statusCode: response.status,
           retryAfterMs,
           persisted: false,
@@ -310,6 +326,7 @@ async function fetchEndpointSnapshot(
           rowCount: countRows(payload),
           totalExperts: getTotalExperts(payload),
           lastUpdated: getLastUpdated(payload),
+          publishedAt: getPublishedAt(payload),
         };
 
       return {
@@ -318,6 +335,7 @@ async function fetchEndpointSnapshot(
         rowCount: metadata.rowCount,
         totalExperts: metadata.totalExperts,
         lastUpdated: metadata.lastUpdated,
+        publishedAt: metadata.publishedAt,
         statusCode: response.status,
         retryAfterMs: null,
         persisted: metadata.persisted,
@@ -330,6 +348,7 @@ async function fetchEndpointSnapshot(
         rowCount: 0,
         totalExperts: null,
         lastUpdated: null,
+        publishedAt: null,
         statusCode: null,
         retryAfterMs: null,
         persisted: false,
@@ -346,6 +365,7 @@ async function fetchEndpointSnapshot(
     rowCount: 0,
     totalExperts: null,
     lastUpdated: null,
+    publishedAt: null,
     statusCode: null,
     retryAfterMs: null,
     persisted: false,
@@ -390,6 +410,7 @@ export async function refreshFantasyProsEndpointSnapshots(options: RefreshOption
       rowCount: 0,
       totalExperts: null,
       lastUpdated: null,
+      publishedAt: null,
       statusCode: null,
       retryAfterMs: null,
       persisted: false,

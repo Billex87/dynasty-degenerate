@@ -19,6 +19,7 @@ export interface FantasyProsEndpointHealth {
   rowCount: number;
   totalExperts: number | null;
   lastUpdated: string | null;
+  publishedAt: string | null;
   durationMs: number;
   error: string | null;
   statusCode: number | null;
@@ -92,6 +93,16 @@ function getLastUpdated(payload: unknown): string | null {
     || stringField(record.updated_at)
     || stringField(record.updated)
     || null;
+}
+
+function getPublishedAt(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  const record = payload as Record<string, unknown>;
+  return stringField(record.published_at)
+    || stringField(record.publishedAt)
+    || stringField(record.publication_date)
+    || stringField(record.publicationDate)
+    || getLastUpdated(payload);
 }
 
 function getTotalExperts(payload: unknown): number | null {
@@ -291,6 +302,7 @@ async function fetchEndpointHealth(
         rowCount: 0,
         totalExperts: null,
         lastUpdated: null,
+        publishedAt: null,
         durationMs,
         statusCode: response.status,
         retryAfterMs: parseRetryAfterMs(response.headers.get('retry-after')),
@@ -307,6 +319,7 @@ async function fetchEndpointHealth(
       rowCount,
       totalExperts: getTotalExperts(payload),
       lastUpdated: getLastUpdated(payload),
+      publishedAt: getPublishedAt(payload),
       durationMs,
       statusCode: response.status,
       retryAfterMs: null,
@@ -320,6 +333,7 @@ async function fetchEndpointHealth(
       rowCount: 0,
       totalExperts: null,
       lastUpdated: null,
+      publishedAt: null,
       durationMs: Date.now() - startedAt,
       statusCode: null,
       retryAfterMs: null,
@@ -338,6 +352,7 @@ function buildSkippedEndpointHealth(endpoint: FantasyProsEndpointDefinition, ski
     rowCount: 0,
     totalExperts: null,
     lastUpdated: null,
+    publishedAt: null,
     durationMs: 0,
     statusCode: null,
     retryAfterMs: null,
@@ -376,6 +391,7 @@ export async function checkFantasyProsApiHealth(options: FantasyProsHealthOption
       rowCount: 0,
       totalExperts: null,
       lastUpdated: null,
+      publishedAt: null,
       durationMs: 0,
       statusCode: null,
       retryAfterMs: null,
@@ -427,6 +443,7 @@ function healthMessage(health: FantasyProsEndpointHealth): string {
     `${health.label} loaded ${health.rowCount.toLocaleString('en-US')} row${health.rowCount === 1 ? '' : 's'}.`,
     health.totalExperts ? `${health.totalExperts} experts.` : null,
     health.lastUpdated ? `Updated ${health.lastUpdated}.` : null,
+    health.publishedAt && health.publishedAt !== health.lastUpdated ? `Published ${health.publishedAt}.` : null,
   ];
   return parts.filter(Boolean).join(' ');
 }
@@ -445,6 +462,7 @@ export function buildFantasyProsSourceHealthEvents(healthRows: FantasyProsEndpoi
       statusCode: health.statusCode,
       totalExperts: health.totalExperts,
       lastUpdated: health.lastUpdated,
+      publishedAt: health.publishedAt,
       durationMs: health.durationMs,
       error: health.error,
       retryAfterMs: health.retryAfterMs,

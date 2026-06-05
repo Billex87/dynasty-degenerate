@@ -35,6 +35,7 @@ describe('FantasyPros API health checks', () => {
       if (url.includes('type=DYNASTY')) {
         return new Response(JSON.stringify({
           last_updated: '2026-05-11T00:00:00Z',
+          published_at: '2026-05-11T01:00:00Z',
           total_experts: 22,
           players: [
             { player_name: 'Ja\'Marr Chase' },
@@ -71,6 +72,7 @@ describe('FantasyPros API health checks', () => {
       rowCount: 2,
       totalExperts: 22,
       lastUpdated: '2026-05-11T00:00:00Z',
+      publishedAt: '2026-05-11T01:00:00Z',
     });
     expect(dynastyEvent).toMatchObject({
       job: 'fantasypros-api-health',
@@ -78,6 +80,11 @@ describe('FantasyPros API health checks', () => {
       level: 'info',
       status: 'loaded',
       rowCount: 2,
+    });
+    expect(dynastyEvent?.payload).toMatchObject({
+      totalExperts: 22,
+      lastUpdated: '2026-05-11T00:00:00Z',
+      publishedAt: '2026-05-11T01:00:00Z',
     });
     expect(JSON.stringify(dynastyEvent?.payload)).not.toContain('Ja\'Marr Chase');
     expect(JSON.stringify(dynastyEvent?.payload)).not.toContain('Bijan Robinson');

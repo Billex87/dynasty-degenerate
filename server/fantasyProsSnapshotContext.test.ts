@@ -22,6 +22,7 @@ function snapshot(
     rowCount,
     totalExperts: 4,
     lastUpdated: '5/19',
+    publishedAt: '2026-05-19T09:00:00.000Z',
     statusCode: 200,
     data,
   };
@@ -254,6 +255,11 @@ describe('FantasyPros snapshot context', () => {
     expect(context.summaries.find((summary) => summary.endpointKey === 'fantasypros-ww')).toMatchObject({
       status: 'missing',
       rowCount: 0,
+    });
+    expect(context.summaries.find((summary) => summary.endpointKey === 'fantasypros-weekly-ecr')).toMatchObject({
+      totalExperts: 4,
+      lastUpdated: '5/19',
+      publishedAt: '2026-05-19T09:00:00.000Z',
     });
   });
 

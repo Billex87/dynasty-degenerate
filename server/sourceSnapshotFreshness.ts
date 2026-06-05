@@ -246,11 +246,49 @@ function getMetadataRowCount(metadata: StoredSnapshotMetadata | null): number | 
   return null;
 }
 
+function recordPayload(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function numberPayloadField(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function stringPayloadField(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function getHealthPayloadMetadata(health: StoredSourceHealthEvent | null): {
+  totalExperts: number | null;
+  providerUpdatedAt: string | null;
+  publishedAt: string | null;
+} {
+  const payload = recordPayload(health?.payload);
+  const totalExperts = numberPayloadField(payload?.totalExperts)
+    ?? numberPayloadField(payload?.expertCount)
+    ?? null;
+  const providerUpdatedAt = stringPayloadField(payload?.lastUpdated)
+    ?? stringPayloadField(payload?.providerUpdatedAt)
+    ?? null;
+  const publishedAt = stringPayloadField(payload?.publishedAt)
+    ?? stringPayloadField(payload?.publicationDate)
+    ?? providerUpdatedAt;
+  return {
+    totalExperts,
+    providerUpdatedAt,
+    publishedAt,
+  };
+}
+
 function buildNote(input: {
   source: string;
   status: SourceSnapshotFreshnessDiagnostic['status'];
   ageHours: number | null;
   rowCount: number | null;
+  totalExperts: number | null;
+  providerUpdatedAt: string | null;
+  publishedAt: string | null;
   payloadSizeBytes: number | null;
   lastProblem?: StoredSourceHealthEvent | null;
 }) {
@@ -260,6 +298,9 @@ function buildNote(input: {
       : `${input.source} snapshot metadata is ${input.status}.`,
     input.ageHours !== null ? `Age ${input.ageHours}h.` : null,
     input.rowCount !== null ? `${input.rowCount.toLocaleString('en-US')} rows.` : 'Row count is pending until the next source-health or report refresh supplies it.',
+    input.totalExperts !== null ? `${input.totalExperts.toLocaleString('en-US')} experts.` : null,
+    input.providerUpdatedAt ? `Provider updated ${input.providerUpdatedAt}.` : null,
+    input.publishedAt && input.publishedAt !== input.providerUpdatedAt ? `Published ${input.publishedAt}.` : null,
     input.payloadSizeBytes !== null ? `${Math.round(input.payloadSizeBytes / 1024).toLocaleString('en-US')} KB stored payload.` : null,
     input.lastProblem ? `Latest source-health issue: ${input.lastProblem.message}` : null,
   ];
@@ -298,6 +339,7 @@ export function buildSourceSnapshotFreshnessDiagnostics(input: BuildInput): Sour
       const rowCount = rowCountBySource.has(expected.sourceKey)
         ? rowCountBySource.get(expected.sourceKey)!
         : health?.rowCount ?? getMetadataRowCount(metadata);
+      const healthMetadata = getHealthPayloadMetadata(health);
       const missing = !metadata;
       const stale = ageHours !== null && ageHours > expected.staleAfterHours;
       const status: SourceSnapshotFreshnessDiagnostic['status'] = missing
@@ -325,6 +367,9 @@ export function buildSourceSnapshotFreshnessDiagnostics(input: BuildInput): Sour
         ageHours,
         payloadSizeBytes: metadata?.payloadSizeBytes ?? null,
         rowCount,
+        totalExperts: healthMetadata.totalExperts,
+        providerUpdatedAt: healthMetadata.providerUpdatedAt,
+        publishedAt: healthMetadata.publishedAt,
         status,
         level,
         note: buildNote({
@@ -332,6 +377,9 @@ export function buildSourceSnapshotFreshnessDiagnostics(input: BuildInput): Sour
           status,
           ageHours,
           rowCount,
+          totalExperts: healthMetadata.totalExperts,
+          providerUpdatedAt: healthMetadata.providerUpdatedAt,
+          publishedAt: healthMetadata.publishedAt,
           payloadSizeBytes: metadata?.payloadSizeBytes ?? null,
           lastProblem: problemHealth,
         }),

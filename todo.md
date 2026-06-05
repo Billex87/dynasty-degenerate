@@ -784,7 +784,7 @@
 - [x] Normalize or enrich `latestNews.url` from upstream news payloads so the player modal's latest-news card stays clickable whenever the source provides a link.
 - [x] Use FantasyPros player IDs and external IDs to improve cross-source identity matching for ESPN, Yahoo, MFL, Fleaflicker, Fantrax, NFL, CBS, DraftKings, and other platform IDs.
   - 2026-06-05 completion: FantasyPros player-reference snapshots now expose a reusable provider-indexed external-ID map, with normalized lookup for ESPN/Yahoo/Sleeper-style keys and support for MFL, Fleaflicker, Fantrax, NFL, CBS, DraftKings, and any other stored external ID suffix. Per-player FantasyPros source traces consume the prebuilt index during report generation, so matched external IDs can attach snapshot-backed traces without name matching or live provider calls.
-- [ ] Add expert metadata and expert publication timestamps to admin diagnostics so stale or thin expert sets lower source trust automatically.
+- [x] Add expert metadata and expert publication timestamps to admin diagnostics so stale or thin expert sets lower source trust automatically.
 - [ ] Evaluate the FantasyPros compare-players endpoint for player modal context and trade comparison explainers.
 - [ ] Evaluate FantasyPros articles as an admin/research-assistant context source only after package access is approved; if used, store attribution, category, URL, published timestamp, and freshness without replacing player-level data signals.
 - [x] Add cache/rate-limit protection for FantasyPros calls so report generation does not hammer the API during refresh jobs.

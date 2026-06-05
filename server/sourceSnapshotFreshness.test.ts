@@ -42,6 +42,11 @@ describe('source snapshot freshness diagnostics', () => {
       healthEvents: [health({
         sourceKey: 'fantasypros-news-v1',
         rowCount: 34,
+        payload: {
+          totalExperts: 18,
+          lastUpdated: '2026-05-15T11:30:00.000Z',
+          publishedAt: '2026-05-15T10:00:00.000Z',
+        },
       })],
       expectedSources: [{
         sourceKey: 'fantasypros-news-v1',
@@ -57,9 +62,14 @@ describe('source snapshot freshness diagnostics', () => {
       status: 'loaded',
       level: 'info',
       rowCount: 34,
+      totalExperts: 18,
+      providerUpdatedAt: '2026-05-15T11:30:00.000Z',
+      publishedAt: '2026-05-15T10:00:00.000Z',
       payloadSizeBytes: 2048,
       snapshotKey: '2026-05-15',
     });
+    expect(diagnostic.note).toContain('18 experts.');
+    expect(diagnostic.note).toContain('Published 2026-05-15T10:00:00.000Z.');
     expect(diagnostic.note).not.toContain('{');
   });
 

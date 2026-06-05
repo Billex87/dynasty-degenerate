@@ -13,6 +13,7 @@ export interface FantasyProsSnapshotSummary {
   rowCount: number;
   totalExperts: number | null;
   lastUpdated: string | null;
+  publishedAt: string | null;
   fetchedAt: string | null;
 }
 
@@ -297,6 +298,7 @@ function snapshotSummary(input: {
       rowCount: 0,
       totalExperts: null,
       lastUpdated: null,
+      publishedAt: null,
       fetchedAt: null,
     };
   }
@@ -309,6 +311,7 @@ function snapshotSummary(input: {
     rowCount: input.snapshot.rowCount,
     totalExperts: input.snapshot.totalExperts,
     lastUpdated: input.snapshot.lastUpdated,
+    publishedAt: input.snapshot.publishedAt || input.snapshot.lastUpdated,
     fetchedAt: input.snapshot.fetchedAt,
   };
 }
