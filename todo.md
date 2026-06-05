@@ -7,7 +7,7 @@
 
 - [x] **[HIGH] Verify SOS → blueprint Situational factor end-to-end, then tune weights.** The blueprint three-factor engine's Situational score (`shared/blueprint/playerGrading.ts` `scoreSituational`) reads `playerDetails.schedule.seasonSOS`, which is now wired through `buildPlayerScheduleProfiles` (`server/schedulePlanning.ts:185`) → `reportPlayerEnrichment.ts:143`.
   - 2026-06-04 verification + fix (commit e83abcb): pulled live DraftSharks SOS (192 profiles) and graded a real roster end-to-end. Confirmed the chain flows. **Found and fixed a scale bug:** DraftSharks `seasonSOS` is a signed points-vs-average delta (~ -15..+15, higher = easier), NOT the 0-100 percentage both `scoreSituational` and `normalizeTier` assumed. Recalibrated `scoreSituational` to `5 + sos/3` and `normalizeTier` score fallback to the signed scale (`>=8 elite / >=3 easy / <=-3 hard`; explicit DraftSharks labels still win). Re-verified: Situational now spreads ~2.3-8.0 and tracks easy/hard schedules (was flat ~9). 41 tests pass; both tsc configs clean.
-  - Note: `PlayerDetailModal` (`SOS ${seasonSOS}%`) and `schedulePlanning` (`(seasonSOS - 50)/25`) still treat seasonSOS as 0-100 — those displays/adjustments are likely mis-scaled too and worth a follow-up review.
+  - 2026-06-04 follow-up (commit 21cd8d4): fixed the remaining 0-100 assumptions across all seasonSOS consumers — `schedulePlanning` projection adjustment (`sos/10`), `buildAutopilotData` streamer confidence (easier now raises confidence; previously inverted vs its own easy->good tone), and the `PlayerDetailModal` (x2) + `playerValueTimeline` displays (signed value instead of a misleading `%`). All seasonSOS sites now treat it as a signed delta. 64 consumer tests pass.
 
 ## Launch Audit Closeout
 
