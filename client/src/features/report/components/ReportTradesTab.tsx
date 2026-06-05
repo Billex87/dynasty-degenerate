@@ -34,6 +34,7 @@ type ReportTradesTabProps = {
   reportData: ReportData;
   reportDataForView: ReportData;
   showManagerPersonalityIntel: boolean;
+  showPendingSleeperActivity: boolean;
   onScoutLeaguemates: () => void;
   leagueId: string;
   leagueLogo: string | null;
@@ -1025,6 +1026,7 @@ export function ReportTradesTab({
   reportData,
   reportDataForView,
   showManagerPersonalityIntel,
+  showPendingSleeperActivity,
   onScoutLeaguemates,
   leagueId,
   leagueLogo,
@@ -1062,8 +1064,12 @@ export function ReportTradesTab({
     Boolean(reportData.adminSleeperTradeProposalSignals?.length) ||
     Boolean(reportData.adminSleeperWaiverSignals?.length);
 
+  const showSleeperPendingActivity = showPendingSleeperActivity;
+
   const pendingTradeSignals = useMemo(
     () => {
+      if (!showSleeperPendingActivity) return [];
+
       const sleeperImportedSignals = [
         ...(reportData.adminSleeperTradeProposalSignals || []),
         ...(reportData.adminSleeperWaiverSignals || []).map(
@@ -1088,10 +1094,11 @@ export function ReportTradesTab({
       reportData.adminSleeperWaiverSignals,
       reportData.tradeProposalSignals,
       hasImportedSleeperActivity,
+      showSleeperPendingActivity,
     ]
   );
 
-  const warRoomProposalSignals = pendingTradeSignals;
+  const warRoomProposalSignals = showSleeperPendingActivity ? pendingTradeSignals : [];
   const helperTransactionCount = helperSnapshot?.transactions.length ?? 0;
   const helperTradeCount =
     helperSnapshot?.transactions.filter(transaction => transaction.type === "trade")
@@ -1161,6 +1168,7 @@ export function ReportTradesTab({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!showSleeperPendingActivity) return;
 
     const handleHelperMessage = (event: MessageEvent) => {
       if (event.source !== window || event.origin !== window.location.origin) return;
@@ -1251,7 +1259,7 @@ export function ReportTradesTab({
       window.removeEventListener("message", handleHelperMessage);
       clearHelperImportTimeout();
     };
-  }, [clearHelperImportTimeout, importCapturedSnapshot, leagueId]);
+  }, [clearHelperImportTimeout, importCapturedSnapshot, leagueId, showSleeperPendingActivity]);
 
   const importHelperSnapshot = async () => {
     if (!helperDetected) {
@@ -1319,146 +1327,148 @@ export function ReportTradesTab({
         </CollapsibleReportSection>
       )}
       <TradeBrowserRead data={reportDataForView} />
-      <CollapsibleReportSection
-        title="Pending Trade Offers"
-        kicker="Public proposal history plus imported Sleeper trade center activity"
-        previewMetrics={buildTradeProposalPreviewMetrics(reportData)}
-        premium
-        defaultOpen
-      >
-        <div className={`mb-5 space-y-4 rounded-2xl border p-4 shadow-[0_24px_80px_rgba(16,185,129,0.10)] sm:p-5 ${
-          showHelperSuccessStrip
-            ? "border-emerald-300/15 bg-slate-950/45"
-            : "border-emerald-300/20 bg-emerald-950/20"
-        }`}>
-          {showHelperSuccessStrip ? (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em] text-emerald-200">
-                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                  Imported from Sleeper
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-200">
-                  {pluralizeImportCount(helperTradeCount, "trade")}, {pluralizeImportCount(helperWaiverCount, "waiver claim")} updated just now.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsHelperSuccessCollapsed(false);
-                  setHelperStatus(null);
-                }}
-                className="h-10 border-cyan-300/30 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/20"
-              >
-                Import again
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 space-y-2">
+{showSleeperPendingActivity ? (
+        <CollapsibleReportSection
+          title="Pending Trade Offers"
+          kicker="Public proposal history plus imported Sleeper trade center activity"
+          previewMetrics={buildTradeProposalPreviewMetrics(reportData)}
+          premium
+          defaultOpen
+        >
+          <div className={`mb-5 space-y-4 rounded-2xl border p-4 shadow-[0_24px_80px_rgba(16,185,129,0.10)] sm:p-5 ${
+            showHelperSuccessStrip
+              ? "border-emerald-300/15 bg-slate-950/45"
+              : "border-emerald-300/20 bg-emerald-950/20"
+          }`}>
+            {showHelperSuccessStrip ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em] text-emerald-200">
-                    <Cable className="h-3.5 w-3.5" aria-hidden="true" />
-                    Transaction Sync
+                    <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                    Imported from Sleeper
                   </p>
-                  <h3 className="text-base font-black text-slate-50 sm:text-lg">
-                    Import pending Sleeper trades and waivers
-                  </h3>
-                  <p className="max-w-3xl text-sm leading-6 text-slate-300">
-                    Click once. Transaction Sync opens Sleeper, captures only
-                    sanitized pending transaction data, and imports it back into this
-                    report.
+                  <p className="mt-2 text-sm font-semibold text-slate-200">
+                    {pluralizeImportCount(helperTradeCount, "trade")}, {pluralizeImportCount(helperWaiverCount, "waiver claim")} updated just now.
                   </p>
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsHelperSuccessCollapsed(false);
+                    setHelperStatus(null);
+                  }}
+                  className="h-10 border-cyan-300/30 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/20"
+                >
+                  Import again
+                </Button>
               </div>
-          <div className={`rounded-xl border p-3 text-sm text-slate-300 transition-colors ${
-            isHelperImporting
-              ? "border-cyan-300/25 bg-cyan-950/20 shadow-[0_0_36px_rgba(34,211,238,0.12)]"
-              : "border-white/10 bg-slate-950/40"
-          }`}>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-bold text-slate-100">
-                  {isHelperImporting
-                    ? "Importing pending transactions"
-                    : helperSnapshot
-                    ? `Captured ${helperTransactionCount} pending item${helperTransactionCount === 1 ? "" : "s"}`
-                    : helperDetected
-                      ? "Transaction Sync detected"
-                      : "Waiting for Transaction Sync"}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">
-                  {isHelperImporting
-                    ? "Sleeper sync in progress. Keep this tab open while the helper captures trades and waivers."
-                    : helperSnapshot
-                    ? `${helperTradeCount} trades, ${helperWaiverCount} waiver claims captured ${new Date(helperSnapshot.capturedAt).toLocaleString()}.`
-                    : helperDetected
-                      ? "Ready. The helper will open Sleeper, refresh the right pages, and import the latest pending snapshot."
-                      : "Install or reload Transaction Sync in Chrome Extensions, then click this button again."}
-                </p>
-                {isHelperImporting ? (
-                  <div className="mt-3 max-w-sm" aria-hidden="true">
-                    <div className="loading-progress-bar-wrap !mt-0">
-                      <div className="loading-progress-fill" style={{ width: "76%" }}>
-                        <span className="loading-progress-shimmer" />
+            ) : (
+              <>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 space-y-2">
+                    <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em] text-emerald-200">
+                      <Cable className="h-3.5 w-3.5" aria-hidden="true" />
+                      Transaction Sync
+                    </p>
+                    <h3 className="text-base font-black text-slate-50 sm:text-lg">
+                      Import pending Sleeper trades and waivers
+                    </h3>
+                    <p className="max-w-3xl text-sm leading-6 text-slate-300">
+                      Click once. Transaction Sync opens Sleeper, captures only
+                      sanitized pending transaction data, and imports it back into this
+                      report.
+                    </p>
+                  </div>
+                </div>
+            <div className={`rounded-xl border p-3 text-sm text-slate-300 transition-colors ${
+              isHelperImporting
+                ? "border-cyan-300/25 bg-cyan-950/20 shadow-[0_0_36px_rgba(34,211,238,0.12)]"
+                : "border-white/10 bg-slate-950/40"
+            }`}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-bold text-slate-100">
+                    {isHelperImporting
+                      ? "Importing pending transactions"
+                      : helperSnapshot
+                      ? `Captured ${helperTransactionCount} pending item${helperTransactionCount === 1 ? "" : "s"}`
+                      : helperDetected
+                        ? "Transaction Sync detected"
+                        : "Waiting for Transaction Sync"}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">
+                    {isHelperImporting
+                      ? "Sleeper sync in progress. Keep this tab open while the helper captures trades and waivers."
+                      : helperSnapshot
+                      ? `${helperTradeCount} trades, ${helperWaiverCount} waiver claims captured ${new Date(helperSnapshot.capturedAt).toLocaleString()}.`
+                      : helperDetected
+                        ? "Ready. The helper will open Sleeper, refresh the right pages, and import the latest pending snapshot."
+                        : "Install or reload Transaction Sync in Chrome Extensions, then click this button again."}
+                  </p>
+                  {isHelperImporting ? (
+                    <div className="mt-3 max-w-sm" aria-hidden="true">
+                      <div className="loading-progress-bar-wrap !mt-0">
+                        <div className="loading-progress-fill" style={{ width: "76%" }}>
+                          <span className="loading-progress-shimmer" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
+                <Button
+                  type="button"
+                  onClick={importHelperSnapshot}
+                  disabled={isHelperImporting}
+                  className={`h-10 text-slate-950 disabled:opacity-80 ${
+                    isHelperImporting
+                      ? "bg-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.22)] hover:bg-cyan-300"
+                      : "bg-emerald-300 hover:bg-emerald-200"
+                  }`}
+                >
+                  {isHelperImporting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
+                  )}
+                  Import Pending Transactions
+                </Button>
               </div>
-              <Button
-                type="button"
-                onClick={importHelperSnapshot}
-                disabled={isHelperImporting}
-                className={`h-10 text-slate-950 disabled:opacity-80 ${
+              {helperStatus ? (
+                <p className={`mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ${
                   isHelperImporting
-                    ? "bg-cyan-300 shadow-[0_0_24px_rgba(34,211,238,0.22)] hover:bg-cyan-300"
-                    : "bg-emerald-300 hover:bg-emerald-200"
-                }`}
-              >
-                {isHelperImporting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
-                )}
-                Import Pending Transactions
-              </Button>
+                    ? "border-cyan-300/25 bg-cyan-950/35 text-cyan-100"
+                    : "border-emerald-300/20 bg-emerald-950/30 text-emerald-200"
+                }`}>
+                  {helperStatus}
+                </p>
+              ) : null}
+              {helperError ? (
+                <p className={`mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ${
+                  helperError.startsWith("Still waiting")
+                    ? "border-amber-300/20 bg-amber-950/30 text-amber-100"
+                    : "border-rose-300/20 bg-rose-950/30 text-rose-200"
+                }`}>
+                  {helperError}
+                </p>
+              ) : null}
             </div>
-            {helperStatus ? (
-              <p className={`mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ${
-                isHelperImporting
-                  ? "border-cyan-300/25 bg-cyan-950/35 text-cyan-100"
-                  : "border-emerald-300/20 bg-emerald-950/30 text-emerald-200"
-              }`}>
-                {helperStatus}
-              </p>
-            ) : null}
-            {helperError ? (
-              <p className={`mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ${
-                helperError.startsWith("Still waiting")
-                  ? "border-amber-300/20 bg-amber-950/30 text-amber-100"
-                  : "border-rose-300/20 bg-rose-950/30 text-rose-200"
-              }`}>
-                {helperError}
-              </p>
-            ) : null}
+              </>
+            )}
           </div>
-            </>
-          )}
-        </div>
-        <PendingSleeperActivityList
-          signals={pendingTradeSignals}
-          onViewInTradeWarRoom={viewSignalInTradeWarRoom}
-          playerDetailsById={reportData.playerDetailsById}
-          currentPositionRankById={reportData.currentPositionRankById}
-          waiverIntelligence={reportData.waiverIntelligence}
-          leagueValueMode={leagueValueMode}
-          managerAvatars={reportData.managerAvatars}
-          rankings={rankingsForReport}
-          onSelectPlayer={setSelectedPendingPlayer}
-        />
-      </CollapsibleReportSection>
+          <PendingSleeperActivityList
+            signals={pendingTradeSignals}
+            onViewInTradeWarRoom={viewSignalInTradeWarRoom}
+            playerDetailsById={reportData.playerDetailsById}
+            currentPositionRankById={reportData.currentPositionRankById}
+            waiverIntelligence={reportData.waiverIntelligence}
+            leagueValueMode={leagueValueMode}
+            managerAvatars={reportData.managerAvatars}
+            rankings={rankingsForReport}
+            onSelectPlayer={setSelectedPendingPlayer}
+          />
+        </CollapsibleReportSection>
+      ) : null}
       <PlayerDetailModal
         isOpen={selectedPendingPlayer !== null}
         onClose={() => setSelectedPendingPlayer(null)}
