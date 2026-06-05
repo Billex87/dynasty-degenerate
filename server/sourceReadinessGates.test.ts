@@ -11,6 +11,7 @@ describe('source readiness gates', () => {
     expect(validateSourceReadinessGates()).toEqual([]);
     expect(SOURCE_READINESS_GATES.some((gate) => gate.id === 'fantasypros-projections')).toBe(true);
     expect(SOURCE_READINESS_GATES.some((gate) => gate.id === 'sportsdataio-fantasydata-beyond-news')).toBe(true);
+    expect(SOURCE_READINESS_GATES.some((gate) => gate.id === 'sleeper-hidden-account-transactions')).toBe(true);
   });
 
   it('summarizes blocked, research, and snapshot-approved gates', () => {
