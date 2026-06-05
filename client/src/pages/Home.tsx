@@ -108,6 +108,15 @@ type SleeperTradeCenterImportResult = SleeperTradeCenterImportSummary & {
   currentPositionRankById?: NonNullable<ReportData["currentPositionRankById"]>;
 };
 
+type SleeperTradeCenterImportDisplayPatch = Pick<
+  SleeperTradeCenterImportResult,
+  | "leagueId"
+  | "sleeperHiddenLeagueSnapshot"
+  | "tradeProposalSignals"
+  | "waiverSignals"
+  | "currentPositionRankById"
+>;
+
 function isPendingSleeperSignalStatus(status?: string | null): boolean {
   const normalized = String(status || "").trim().toLowerCase();
   return normalized.includes("pending") || normalized.includes("proposed");
@@ -188,6 +197,42 @@ function mapSleeperWaiverSignalToTradeProposalSignal(
   };
 }
 
+function applySleeperTradeCenterImportDisplayPatch(
+  current: ReportData,
+  patch: SleeperTradeCenterImportDisplayPatch | null,
+  activeLeagueId: string
+): ReportData {
+  if (!patch || patch.leagueId !== activeLeagueId.trim()) return current;
+
+  const importedDisplaySignals = [
+    ...filterPendingSleeperSignals(patch.tradeProposalSignals),
+    ...filterPendingSleeperSignals(patch.waiverSignals).map(
+      mapSleeperWaiverSignalToTradeProposalSignal
+    ),
+  ];
+
+  return {
+    ...current,
+    adminSleeperTradeProposalSignals: mergeSleeperSignalLists(
+      filterPendingSleeperSignals(current.adminSleeperTradeProposalSignals),
+      patch.tradeProposalSignals
+    ),
+    adminSleeperWaiverSignals: mergeSleeperSignalLists(
+      filterPendingSleeperSignals(current.adminSleeperWaiverSignals),
+      patch.waiverSignals
+    ),
+    currentPositionRankById: {
+      ...(current.currentPositionRankById || {}),
+      ...(patch.currentPositionRankById || {}),
+    },
+    tradeProposalSignals: mergeSleeperSignalLists(
+      current.tradeProposalSignals,
+      importedDisplaySignals
+    ),
+    sleeperHiddenLeagueSnapshot: patch.sleeperHiddenLeagueSnapshot,
+  };
+}
+
 export default function Home() {
   const authQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
@@ -227,6 +272,10 @@ export default function Home() {
   );
   const { aiVoiceMode, handleAIVoiceModeChange } = useHomeAIVoiceMode();
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [
+    sleeperTradeCenterImportDisplayPatch,
+    setSleeperTradeCenterImportDisplayPatch,
+  ] = useState<SleeperTradeCenterImportDisplayPatch | null>(null);
   const [reportDataCacheVersion, setReportDataCacheVersion] = useState<
     string | null
   >(null);
@@ -672,36 +721,21 @@ export default function Home() {
   const applySleeperTradeCenterImport = (
     result: SleeperTradeCenterImportResult
   ): SleeperTradeCenterImportSummary => {
+    const displayPatch: SleeperTradeCenterImportDisplayPatch = {
+      leagueId: result.leagueId,
+      sleeperHiddenLeagueSnapshot: result.sleeperHiddenLeagueSnapshot,
+      tradeProposalSignals: result.tradeProposalSignals,
+      waiverSignals: result.waiverSignals,
+      currentPositionRankById: result.currentPositionRankById,
+    };
+    setSleeperTradeCenterImportDisplayPatch(displayPatch);
     setReportData(current => {
       if (!current) return current;
-
-      const importedDisplaySignals = [
-        ...filterPendingSleeperSignals(result.tradeProposalSignals),
-        ...filterPendingSleeperSignals(result.waiverSignals).map(
-          mapSleeperWaiverSignalToTradeProposalSignal
-        ),
-      ];
-
-      return {
-        ...current,
-        adminSleeperTradeProposalSignals: mergeSleeperSignalLists(
-          filterPendingSleeperSignals(current.adminSleeperTradeProposalSignals),
-          result.tradeProposalSignals
-        ),
-        adminSleeperWaiverSignals: mergeSleeperSignalLists(
-          filterPendingSleeperSignals(current.adminSleeperWaiverSignals),
-          result.waiverSignals
-        ),
-        currentPositionRankById: {
-          ...(current.currentPositionRankById || {}),
-          ...(result.currentPositionRankById || {}),
-        },
-        tradeProposalSignals: mergeSleeperSignalLists(
-          current.tradeProposalSignals,
-          importedDisplaySignals
-        ),
-        sleeperHiddenLeagueSnapshot: result.sleeperHiddenLeagueSnapshot,
-      };
+      return applySleeperTradeCenterImportDisplayPatch(
+        current,
+        displayPatch,
+        result.leagueId
+      );
     });
     setReportDataCacheVersion(
       `sleeper-hidden:${result.leagueId}:${result.sleeperHiddenLeagueSnapshot.sharedAt}`
@@ -784,10 +818,23 @@ export default function Home() {
     />
   );
   if (reportData && !analysisCompleteMessage) {
+    const reportDataForExperience = applySleeperTradeCenterImportDisplayPatch(
+      reportData,
+      sleeperTradeCenterImportDisplayPatch,
+      leagueId
+    );
+    const reportDataWithRankingsForExperience = reportDataWithRankings
+      ? applySleeperTradeCenterImportDisplayPatch(
+          reportDataWithRankings,
+          sleeperTradeCenterImportDisplayPatch,
+          leagueId
+        )
+      : reportDataForExperience;
+
     return (
       <HomeReportExperience
-        reportData={reportData}
-        reportDataWithRankings={reportDataWithRankings}
+        reportData={reportDataForExperience}
+        reportDataWithRankings={reportDataWithRankingsForExperience}
         isLoadingRevealPhase={isLoadingRevealPhase}
         aiVoiceMode={aiVoiceMode}
         resolvedActiveTab={resolvedActiveTab}
