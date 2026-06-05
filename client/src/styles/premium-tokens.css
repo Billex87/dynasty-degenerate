@@ -26,6 +26,14 @@
      Design = display Oswald + clean body sans (body copy stays on --dd-font-body). */
   --font-athletic: "Oswald", system-ui, -apple-system, sans-serif;
 
+  /* ── Heading/display aliases ────────────────────────────────────────────
+     A couple of headings reference --font-heading / --font-display, which were
+     never defined — so those headings silently fell back to the inherited body
+     sans instead of the brand display font. Alias both to --font-athletic so
+     they render Oswald as intended (and any future use stays on-contract). */
+  --font-heading: var(--font-athletic);
+  --font-display: var(--font-athletic);
+
   /* ── Body font (clean sans, by design) ──────────────────────────────────
      Matches Tailwind's font-sans default that body copy already renders in;
      tokenized so it's explicit and tunable. */

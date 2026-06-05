@@ -5096,7 +5096,7 @@
     grid-row: 1;
     min-width: 0;
     color: #fb923c;
-    font-family: Oswald, sans-serif;
+    font-family: var(--font-athletic);
     font-size: clamp(0.95rem, 3.5vw, 1.12rem);
     font-weight: 950;
     line-height: 1;

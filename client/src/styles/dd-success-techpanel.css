@@ -52,7 +52,7 @@
     0 0 24px rgba(0, 212, 219, 0.4),
     0 0 18px rgba(255, 106, 0, 0.16);
   color: rgba(207, 250, 254, 0.96);
-  font-family: Oswald, sans-serif;
+  font-family: var(--font-athletic);
   font-size: clamp(0.72rem, 2vw, 0.92rem);
   font-weight: 700;
   letter-spacing: 0.1em;

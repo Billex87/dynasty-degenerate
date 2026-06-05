@@ -7147,7 +7147,7 @@ body {
   display: grid;
   margin: 0;
   color: #f8fafc;
-  font-family: "Oswald", sans-serif;
+  font-family: var(--font-athletic);
   font-size: clamp(2rem, 2.72vw, 2.9rem);
   font-weight: 800;
   letter-spacing: 0;
@@ -7261,7 +7261,7 @@ body {
 .report-delta-brief h2 {
   margin: 0;
   color: #f8fafc;
-  font-family: "Oswald", sans-serif;
+  font-family: var(--font-athletic);
   font-size: clamp(1.02rem, 1.34vw, 1.34rem);
   font-weight: 850;
   letter-spacing: 0;
@@ -7811,7 +7811,7 @@ body {
 
 .dashboard-spotlight-header strong {
   color: #f4a020;
-  font-family: "Oswald", sans-serif;
+  font-family: var(--font-athletic);
   font-size: clamp(1.18rem, 1.25vw, 1.45rem);
   font-weight: 800;
   letter-spacing: 0;

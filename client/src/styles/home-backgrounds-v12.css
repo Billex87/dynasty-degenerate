@@ -112,7 +112,7 @@
 .home-shell .home-hero-dashboard .home-weapons-callout-title {
   position: relative;
   z-index: 2;
-  font-family: Oswald, sans-serif;
+  font-family: var(--font-athletic);
   font-weight: 900;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -504,7 +504,7 @@
   .home-shell .home-hero-dashboard .home-feature-card h3,
   .home-shell .home-hero-dashboard .home-feature-card-title {
     margin: 0;
-    font-family: Oswald, sans-serif;
+    font-family: var(--font-athletic);
     font-size: var(--home-feature-title-size) !important;
     font-weight: 850;
     letter-spacing: 0;

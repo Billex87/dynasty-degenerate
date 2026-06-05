@@ -181,7 +181,7 @@
   background:
     linear-gradient(135deg, rgba(0, 124, 132, 0.32), rgba(2, 6, 23, 0.6) 60%);
   color: #f6feff;
-  font-family: 'Oswald', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-athletic);
   font-size: clamp(0.78rem, 1.4vw, 0.94rem);
   font-weight: 700;
   letter-spacing: 0.22em;
@@ -204,7 +204,7 @@
 .dd-success-takeover .dd-success-league {
   margin: 0;
   padding: 0 1rem;
-  font-family: 'Oswald', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-athletic);
   font-weight: 900;
   font-size: clamp(1.5rem, 3.4vw, 2.6rem);
   line-height: 1.04;
@@ -227,7 +227,7 @@
 .dd-success-takeover .dd-success-format {
   margin: 0.4rem 0 0;
   color: rgba(220, 240, 250, 0.78);
-  font-family: 'Oswald', system-ui, sans-serif;
+  font-family: var(--font-athletic);
   font-size: clamp(0.78rem, 1.3vw, 0.95rem);
   font-weight: 600;
   letter-spacing: 0.22em;

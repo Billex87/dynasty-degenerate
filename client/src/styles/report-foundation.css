@@ -4925,7 +4925,7 @@
   }
 
   .loading-league-name {
-    font-family: Oswald, sans-serif;
+    font-family: var(--font-athletic);
     font-size: clamp(1.02rem, 3.8vw, 1.28rem);
     text-wrap: balance;
     padding-bottom: 0.15em;
@@ -5425,7 +5425,7 @@
     background: linear-gradient(135deg, rgba(249, 115, 22, 0.16), rgba(34, 211, 238, 0.08)), rgba(2, 6, 23, 0.36);
     padding: 0.28rem 0.72rem 0.34rem;
     color: #fdba74;
-    font-family: Oswald, sans-serif;
+    font-family: var(--font-athletic);
     font-size: clamp(0.9rem, 3vw, 1.08rem);
     font-weight: 950;
     letter-spacing: 0;
@@ -5452,7 +5452,7 @@
   .loading-success-title {
     margin: 0;
     max-width: none;
-    font-family: Oswald, sans-serif;
+    font-family: var(--font-athletic);
     font-size: clamp(1rem, 4.1vw, 1.34rem);
     font-weight: 950;
     letter-spacing: 0;
@@ -15539,7 +15539,7 @@
       grid-row: 1;
       min-width: 0;
       color: #fb923c;
-      font-family: Oswald, sans-serif;
+      font-family: var(--font-athletic);
       font-size: 1.18rem;
       font-weight: 900;
       gap: 0.45rem;
@@ -16010,7 +16010,7 @@
   .trade-year-label {
     gap: 0.48rem;
     color: #f8fafc;
-    font-family: Oswald, sans-serif;
+    font-family: var(--font-athletic);
     font-size: 1.25rem;
     font-weight: 900;
     line-height: 1;
@@ -16305,7 +16305,7 @@
 
   .trade-outcome-header h4 {
     color: #f8fafc;
-    font-family: Oswald, sans-serif;
+    font-family: var(--font-athletic);
     font-size: 1.15rem;
     font-weight: 900;
     line-height: 1;
@@ -16484,7 +16484,7 @@
   .trade-detail-title {
     margin-top: 0.1rem;
     color: #fb923c;
-    font-family: Oswald, sans-serif;
+    font-family: var(--font-athletic);
     font-size: 1.35rem;
     font-weight: 900;
     line-height: 1;
@@ -18155,7 +18155,7 @@
       grid-row: 1;
       min-width: 0;
       color: #fb923c;
-      font-family: Oswald, sans-serif;
+      font-family: var(--font-athletic);
       font-size: 1.08rem;
       font-weight: 900;
       line-height: 1;
