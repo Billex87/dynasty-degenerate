@@ -837,7 +837,8 @@
   - [x] If Sleeper does not provide an approved account-level connection, document the limitation and design fallback options: explicit user export/import, admin-only manual evidence labeling, public completed-transaction learning, and optional browser-assisted local capture that never sends raw tokens to the server.
 - [ ] Add waiver-priority league calibration.
   - [x] Detect Sleeper FAAB versus waiver-priority leagues in league diagnostics and show priority-burn urgency instead of exact bid ranges when no FAAB exists.
-  - [ ] Add manager waiver order/standings context when Sleeper exposes it, then tune priority-burn language by league activity and manager history.
+  - [x] Add first-pass public Sleeper waiver-order calibration helper from roster `settings.waiver_position`, standings, points-for, and move-count context, with capped confidence because skipped/losing/pending/cancelled claim outcomes remain blocked.
+  - [ ] Wire manager waiver order/standings calibration into report payloads and priority-burn language after the current server/shared/waiver integration files are available, then tune against league activity and manager history.
 - [ ] Add league/cohort calibration fallback: learn manager behavior inside the exact league first, then use similar-league cohorts only when local samples are thin, bucketed by FAAB versus waiver priority, redraft/dynasty, team count, scoring, lineup format, and activity level.
   - [x] Add first-pass calibration fallback priority: exact manager, exact league, manager archetype, league sharpness cohort, format/waiver/QB/team-count cohort, then generic baseline.
 - [ ] After 2026 weekly games begin, review the admin Module Accuracy rows weekly and tune confidence caps only when each module has enough resolved samples.
