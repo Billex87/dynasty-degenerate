@@ -91,6 +91,42 @@ describe('zero-row valuation source audit', () => {
     expect(rows.map((row) => row.disposition)).toEqual(['fix', 'watch']);
   });
 
+  it('keeps malformed numeric coverage rows in the zero-row audit instead of dropping them', () => {
+    const rows = buildZeroRowValuationAudit([
+      {
+        key: 'malformed',
+        label: 'Malformed Source',
+        currentWeight: Number.NaN,
+        configuredStatus: 'disabled',
+        archiveStatus: 'disabled',
+        archivedPointCount: Number.NaN,
+      },
+      {
+        key: 'negative',
+        label: 'Negative Source',
+        currentWeight: -0.1,
+        configuredStatus: 'future',
+        archiveStatus: 'future',
+        archivedPointCount: -10,
+      },
+    ]);
+
+    expect(rows).toMatchObject([
+      {
+        key: 'negative',
+        currentWeight: 0,
+        archivedPointCount: 0,
+        disposition: 'watch',
+      },
+      {
+        key: 'malformed',
+        currentWeight: 0,
+        archivedPointCount: 0,
+        disposition: 'disable',
+      },
+    ]);
+  });
+
   it('summarizes classified zero-row sources and validation errors', () => {
     const summary = summarizeZeroRowValuationAudit([
       {

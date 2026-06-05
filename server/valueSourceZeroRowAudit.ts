@@ -32,16 +32,30 @@ function normalizedStatus(row: ValueSourceCoverageRow): string {
   return `${row.configuredStatus || ''} ${row.archiveStatus || ''}`.toLowerCase();
 }
 
+function nonNegativeNumber(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function normalizeCoverageRow(row: ValueSourceCoverageRow): ValueSourceCoverageRow {
+  return {
+    ...row,
+    currentWeight: nonNegativeNumber(row.currentWeight),
+    archivedPointCount: nonNegativeNumber(row.archivedPointCount),
+  };
+}
+
 export function classifyZeroRowValuationSource(row: ValueSourceCoverageRow): Pick<ZeroRowValuationAuditRow, 'disposition' | 'reason'> {
-  if (row.archivedPointCount > 0) {
+  const normalizedRow = normalizeCoverageRow(row);
+  if (normalizedRow.archivedPointCount > 0) {
     return {
       disposition: 'active',
       reason: 'Archived rows are present, so this is not a zero-row valuation source.',
     };
   }
 
-  const status = normalizedStatus(row);
-  if (row.currentWeight > 0) {
+  const status = normalizedStatus(normalizedRow);
+  if (normalizedRow.currentWeight > 0) {
     return {
       disposition: 'fix',
       reason: 'Source has active blend weight but no archived rows; fix coverage or remove weight before trusting it.',
@@ -77,10 +91,13 @@ export function classifyZeroRowValuationSource(row: ValueSourceCoverageRow): Pic
 
 export function buildZeroRowValuationAudit(rows: ValueSourceCoverageRow[]): ZeroRowValuationAuditRow[] {
   return rows
-    .map((row) => ({
-      ...row,
-      ...classifyZeroRowValuationSource(row),
-    }))
+    .map((row) => {
+      const normalizedRow = normalizeCoverageRow(row);
+      return {
+        ...normalizedRow,
+        ...classifyZeroRowValuationSource(normalizedRow),
+      };
+    })
     .filter((row) => row.archivedPointCount === 0)
     .sort((a, b) => {
       const priority: Record<ZeroRowValuationDisposition, number> = {
