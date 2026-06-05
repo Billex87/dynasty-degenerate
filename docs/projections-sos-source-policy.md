@@ -68,6 +68,8 @@ Use `pnpm run verify:projection-sos-rollout` before enabling shared projection Q
 
 Use `docs/projection-sos-preview-rollout.md` for the Preview/staging rollout checklist before enabling projection-backed mechanics in production.
 
+Use `pnpm run readiness:projection-sos` and `docs/projection-sos-production-readiness.md` after production deploys. That gate chains source freshness with the real-league projection/SOS verifier and fails the release if playoff action items, waiver schedule windows, source freshness, or projection-off fallback behavior drift.
+
 Readouts must also pass projection readiness:
 
 - projection snapshot status is `ready`
