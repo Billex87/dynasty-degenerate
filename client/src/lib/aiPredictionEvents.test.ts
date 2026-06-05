@@ -73,6 +73,88 @@ describe("AI prediction event builder", () => {
     )).toBe(true);
   });
 
+  it("captures redraft season grading windows for season-level recommendations", () => {
+    const event = __testing.buildEvent({
+      reportRunKey: "test-report-run",
+      createdAt: "2026-09-01T00:00:00.000Z",
+      valueMode: "redraft",
+      leagueId: "13000000000000",
+      season: "2026",
+      week: 1,
+      surface: "overview",
+      action: "watch",
+      decision: "watch",
+      entityType: "manager",
+      entityId: "manager-redraft",
+      entityName: "Redraft Manager",
+      finalScore: 64,
+      evidence: ["Roster-construction read emitted for the redraft season."],
+      sourceTrace: [{
+        label: "League diagnostics",
+        status: "loaded",
+      }],
+      metadata: {
+        recommendationType: "roster construction",
+        actionText: "Redraft season roster construction can only grade after standings and title outcome.",
+      },
+    });
+
+    expect(event.metadata?.gradingWindow).toMatchObject({
+      schemaVersion: 1,
+      kind: "redraft-season",
+      label: "Redraft season recommendation",
+      minimumFinalGradeAt: "2027-01-15T12:00:00.000Z",
+      expiresAt: "2027-01-15T12:00:00.000Z",
+      evidenceRequired: expect.arrayContaining([
+        "final standings",
+        "playoff finish",
+        "points for",
+        "roster usage",
+        "title outcome",
+      ]),
+    });
+  });
+
+  it("captures two-year grading windows for dynasty draft recommendations", () => {
+    const event = __testing.buildEvent({
+      reportRunKey: "test-report-run",
+      createdAt: "2026-05-15T00:00:00.000Z",
+      valueMode: "dynasty",
+      leagueId: "13000000000000",
+      season: "2026",
+      surface: "rankings",
+      action: "watch",
+      decision: "watch",
+      entityType: "player",
+      entityId: "rookie-pick-player",
+      entityName: "Rookie Pick Player",
+      finalScore: 66,
+      evidence: ["Dynasty rookie draft recommendation emitted."],
+      sourceTrace: [{
+        label: "Draft-cost snapshot",
+        status: "loaded",
+      }],
+      metadata: {
+        recommendationType: "rookie draft pick",
+        actionText: "Dynasty rookie draft recommendation",
+        draftKind: "rookie draft",
+      },
+    });
+
+    expect(event.metadata?.gradingWindow).toMatchObject({
+      schemaVersion: 1,
+      kind: "dynasty-draft-two-year",
+      label: "Dynasty draft recommendation",
+      minimumFinalGradeAt: "2028-01-15T12:00:00.000Z",
+      expiresAt: "2028-01-15T12:00:00.000Z",
+      evidenceRequired: expect.arrayContaining([
+        "two-year player value movement",
+        "two-year roster usage",
+        "starter or trade-value outcome",
+      ]),
+    });
+  });
+
   it("stores player-detail archetype reads for outcome calibration", () => {
     const events = buildAIPredictionEventsForReport({
       leagueId: "13000000000000",
