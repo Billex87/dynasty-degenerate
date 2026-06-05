@@ -445,4 +445,126 @@ describe("buildWaiverIntelligence", () => {
     expect(result.specialTeamsStreamerTargets?.[0]?.player.name).toBe("Complement Kicker");
     expect(result.specialTeamsStreamerTargets?.[0]?.player.weeklyEcr?.note).toContain("Covers rostered K rough Week 1/2");
   });
+
+  it("prioritizes waiver targets with stored projections and favorable schedule windows", () => {
+    const players = {
+      windowrb: {
+        first_name: "Window",
+        last_name: "Runner",
+        position: "RB",
+        team: "LV",
+        active: true,
+        fantasy_positions: ["RB"],
+      },
+      valuewr: {
+        first_name: "Value",
+        last_name: "Receiver",
+        position: "WR",
+        team: "LAR",
+        active: true,
+        fantasy_positions: ["WR"],
+      },
+    };
+    const ktcValues = {
+      windowrunner: {
+        name: "Window Runner",
+        ktc_value: 1600,
+        dynasty_value: 1600,
+        market_value_ktc: 1600,
+        position_rank: "RB54",
+        value_sources: ["KTC"],
+      },
+      valuereceiver: {
+        name: "Value Receiver",
+        ktc_value: 2600,
+        dynasty_value: 2600,
+        market_value_ktc: 2600,
+        position_rank: "WR48",
+        value_sources: ["KTC"],
+      },
+    };
+    const draftSharksScheduleContext = {
+      status: "loaded",
+      source: "DraftSharks SOS",
+      updatedAt: "2026-09-01T18:00:00.000Z",
+      profiles: {
+        "LV:RB": {
+          team: "LV",
+          position: "RB",
+          seasonSOS: 12,
+          remainingSOS: 20,
+          scheduleTier: "easy",
+          streamerWeeks: [1, 2, 3],
+          avoidWeeks: [],
+          weeklyMatchups: [
+            { week: 1, opponent: "TEN", homeAway: "home", matchupPercent: 22, matchupTier: "easy" },
+            { week: 2, opponent: "NYG", homeAway: "home", matchupPercent: 17, matchupTier: "easy" },
+            { week: 3, opponent: "CAR", homeAway: "home", matchupPercent: 13, matchupTier: "easy" },
+          ],
+          source: "DraftSharks SOS",
+          updatedAt: "2026-09-01T18:00:00.000Z",
+        },
+        "LAR:WR": {
+          team: "LAR",
+          position: "WR",
+          seasonSOS: -8,
+          remainingSOS: -15,
+          scheduleTier: "hard",
+          streamerWeeks: [],
+          avoidWeeks: [1, 2, 3],
+          weeklyMatchups: [
+            { week: 1, opponent: "SF", homeAway: "home", matchupPercent: -18, matchupTier: "hard" },
+            { week: 2, opponent: "SEA", homeAway: "away", matchupPercent: -12, matchupTier: "hard" },
+            { week: 3, opponent: "ARI", homeAway: "home", matchupPercent: -10, matchupTier: "hard" },
+          ],
+          source: "DraftSharks SOS",
+          updatedAt: "2026-09-01T18:00:00.000Z",
+        },
+      },
+    };
+
+    const result = buildWaiverIntelligence(
+      [],
+      [],
+      players,
+      ktcValues,
+      {},
+      {},
+      "redraft",
+      undefined,
+      {
+        rosterPositions: ["QB", "RB", "WR", "TE", "FLEX", "BN"],
+        draftSharksScheduleContext: draftSharksScheduleContext as any,
+        currentWeek: 1,
+        weeklyProjectionByPlayerId: {
+          windowrb: {
+            source: "stored-weekly-projection",
+            provider: "sleeper",
+            season: "2026",
+            week: 1,
+            scoringProfile: "PPR",
+            projectedFantasyPoints: 12.8,
+            status: "ready",
+            note: "Stored weekly projection fixture.",
+          },
+          valuewr: {
+            source: "stored-weekly-projection",
+            provider: "sleeper",
+            season: "2026",
+            week: 1,
+            scoringProfile: "PPR",
+            projectedFantasyPoints: 3.1,
+            status: "ready",
+            note: "Stored weekly projection fixture.",
+          },
+        },
+      }
+    );
+
+    expect(result.priorityWaiverTargets?.[0]?.player.name).toBe("Window Runner");
+    expect(result.priorityWaiverTargets?.[0]?.priority).toBe("add-now");
+    expect(result.priorityWaiverTargets?.[0]?.reasons.join(" ")).toContain("stored projected points");
+    expect(result.priorityWaiverTargets?.[0]?.reasons.join(" ")).toContain("favorable upcoming schedule");
+    expect(result.priorityWaiverTargets?.[0]?.weeklyProjection?.projectedFantasyPoints).toBe(12.8);
+  });
 });

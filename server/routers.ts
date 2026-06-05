@@ -2922,6 +2922,11 @@ function stripWeeklyProjectionContextFromReportData(reportData: ReportData): Rep
               stripWeeklyProjectionFromPlayer(player as any) || null,
             ])
           ) as WaiverIntelligence['bestAvailableByPosition'],
+          priorityWaiverTargets: (reportData.waiverIntelligence.priorityWaiverTargets || []).map((target) => ({
+            ...target,
+            player: stripWeeklyProjectionFromPlayer(target.player) || target.player,
+            weeklyProjection: null,
+          })),
           weeklyEcrTargets: (reportData.waiverIntelligence.weeklyEcrTargets || []).map(stripWeeklyProjectionFromWaiverTarget),
           specialTeamsStreamerTargets: (reportData.waiverIntelligence.specialTeamsStreamerTargets || []).map(stripWeeklyProjectionFromWaiverTarget),
           defensePairingTargets: (reportData.waiverIntelligence.defensePairingTargets || []).map(stripWeeklyProjectionFromWaiverTarget),
@@ -5177,6 +5182,62 @@ function buildWaiverWeeklyEcrTargets(
     .slice(0, 12);
 }
 
+function buildPriorityWaiverTargets(
+  players: TrendingPlayer[],
+  options: { leagueValueMode?: LeagueValueMode } = {}
+): NonNullable<WaiverIntelligence['priorityWaiverTargets']> {
+  type WaiverPriorityTargetRow = NonNullable<WaiverIntelligence['priorityWaiverTargets']>[number];
+  return players
+    .map((player): WaiverPriorityTargetRow | null => {
+      const weeklyProjection = player.weeklyProjection?.status === 'ready' ? player.weeklyProjection : null;
+      const scheduleSignal = player.weeklyEcr || null;
+      const value = Number(player.ktcValue || 0);
+      const projectionPoints = Number(weeklyProjection?.projectedFantasyPoints || 0);
+      const scheduleScore = getWaiverWeeklyEcrSignalScore(scheduleSignal, options);
+      const outlook = isScheduleWindowSignal(scheduleSignal)
+        ? getShortTermMatchupOutlook(scheduleSignal.matchupWindows)
+        : null;
+      const easyWeeks = scheduleSignal?.matchupWindows?.next3?.easyWeeks || 0;
+      const hardWeeks = scheduleSignal?.matchupWindows?.next3?.hardWeeks || 0;
+      const projectionScore = projectionPoints > 0 ? projectionPoints * 52 : 0;
+      const valueScore = Math.min(value / 10, 520);
+      const windowScore = outlook
+        ? outlook.score * 10 + easyWeeks * 95 - hardWeeks * 90
+        : 0;
+      const score = Math.round(valueScore + projectionScore + scheduleScore * 0.45 + windowScore);
+      if (score <= 0) return null;
+
+      const reasons = [
+        projectionPoints >= 10 ? `${projectionPoints.toFixed(1)} stored projected points` : null,
+        easyWeeks > 0 ? `${easyWeeks} favorable upcoming schedule week${easyWeeks === 1 ? '' : 's'}` : null,
+        hardWeeks > 0 && easyWeeks === 0 ? `${hardWeeks} rough upcoming schedule week${hardWeeks === 1 ? '' : 's'} limits priority` : null,
+        scheduleSignal?.bestPositionRank ? `${scheduleSignal.source} ${scheduleSignal.bestPositionRank} signal` : null,
+        value > 0 ? `${Math.round(value).toLocaleString('en-US')} value baseline` : null,
+      ].filter((reason): reason is string => Boolean(reason));
+
+      const priority: NonNullable<WaiverIntelligence['priorityWaiverTargets']>[number]['priority'] =
+        score >= 1250 && projectionPoints >= 8
+          ? 'add-now'
+          : isScheduleWindowSignal(scheduleSignal) && easyWeeks > 0 && projectionPoints >= 4
+            ? 'streamer'
+            : score >= 780
+              ? 'watch'
+              : 'stash';
+
+      return {
+        player,
+        score,
+        priority,
+        reasons,
+        scheduleSignal,
+        weeklyProjection,
+      };
+    })
+    .filter((target): target is WaiverPriorityTargetRow => target !== null)
+    .sort((a, b) => b.score - a.score || (b.weeklyProjection?.projectedFantasyPoints || 0) - (a.weeklyProjection?.projectedFantasyPoints || 0))
+    .slice(0, 12);
+}
+
 const SPECIAL_TEAMS_STREAMER_WEEKS = [1, 2, 3];
 
 function getSpecialTeamsStreamerWeekRows(signal?: WaiverWeeklyEcrSignal | null): WaiverWeeklyEcrSignal['weeks'] {
@@ -6059,6 +6120,7 @@ export function buildWaiverIntelligence(
     ? rankedRecommendationCandidates
     : rankedAvailableCandidates;
   const weeklyEcrTargets = buildWaiverWeeklyEcrTargets(topCandidatePool, { leagueValueMode });
+  const priorityWaiverTargets = buildPriorityWaiverTargets(topCandidatePool, { leagueValueMode });
   const specialTeamsStreamerTargets = buildSpecialTeamsStreamerTargets({
     players: topCandidatePool,
     draftSharksContext: options.draftSharksScheduleContext,
@@ -6105,6 +6167,7 @@ export function buildWaiverIntelligence(
       .filter((player) => (player.ktcValue || 0) > 0)
       .sort((a, b) => (b.ktcValue || 0) - (a.ktcValue || 0))
       .slice(0, 8),
+    priorityWaiverTargets,
     weeklyEcrTargets,
     specialTeamsStreamerTargets,
     defensePairingTargets,

@@ -738,6 +738,7 @@ export interface WaiverIntelligence {
   bestAvailableByPosition: Record<'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF', TrendingPlayer | null>;
   bestTaxiStashes: TrendingPlayer[];
   recentlyDroppedValuable: TrendingPlayer[];
+  priorityWaiverTargets?: WaiverPriorityTarget[];
   weeklyEcrTargets?: WaiverWeeklyEcrTarget[];
   specialTeamsStreamerTargets?: WaiverWeeklyEcrTarget[];
   defensePairingTargets?: WaiverWeeklyEcrTarget[];
@@ -865,6 +866,15 @@ export interface WaiverWeeklyEcrTarget {
   player: TrendingPlayer;
   signal: WaiverWeeklyEcrSignal;
   score: number;
+}
+
+export interface WaiverPriorityTarget {
+  player: TrendingPlayer;
+  score: number;
+  priority: 'add-now' | 'streamer' | 'watch' | 'stash';
+  reasons: string[];
+  scheduleSignal?: WaiverWeeklyEcrSignal | null;
+  weeklyProjection?: WeeklyProjectionContext | null;
 }
 
 export interface WaiverOmittedCandidate {
