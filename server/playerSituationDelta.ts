@@ -36,6 +36,15 @@ function cleanName(value: unknown): string {
   return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+function normalizeText(value?: string | null): string {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function isTopReturningDepthPlayer(details: PlayerDetails): boolean {
   const topReturning = details.rosterRoom?.opportunityDelta?.topReturningDepthPlayer;
   return Boolean(topReturning && cleanName(topReturning) === cleanName(details.fullName));
@@ -99,6 +108,77 @@ function addDynamicSignal(
   const key = `${signal.type}:${signal.label}:${signal.detail}`.toLowerCase();
   if (signals.some((existing) => `${existing.type}:${existing.label}:${existing.detail}`.toLowerCase() === key)) return;
   signals.push(signal);
+}
+
+function getFantasyProsSourceTrace(details: PlayerDetails, key: string) {
+  return details.valueProfile?.fantasyProsSourceTrace?.find((row) => row.key === key) || null;
+}
+
+function getNewsMovementDirection(details: PlayerDetails): PlayerSituationDynamicSignal['direction'] | null {
+  const valueDelta = numeric(details.newsValueMovement?.valueDelta);
+  if (valueDelta === null || valueDelta === 0) return null;
+  return valueDelta > 0 ? 'boost' : 'risk';
+}
+
+function datesOverlapWithinDays(first?: string | number | null, second?: string | number | null, days = 7): boolean {
+  const firstMs = parseDateMs(first);
+  const secondMs = parseDateMs(second);
+  if (firstMs === null || secondMs === null) return false;
+  return Math.abs(firstMs - secondMs) <= days * 86_400_000;
+}
+
+function fantasyProsNewsCategory(details: PlayerDetails): {
+  categoryLabel: string;
+  defaultDirection: PlayerSituationDynamicSignal['direction'];
+  eventAt: string | null;
+  detail: string;
+  hasValueMovementOverlap: boolean;
+} | null {
+  const trace = getFantasyProsSourceTrace(details, 'NEWS');
+  if (!trace) return null;
+
+  const text = normalizeText([
+    trace.status,
+    trace.evidence,
+    details.latestNews?.title,
+    details.latestNews?.summary,
+  ].filter(Boolean).join(' '));
+  if (!text) return null;
+
+  const categoryLabel = text.includes('INJURY') || text.includes('PRACTICE') || text.includes('QUESTIONABLE') || text.includes('DOUBTFUL')
+    ? 'injury news'
+    : text.includes('TRADE') || text.includes('TRADED') || text.includes('SIGNED') || text.includes('WAIVED') || text.includes('RELEASED') || text.includes('CLAIMED') || text.includes('ACTIVATED') || text.includes('TRANSACTION')
+    ? 'transaction news'
+    : text.includes('RUMOR') || text.includes('SPECULATION')
+    ? 'rumor news'
+    : text.includes('BREAKING')
+    ? 'breaking news'
+    : 'player news';
+  const defaultDirection: PlayerSituationDynamicSignal['direction'] = categoryLabel === 'injury news'
+    ? 'risk'
+    : categoryLabel === 'rumor news'
+    ? 'neutral'
+    : 'neutral';
+  const eventAt = trace.lastUpdated || details.latestNews?.publishedAt || trace.fetchedAt || null;
+  const movementPublishedAt = details.newsValueMovement?.newsPublishedAt || details.latestNews?.publishedAt || null;
+  const hasValueMovementOverlap = Boolean(
+    details.newsValueMovement &&
+    (
+      datesOverlapWithinDays(eventAt, movementPublishedAt) ||
+      (!eventAt && movementPublishedAt)
+    )
+  );
+  const detail = details.newsValueMovement?.note && hasValueMovementOverlap
+    ? `${details.newsValueMovement.note} FantasyPros category: ${categoryLabel}.`
+    : trace.evidence || details.latestNews?.summary || details.latestNews?.title || `FantasyPros ${categoryLabel} is attached.`;
+
+  return {
+    categoryLabel,
+    defaultDirection,
+    eventAt,
+    detail,
+    hasValueMovementOverlap,
+  };
 }
 
 function buildDynamicSignals(details: PlayerDetails): PlayerSituationDynamicSignal[] {
@@ -206,6 +286,22 @@ function buildDynamicSignals(details: PlayerDetails): PlayerSituationDynamicSign
     });
   }
 
+  const fantasyProsNews = fantasyProsNewsCategory(details);
+  if (fantasyProsNews) {
+    const movementDirection = fantasyProsNews.hasValueMovementOverlap
+      ? getNewsMovementDirection(details)
+      : null;
+    addDynamicSignal(signals, {
+      type: 'news',
+      label: movementDirection
+        ? `FantasyPros ${fantasyProsNews.categoryLabel} moved value`
+        : `FantasyPros ${fantasyProsNews.categoryLabel}`,
+      direction: movementDirection || fantasyProsNews.defaultDirection,
+      detail: fantasyProsNews.detail,
+      eventAt: fantasyProsNews.eventAt,
+    });
+  }
+
   const marketDelta = getRecentValueDelta(details);
   if (marketDelta !== null && Math.abs(marketDelta) >= 8) {
     addDynamicSignal(signals, {
@@ -267,6 +363,14 @@ function buildFreshnessProfile(
     const ageDays = daysSince(details.latestNews.publishedAt);
     score += ageDays === null ? 5 : ageDays <= 7 ? 13 : ageDays <= 30 ? 9 : 4;
     signals.push(ageDays === null ? 'player news' : `player news ${ageDays}d old`);
+  }
+  const fantasyProsNews = fantasyProsNewsCategory(details);
+  if (fantasyProsNews) {
+    const ageDays = daysSince(fantasyProsNews.eventAt);
+    score += details.latestNews?.title
+      ? 3
+      : ageDays === null ? 5 : ageDays <= 7 ? 12 : ageDays <= 30 ? 8 : 3;
+    signals.push(ageDays === null ? `FantasyPros ${fantasyProsNews.categoryLabel}` : `FantasyPros ${fantasyProsNews.categoryLabel} ${ageDays}d old`);
   }
   if (details.schedule) {
     score += 4;
@@ -641,6 +745,8 @@ export function buildPlayerSituationDelta(details: PlayerDetails, playerId: stri
     .map((item) => item.label);
   if (details.rosterRoom?.movementTypes?.includes('free-agent-or-claim')) cautionFlags.push('inferred free-agent/claim movement');
   if (!details.rosterRoom?.opportunityDelta && details.rosterRoom) cautionFlags.push('roster-room movement lacks quality weighting');
+  const fantasyProsNews = fantasyProsNewsCategory(details);
+  if (fantasyProsNews?.categoryLabel === 'rumor news') cautionFlags.push('FantasyPros rumor news category');
   const dynamicSignals = buildDynamicSignals(details);
   const freshness = buildFreshnessProfile(details, dynamicSignals, missingSignals, cautionFlags);
 
