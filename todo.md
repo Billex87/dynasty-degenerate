@@ -531,6 +531,8 @@
 - [ ] Expand breakout and falloff detection into full year-over-year changes in snap share, targets, rush attempts, routes, touchdowns, and efficiency after route participation is available from an approved/stable source.
 - [x] Build first-pass player archetype inputs using size, athletic profile, draft capital, contract investment, usage profile, and scoring shape so the AI can explain similar historical outcomes instead of just raw ranks.
 - [ ] Add rolling trend, volatility, and momentum features across 3/6/12/24 game and season windows so the readouts distinguish sustained growth from short spikes.
+  - [x] Add standalone backend usage momentum summarizer for weekly targets, rush attempts, snap share, and PPR points across 3/6/12/24-game windows, with short-spike versus sustained-growth classification and confidence caps for thin or missing evidence.
+  - [ ] Wire usage momentum into waiver/player/cohort reads after the currently dirty integration files are available; keep exact route-run/YPRR claims gated until an approved route-volume source exists.
 - [x] Add first-pass 3/6/12/24 game usage windows from nflverse weekly `stats_player` rows so situation reads and manager summaries can notice role spikes/dips before the market value changes.
 - [ ] Separate opportunity-driven value from talent-driven value by modeling team context, depth-chart changes, injuries, QB changes, offensive environment, and role shifts.
 - [x] Build the all-player Player Situation Delta engine from stored public snapshots so rookies, sophomores, veterans on new teams, and veterans whose teams changed around them get role/opportunity reads instead of rookie-only context. See `docs/player-situation-delta-data-plan.md`.
