@@ -4309,6 +4309,24 @@ async function attachStoredSleeperHiddenLeagueSnapshot(payload: any, leagueId: s
   };
 }
 
+function stripStoredSleeperHiddenLeagueSnapshot(payload: any): any {
+  if (!payload?.reportData) return payload;
+
+  const reportData = { ...payload.reportData };
+  delete reportData.adminSleeperTradeProposalSignals;
+  delete reportData.adminSleeperWaiverSignals;
+  delete reportData.sleeperHiddenLeagueSnapshot;
+
+  return {
+    ...payload,
+    reportData,
+  };
+}
+
+function shouldAttachStoredSleeperHiddenLeagueSnapshot(ctx: { user?: any }): boolean {
+  return Boolean(ctx.user && hasAdminPermissionsForUser(ctx.user));
+}
+
 const SLEEPER_PLAYERS_CACHE_TTL_MS = 60 * 60 * 1000;
 let sleeperPlayersCache: {
   expiresAt: number;
@@ -9574,6 +9592,7 @@ export const appRouter = router({
         const forceRefresh = Boolean(input.forceRefresh && canForceRefreshLeagueCache(ctx.req as any));
         const liveRefresh = Boolean(input.liveRefresh);
         const bypassReportCache = shouldBypassLeagueReportCache({ forceRefresh, liveRefresh });
+        const includeStoredSleeperHiddenSnapshot = shouldAttachStoredSleeperHiddenLeagueSnapshot(ctx);
         const normalizedLeagueId = getValidSleeperEntityId(input.leagueId);
         if (isInvalidLeagueIdCached(input.leagueId)) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
@@ -9585,8 +9604,11 @@ export const appRouter = router({
           const cachedReport = await readCachedLeagueReport(reportCacheKey);
           markAnalyzeStep('cache lookup');
           if (!bypassReportCache && cachedReport && typeof cachedReport === 'object') {
-            const cachedReportWithProjectionPolicy = stripWeeklyProjectionContextFromPayload(cachedReport);
-            const cachedReportWithHiddenData = await attachStoredSleeperHiddenLeagueSnapshot(cachedReportWithProjectionPolicy, input.leagueId);
+            const cachedReportWithoutStoredSleeperHiddenData = stripStoredSleeperHiddenLeagueSnapshot(cachedReport);
+            const cachedReportWithProjectionPolicy = stripWeeklyProjectionContextFromPayload(cachedReportWithoutStoredSleeperHiddenData);
+            const cachedReportWithHiddenData = includeStoredSleeperHiddenSnapshot
+              ? await attachStoredSleeperHiddenLeagueSnapshot(cachedReportWithProjectionPolicy, input.leagueId)
+              : cachedReportWithProjectionPolicy;
             const cachedReportWithLiveActivity = await attachLiveSleeperActivity(cachedReportWithHiddenData, input.leagueId);
             await insertLoginAttempt({
               eventType: "analyze_league",
@@ -10774,14 +10796,12 @@ export const appRouter = router({
           };
           markAnalyzeStep('AI calibration memory');
 
-          const reportDataWithHiddenData = await attachStoredSleeperHiddenLeagueSnapshot(reportDataWithDailyMemory, input.leagueId);
-
           const analyzePayloadRaw = {
             leagueId: input.leagueId,
             leagueName: leagueInfo.name,
             leagueLogo: getSleeperAvatarUrl(leagueInfo.avatar),
             leagueFormat: formatLeagueFormat(leagueInfo),
-            reportData: reportDataWithHiddenData,
+            reportData: reportDataWithDailyMemory,
           };
           const { payload: analyzePayload } = slimCachedLeagueReportPayload(analyzePayloadRaw);
           markAnalyzeStep('payload assembly');
@@ -10793,10 +10813,14 @@ export const appRouter = router({
             console.warn('Failed to cache league report:', cacheError);
           }
 
+          const analyzePayloadWithHiddenData = includeStoredSleeperHiddenSnapshot
+            ? await attachStoredSleeperHiddenLeagueSnapshot(analyzePayload, input.leagueId)
+            : analyzePayload;
+
           const analyzeResponsePayload = await sanitizeAnalyzePayloadForPaidAccess({
             ctx,
             leagueId: input.leagueId,
-            payload: analyzePayload,
+            payload: analyzePayloadWithHiddenData,
           });
           if (ctx.user) {
             await recordLimitedUsageEvent({
