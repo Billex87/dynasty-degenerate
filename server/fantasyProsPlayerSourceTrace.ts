@@ -1,6 +1,7 @@
 import type { FantasyProsPlayerSourceTrace } from '../shared/types';
 import type {
   FantasyProsExternalIdIndex,
+  FantasyProsCompareSnapshotRow,
   FantasyProsConsensusSnapshotRow,
   FantasyProsInjurySnapshotRow,
   FantasyProsNewsSnapshotRow,
@@ -36,6 +37,7 @@ const FANTASYPROS_KEYS = [
   'INJURIES',
   'PLAYER_POINTS',
   'PROJECTIONS',
+  'COMPARE_PLAYERS',
 ];
 
 export function buildFantasyProsPlayerSourceTrace(
@@ -172,6 +174,9 @@ function appendSnapshotContextTrace(
 
   const playerPoints = context.playerPointsByFantasyProsId[fantasyProsId];
   addTrace(playerPointsTrace(playerPoints, context, 'fantasypros-player-points'));
+
+  const comparePlayers = context.comparePlayersByFantasyProsId[fantasyProsId];
+  addTrace(comparePlayersTrace(comparePlayers, context, 'fantasypros-compare-players'));
 
   addTrace(consensusTrace('DRAFT', context.draftRankingsByFantasyProsId[fantasyProsId], context, 'fantasypros-draft'));
   addTrace(consensusTrace('ROS', context.rosRankingsByFantasyProsId[fantasyProsId], context, 'fantasypros-ros'));
@@ -339,6 +344,37 @@ function playerPointsTrace(
       row.points !== null ? `season points ${formatNumber(row.points)}` : null,
       row.average !== null ? `average ${formatNumber(row.average)}` : null,
       row.games !== null ? `games ${formatNumber(row.games)}` : null,
+      endpointEvidence(summary, endpointKey),
+    ].filter(Boolean).join('; '),
+  };
+}
+
+function comparePlayersTrace(
+  row: FantasyProsCompareSnapshotRow | null | undefined,
+  context: FantasyProsSnapshotContext,
+  endpointKey: string
+): FantasyProsPlayerSourceTrace | null {
+  if (!row || row.expertRankCount <= 0 || !hasAnyValue(row.averageRank, row.bestRank, row.worstRank)) return null;
+  const summary = snapshotSummary(context, endpointKey);
+  return {
+    source: 'FantasyPros',
+    key: 'COMPARE_PLAYERS',
+    label: 'FantasyPros Compare Players',
+    sourceKey: summary?.sourceKey || null,
+    endpointKey,
+    value: row.averageRank,
+    rank: row.averageRank,
+    scoring: row.scoring,
+    fetchedAt: summary?.fetchedAt || null,
+    lastUpdated: summary?.lastUpdated || null,
+    status: summary?.status || 'loaded',
+    evidence: [
+      `expert rank count ${formatNumber(row.expertRankCount)}`,
+      row.averageRank !== null ? `average rank ${formatNumber(row.averageRank)}` : null,
+      row.bestRank !== null ? `best rank ${formatNumber(row.bestRank)}` : null,
+      row.worstRank !== null ? `worst rank ${formatNumber(row.worstRank)}` : null,
+      row.rankingType ? `ranking type ${truncateEvidence(row.rankingType)}` : null,
+      row.position ? `position ${truncateEvidence(row.position)}` : null,
       endpointEvidence(summary, endpointKey),
     ].filter(Boolean).join('; '),
   };

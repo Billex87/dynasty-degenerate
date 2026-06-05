@@ -115,6 +115,38 @@ describe('buildTradeRecommendationContext', () => {
         managers: [],
         note: 'Ready.',
       },
+      playerDetailsById: {
+        buy: {
+          playerId: 'buy',
+          fullName: 'Buy Growth',
+          valueProfile: {
+            fantasyProsSourceTrace: [{
+              source: 'FantasyPros',
+              key: 'COMPARE_PLAYERS',
+              label: 'FantasyPros Compare Players',
+              value: 8.4,
+              rank: 8.4,
+              scoring: 'PPR',
+              evidence: 'expert rank count 3; average rank 8.4; best rank 5; worst rank 12; endpoint metadata: fantasypros-compare-players.',
+            }],
+          },
+        },
+        sell: {
+          playerId: 'sell',
+          fullName: 'Sell Spike',
+          valueProfile: {
+            fantasyProsSourceTrace: [{
+              source: 'FantasyPros',
+              key: 'COMPARE_PLAYERS',
+              label: 'FantasyPros Compare Players',
+              value: 11.6,
+              rank: 11.6,
+              scoring: 'PPR',
+              evidence: 'expert rank count 4; average rank 11.6; best rank 8; worst rank 18; endpoint metadata: fantasypros-compare-players.',
+            }],
+          },
+        },
+      },
       playoffSchedulePlanning: {
         source: 'fixture',
         status: 'ready',
@@ -160,6 +192,10 @@ describe('buildTradeRecommendationContext', () => {
     expect(manager?.tradeAway[0]?.playoffLeverageScore).toBeGreaterThan(0);
     expect(manager?.tradeAway[0]?.scheduleContextScore).toBe(120);
     expect(manager?.tradeAway[0]?.signals).toContain('positive-schedule-stretch');
+    expect(manager?.tradeAway[0]?.signals).toContain('fantasypros-compare-players');
+    expect(manager?.tradeAway[0]?.confidenceReasons).toContain('FantasyPros compare-player consensus is attached.');
+    expect(manager?.tradeAway[0]?.sourceTrace.join(' ')).toContain('fantasypros-compare-players');
+    expect(manager?.tradeFor[0]?.confidenceReasons).toContain('FantasyPros compare-player consensus is attached.');
     expect(result?.rows.every((read) => read.confidence >= 0 && read.confidence <= 100)).toBe(true);
   });
 });

@@ -144,6 +144,18 @@ describe('buildFantasyProsPlayerSourceTrace', () => {
           scoring: 'PPR',
         },
       },
+      comparePlayersByFantasyProsId: {
+        fp1: {
+          fantasyProsId: 'fp1',
+          scoring: 'PPR',
+          rankingType: 'weekly',
+          position: 'WR',
+          expertRankCount: 3,
+          bestRank: 7,
+          worstRank: 14,
+          averageRank: 10.2,
+        },
+      },
       adpByFantasyProsId: {
         fp1: consensusRow({ rankEcr: 42, positionRank: 'WR19' }),
       },
@@ -186,6 +198,7 @@ describe('buildFantasyProsPlayerSourceTrace', () => {
     expect(trace.map((row) => row.key)).toEqual([
       'PROJECTIONS',
       'PLAYER_POINTS',
+      'COMPARE_PLAYERS',
       'ADP',
       'ROOKIES',
       'NEWS',
@@ -200,6 +213,11 @@ describe('buildFantasyProsPlayerSourceTrace', () => {
     expect(trace.find((row) => row.key === 'PLAYER_POINTS')).toMatchObject({
       value: 15.8,
       endpointKey: 'fantasypros-player-points',
+    });
+    expect(trace.find((row) => row.key === 'COMPARE_PLAYERS')).toMatchObject({
+      value: 10.2,
+      rank: 10.2,
+      endpointKey: 'fantasypros-compare-players',
     });
     expect(trace.find((row) => row.key === 'NEWS')?.evidence).toContain('Role expanding after camp usage');
     expect(trace.find((row) => row.key === 'INJURIES')).toMatchObject({
@@ -266,6 +284,7 @@ function buildSnapshotContext(overrides: Record<string, unknown> = {}) {
     summaries: [
       summary('fantasypros-projections'),
       summary('fantasypros-player-points'),
+      summary('fantasypros-compare-players'),
       summary('fantasypros-adp'),
       summary('fantasypros-rookies'),
       summary('fantasypros-news'),

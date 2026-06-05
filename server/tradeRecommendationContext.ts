@@ -35,6 +35,18 @@ function getPlayerId(player: ManagerIntelPlayer | null | undefined): string | nu
   return player?.player_id || null;
 }
 
+function getFantasyProsComparePlayerTrace(
+  playerId: string | null,
+  reportData: ReportData
+): string | null {
+  if (!playerId) return null;
+  const trace = reportData.playerDetailsById?.[playerId]?.valueProfile?.fantasyProsSourceTrace
+    ?.find((row) => row.key === 'COMPARE_PLAYERS');
+  if (!trace) return null;
+  const evidence = trace.evidence || 'stored FantasyPros compare-player snapshot';
+  return `fantasypros-compare-players:${evidence}`;
+}
+
 function getPlayoffLeverageScore(
   playerId: string | null,
   manager: string,
@@ -129,11 +141,13 @@ function buildTradeRead(input: {
     : 0;
   const adjustedBaseScore = input.baseScore + scheduleScoreImpact;
   const scheduleSignal = getScheduleSignal(input);
+  const hasFantasyProsComparePlayers = input.sourceTrace.some((trace) => /fantasypros-compare-players/i.test(trace));
   const confidenceReasons = [
     'Trade read separates short-term scoring value from dynasty value.',
     input.playoffLeverageScore !== null ? 'Playoff schedule leverage is attached.' : 'No direct playoff leverage match is attached.',
     `${input.rosterWindow} roster-window fit is attached.`,
     fragileProjectionSpike ? 'Projection-spike fragility is attached.' : null,
+    hasFantasyProsComparePlayers ? 'FantasyPros compare-player consensus is attached.' : null,
   ].filter((reason): reason is string => Boolean(reason));
   const projectionCapReason = input.projectionStatus === 'ready'
     ? null
@@ -143,6 +157,7 @@ function buildTradeRead(input: {
   confidence += input.playoffLeverageScore !== null ? 7 : 0;
   confidence += scheduleSignal ? 4 : 0;
   confidence += Math.max(contenderFitScore, rebuilderFitScore) >= 55 ? 7 : 0;
+  confidence += hasFantasyProsComparePlayers ? 4 : 0;
 
   return {
     id: `${input.manager}:${input.action}:${input.player.player_id}`,
@@ -175,6 +190,7 @@ function buildTradeRead(input: {
       input.projectedFantasyPoints !== null ? 'weekly-projection' : null,
       input.playoffLeverageScore !== null ? 'playoff-leverage' : null,
       scheduleSignal,
+      hasFantasyProsComparePlayers ? 'fantasypros-compare-players' : null,
       fragileProjectionSpike ? 'fragile-projection-spike' : null,
     ].filter((signal): signal is string => Boolean(signal)),
     sourceTrace: input.sourceTrace,
@@ -190,6 +206,7 @@ function fromContentionRead(input: {
   const projectionStatus = getProjectionStatus(input.reportData);
   const rosterWindow = getRosterWindow(input.manager, input.reportData);
   const playoffLeverageScore = getPlayoffLeverageScore(input.read.player.player_id, input.manager, input.reportData);
+  const fantasyProsCompareTrace = getFantasyProsComparePlayerTrace(input.read.player.player_id, input.reportData);
   const baseScore =
     input.read.score * 0.72 +
     (playoffLeverageScore || 0) * 1.4 +
@@ -209,7 +226,10 @@ function fromContentionRead(input: {
     scheduleAdjustment: input.read.scheduleAdjustment ?? null,
     byeAdjustment: input.read.byeAdjustment ?? null,
     scheduleContextScore: input.read.scheduleContextScore ?? null,
-    sourceTrace: input.read.sourceTrace || [],
+    sourceTrace: [
+      ...(input.read.sourceTrace || []),
+      fantasyProsCompareTrace,
+    ].filter((trace): trace is string => Boolean(trace)),
     baseScore,
   });
 }
@@ -222,6 +242,7 @@ function fromRookieRead(input: {
   const projectionStatus = getProjectionStatus(input.reportData);
   const rosterWindow = getRosterWindow(input.manager, input.reportData);
   const playoffLeverageScore = getPlayoffLeverageScore(input.read.player.player_id, input.manager, input.reportData);
+  const fantasyProsCompareTrace = getFantasyProsComparePlayerTrace(input.read.player.player_id, input.reportData);
   return buildTradeRead({
     manager: input.manager,
     targetManager: input.read.player.owner || null,
@@ -237,7 +258,10 @@ function fromRookieRead(input: {
     scheduleAdjustment: null,
     byeAdjustment: null,
     scheduleContextScore: null,
-    sourceTrace: input.read.sourceTrace || [],
+    sourceTrace: [
+      ...(input.read.sourceTrace || []),
+      fantasyProsCompareTrace,
+    ].filter((trace): trace is string => Boolean(trace)),
     baseScore: input.read.score + (input.read.opportunityRunwayWeeks || 0) * 4,
   });
 }
