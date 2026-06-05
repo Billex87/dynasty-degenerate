@@ -200,6 +200,20 @@ function uniqueReasons(reasons: Array<string | null | undefined>, limit = 6): st
   return Array.from(new Set(reasons.filter((reason): reason is string => Boolean(reason)))).slice(0, limit);
 }
 
+function toActionIdPart(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'manager';
+}
+
+function getActionPriorityWeight(priority: 'high' | 'medium' | 'low'): number {
+  if (priority === 'high') return 3;
+  if (priority === 'medium') return 2;
+  return 1;
+}
+
 function getPlayoffWeekConfidence(input: {
   lineupProjection: LineupProjectionResult;
   lineupIds: string[];
@@ -567,6 +581,95 @@ export function buildPlayoffSchedulePlanningSummary(input: {
     };
   }).sort((a, b) => b.riskScore - a.riskScore || b.upsideScore - a.upsideScore || a.manager.localeCompare(b.manager));
 
+  const actionItems: NonNullable<PlayoffSchedulePlanningSummary['actionItems']> = managerPlans
+    .flatMap((plan) => plan.weeks.flatMap((week) => {
+      const confidence = week.confidence ?? plan.confidence ?? PLAYOFF_CONFIDENCE_BASE;
+      const confidenceReasons = uniqueReasons(week.confidenceReasons || plan.confidenceReasons || [], 6);
+      const confidenceCapReason = week.confidenceCapReason || confidenceReasons[0] || null;
+      const replacementTargets = plan.priorityAdds
+        .filter((candidate) => candidate.targetWeeks.includes(week.week))
+        .slice(0, 3);
+      const riskPlayers = [
+        ...week.byePlayers.map((player) => ({ ...player, reason: 'bye' as const })),
+        ...week.avoidPlayers.map((player) => ({ ...player, reason: 'avoid' as const })),
+      ];
+      const streamerPlayers = week.streamerPlayers.map((player) => ({ ...player, reason: 'streamer' as const }));
+      const riskWeight = week.byePlayers.length * 3 + week.avoidPlayers.length * 2;
+      const confidencePenalty = Math.max(0, 72 - confidence);
+      const items: NonNullable<PlayoffSchedulePlanningSummary['actionItems']> = [];
+      const managerId = toActionIdPart(plan.manager);
+
+      if (riskPlayers.length) {
+        const score = Math.round(riskWeight * 100 + replacementTargets.length * 25 + confidencePenalty * 2);
+        const priority = riskWeight >= 4 || confidence < 60
+          ? 'high'
+          : riskWeight >= 2
+            ? 'medium'
+            : 'low';
+        items.push({
+          id: `${managerId}-week-${week.week}-cover-risk`,
+          manager: plan.manager,
+          week: week.week,
+          type: 'cover-risk',
+          priority,
+          score,
+          confidence,
+          confidenceReasons,
+          confidenceCapReason,
+          affectedPlayers: riskPlayers,
+          replacementTargets,
+          note: `${plan.manager} Week ${week.week}: cover ${riskPlayers.length} playoff schedule risk${riskPlayers.length === 1 ? '' : 's'}${replacementTargets.length ? ` with ${replacementTargets.length} stored SOS-backed replacement option${replacementTargets.length === 1 ? '' : 's'}` : ''}.`,
+        });
+      }
+
+      if (streamerPlayers.length) {
+        const score = Math.round(streamerPlayers.length * 70 + replacementTargets.length * 15 + Math.max(0, confidence - 50));
+        const priority = streamerPlayers.length >= 2 && confidence >= 70 ? 'medium' : 'low';
+        items.push({
+          id: `${managerId}-week-${week.week}-exploit-upside`,
+          manager: plan.manager,
+          week: week.week,
+          type: 'exploit-upside',
+          priority,
+          score,
+          confidence,
+          confidenceReasons,
+          confidenceCapReason,
+          affectedPlayers: streamerPlayers,
+          replacementTargets,
+          note: `${plan.manager} Week ${week.week}: exploit ${streamerPlayers.length} favorable playoff schedule window${streamerPlayers.length === 1 ? '' : 's'}.`,
+        });
+      }
+
+      if (!riskPlayers.length && !streamerPlayers.length && confidence < 65) {
+        const score = Math.round(90 + Math.max(0, 65 - confidence) * 3);
+        items.push({
+          id: `${managerId}-week-${week.week}-review-fallback`,
+          manager: plan.manager,
+          week: week.week,
+          type: 'review-fallback',
+          priority: confidence < 55 ? 'medium' : 'low',
+          score,
+          confidence,
+          confidenceReasons,
+          confidenceCapReason,
+          affectedPlayers: [],
+          replacementTargets,
+          note: `${plan.manager} Week ${week.week}: review playoff plan because confidence is capped to ${confidence}.`,
+        });
+      }
+
+      return items;
+    }))
+    .sort((a, b) =>
+      getActionPriorityWeight(b.priority) - getActionPriorityWeight(a.priority)
+      || b.score - a.score
+      || a.confidence - b.confidence
+      || a.week - b.week
+      || a.manager.localeCompare(b.manager)
+    )
+    .slice(0, 24);
+
   const hasProfiles = Object.keys(playerSchedules).length > 0;
   const confidence = managerPlans.length
     ? Math.min(...managerPlans.map((plan) => plan.confidence || PLAYOFF_CONFIDENCE_BASE))
@@ -584,6 +687,7 @@ export function buildPlayoffSchedulePlanningSummary(input: {
       ? confidenceReasons
       : [hasProfiles ? 'Stored playoff schedule profiles are available.' : 'No stored playoff schedule profiles are available.'],
     weeks,
+    actionItems,
     managerPlans,
   };
 }

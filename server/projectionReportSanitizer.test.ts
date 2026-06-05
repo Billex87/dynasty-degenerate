@@ -62,11 +62,29 @@ describe("projection report sanitizer", () => {
         source: "NFL.com 2026 bye weeks + Sleeper league data + DraftSharks SOS",
         status: "ready",
         updatedAt: "2026-06-01T00:00:00.000Z",
+        confidence: 82,
+        confidenceReasons: ["Fresh schedule, SOS, and projection context support this playoff-week confidence score."],
         weeks: [15, 16, 17],
+        actionItems: [{
+          id: "a-week-15-cover-risk",
+          manager: "A",
+          week: 15,
+          type: "cover-risk",
+          priority: "high",
+          score: 250,
+          confidence: 82,
+          confidenceReasons: ["Projection coverage is partial (8/9); blended with schedule/value fallback."],
+          confidenceCapReason: "Projection coverage is partial (8/9); blended with schedule/value fallback.",
+          affectedPlayers: [],
+          replacementTargets: [],
+          note: "A Week 15 uses stored weekly projection blend.",
+        }],
         managerPlans: [{
           manager: "A",
           riskScore: 2,
           upsideScore: 1,
+          confidence: 82,
+          confidenceReasons: ["Projection coverage is partial (8/9); blended with schedule/value fallback."],
           weeks: [{
             week: 15,
             projectedStarterPoints: 112.4,
@@ -144,8 +162,16 @@ describe("projection report sanitizer", () => {
       confidence: 58,
       confidenceCapReason: "Weekly projections are disabled for this response; playoff planning confidence is capped to schedule/value context.",
     });
+    expect(sanitized.playoffSchedulePlanning?.confidence).toBe(58);
+    expect(sanitized.playoffSchedulePlanning?.managerPlans[0]?.confidence).toBe(58);
+    expect(sanitized.playoffSchedulePlanning?.actionItems?.[0]).toMatchObject({
+      confidence: 58,
+      confidenceCapReason: "Weekly projections are disabled for this response; playoff planning confidence is capped to schedule/value context.",
+      note: "Review this playoff action with schedule/value context because weekly projections are disabled for this response.",
+    });
     expect(sanitized.matchupPreviews?.map((preview) => preview.source)).toEqual(["Schedule/value model"]);
     expect(JSON.stringify(sanitized.playerDetailsById)).not.toContain("weeklyProjection");
+    expect(JSON.stringify(sanitized.playoffSchedulePlanning)).not.toContain("stored weekly projection blend");
     expect(JSON.stringify(sanitized.waiverIntelligence?.availableTrendingAdds)).not.toContain("weeklyProjection");
     expect(JSON.stringify(sanitized.waiverIntelligence?.highestKtcAvailable)).not.toContain("weeklyProjection");
     expect(JSON.stringify(sanitized.waiverIntelligence?.bestAvailableByPosition)).not.toContain("weeklyProjection");

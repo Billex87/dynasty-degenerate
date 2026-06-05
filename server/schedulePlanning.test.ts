@@ -164,6 +164,20 @@ describe('schedule planning', () => {
       scheduleTier: 'elite',
     });
     expect(summary.managerPlans[0].note).toContain('stored SOS-backed waiver targets');
+    const riskAction = summary.actionItems?.find((action) => action.type === 'cover-risk' && action.week === 15);
+    expect(riskAction).toMatchObject({
+      manager: 'Bill',
+      priority: 'high',
+      confidence: 58,
+      affectedPlayers: [expect.objectContaining({ playerId: 'carRb', reason: 'avoid' })],
+      replacementTargets: [expect.objectContaining({ playerId: 'faRb', targetWeeks: [15, 16] })],
+    });
+    expect(riskAction?.note).toContain('stored SOS-backed replacement option');
+    const upsideAction = summary.actionItems?.find((action) => action.type === 'exploit-upside' && action.week === 17);
+    expect(upsideAction).toMatchObject({
+      manager: 'Bill',
+      affectedPlayers: [expect.objectContaining({ playerId: 'phiQb', reason: 'streamer' })],
+    });
   });
 
   it('caps playoff planning confidence when projection coverage is partial', () => {
