@@ -97,9 +97,10 @@ function normalizeTier(value: unknown, score: number | null): ScheduleTier {
   if (['easy', 'good', 'favorable', 'soft'].includes(label)) return 'easy';
   if (['hard', 'bad', 'difficult', 'tough', 'red'].includes(label)) return 'hard';
   if (score !== null) {
-    if (score >= 75) return 'elite';
-    if (score >= 58) return 'easy';
-    if (score <= 42) return 'hard';
+    // seasonSOS is a signed points-vs-average delta (~ -15..+15); higher = easier.
+    if (score >= 8) return 'elite';
+    if (score >= 3) return 'easy';
+    if (score <= -3) return 'hard';
   }
   return 'neutral';
 }

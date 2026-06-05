@@ -87,19 +87,20 @@ describe('gradePlayer', () => {
     expect(grade.archetype).toBe('Upside Shot');
   });
 
-  it('reads seasonSOS as a 0-100 difficulty (easier schedule grades higher)', () => {
+  it('reads seasonSOS as a signed delta (higher = easier schedule -> higher Situational)', () => {
     const base = {
       pos: 'WR',
       lastSeasonPointsPerGame: 12,
       lastSeasonGames: 16,
       currentPositionRank: 'WR20',
     } as const;
-    const easy = gradePlayer(makePlayer({ player_id: 'wr-easy', ...base, playerDetails: { age: 25, isStarter: true, schedule: { seasonSOS: 20 } } }), 'dynasty')!;
-    const hard = gradePlayer(makePlayer({ player_id: 'wr-hard', ...base, playerDetails: { age: 25, isStarter: true, schedule: { seasonSOS: 85 } } }), 'dynasty')!;
-    const neutral = gradePlayer(makePlayer({ player_id: 'wr-neu', ...base, playerDetails: { age: 25, isStarter: true, schedule: { seasonSOS: 50 } } }), 'dynasty')!;
+    // DraftSharks seasonSOS is a points-vs-average delta (~ -15..+15), higher = easier.
+    const easy = gradePlayer(makePlayer({ player_id: 'wr-easy', ...base, playerDetails: { age: 25, isStarter: true, schedule: { seasonSOS: 10 } } }), 'dynasty')!;
+    const hard = gradePlayer(makePlayer({ player_id: 'wr-hard', ...base, playerDetails: { age: 25, isStarter: true, schedule: { seasonSOS: -10 } } }), 'dynasty')!;
+    const neutral = gradePlayer(makePlayer({ player_id: 'wr-neu', ...base, playerDetails: { age: 25, isStarter: true, schedule: { seasonSOS: 0 } } }), 'dynasty')!;
     expect(easy.situational).toBeGreaterThan(neutral.situational);
     expect(neutral.situational).toBeGreaterThan(hard.situational);
-    // A neutral SOS of 50 must not collapse the situational score toward zero.
+    // A neutral SOS of 0 should land mid-scale, not collapse toward zero.
     expect(neutral.situational).toBeGreaterThan(3);
   });
 

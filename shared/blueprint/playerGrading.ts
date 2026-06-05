@@ -178,13 +178,12 @@ function scoreSituational(player: ManagerIntelPlayer, position: Position): numbe
   const details = player.playerDetails;
   const parts: number[] = [];
 
-  // Strength of schedule: seasonSOS is a 0-100 difficulty percentage where 50 is
-  // neutral and higher is harder (matches schedulePlanning / PlayerDetailModal).
-  // Easier schedule -> higher score. Accept a legacy 0-1 difficulty too.
+  // Strength of schedule: DraftSharks seasonSOS is a signed points-vs-average
+  // delta centered at 0 (~ -15..+15) where HIGHER = EASIER schedule. Map to a
+  // 0-10 score with 0 -> 5, so an easier schedule lifts Situational.
   const sos = details?.schedule?.seasonSOS ?? null;
   if (sos !== null) {
-    const difficulty = sos > 1 ? Math.max(0, Math.min(100, sos)) / 100 : Math.max(0, Math.min(1, sos));
-    parts.push(clamp(10 - difficulty * 10));
+    parts.push(clamp(5 + sos / 3));
   }
   const tier = String(details?.schedule?.scheduleTier || '').toLowerCase();
   if (tier) {
