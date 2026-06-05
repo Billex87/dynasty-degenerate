@@ -1,5 +1,6 @@
 #!/usr/bin/env tsx
 
+import { pathToFileURL } from 'url';
 import '../server/_core/env';
 import {
   probeProjectionSosReadiness,
@@ -859,6 +860,8 @@ function validateReportContract(input: {
   };
 }
 
+export { validateReportContract };
+
 function extractReportData(payload: any): any {
   return payload?.reportData || payload?.data?.reportData || payload;
 }
@@ -951,7 +954,9 @@ async function main() {
   if (!ok) process.exitCode = 1;
 }
 
-main().catch((error) => {
-  console.error('[projection-sos-rollout] failed:', error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error('[projection-sos-rollout] failed:', error);
+    process.exitCode = 1;
+  });
+}
