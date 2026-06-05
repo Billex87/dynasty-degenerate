@@ -53,6 +53,7 @@
     "test:e2e:production:responsive": "env -u NO_COLOR PRODUCTION_SMOKE=true playwright test tests/e2e/production-smoke.spec.ts",
     "check:fantasypros": "node scripts/check-fantasypros.mjs",
     "probe:external-sources": "node scripts/probe-external-sources.mjs",
+    "probe:sleeper-matchup-context": "tsx scripts/probe-sleeper-matchup-context.ts",
     "probe:projection-sos-readiness": "tsx scripts/probe-projection-sos-readiness.ts",
     "verify:projection-sos": "pnpm run verify:projection-sos-rollout",
     "verify:projection-sos-rollout": "tsx scripts/verify-projection-sos-rollout.ts",
