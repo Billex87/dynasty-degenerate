@@ -27,6 +27,17 @@ The command runs:
 - `pnpm run audit:source-freshness`
 - `pnpm run verify:projection-sos -- --league-id=<league-id>`
 
+Before enabling or advertising any provider-attributed projection claim, also run the source gate checks:
+
+```sh
+pnpm run audit:source-readiness-gates
+pnpm run audit:zero-row-valuation-sources
+CHECK_FANTASYPROS_EXPANDED=true CHECK_FANTASYPROS_PROJECTIONS=true pnpm run check:fantasypros
+pnpm run probe:football-data-sources
+```
+
+These checks do not replace the projection/SOS readiness gate. They prove that blocked/research providers are still blocked, zero-row valuation sources are classified, and SportsDataIO/FantasyData package endpoints are only probed through metadata-only cron/admin paths.
+
 ## Required Pass Criteria
 
 The run is production-ready only when all of these are true:

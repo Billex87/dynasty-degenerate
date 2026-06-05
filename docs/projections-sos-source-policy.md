@@ -2,16 +2,18 @@
 
 Normal user loads must keep weekly projection, schedule, and SOS reads snapshot-backed. Sleeper remains the only live source during login/report load, and only for current league state such as rosters, matchups, submitted lineups, transactions, drafts, and players.
 
+Use `docs/projection-source-readiness-gates.md` as the source gate register. A source can be stored or displayed only at the level recorded there: `blocked`, `research`, `approved-for-snapshot`, or `approved-for-public-claim`. No current third-party weekly projection provider is approved for public provider-attributed claims.
+
 ## Approved Blend For Current Schedule Features
 
 | Signal | Current Source | Load Boundary | Notes |
 | --- | --- | --- | --- |
-| Full NFL schedule | NFL.com schedules page or an approved schedule export/API derived from the same official schedule fields | Cron/admin snapshot, then stored normalized schedule snapshot | NFL.com is the human-readable reference for season/week/team/kickoff data, but normal report loads must still read `nfl-schedule-games-v1` snapshots. |
+| Full NFL schedule | NFL.com schedules page or an approved schedule export/API derived from the same official schedule fields | Cron/admin snapshot, then stored normalized schedule snapshot | NFL.com is the human-readable reference for season/week/team/kickoff data, but normal report loads must still read `nfl-schedule-games-v1` snapshots. Every new snapshot needs source/version evidence. |
 | NFL bye weeks | NFL.com 2026 schedule-release map embedded in `server/schedulePlanning.ts` | Static app data | Used for player schedule profiles, roster gap checks, and bye-window notes. |
 | League matchups and submitted lineups | Sleeper league matchup/current-state endpoints | Live on report load | Safe to call on login because this is the live league state the user expects to refresh. |
 | Strength of schedule | DraftSharks SOS snapshot, preferably the percentage-based QB/RB/WR/TE/K/DEF rows | Cron/admin refresh, then stored snapshot | DraftSharks is the primary SOS signal. The public page documents that values are percent differences in fantasy points allowed vs. what opponents usually score. Use approved partner/API/export access, not live user-load scraping. |
 | FantasyPros matchup calendar | Retired for SOS | No scheduled/admin refresh | Do not call FantasyPros matchup pages for SOS. The active parser, refresh job, diagnostics, and public readout paths are removed unless a future decision approves a separate non-SOS use. |
-| Weekly projections | Not approved for public production yet | Blocked until endpoint rights/freshness are validated | FantasyPros projections are useful, but paid/public use still needs approved commercial terms and rate-limit validation. |
+| Weekly projections | Not approved for public provider-attributed production claims yet | Stored snapshots only when the source gate allows it | FantasyPros projections are useful, but paid/public use still needs approved commercial terms, rate-limit validation, row freshness, mapping coverage, and legal/source approval. Sleeper weekly projections can be stored for readiness-gated internal mechanics but do not make public provider claims safe by themselves. |
 | Player props / market signal | OpticOdds stored props snapshot after key approval | Cron/admin refresh, then stored snapshot | Can support start/sit confidence once real snapshots exist and responsible-gaming boundaries are in place. |
 
 ## DraftSharks vs FantasyPros
@@ -61,6 +63,17 @@ Any of these kill switches blocks projection paths even when the enabling flags 
 
 The FantasyPros endpoint snapshot refresh now requires the FantasyPros source flag plus at least one projection-type flag before it includes projection payloads.
 Expanded FantasyPros snapshots include weekly ECR, waiver-wire, and compare-player probes. Targets and articles require separate entitlement flags: `ENABLE_FANTASYPROS_TARGETS_SNAPSHOTS=true` and `ENABLE_FANTASYPROS_ARTICLES_SNAPSHOTS=true`.
+
+Before projection or endpoint snapshots influence lineup, matchup, waiver, trade, or redraft models, run:
+
+```sh
+pnpm run audit:source-readiness-gates
+CHECK_FANTASYPROS_EXPANDED=true CHECK_FANTASYPROS_PROJECTIONS=true pnpm run check:fantasypros
+pnpm run probe:football-data-sources
+pnpm run audit:zero-row-valuation-sources
+```
+
+FantasyPros `WW` waiver snapshots require a closer-to-season recheck and non-zero rows before use. FantasyPros targets and articles stay blocked until package access returns `200` and usage terms are approved. SportsDataIO/FantasyData players, teams, schedule, injuries, depth charts, scoring, projections, and usage/route fields stay research-only until package access, endpoint shape, rate limits, and player mapping pass metadata probes.
 
 Sleeper weekly projection snapshots can refresh without enabling public projection claims by setting `ENABLE_SLEEPER_PROJECTION_SNAPSHOTS=true`. User-facing projection mechanics still require the full rollout set: `ENABLE_PROJECTION_FEATURES=true`, `ENABLE_SLEEPER_PROJECTIONS=true`, and at least one projection-type flag such as `ENABLE_WEEKLY_PROJECTIONS=true`.
 
@@ -195,6 +208,14 @@ Public readouts must name projection evidence according to what actually exists:
 
 - FantasyPros projection endpoint terms/rate limits must be approved for production use.
 - FantasyPros matchup-calendar access should stay retired unless a future non-SOS use case is approved; it should not drive or decorate public SOS recommendations.
+- FantasyPros targets, articles, and `WW` waiver rankings must not power public recommendations until package access, non-zero rows, freshness, and usage rights are approved.
+- SportsDataIO/FantasyData endpoints beyond stored news must not power model inputs until package access, endpoint shape, rate limits, and Sleeper/player mapping are documented.
+- Fantasy Nerds production flags must stay disabled until current-season non-TEST rows are confirmed.
+- GridIron Data and Dynasty Daddy source-selector work stays research-only until key/package access, source URLs/API paths, auth, terms, cadence, coverage, and feature mapping are documented.
 - A first real OpticOdds player-prop snapshot must be stored before prop thresholds are tuned.
 - Projection source/version metadata needs to be captured with stored snapshots before lineup-strength or confidence models should treat projections as first-class inputs.
 - Dynamic schedule and matchup values must update through scheduled/admin snapshots with version history and stale-row fallbacks, never through live provider calls during normal user-triggered report loads.
+
+## August 2026 Projection Baseline Re-Review
+
+Re-review the projection-source baseline in August 2026, after live weekly projections, waiver rankings, targets, injury/depth-chart packages, and schedule changes are mature enough to evaluate. The review should compare source rights, endpoint freshness, row counts, rate limits, mapping coverage, projection accuracy backtests, and allowed public attribution language before any provider-attributed public projection claim is enabled.

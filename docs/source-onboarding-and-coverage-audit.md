@@ -15,6 +15,18 @@ Every new API, feed, scrape, or uploaded dataset starts at low effective weight 
 
 Probation exits only after source-health rows and source-trust diagnostics show enough stable history to justify raising weight.
 
+The projection/SOS source gate register lives in `docs/projection-source-readiness-gates.md`. Every new provider starts as `blocked` or `research`; only cron/admin/manual snapshot paths can move to `approved-for-snapshot`, and public provider-attributed claims require `approved-for-public-claim`.
+
+Useful metadata-only commands:
+
+```sh
+pnpm run audit:source-readiness-gates
+pnpm run probe:football-data-sources
+pnpm run audit:zero-row-valuation-sources
+```
+
+`probe:football-data-sources` covers SportsDataIO/FantasyData players, teams, schedule, injuries, depth charts, scoring, projections, route/usage candidates, and news package access without printing payloads or credentials. If package credentials are absent, protected endpoints report `missing_config` and are not called.
+
 ## Coverage Matrix
 
 | Source | Returns | Used Now | Could Power Later | Open Questions |
@@ -77,6 +89,7 @@ These field maps are intentionally metadata-only. Do not paste full payloads, AP
 | FantasyPros rankings/projections | FantasyPros rankings, projections, ADP, compare-player, player-points endpoints | API key; production/commercial use needs approved rights | Cron/admin only; provider telemetry tracks calls | `player_id`, `player_name`, `position`, `team`, `rank`, `tier`, `adp`, `projected_points`, `injury_status`, `news` | FantasyPros ID plus name/team/position joins | source updated/published timestamps, stored snapshot key | Terms/rate limits must stay explicit before primary paid use |
 | FantasyPros news snapshot | `providerDataSnapshots` `fantasypros-news-v1` | API key when configured | Nightly job; report load reads stored row | `player_name`, `player_id`, `team`, `position`, `headline`, `summary`, `published_at`, `source_url` | FantasyPros ID plus name/team/position joins | `published_at`, `snapshotKey`, `updatedAt` | Player joins depend on identity normalization |
 | SportsDataIO/RotoBaller news snapshot | `providerDataSnapshots` `sportsdataio-news-v1` | SportsDataIO API key and news-feed entitlement | Nightly job when `ENABLE_SPORTSDATAIO_NEWS=true`; report load reads stored row | `player_name`, `player_id`, `team`, `headline`, `summary`, `published_at`, `source_url` | SportsDataIO player ID where returned plus name/team joins | `published_at`, `snapshotKey`, `updatedAt` | Package access and Sleeper ID mapping need production validation |
+| SportsDataIO/FantasyData endpoint probes | metadata-only probe targets for players, teams, schedules, injuries, depth charts, scoring, projections, route/usage candidates, and news | SportsDataIO/FantasyData package key when approved | Research/probe only; no report-load calls and no model use until approved | row count, response shape, coverage-term hits, status code, duration | SportsDataIO/FantasyData player/team IDs when returned | provider response metadata only | Endpoint/package access, rate limits, player mapping, and terms are unapproved for model input |
 | nflverse/ffverse draft-capital snapshot | `providerDataSnapshots` `nflverse-draft-capital-v1` | Public nflreadr/DynastyProcess player ID dataset | Nightly dynamic-data refresh; report load reads stored row | `sleeper_id`, `gsis_id`, `fantasypros_id`, `espn_id`, `name`, `position`, `team`, `draft_year`, `draft_round`, `draft_ovr`, `college` | Sleeper, GSIS, FantasyPros, ESPN, MFL, Yahoo, Fleaflicker, PFR IDs | `snapshotKey`, `generatedAt`, `db_season` | Upstream dataset freshness and missing non-fantasy positions need monitoring |
 | nflverse usage/snap snapshot | `providerDataSnapshots` `nflverse-usage-v1:{season}` | Public nflverse `stats_player` and `snap_counts` datasets | Dynamic-data refresh for the latest available stats season at or before the last completed season; report load reads stored row | `gsis_id`, `player_name`, `position`, `team`, `season`, `games`, `targets`, `carries`, `receptions`, `fantasy_points_ppr`, `avg_target_share`, `air_yards_share`, `wopr`, `avg_offense_snap_pct`, `target_trend`, `carry_trend` | GSIS ID plus player name/team/position joins | `snapshotKey`, `generatedAt`, season/week coverage | Route participation is not included; aggregate `stats_player` rows do not fake weekly trend windows |
 | nflverse team-environment snapshot | `providerDataSnapshots` `nflverse-team-environment-v1:{season}` | Public nflverse `stats_team` and `pbp` releases | Dynamic-data refresh for the latest available stats season at or before the last completed season; report load reads stored row | `team`, `season`, `games`, `pass_attempts`, `carries`, `targets`, `dropbacks`, `designed_play_volume`, `pass_rate`, `rush_rate`, `plays_per_game`, `targets_per_game`, `passing_epa`, `rushing_epa`, `pass_rate_rank`, `rush_rate_rank`, `neutral_script_pass_rate`, `red_zone_pass_rate`, `red_zone_rush_rate`, `non_garbage_pass_rate`, `estimated_seconds_per_play`, `pace_rank`, `no_huddle_rate`, `tendency` | NFL team abbreviation and season | `snapshotKey`, `generatedAt`, season coverage | Pace is estimated from play-clock movement; coach/play-caller attribution still needs a coaching snapshot |

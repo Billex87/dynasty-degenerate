@@ -15,7 +15,22 @@ The local key is configured. The paced expanded smoke on May 19, 2026 returned:
 - Reachable but currently empty: `WW` rankings for Week 1 returned `200` with zero rows and `last_updated` of `1/01`.
 - Blocked for this key/package: `targets` and `articles` returned `403 Forbidden`.
 
+Current gate status:
+
+- Projections: blocked for public projection claims until commercial/source rights, endpoint freshness, normal rate limits, and mapping coverage are approved.
+- `WW`: research only until closer-to-season snapshots return non-zero rows.
+- Targets and articles: blocked until package access returns `200` and usage terms are approved.
+- News: snapshot/research only until production coverage, cadence, rate limits, and attribution terms are confirmed.
+
 Endpoint pacing is now implemented in the FantasyPros health check and smoke script. Expanded probes are opt-in, each request is delayed, `Retry-After` is captured, and the run stops after a `429` so one broad check does not burn through the package limit.
+
+Run the full metadata check with:
+
+```sh
+CHECK_FANTASYPROS_EXPANDED=true CHECK_FANTASYPROS_PROJECTIONS=true pnpm run check:fantasypros
+```
+
+Do not turn the result into public provider-attributed claims unless `docs/projection-source-readiness-gates.md` also moves the specific endpoint to `approved-for-public-claim`.
 
 Weekly ECR ingestion is position-specific because Week 1 `position=ALL` returned `400 Bad Request` while position requests returned rows. Expanded health checks and endpoint snapshots now fan out QB/RB/WR/TE/K/DST across a rolling week window keyed by the current NFL week plus `FANTASYPROS_SNAPSHOT_WEEK_WINDOW`; scheduled refreshes resolve the current week from Sleeper NFL state with an env fallback, while report diagnostics use the loaded league's live schedule week.
 
@@ -76,3 +91,7 @@ DraftSharks is the schedule-strength source. FantasyPros `matchups/{position}.ph
 2. Surface admin-only per-player source trace from the normalized snapshot context.
 3. Build the Rankings-tab Schedule Edge table against stored DraftSharks SOS snapshots first, showing all positions with D/ST/K streamer pairings as the first high-signal filter.
 4. Expand AI readouts only after snapshot freshness and identity matching pass diagnostics.
+
+## Re-Review Timing
+
+Re-review this baseline in August 2026, when current-season weekly projections, `WW`, targets, injuries, and depth-chart package rows should be more mature. Treat a May/June 200 response with stale or zero rows as insufficient evidence for waiver, lineup, matchup, or redraft claims.

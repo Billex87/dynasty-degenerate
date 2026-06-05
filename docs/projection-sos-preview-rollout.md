@@ -48,6 +48,9 @@ Run the source refresh/audit path from a production-like environment or against 
 
 ```sh
 pnpm run check:fantasypros
+pnpm run audit:source-readiness-gates
+pnpm run audit:zero-row-valuation-sources
+pnpm run probe:football-data-sources
 pnpm run probe:external-sources
 pnpm run refresh:sleeper-projections -- --season=2026 --profiles=PPR,HALF_PPR,STD --write
 pnpm run audit:source-freshness
@@ -61,6 +64,8 @@ Pass criteria:
 - Missing rows are limited to optional or unapproved sources and report as `info`, not `warn` or `danger`.
 - Normal report loads still use snapshots for schedule, SOS, and projections.
 - Sleeper remains the only live normal user-load dependency, and only for league current state.
+- SportsDataIO/FantasyData and FantasyPros blocked/research gates stay out of public projection claims unless the source-readiness gate register explicitly approves them.
+- Zero-row valuation sources are classified as fix/watch/disable/benchmark-only before any weight or model change consumes them.
 
 ## Local Safety Proof
 
