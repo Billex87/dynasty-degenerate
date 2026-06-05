@@ -257,6 +257,60 @@ describe('FantasyPros snapshot context', () => {
     });
   });
 
+  it('normalizes every ranking-family endpoint into its dedicated context map', () => {
+    const rankingPayload = (playerId: string, label: string, rank: number, positionRank: string) => ({
+      players: [{
+        player_id: playerId,
+        player_name: label,
+        player_position_id: 'WR',
+        player_team_id: 'MIA',
+        rank_ecr: rank,
+        pos_rank: positionRank,
+        rank_min: rank - 1,
+        rank_max: rank + 2,
+        rank_ave: rank + 0.4,
+        rank_std: 1.2,
+        player_bye_week: 8,
+      }],
+    });
+    const context = buildFantasyProsSnapshotContext({
+      season: '2026',
+      scoring: 'PPR',
+      currentWeek: 1,
+      weekWindow: 1,
+      snapshots: {
+        'fantasypros-draft': snapshot('fantasypros-draft', 'FantasyPros Draft', rankingPayload('draft-1', 'Draft Player', 12, 'WR6'), 1),
+        'fantasypros-ros': snapshot('fantasypros-ros', 'FantasyPros ROS', rankingPayload('ros-1', 'ROS Player', 18, 'WR9'), 1),
+        'fantasypros-dynasty': snapshot('fantasypros-dynasty', 'FantasyPros Dynasty', rankingPayload('dynasty-1', 'Dynasty Player', 24, 'WR12'), 1),
+        'fantasypros-devy': snapshot('fantasypros-devy', 'FantasyPros DEVY', rankingPayload('devy-1', 'Devy Player', 6, 'WR2'), 1),
+        'fantasypros-rookies': snapshot('fantasypros-rookies', 'FantasyPros Rookies', rankingPayload('rookie-1', 'Rookie Player', 9, 'WR4'), 1),
+        'fantasypros-adp': snapshot('fantasypros-adp', 'FantasyPros ADP', rankingPayload('adp-1', 'ADP Player', 30, 'WR15'), 1),
+        'fantasypros-dynadp': snapshot('fantasypros-dynadp', 'FantasyPros Dynasty ADP', rankingPayload('dynadp-1', 'Dynasty ADP Player', 33, 'WR17'), 1),
+        'fantasypros-rkadp': snapshot('fantasypros-rkadp', 'FantasyPros Rookie ADP', rankingPayload('rkadp-1', 'Rookie ADP Player', 11, 'WR5'), 1),
+        'fantasypros-ww': snapshot('fantasypros-ww', 'FantasyPros Waiver Wire', rankingPayload('ww-1', 'Waiver Player', 4, 'WR2'), 1),
+      },
+    });
+
+    expect(context.draftRankingsByFantasyProsId['draft-1']).toMatchObject({ rankEcr: 12, positionRank: 'WR6' });
+    expect(context.rosRankingsByFantasyProsId['ros-1']).toMatchObject({ rankEcr: 18, positionRank: 'WR9' });
+    expect(context.dynastyRankingsByFantasyProsId['dynasty-1']).toMatchObject({ rankEcr: 24, positionRank: 'WR12' });
+    expect(context.devyRankingsByFantasyProsId['devy-1']).toMatchObject({ rankEcr: 6, positionRank: 'WR2' });
+    expect(context.rookieRankingsByFantasyProsId['rookie-1']).toMatchObject({ rankEcr: 9, positionRank: 'WR4' });
+    expect(context.adpByFantasyProsId['adp-1']).toMatchObject({ rankEcr: 30, positionRank: 'WR15' });
+    expect(context.dynastyAdpByFantasyProsId['dynadp-1']).toMatchObject({ rankEcr: 33, positionRank: 'WR17' });
+    expect(context.rookieAdpByFantasyProsId['rkadp-1']).toMatchObject({ rankEcr: 11, positionRank: 'WR5' });
+    expect(context.waiverWireByFantasyProsId['ww-1']).toMatchObject({ rankEcr: 4, positionRank: 'WR2' });
+    expect(context.rowCounts).toEqual(expect.arrayContaining([
+      { sourceKey: 'fantasypros-endpoint-v1:2026:PPR:fantasypros-draft', rowCount: 1 },
+      { sourceKey: 'fantasypros-endpoint-v1:2026:PPR:fantasypros-ros', rowCount: 1 },
+      { sourceKey: 'fantasypros-endpoint-v1:2026:PPR:fantasypros-dynasty', rowCount: 1 },
+      { sourceKey: 'fantasypros-endpoint-v1:2026:PPR:fantasypros-devy', rowCount: 1 },
+      { sourceKey: 'fantasypros-endpoint-v1:2026:PPR:fantasypros-dynadp', rowCount: 1 },
+      { sourceKey: 'fantasypros-endpoint-v1:2026:PPR:fantasypros-rkadp', rowCount: 1 },
+      { sourceKey: 'fantasypros-endpoint-v1:2026:PPR:fantasypros-ww', rowCount: 1 },
+    ]));
+  });
+
   it('keeps rows when FantasyPros sends numeric player IDs', () => {
     const context = buildFantasyProsSnapshotContext({
       season: '2026',
