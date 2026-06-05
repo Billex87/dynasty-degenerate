@@ -342,4 +342,87 @@ describe('validateReportContract', () => {
     expect(result.failures).toContain('projection-off contenderPlayoffContext still exposes projection-backed coverage');
     expect(result.failures).toContain('projection-off contenderPlayoffContext confidence exceeds fallback cap: 79');
   });
+
+  it('rejects projection-off reports with stringified numeric projection evidence', () => {
+    const base = baseReportData();
+    const reportData = baseReportData({
+      matchupPreviews: [{
+        confidence: '79',
+        confidenceCapReason: 'Stringified fixture cap.',
+        confidenceReasons: ['Stringified matchup confidence fixture.'],
+        projectionCoverage: {
+          mode: 'schedule-value',
+        },
+      }],
+      waiverIntelligence: {
+        ...base.waiverIntelligence,
+        priorityWaiverTargets: [{
+          confidence: '79',
+          reasons: ['schedule window fixture'],
+          scheduleSignal: {
+            matchupWindows: {
+              next3: {
+                weeks: [1],
+                score: '12',
+                easyWeeks: '1',
+                hardWeeks: '0',
+                playableWeeks: '1',
+              },
+            },
+          },
+          opportunityWindows: [{
+            type: 'upcoming-schedule',
+            source: 'DraftSharks',
+            confidence: '79',
+          }],
+        }],
+        specialTeamsStreamerTargets: [{
+          projectionSupport: {
+            status: 'blocked',
+            position: 'K',
+            candidateCount: 3,
+            readyProjectionCount: 0,
+            coveragePct: 0,
+            projectedFantasyPoints: '8.4',
+            confidence: '79',
+            confidenceCapReason: 'Stringified fixture cap.',
+            sourceTrace: ['schedule-sos-streamer-gate'],
+            note: 'Fixture stringified projection support.',
+          },
+        }],
+      },
+      tradeRecommendationContext: {
+        ...base.tradeRecommendationContext,
+        rows: [{
+          ...base.tradeRecommendationContext.rows[0],
+          projectedFantasyPoints: '18.6',
+          confidence: '79',
+        }],
+      },
+      contenderPlayoffContext: {
+        ...base.contenderPlayoffContext,
+        rows: [{
+          ...base.contenderPlayoffContext.rows[0],
+          projectedStarterPoints: '128.4',
+          confidence: '79',
+        }],
+      },
+    });
+
+    const result = validateReportContract({
+      mode: 'projection-off',
+      leagueId: 'fixture',
+      reportData,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.failures).toContain('projection-off matchup preview confidence exceeds fallback cap: 79');
+    expect(result.failures).toContain('projection-off priorityWaiverTargets confidence exceeds fallback cap: 79');
+    expect(result.failures).toContain('projection-off specialTeamsStreamerTargets still expose projected fantasy points');
+    expect(result.failures).toContain('projection-off specialTeamsStreamerTargets confidence exceeds fallback cap: 79');
+    expect(result.failures).toContain('projection-off tradeRecommendationContext still exposes projected fantasy points');
+    expect(result.failures).toContain('projection-off tradeRecommendationContext confidence exceeds fallback cap: 79');
+    expect(result.failures).toContain('projection-off contenderPlayoffContext still exposes projected starter points');
+    expect(result.failures).toContain('projection-off contenderPlayoffContext confidence exceeds fallback cap: 79');
+  });
 });
