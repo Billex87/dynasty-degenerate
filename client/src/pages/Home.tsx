@@ -68,7 +68,7 @@ import {
   getBestDraftSignalManager,
   getWorstDraftAdpValueManager,
 } from "@/lib/draftDashboardMetrics";
-import type { ReportData } from "@shared/types";
+import type { ReportData, SleeperExtensionTradeCenterSnapshot } from "@shared/types";
 
 // Cached reports render immediately, then refresh volatile Sleeper activity in the background.
 const REPORT_BACKGROUND_REFRESH_AFTER_MS = 0;
@@ -83,6 +83,7 @@ const ADMIN_UNLOCK_MODAL_DISMISSED_KEY =
 const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
 const REPORT_LOADING_TIMEOUT_MS = 10_000;
 const SHOW_LEGACY_LEAGUE_ID_LOGIN = true;
+const CURRENT_PENDING_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 type SleeperTradeCenterImportSummary = {
   transactionCount: number;
@@ -93,30 +94,35 @@ type SleeperTradeCenterImportSummary = {
 type SleeperSignalWithIdentity = {
   id?: string | number | null;
   date?: string | null;
+  status?: string | null;
 };
 
-function extractSleeperAuthorizationToken(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
+type SleeperTradeCenterImportResult = SleeperTradeCenterImportSummary & {
+  leagueId: string;
+  sleeperHiddenLeagueSnapshot: NonNullable<ReportData["sleeperHiddenLeagueSnapshot"]>;
+  tradeProposalSignals: NonNullable<ReportData["adminSleeperTradeProposalSignals"]>;
+  waiverSignals: NonNullable<ReportData["adminSleeperWaiverSignals"]>;
+  currentPositionRankById?: NonNullable<ReportData["currentPositionRankById"]>;
+};
 
-  const lines = trimmed
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(Boolean);
-  const authorizationLineIndex = lines.findIndex(line =>
-    /^authorization(?::|\s*$)/i.test(line)
+function isPendingSleeperSignalStatus(status?: string | null): boolean {
+  const normalized = String(status || "").trim().toLowerCase();
+  return normalized.includes("pending") || normalized.includes("proposed");
+}
+
+function isCurrentPendingSignalDate(date?: string | null): boolean {
+  const timestamp = Date.parse(String(date || ""));
+  if (!Number.isFinite(timestamp)) return true;
+  return Date.now() - timestamp <= CURRENT_PENDING_MAX_AGE_MS;
+}
+
+function filterPendingSleeperSignals<TSignal extends SleeperSignalWithIdentity>(
+  signals: TSignal[] | undefined
+): TSignal[] {
+  return (signals || []).filter(signal =>
+    isPendingSleeperSignalStatus(signal.status) &&
+    isCurrentPendingSignalDate(signal.date)
   );
-
-  if (authorizationLineIndex >= 0) {
-    const authorizationLine = lines[authorizationLineIndex];
-    const headerValue = authorizationLine.includes(":")
-      ? authorizationLine.split(":").slice(1).join(":").trim()
-      : lines[authorizationLineIndex + 1]?.trim();
-
-    if (headerValue) return headerValue;
-  }
-
-  return trimmed.replace(/^authorization:\s*/i, "").trim();
 }
 
 function mergeSleeperSignalLists<TSignal extends SleeperSignalWithIdentity>(
@@ -626,41 +632,28 @@ export default function Home() {
     prefetchDebounceMs: REPORT_CACHE_PREFETCH_DEBOUNCE_MS,
     onRefreshReport: refreshReportInBackground,
   });
-  const importSleeperTradeCenterMutation =
-    trpc.league.importSleeperTradeCenter.useMutation();
-  const handleImportSleeperTradeCenter = async (
-    authToken: string
-  ): Promise<SleeperTradeCenterImportSummary> => {
-    const normalizedLeagueId = leagueId.trim();
-    const normalizedAuthToken = extractSleeperAuthorizationToken(authToken);
-
-    if (!normalizedLeagueId) {
-      throw new Error("Run a league report before importing Sleeper activity.");
-    }
-
-    if (!normalizedAuthToken) {
-      throw new Error("Paste the Sleeper Authorization header first.");
-    }
-
-    const result = await importSleeperTradeCenterMutation.mutateAsync({
-      leagueId: normalizedLeagueId,
-      authToken: normalizedAuthToken,
-      sharedBy: viewerUsername || sleeperUsername || null,
-    });
-
+  const importSleeperTradeCenterSnapshotMutation =
+    trpc.league.importSleeperTradeCenterSnapshot.useMutation();
+  const applySleeperTradeCenterImport = (
+    result: SleeperTradeCenterImportResult
+  ): SleeperTradeCenterImportSummary => {
     setReportData(current => {
       if (!current) return current;
 
       return {
         ...current,
         adminSleeperTradeProposalSignals: mergeSleeperSignalLists(
-          current.adminSleeperTradeProposalSignals,
+          filterPendingSleeperSignals(current.adminSleeperTradeProposalSignals),
           result.tradeProposalSignals
         ),
         adminSleeperWaiverSignals: mergeSleeperSignalLists(
-          current.adminSleeperWaiverSignals,
+          filterPendingSleeperSignals(current.adminSleeperWaiverSignals),
           result.waiverSignals
         ),
+        currentPositionRankById: {
+          ...(current.currentPositionRankById || {}),
+          ...(result.currentPositionRankById || {}),
+        },
         sleeperHiddenLeagueSnapshot: result.sleeperHiddenLeagueSnapshot,
       };
     });
@@ -673,6 +666,29 @@ export default function Home() {
       tradeCount: result.tradeCount,
       waiverCount: result.waiverCount,
     };
+  };
+  const handleImportSleeperTradeCenterSnapshot = async (
+    snapshot: SleeperExtensionTradeCenterSnapshot
+  ): Promise<SleeperTradeCenterImportSummary> => {
+    const normalizedLeagueId = leagueId.trim();
+
+    if (!normalizedLeagueId) {
+      throw new Error("Run a league report before importing Sleeper activity.");
+    }
+
+    if (snapshot.leagueId !== normalizedLeagueId) {
+      throw new Error(
+        `Chrome Helper captured league ${snapshot.leagueId}, but this report is ${normalizedLeagueId}.`
+      );
+    }
+
+    const result = await importSleeperTradeCenterSnapshotMutation.mutateAsync({
+      ...snapshot,
+      leagueId: normalizedLeagueId,
+      sharedBy: viewerUsername || sleeperUsername || null,
+    });
+
+    return applySleeperTradeCenterImport(result);
   };
   const { handleReportTabChange, handleScoutLeaguemates } =
     useHomeReportTabActions({
@@ -763,9 +779,11 @@ export default function Home() {
         rankingsForReport={rankingsForReport}
         rankingsQueryIsLoading={rankingsQueryIsLoading}
         onAnalyze={() => handleAnalyze()}
-        onImportSleeperTradeCenter={handleImportSleeperTradeCenter}
-        isImportingSleeperTradeCenter={
-          importSleeperTradeCenterMutation.isPending
+        onImportSleeperTradeCenterSnapshot={
+          handleImportSleeperTradeCenterSnapshot
+        }
+        isImportingSleeperTradeCenterSnapshot={
+          importSleeperTradeCenterSnapshotMutation.isPending
         }
         onScoutLeaguemates={handleScoutLeaguemates}
         currentReportDeltaSnapshot={currentReportDeltaSnapshot}

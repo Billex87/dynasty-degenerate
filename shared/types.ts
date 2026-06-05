@@ -659,6 +659,23 @@ export interface TradeProposalSignal {
   playerIds: string[];
   playerNames: string[];
   pickLabels?: string[];
+  sourceType?: 'trade' | 'waiver' | 'proposal' | string;
+  tradeSides?: Array<{
+    manager: string;
+    rosterId?: string | number | null;
+    playerIds: string[];
+    playerNames: string[];
+    pickLabels?: string[];
+  }>;
+  waiverAdds?: {
+    playerIds: string[];
+    playerNames: string[];
+  };
+  waiverDrops?: {
+    playerIds: string[];
+    playerNames: string[];
+  };
+  waiverBid?: number | null;
   note: string;
 }
 
@@ -682,6 +699,45 @@ export interface SleeperHiddenLeagueSnapshot {
   transactionCount: number;
   tradeCount: number;
   waiverCount: number;
+}
+
+export interface SleeperExtensionDraftPick {
+  season?: string | number | null;
+  round?: number | null;
+  roster_id?: string | number | null;
+  previous_owner_id?: string | number | null;
+  owner_id?: string | number | null;
+}
+
+export interface SleeperExtensionSanitizedTransaction {
+  league_id?: string | null;
+  transaction_id?: string | number | null;
+  type: "trade" | "waiver";
+  status: string;
+  created?: number | string | null;
+  status_updated?: number | string | null;
+  roster_ids?: Array<string | number>;
+  consenter_ids?: Array<string | number>;
+  creator?: string | number | null;
+  adds?: Record<string, string | number | null> | null;
+  drops?: Record<string, string | number | null> | null;
+  draft_picks?: SleeperExtensionDraftPick[] | null;
+  settings?: {
+    waiver_bid?: number | string | null;
+  } | null;
+  waiver_budget?: Array<{
+    sender?: string | number | null;
+    receiver?: string | number | null;
+    amount?: string | number | null;
+  }> | number | string | null;
+  player_map?: Record<string, string | number | null> | null;
+}
+
+export interface SleeperExtensionTradeCenterSnapshot {
+  source: "chrome-extension";
+  leagueId: string;
+  capturedAt: number;
+  transactions: SleeperExtensionSanitizedTransaction[];
 }
 
 export interface PowerRanking {
@@ -966,6 +1022,36 @@ export interface PlayoffSchedulePlanningSummary {
   confidence?: number;
   confidenceReasons?: string[];
   weeks: number[];
+  actionItems?: Array<{
+    id: string;
+    manager: string;
+    week: number;
+    type: 'cover-risk' | 'exploit-upside' | 'review-fallback';
+    priority: 'high' | 'medium' | 'low';
+    score: number;
+    confidence: number;
+    confidenceReasons?: string[];
+    confidenceCapReason?: string | null;
+    affectedPlayers: Array<{
+      playerId: string;
+      name: string;
+      position: string;
+      team?: string | null;
+      scheduleTier?: ScheduleTier | null;
+      reason: 'bye' | 'avoid' | 'streamer';
+    }>;
+    replacementTargets: Array<{
+      playerId: string;
+      name: string;
+      position: string;
+      team?: string | null;
+      targetWeeks: number[];
+      seasonSOS?: number | null;
+      scheduleTier?: ScheduleTier | null;
+      note?: string | null;
+    }>;
+    note: string;
+  }>;
   managerPlans: Array<{
     manager: string;
     riskScore: number;

@@ -106,7 +106,7 @@ import {
   sendMagicLinkEmail,
 } from "./transactionalEmail";
 import { isCurrentFantasySkillPlayer, isCurrentSeasonLineupPlayer, normalizeSeasonLineupPosition } from "./playerEligibility";
-import type { LeagueDraftStatus, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
+import type { LeagueDraftStatus, LeagueValueMode, ManagerChampionship, ManagerIntelPlayer, ManagerRosterIntelligence, PickPortfolio, PlayerDetails, RecentTransaction, RecentTransactionPlayer, ReportData, SleeperExtensionSanitizedTransaction, SleeperHiddenLeagueSnapshot, SleeperWaiverClaimSignal, TrendingPlayer, WaiverIntelligence, WaiverOmittedCandidate, WaiverSourceTraceEntry, WaiverWeeklyEcrSignal, WaiverWeeklyEcrTarget, WeeklyProjectionContext } from "../shared/types";
 import { buildAICalibrationAdjustmentProfile, type AIPredictionEvent, type AIPredictionOutcome, type AISourceAgreementRead } from "./aiPredictionCalibration";
 import type { AICounterfactualRead, AIDecisionSnapshot, AIPredictionDecayProfile, AIRealizedEdge } from "../shared/aiDecisionSnapshots";
 import type { RecommendationObservedOutcome } from "../shared/recommendationOutcome";
@@ -652,6 +652,70 @@ const sleeperLeagueIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter
 const sleeperUserIdSchema = z.string().trim().regex(SLEEPER_ID_PATTERN, 'Enter a valid Sleeper user ID');
 const sleeperUsernameSchema = z.string().trim().min(1).max(64);
 const sleeperAuthTokenSchema = z.string().trim().min(1).max(4096);
+const sleeperExtensionPendingStatuses = new Set(['pending', 'proposed']);
+const SLEEPER_EXTENSION_CURRENT_PENDING_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function getSleeperTransactionTimestampMs(transaction: { status_updated?: unknown; created?: unknown }): number | null {
+  const rawValue = transaction.status_updated ?? transaction.created;
+  const numericTimestamp = Number(rawValue);
+  if (Number.isFinite(numericTimestamp) && numericTimestamp > 0) return numericTimestamp;
+  const parsedTimestamp = Date.parse(String(rawValue || ''));
+  return Number.isFinite(parsedTimestamp) ? parsedTimestamp : null;
+}
+
+function isCurrentSleeperPendingTransaction(transaction: { status_updated?: unknown; created?: unknown }): boolean {
+  const timestamp = getSleeperTransactionTimestampMs(transaction);
+  if (!timestamp) return true;
+  return Date.now() - timestamp <= SLEEPER_EXTENSION_CURRENT_PENDING_MAX_AGE_MS;
+}
+const sleeperExtensionIdValueSchema = z.union([z.string().trim().min(1).max(64), z.number().finite()]);
+const sleeperExtensionNullableIdValueSchema = sleeperExtensionIdValueSchema.nullable().optional();
+const sleeperExtensionIdMapSchema = z.record(
+  z.string().trim().min(1).max(64),
+  z.union([sleeperExtensionIdValueSchema, z.null()])
+).nullable().optional();
+const sleeperExtensionDraftPickSchema = z.object({
+  season: z.union([z.string().trim().min(1).max(8), z.number().finite()]).nullable().optional(),
+  round: z.number().int().min(1).max(20).nullable().optional(),
+  roster_id: sleeperExtensionNullableIdValueSchema,
+  previous_owner_id: sleeperExtensionNullableIdValueSchema,
+  owner_id: sleeperExtensionNullableIdValueSchema,
+}).strip();
+const sleeperExtensionWaiverBudgetSchema = z.object({
+  sender: sleeperExtensionNullableIdValueSchema,
+  receiver: sleeperExtensionNullableIdValueSchema,
+  amount: z.union([z.number().finite(), z.string().trim().max(16)]).nullable().optional(),
+}).strip();
+const sleeperExtensionTransactionSchema = z.object({
+  league_id: sleeperLeagueIdSchema.nullable().optional(),
+  transaction_id: sleeperExtensionNullableIdValueSchema,
+  type: z.enum(['trade', 'waiver']),
+  status: z.string().trim().min(1).max(40),
+  created: z.union([z.number().finite(), z.string().trim().min(1).max(32)]).nullable().optional(),
+  status_updated: z.union([z.number().finite(), z.string().trim().min(1).max(32)]).nullable().optional(),
+  roster_ids: z.array(sleeperExtensionIdValueSchema).max(24).optional(),
+  consenter_ids: z.array(sleeperExtensionIdValueSchema).max(24).optional(),
+  creator: sleeperExtensionNullableIdValueSchema,
+  adds: sleeperExtensionIdMapSchema,
+  drops: sleeperExtensionIdMapSchema,
+  draft_picks: z.array(sleeperExtensionDraftPickSchema).max(80).nullable().optional(),
+  settings: z.object({
+    waiver_bid: z.union([z.number().finite(), z.string().trim().max(16)]).nullable().optional(),
+  }).strip().nullable().optional(),
+  waiver_budget: z.union([
+    z.array(sleeperExtensionWaiverBudgetSchema).max(24),
+    z.number().finite(),
+    z.string().trim().max(16),
+  ]).nullable().optional(),
+  player_map: sleeperExtensionIdMapSchema,
+}).strip();
+const sleeperExtensionTradeCenterSnapshotSchema = z.object({
+  leagueId: sleeperLeagueIdSchema,
+  capturedAt: z.number().finite().positive(),
+  source: z.literal('chrome-extension'),
+  transactions: z.array(sleeperExtensionTransactionSchema).max(500),
+  sharedBy: z.string().trim().max(128).optional().nullable(),
+});
 const MAX_SLEEPER_HIDDEN_TRADE_CENTER_RESPONSE_BYTES = 5 * 1024 * 1024;
 const SLEEPER_HIDDEN_IMPORT_TRADE_SIGNAL_LIMIT = 80;
 const SLEEPER_HIDDEN_IMPORT_WAIVER_SIGNAL_LIMIT = 120;
@@ -2877,10 +2941,28 @@ function stripWeeklyProjectionFromPlayoffSchedulePlanning(
   playoffSchedulePlanning: ReportData['playoffSchedulePlanning']
 ): ReportData['playoffSchedulePlanning'] {
   if (!playoffSchedulePlanning) return playoffSchedulePlanning;
+  const projectionDisabledCapReason = 'Weekly projections are disabled for this response; playoff planning confidence is capped to schedule/value context.';
+  const confidenceReasons = (reasons: string[] | undefined, limit = 6) => [
+    projectionDisabledCapReason,
+    ...(reasons || []).filter((reason) => !/projection coverage|weekly projection|stored-weekly-projection|stored weekly projection|fresh schedule, sos, and projection/i.test(reason)),
+  ].slice(0, limit);
   return {
     ...playoffSchedulePlanning,
+    confidence: Math.min(playoffSchedulePlanning.confidence ?? 58, 58),
+    confidenceReasons: confidenceReasons(playoffSchedulePlanning.confidenceReasons, 8),
+    actionItems: (playoffSchedulePlanning.actionItems || []).map((item) => ({
+      ...item,
+      confidence: Math.min(item.confidence ?? 58, 58),
+      confidenceReasons: confidenceReasons(item.confidenceReasons, 6),
+      confidenceCapReason: projectionDisabledCapReason,
+      note: /stored-weekly-projection|stored weekly projection blend/i.test(item.note || '')
+        ? 'Review this playoff action with schedule/value context because weekly projections are disabled for this response.'
+        : item.note,
+    })),
     managerPlans: (playoffSchedulePlanning.managerPlans || []).map((plan) => ({
       ...plan,
+      confidence: Math.min(plan.confidence ?? 58, 58),
+      confidenceReasons: confidenceReasons(plan.confidenceReasons, 6),
       weeks: (plan.weeks || []).map((week) => ({
         ...week,
         projectedStarterPoints: null,
@@ -2890,11 +2972,8 @@ function stripWeeklyProjectionFromPlayoffSchedulePlanning(
           mode: 'schedule-value' as const,
         },
         confidence: Math.min(week.confidence ?? 58, 58),
-        confidenceReasons: [
-          'Weekly projections are disabled for this response; playoff planning confidence is capped to schedule/value context.',
-          ...(week.confidenceReasons || []).filter((reason) => !/projection coverage|weekly projection/i.test(reason)),
-        ].slice(0, 6),
-        confidenceCapReason: 'Weekly projections are disabled for this response; playoff planning confidence is capped to schedule/value context.',
+        confidenceReasons: confidenceReasons(week.confidenceReasons, 6),
+        confidenceCapReason: projectionDisabledCapReason,
       })),
     })),
   };
@@ -3651,14 +3730,67 @@ async function fetchSleeperTradeCenterTransactions(leagueId: string, authToken: 
 type SleeperHiddenTradeCenterImport = {
   tradeProposalSignals: NonNullable<ReportData['adminSleeperTradeProposalSignals']>;
   waiverSignals: NonNullable<ReportData['adminSleeperWaiverSignals']>;
+  currentPositionRankById: NonNullable<ReportData['currentPositionRankById']>;
   transactionCount: number;
   tradeCount: number;
   waiverCount: number;
 };
 
+async function buildSleeperHiddenImportRankMap(input: {
+  leagueInfo: any;
+  players: Record<string, any>;
+  tradeProposalSignals: NonNullable<ReportData['adminSleeperTradeProposalSignals']>;
+  waiverSignals: NonNullable<ReportData['adminSleeperWaiverSignals']>;
+}): Promise<NonNullable<ReportData['currentPositionRankById']>> {
+  const playerIds = Array.from(new Set([
+    ...input.tradeProposalSignals.flatMap((signal) => signal.playerIds || []),
+    ...input.waiverSignals.flatMap((signal) => [
+      ...(signal.playerIds || []),
+      ...(signal.dropPlayerIds || []),
+    ]),
+  ].filter(Boolean)));
+  if (!playerIds.length) return {};
+
+  try {
+    const leagueValueMode = getLeagueValueMode(input.leagueInfo);
+    const leagueValueOptions = getLeagueValueBlendOptions(input.leagueInfo);
+    const ktcValues = await loadBlendedKTCValues(leagueValueOptions, getUserLoadSnapshotOptions());
+    const rankLookupsByMode = new Map<LeagueValueMode, ReturnType<typeof buildValueProfileRankLookups>>();
+
+    const getRankLookups = (mode: LeagueValueMode) => {
+      if (!rankLookupsByMode.has(mode)) {
+        rankLookupsByMode.set(mode, buildValueProfileRankLookups(ktcValues, mode));
+      }
+      return rankLookupsByMode.get(mode)!;
+    };
+
+    return Object.fromEntries(playerIds.map((playerId) => {
+      const position = normalizeSeasonLineupPosition(input.players[playerId]?.position);
+      const rankMode: LeagueValueMode = position === 'DEF' || position === 'K'
+        ? 'redraft'
+        : leagueValueMode;
+      const profile = getPlayerValueProfile(
+        playerId,
+        input.players,
+        ktcValues,
+        getRankLookups(rankMode),
+        rankMode
+      );
+      const rank =
+        getValueProfileRankForMode(profile, rankMode) ||
+        getPlayerCurrentPositionRank(playerId, input.players, ktcValues);
+      return [playerId, rank || null];
+    }));
+  } catch (error) {
+    console.warn('[Sleeper Hidden Import] Failed to attach pending player rank metadata:', error);
+    return {};
+  }
+}
+
 async function loadSleeperHiddenTradeCenterImport(input: {
   leagueId: string;
   authToken: string;
+  leagueInfo: any;
 }): Promise<SleeperHiddenTradeCenterImport> {
   const normalizedLeagueId = getValidSleeperEntityId(input.leagueId);
   if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
@@ -3701,11 +3833,89 @@ async function loadSleeperHiddenTradeCenterImport(input: {
     userMap,
     SLEEPER_HIDDEN_IMPORT_WAIVER_SIGNAL_LIMIT
   );
+  const currentPositionRankById = await buildSleeperHiddenImportRankMap({
+    leagueInfo: input.leagueInfo,
+    players: safePlayers,
+    tradeProposalSignals,
+    waiverSignals,
+  });
 
   return {
     tradeProposalSignals,
     waiverSignals,
+    currentPositionRankById,
     transactionCount: hiddenTransactions.length,
+    tradeCount: tradeProposalSignals.length,
+    waiverCount: waiverSignals.length,
+  };
+}
+
+async function normalizeSleeperExtensionTradeCenterImport(input: {
+  leagueId: string;
+  transactions: SleeperExtensionSanitizedTransaction[];
+  leagueInfo: any;
+}): Promise<SleeperHiddenTradeCenterImport> {
+  const normalizedLeagueId = getValidSleeperEntityId(input.leagueId);
+  if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league ID' });
+  }
+
+  const visiblePendingTransactions = input.transactions.filter((transaction) => {
+    const status = String(transaction.status || '').toLowerCase();
+    const transactionLeagueId = transaction.league_id ? String(transaction.league_id) : normalizedLeagueId;
+    return transactionLeagueId === normalizedLeagueId
+      && ['trade', 'waiver'].includes(String(transaction.type))
+      && sleeperExtensionPendingStatuses.has(status)
+      && isCurrentSleeperPendingTransaction(transaction);
+  });
+
+  const [users, rosters, players] = await Promise.all([
+    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/users`),
+    fetchSleeperJson<any[]>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}/rosters`),
+    fetchSleeperPlayersIndex(),
+  ]);
+
+  if (!Array.isArray(users) || !Array.isArray(rosters)) {
+    markInvalidLeagueId(normalizedLeagueId);
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid league users or rosters data' });
+  }
+
+  const safeUsers = Array.isArray(users) ? users : [];
+  const safeRosters = Array.isArray(rosters) ? rosters : [];
+  const safePlayers = players && typeof players === 'object' ? players : {};
+  const userMap = Object.fromEntries(safeUsers.map((user: any) => [user.user_id, user]));
+  const rosterUserMap = Object.fromEntries(
+    safeRosters.map((roster: any) => [
+      roster.roster_id,
+      normalizeManagerName(userMap[roster.owner_id]?.display_name),
+    ])
+  );
+
+  const tradeProposalSignals = buildTradeProposalSignals(
+    visiblePendingTransactions,
+    rosterUserMap,
+    safePlayers,
+    SLEEPER_HIDDEN_IMPORT_TRADE_SIGNAL_LIMIT
+  );
+  const waiverSignals = buildSleeperWaiverClaimSignals(
+    visiblePendingTransactions,
+    rosterUserMap,
+    safePlayers,
+    userMap,
+    SLEEPER_HIDDEN_IMPORT_WAIVER_SIGNAL_LIMIT
+  );
+  const currentPositionRankById = await buildSleeperHiddenImportRankMap({
+    leagueInfo: input.leagueInfo,
+    players: safePlayers,
+    tradeProposalSignals,
+    waiverSignals,
+  });
+
+  return {
+    tradeProposalSignals,
+    waiverSignals,
+    currentPositionRankById,
+    transactionCount: tradeProposalSignals.length + waiverSignals.length,
     tradeCount: tradeProposalSignals.length,
     waiverCount: waiverSignals.length,
   };
@@ -3740,6 +3950,10 @@ async function attachStoredSleeperHiddenLeagueSnapshot(payload: any, leagueId: s
       sleeperHiddenLeagueSnapshot: buildSleeperHiddenLeagueSnapshotMetadata(snapshot),
       adminSleeperTradeProposalSignals: snapshot.tradeProposalSignals,
       adminSleeperWaiverSignals: snapshot.waiverSignals,
+      currentPositionRankById: {
+        ...(payload.reportData.currentPositionRankById || {}),
+        ...(snapshot.currentPositionRankById || {}),
+      },
     },
   };
 }
@@ -6240,7 +6454,7 @@ export function buildWaiverIntelligence(
   const defensePairingTargets = buildWaiverWeeklyEcrTargets(
     topCandidatePool.filter((player) => player.pos === 'DEF'),
     { leagueValueMode: 'redraft' }
-  ).slice(0, 8);
+  );
   const usedPlayerIds = new Set<string>();
 
   const takeBestUnique = (players: TrendingPlayer[]) => {
@@ -6665,6 +6879,62 @@ function formatTradeProposalPickLabel(pick: any, rosterUserMap: Record<string, s
   return ownerName ? `${baseLabel} (${ownerName})` : baseLabel;
 }
 
+function buildTradeProposalSides(
+  transaction: any,
+  rosterUserMap: Record<string, string>,
+  players: Record<string, any>
+): NonNullable<NonNullable<ReportData['tradeProposalSignals']>[number]['tradeSides']> {
+  const sidesByRosterId = new Map<string, {
+    manager: string;
+    rosterId: string;
+    playerIds: string[];
+    playerNames: string[];
+    pickLabels: string[];
+  }>();
+
+  const getSide = (rosterId: unknown) => {
+    const key = String(rosterId ?? '').trim();
+    if (!key) return null;
+    const existing = sidesByRosterId.get(key);
+    if (existing) return existing;
+    const side = {
+      manager: rosterUserMap[key] || `Roster ${key}`,
+      rosterId: key,
+      playerIds: [],
+      playerNames: [],
+      pickLabels: [],
+    };
+    sidesByRosterId.set(key, side);
+    return side;
+  };
+
+  Object.entries(transaction?.adds || {}).forEach(([playerId, rosterId]) => {
+    const side = getSide(rosterId);
+    if (!side || !playerId) return;
+    side.playerIds.push(playerId);
+    side.playerNames.push(getPlayerName(playerId, players));
+  });
+
+  if (Array.isArray(transaction?.draft_picks)) {
+    transaction.draft_picks.forEach((pick: any) => {
+      const side = getSide(pick?.owner_id);
+      const label = formatTradeProposalPickLabel(pick, rosterUserMap);
+      if (!side || !label) return;
+      side.pickLabels.push(label);
+    });
+  }
+
+  return Array.from(sidesByRosterId.values())
+    .filter(side => side.playerIds.length || side.pickLabels.length)
+    .map(side => ({
+      manager: side.manager,
+      rosterId: side.rosterId,
+      playerIds: Array.from(new Set(side.playerIds)),
+      playerNames: Array.from(new Set(side.playerNames)),
+      pickLabels: Array.from(new Set(side.pickLabels)),
+    }));
+}
+
 function buildTradeProposalSignals(
   transactions: any[],
   rosterUserMap: Record<string, string>,
@@ -6692,6 +6962,7 @@ function buildTradeProposalSignals(
           .map((pick: any) => formatTradeProposalPickLabel(pick, rosterUserMap))
           .filter((label: string | null): label is string => Boolean(label))
       : [];
+    const tradeSides = buildTradeProposalSides(transaction, rosterUserMap, players);
     const signalItems = Array.from(new Set([...playerNames, ...pickLabels]));
     const status = String(transaction.status || 'unknown');
 
@@ -6703,6 +6974,8 @@ function buildTradeProposalSignals(
       playerIds,
       playerNames,
       pickLabels,
+      sourceType: 'trade',
+      tradeSides,
       note: `Sleeper returned a ${status} trade transaction${signalItems.length ? ` involving ${signalItems.slice(0, 3).join(', ')}` : ''}.`,
     };
   });
@@ -8216,6 +8489,7 @@ export const appRouter = router({
         const hiddenImport = await loadSleeperHiddenTradeCenterImport({
           leagueId: normalizedLeagueId,
           authToken: input.authToken.trim(),
+          leagueInfo,
         });
         const sleeperHiddenLeagueSnapshot = buildSleeperHiddenLeagueSnapshotMetadata({
           sharedBy: input.sharedBy ?? null,
@@ -8231,6 +8505,7 @@ export const appRouter = router({
           snapshot: {
             tradeProposalSignals: hiddenImport.tradeProposalSignals,
             waiverSignals: hiddenImport.waiverSignals,
+            currentPositionRankById: hiddenImport.currentPositionRankById,
             transactionCount: hiddenImport.transactionCount,
             tradeCount: hiddenImport.tradeCount,
             waiverCount: hiddenImport.waiverCount,
@@ -8241,6 +8516,80 @@ export const appRouter = router({
           sleeperHiddenLeagueSnapshot,
           tradeProposalSignals: hiddenImport.tradeProposalSignals,
           waiverSignals: hiddenImport.waiverSignals,
+          currentPositionRankById: hiddenImport.currentPositionRankById,
+          transactionCount: hiddenImport.transactionCount,
+          tradeCount: hiddenImport.tradeCount,
+          waiverCount: hiddenImport.waiverCount,
+          leagueId: leagueInfo.league_id,
+        } as const;
+      }),
+
+    importSleeperTradeCenterSnapshot: publicProcedure
+      .input(sleeperExtensionTradeCenterSnapshotSchema)
+      .mutation(async ({ input, ctx }) => {
+        assertReportAccess(ctx);
+        assertRateLimit(ctx.req as any, {
+          id: 'league.importSleeperTradeCenterSnapshot.ip',
+          max: 30,
+          windowMs: 1000 * 60 * 10,
+          message: 'Too many Sleeper helper imports. Please wait a few minutes and try again.',
+        });
+        assertRateLimit(ctx.req as any, {
+          id: 'league.importSleeperTradeCenterSnapshot',
+          max: 16,
+          windowMs: 1000 * 60 * 10,
+          scope: input.leagueId,
+          message: 'Too many Sleeper helper imports for this league. Please wait a few minutes and try again.',
+        });
+
+        const normalizedLeagueId = getValidSleeperEntityId(input.leagueId);
+        if (!normalizedLeagueId || isInvalidLeagueIdCached(normalizedLeagueId)) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Invalid league ID',
+          });
+        }
+
+        const leagueInfo = await fetchSleeperJson<any>(`https://api.sleeper.app/v1/league/${normalizedLeagueId}`);
+        if (!leagueInfo?.league_id) {
+          markInvalidLeagueId(normalizedLeagueId);
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Invalid league ID',
+          });
+        }
+
+        const hiddenImport = await normalizeSleeperExtensionTradeCenterImport({
+          leagueId: normalizedLeagueId,
+          transactions: input.transactions,
+          leagueInfo,
+        });
+        const sleeperHiddenLeagueSnapshot = buildSleeperHiddenLeagueSnapshotMetadata({
+          sharedBy: input.sharedBy ?? null,
+          sharedAt: input.capturedAt,
+          transactionCount: hiddenImport.transactionCount,
+          tradeCount: hiddenImport.tradeCount,
+          waiverCount: hiddenImport.waiverCount,
+        });
+        await upsertSleeperHiddenLeagueSnapshot({
+          leagueId: leagueInfo.league_id,
+          sharedBy: sleeperHiddenLeagueSnapshot.sharedBy,
+          sharedAt: sleeperHiddenLeagueSnapshot.sharedAt,
+          snapshot: {
+            tradeProposalSignals: hiddenImport.tradeProposalSignals,
+            waiverSignals: hiddenImport.waiverSignals,
+            currentPositionRankById: hiddenImport.currentPositionRankById,
+            transactionCount: hiddenImport.transactionCount,
+            tradeCount: hiddenImport.tradeCount,
+            waiverCount: hiddenImport.waiverCount,
+          },
+        });
+
+        return {
+          sleeperHiddenLeagueSnapshot,
+          tradeProposalSignals: hiddenImport.tradeProposalSignals,
+          waiverSignals: hiddenImport.waiverSignals,
+          currentPositionRankById: hiddenImport.currentPositionRankById,
           transactionCount: hiddenImport.transactionCount,
           tradeCount: hiddenImport.tradeCount,
           waiverCount: hiddenImport.waiverCount,
@@ -9188,6 +9537,13 @@ export const appRouter = router({
             ...waiverIntelligence.bestTaxiStashes.map((player) => player.player_id),
             ...waiverIntelligence.recentlyDroppedValuable.map((player) => player.player_id),
             ...(waiverIntelligence.weeklyEcrTargets || []).map((target) => target.player.player_id),
+            ...(waiverIntelligence.specialTeamsStreamerTargets || []).map((target) => target.player.player_id),
+            ...(waiverIntelligence.defensePairingTargets || []).map((target) => target.player.player_id),
+            ...tradeProposalSignals.flatMap((signal) => signal.playerIds || []),
+            ...publicWaiverSignals.flatMap((signal) => [
+              ...(signal.playerIds || []),
+              ...(signal.dropPlayerIds || []),
+            ]),
           ];
           const similarTradeValuesById = buildSimilarTradeValueMap(reportPlayerIds, players, ktcValues, leagueValueMode, allValueProfilesById);
           const tradeCompPlayerIds = Object.values(similarTradeValuesById)

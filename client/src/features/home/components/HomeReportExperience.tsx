@@ -18,7 +18,7 @@ import {
   normalizeLeagueValueMode,
 } from "@/lib/leagueValueMode";
 import { type AIVoiceMode } from "@/lib/aiVoice";
-import type { ReportData } from "@shared/types";
+import type { ReportData, SleeperExtensionTradeCenterSnapshot } from "@shared/types";
 
 const DYNASTY_MOBILE_REPORT_LOGO_SRC =
   "/brand/logos/png/mobile-dd-stacked-transparent.png?v=20260519-mobile-transparent";
@@ -86,12 +86,14 @@ type HomeReportExperienceProps = {
   rankingsForReport: ReportData["rankings"];
   rankingsQueryIsLoading: boolean;
   onAnalyze: () => void;
-  onImportSleeperTradeCenter: (authToken: string) => Promise<{
+  onImportSleeperTradeCenterSnapshot: (
+    snapshot: SleeperExtensionTradeCenterSnapshot
+  ) => Promise<{
     transactionCount: number;
     tradeCount: number;
     waiverCount: number;
   }>;
-  isImportingSleeperTradeCenter: boolean;
+  isImportingSleeperTradeCenterSnapshot: boolean;
   onScoutLeaguemates: () => void;
   currentReportDeltaSnapshot: ReportDeltaSnapshot | null;
   previousReportDeltaSnapshot: ReportDeltaSnapshot | null;
@@ -124,7 +126,7 @@ export function HomeReportExperience({
   isAdminPassphraseVerifiedForSession,
   isChangeLeagueModalOpen,
   isHomePortfolioLoading,
-  isImportingSleeperTradeCenter,
+  isImportingSleeperTradeCenterSnapshot,
   isLoadingRevealPhase,
   leagueFormat,
   leagueFormatPills,
@@ -140,7 +142,7 @@ export function HomeReportExperience({
   onAnalyzeAnotherLeague,
   onChangeLeagueOpenChange,
   onHeaderLeagueClick,
-  onImportSleeperTradeCenter,
+  onImportSleeperTradeCenterSnapshot,
   onLeagueRosterScannerModeChange,
   onOwnerIntelSortModeChange,
   onPortfolioExposureFilterChange,
@@ -265,8 +267,10 @@ export function HomeReportExperience({
             leagueRosterScannerMode={leagueRosterScannerMode}
             leagueValueMode={leagueValueMode}
             onAnalyze={onAnalyze}
-            onImportSleeperTradeCenter={onImportSleeperTradeCenter}
-            isImportingSleeperTradeCenter={isImportingSleeperTradeCenter}
+            onImportSleeperTradeCenterSnapshot={onImportSleeperTradeCenterSnapshot}
+            isImportingSleeperTradeCenterSnapshot={
+              isImportingSleeperTradeCenterSnapshot
+            }
             onOwnerIntelSortModeChange={onOwnerIntelSortModeChange}
             onScoutLeaguemates={onScoutLeaguemates}
             ownerIntelSortMode={ownerIntelSortMode}

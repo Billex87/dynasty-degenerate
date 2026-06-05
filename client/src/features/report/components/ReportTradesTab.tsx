@@ -1,17 +1,31 @@
-import { type ComponentType, type FormEvent, useId, useMemo, useState } from "react";
 import {
-  ClipboardPaste,
-  ExternalLink,
-  Info,
+  type ComponentType,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  ArrowRightLeft,
+  Cable,
   Loader2,
-  LockKeyhole,
   ShieldCheck,
 } from "lucide-react";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import { ModalReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import type { ReportData } from "@shared/types";
+import { PlayerDetailModal, type PlayerModalData } from "@/components/PlayerDetailModal";
+import { PlayerIdentityRow } from "@/components/reportPrimitives";
+import { TeamLogoPill } from "@/components/TeamLogoPill";
+import type { ReportData, SleeperExtensionTradeCenterSnapshot } from "@shared/types";
+import { getTeamTileStyle } from "@/lib/teamTileStyle";
+import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
+import {
+  formatCompactValue,
+  PositionRankPill,
+  renderActivityManagerAvatar,
+} from "@/components/reportTables/shared";
 import { buildMomentumPreviewMetrics } from "@/features/report/lib/reportOverviewPreview";
 import { buildTradeProposalPreviewMetrics } from "@/features/report/lib/reportOverviewPreview";
 import { buildTradePreviewMetrics } from "@/features/report/lib/reportOverviewPreview";
@@ -28,12 +42,14 @@ type ReportTradesTabProps = {
   rankingsForReport?: ReportData["rankings"];
   tradeWarKicker: string;
   showTradeMarketRadar: boolean;
-  onImportSleeperTradeCenter: (authToken: string) => Promise<{
+  onImportSleeperTradeCenterSnapshot: (
+    snapshot: SleeperExtensionTradeCenterSnapshot
+  ) => Promise<{
     tradeCount: number;
     waiverCount: number;
     transactionCount: number;
   }>;
-  isImportingSleeperTradeCenter: boolean;
+  isImportingSleeperTradeCenterSnapshot: boolean;
   TradeBrowserRead: ComponentType<{ data: ReportData }>;
   TradeMarketRadar: ComponentType<any>;
   TradeProposalSignalsTable: ComponentType<{
@@ -58,6 +74,7 @@ type ReportTradesTabProps = {
     currentStandings?: ReportData["currentStandings"];
     leagueValueMode?: ReportData["leagueValueMode"];
     onScoutLeaguemates?: () => void;
+    initialProposalSignal?: TradeProposalSignal | null;
   }>;
   TradeProfitLeaderboardTable: ComponentType<{
     data: ReportData["tradeProfitLeaderboard"];
@@ -115,12 +132,789 @@ type ReportTradesTabProps = {
 
 type TradeProposalSignal = NonNullable<ReportData["tradeProposalSignals"]>[number];
 
-const SLEEPER_AUTH_COPY_STEPS = [
-  "Open this league's Sleeper Trades page in the same browser where you are signed in.",
-  "Open DevTools, go to Network, then refresh the Sleeper trades page.",
-  "Click the Sleeper graphql request and copy its Authorization request header.",
-  "Paste the full header or just the header value here, then import.",
-];
+const SLEEPER_HELPER_APP_SOURCE = "dynasty-degens-app";
+const SLEEPER_HELPER_EXTENSION_SOURCE = "dynasty-degens-sleeper-helper";
+const CURRENT_PENDING_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function isPendingSleeperSignalStatus(status?: string | null): boolean {
+  const normalized = String(status || "").trim().toLowerCase();
+  return normalized.includes("pending") || normalized.includes("proposed");
+}
+
+function isCurrentPendingSignalDate(date?: string | null): boolean {
+  const timestamp = Date.parse(String(date || ""));
+  if (!Number.isFinite(timestamp)) return true;
+  return Date.now() - timestamp <= CURRENT_PENDING_MAX_AGE_MS;
+}
+
+function isPendingTradeProposalSignal(signal: TradeProposalSignal): boolean {
+  return isPendingSleeperSignalStatus(signal.status) && isCurrentPendingSignalDate(signal.date);
+}
+
+function getPendingActivityKind(signal: TradeProposalSignal): "trade" | "waiver" | "proposal" {
+  if (signal.sourceType === "waiver" || /waiver/i.test(signal.note || "")) {
+    return "waiver";
+  }
+  if (signal.sourceType === "trade" || signal.tradeSides?.length) {
+    return "trade";
+  }
+  return "proposal";
+}
+
+function formatPendingActivityDate(value?: string | null): string {
+  const timestamp = Date.parse(String(value || ""));
+  if (!Number.isFinite(timestamp)) return "Date unknown";
+  return new Date(timestamp).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function isDefensePosition(position?: string | null): boolean {
+  const normalized = String(position || "").trim().toUpperCase();
+  return normalized === "DEF" || normalized === "DST";
+}
+
+const DEFENSE_TEAM_BY_NAME: Record<string, string> = {
+  "arizona cardinals": "ARI",
+  "atlanta falcons": "ATL",
+  "baltimore ravens": "BAL",
+  "buffalo bills": "BUF",
+  "carolina panthers": "CAR",
+  "chicago bears": "CHI",
+  "cincinnati bengals": "CIN",
+  "cleveland browns": "CLE",
+  "dallas cowboys": "DAL",
+  "denver broncos": "DEN",
+  "detroit lions": "DET",
+  "green bay packers": "GB",
+  "houston texans": "HOU",
+  "indianapolis colts": "IND",
+  "jacksonville jaguars": "JAX",
+  "kansas city chiefs": "KC",
+  "las vegas raiders": "LV",
+  "los angeles chargers": "LAC",
+  "los angeles rams": "LAR",
+  "miami dolphins": "MIA",
+  "minnesota vikings": "MIN",
+  "new england patriots": "NE",
+  "new orleans saints": "NO",
+  "new york giants": "NYG",
+  "new york jets": "NYJ",
+  "philadelphia eagles": "PHI",
+  "pittsburgh steelers": "PIT",
+  "san francisco 49ers": "SF",
+  "seattle seahawks": "SEA",
+  "tampa bay buccaneers": "TB",
+  "tennessee titans": "TEN",
+  "washington commanders": "WAS",
+};
+
+function getDefenseTeamFromName(playerName?: string | null): string | null {
+  const normalized = String(playerName || "").trim().toLowerCase();
+  return DEFENSE_TEAM_BY_NAME[normalized] || null;
+}
+
+function ManagerActivityChip({
+  manager,
+  managerAvatars,
+  verb,
+}: {
+  manager: string;
+  managerAvatars?: ReportData["managerAvatars"];
+  verb: string;
+}) {
+  const avatarUrl = managerAvatars?.[manager] || null;
+  const initials = manager
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase())
+    .join("");
+
+  return (
+    <div className="flex items-center gap-2">
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt=""
+          className="h-8 w-8 rounded-full border border-white/15 object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-cyan-300/25 bg-cyan-300/10 text-xs font-black text-cyan-100">
+          {initials || "?"}
+        </span>
+      )}
+      <div className="min-w-0">
+        <p className="truncate text-sm font-black text-slate-50">{manager}</p>
+      </div>
+      <span className="ml-auto flex items-center gap-2">
+        <span className="text-[0.65rem] font-black uppercase tracking-[0.18em] text-cyan-200">
+          {verb}
+        </span>
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
+          <ArrowRightLeft className="h-3.5 w-3.5" aria-hidden="true" />
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function collectPendingRankingRows(value: unknown, rows: any[] = []): any[] {
+  if (!value) return rows;
+  if (Array.isArray(value)) {
+    value.forEach(item => collectPendingRankingRows(item, rows));
+    return rows;
+  }
+  if (typeof value !== "object") return rows;
+  const record = value as Record<string, unknown>;
+  if (typeof record.name === "string" || record.id || record.playerId || record.player_id) {
+    rows.push(record);
+  }
+  Object.values(record).forEach(item => {
+    if (Array.isArray(item) || (item && typeof item === "object")) {
+      collectPendingRankingRows(item, rows);
+    }
+  });
+  return rows;
+}
+
+function normalizePendingLookupName(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\b(d\/st|dst|defense)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function collectPendingWaiverPlayers(
+  waiverIntelligence?: ReportData["waiverIntelligence"]
+): any[] {
+  if (!waiverIntelligence) return [];
+  const players: any[] = [];
+  const seen = new Set<string>();
+  const add = (player?: any | null) => {
+    if (!player) return;
+    const key = String(player.player_id || player.id || player.name || players.length);
+    if (seen.has(key)) return;
+    seen.add(key);
+    players.push(player);
+  };
+  const addTarget = (target?: any | null) => add(target?.player);
+
+  waiverIntelligence.defensePairingTargets?.forEach(addTarget);
+  waiverIntelligence.specialTeamsStreamerTargets?.forEach(addTarget);
+  waiverIntelligence.weeklyEcrTargets?.forEach(addTarget);
+  waiverIntelligence.priorityWaiverTargets?.forEach(addTarget);
+  add(waiverIntelligence.bestAvailableByPosition?.DEF);
+  add(waiverIntelligence.highestKtcAvailable);
+  waiverIntelligence.availableTrendingAdds?.forEach(add);
+  waiverIntelligence.rosteredTrendingAdds?.forEach(add);
+  waiverIntelligence.recentlyDroppedValuable?.forEach(add);
+
+  return players;
+}
+
+function findPendingWaiverPlayer(
+  playerId: string | null | undefined,
+  playerName: string,
+  waiverIntelligence?: ReportData["waiverIntelligence"]
+): any | null {
+  const players = collectPendingWaiverPlayers(waiverIntelligence);
+  if (!players.length) return null;
+
+  const normalizedName = normalizePendingLookupName(playerName);
+  const defenseTeam = getDefenseTeamFromName(playerName);
+  const defenseNickname = defenseTeam
+    ? normalizedName.split(" ").filter(Boolean).at(-1) || ""
+    : "";
+  const matchesPlayerName = (player: any) => {
+    const playerTeam = String(player?.team || "").toUpperCase();
+    const playerNameNormalized = normalizePendingLookupName(String(player?.name || ""));
+    return (
+      playerNameNormalized === normalizedName ||
+      (Boolean(defenseTeam) &&
+        (playerTeam === defenseTeam ||
+          playerNameNormalized === defenseNickname ||
+          playerNameNormalized.endsWith(` ${defenseNickname}`)))
+    );
+  };
+
+  if (defenseTeam) {
+    return players.find(matchesPlayerName) || null;
+  }
+
+  return (
+    players.find(player => String(player?.player_id || player?.id || "") === String(playerId || "")) ||
+    players.find(matchesPlayerName) ||
+    null
+  );
+}
+
+function getPendingWaiverPlayerRank(player?: any | null): string | null {
+  return (
+    player?.playerDetails?.valueProfile?.seasonPositionRank ||
+    player?.playerDetails?.valueProfile?.fantasyProsPositionRank ||
+    player?.currentPositionRank ||
+    player?.weeklyEcr?.bestPositionRank ||
+    player?.weeklyEcr?.weeks?.find?.((week: any) => Boolean(week?.positionRank))?.positionRank ||
+    null
+  );
+}
+
+function getPendingWaiverPlayerValue(player?: any | null): number | null {
+  const value =
+    player?.playerDetails?.valueProfile?.seasonValue ??
+    player?.playerDetails?.valueProfile?.fantasyProsSeasonValue ??
+    player?.ktcValue ??
+    null;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function findPendingRankingRow(
+  playerId: string | null | undefined,
+  playerName: string,
+  rankings?: ReportData["rankings"]
+): any | null {
+  if (!rankings) return null;
+  const rows = collectPendingRankingRows(rankings);
+  const normalizedName = normalizePendingLookupName(playerName);
+  const defenseTeam = getDefenseTeamFromName(playerName);
+  const normalizedNameParts = normalizedName.split(" ").filter(Boolean);
+  const defenseNickname = defenseTeam
+    ? normalizedNameParts[normalizedNameParts.length - 1] || ""
+    : "";
+  const matchesPlayerName = (row: any) => {
+    const rowName = normalizePendingLookupName(
+      String(row?.name || row?.fullName || row?.playerName || row?.player_name || "")
+    );
+    const rowTeam = String(row?.team || row?.teamAbbr || row?.teamCode || row?.nfl_team || "").toUpperCase();
+    const rowPosition = row?.position || row?.pos || row?.fantasyPosition || row?.fantasy_position;
+    return (
+      rowName === normalizedName ||
+      (Boolean(defenseTeam) &&
+        (rowName === String(defenseTeam).toLowerCase() ||
+          rowName.endsWith(` ${defenseNickname}`) ||
+          rowName === defenseNickname ||
+          (rowTeam === defenseTeam && isDefensePosition(String(rowPosition || "")))))
+    );
+  };
+  if (defenseTeam) {
+    return rows.find(row => matchesPlayerName(row)) || null;
+  }
+
+  return (
+    rows.find(row => String(row?.id || row?.playerId || row?.player_id || "") === String(playerId || "")) ||
+    rows.find(row => matchesPlayerName(row)) ||
+    null
+  );
+}
+
+function getPendingPlayerValue(
+  details: NonNullable<ReportData["playerDetailsById"]>[string] | undefined,
+  leagueValueMode: ReportData["leagueValueMode"],
+  rankingRow?: any | null
+): number | null {
+  const profile = details?.valueProfile;
+  const value =
+    leagueValueMode === "redraft" || isDefensePosition(details?.position)
+      ? profile?.seasonValue ?? profile?.fantasyProsSeasonValue ?? rankingRow?.seasonValue ?? rankingRow?.value ?? null
+      : profile?.dynastyValue ?? profile?.balancedValue ?? profile?.marketKtc ?? rankingRow?.value ?? rankingRow?.ktcValue ?? null;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function getPendingPlayerRank(
+  details: NonNullable<ReportData["playerDetailsById"]>[string] | undefined,
+  leagueValueMode: ReportData["leagueValueMode"],
+  rankingRow?: any | null,
+  isDefense = false,
+  rankFromMap?: string | null
+): string | null {
+  const profile = details?.valueProfile;
+  const rankingPositionRank =
+    rankFromMap ||
+    rankingRow?.seasonPositionRank ||
+    rankingRow?.fantasyProsPositionRank ||
+    rankingRow?.currentPositionRank ||
+    rankingRow?.positionRank ||
+    rankingRow?.positionalRank ||
+    rankingRow?.rank ||
+    null;
+  const rank =
+    leagueValueMode === "redraft" || isDefense
+      ? profile?.seasonPositionRank || profile?.fantasyProsPositionRank || rankingPositionRank
+      : profile?.dynastyPositionRank || profile?.balancedPositionRank || rankingPositionRank;
+  if (rank !== null && rank !== undefined && String(rank).trim() !== "") {
+    const rankText = String(rank).trim();
+    return isDefense && /^\d+$/.test(rankText) ? `DST${rankText}` : rankText;
+  }
+  return (
+    details?.position ||
+    null
+  );
+}
+
+function PendingPlayerAssetCard({
+  playerId,
+  playerName,
+  playerDetailsById,
+  currentPositionRankById,
+  waiverIntelligence,
+  managerName,
+  managerAvatars,
+  leagueValueMode,
+  rankings,
+  onSelectPlayer,
+}: {
+  playerId?: string | null;
+  playerName: string;
+  playerDetailsById?: ReportData["playerDetailsById"];
+  currentPositionRankById?: ReportData["currentPositionRankById"];
+  waiverIntelligence?: ReportData["waiverIntelligence"];
+  managerName?: string | null;
+  managerAvatars?: ReportData["managerAvatars"];
+  leagueValueMode: ReportData["leagueValueMode"];
+  rankings?: ReportData["rankings"];
+  onSelectPlayer: (player: PlayerModalData) => void;
+}) {
+  const defenseTeamFromName = getDefenseTeamFromName(playerName);
+  const lookupPlayerId = defenseTeamFromName ? undefined : playerId || undefined;
+  const details = lookupPlayerId ? playerDetailsById?.[lookupPlayerId] : undefined;
+  const rankingRow = findPendingRankingRow(lookupPlayerId, playerName, rankings);
+  const displayName = defenseTeamFromName ? playerName : details?.fullName || playerName;
+  const waiverPlayer = findPendingWaiverPlayer(lookupPlayerId, displayName, waiverIntelligence);
+  const inferredDefenseTeam = defenseTeamFromName || getDefenseTeamFromName(displayName);
+  const rankingPosition = rankingRow?.position || rankingRow?.pos;
+  const waiverPosition = waiverPlayer?.position || waiverPlayer?.pos;
+  const isNamedDefense = Boolean(inferredDefenseTeam);
+  const modalDetails = isNamedDefense
+    ? waiverPlayer?.playerDetails || undefined
+    : details || waiverPlayer?.playerDetails || undefined;
+  const team = isNamedDefense
+    ? inferredDefenseTeam
+    : details?.team || rankingRow?.team || waiverPlayer?.team || null;
+  const position = isNamedDefense
+    ? "DEF"
+    : details?.position || rankingPosition || waiverPosition || null;
+  const isDefense = isDefensePosition(position) || Boolean(inferredDefenseTeam);
+  const cleanDefenseRank = (rank?: string | null) => {
+    if (!rank) return null;
+    const rankText = String(rank).trim();
+    if (!isDefense) return rankText;
+    if (/^(DEF|DST|D\/ST)\d+/i.test(rankText)) return rankText.replace(/^D\/ST/i, "DEF");
+    if (/^\d+$/.test(rankText)) return `DEF${rankText}`;
+    return null;
+  };
+  const rankFromMap =
+    cleanDefenseRank(lookupPlayerId ? currentPositionRankById?.[lookupPlayerId] : null) ||
+    cleanDefenseRank(team ? currentPositionRankById?.[team] : null) ||
+    cleanDefenseRank(inferredDefenseTeam ? currentPositionRankById?.[inferredDefenseTeam] : null) ||
+    cleanDefenseRank(getPendingWaiverPlayerRank(waiverPlayer)) ||
+    null;
+  const defenseRankFromRankingRow = cleanDefenseRank(
+    rankingRow?.positionRank ||
+      rankingRow?.sourcePositionRank ||
+      getPendingPlayerRank(undefined, leagueValueMode, rankingRow, true, null)
+  );
+  const defenseValueFromRankingRow =
+    typeof rankingRow?.value === "number" && Number.isFinite(rankingRow.value)
+      ? rankingRow.value
+      : getPendingPlayerValue(undefined, leagueValueMode, rankingRow);
+  const value = isDefense
+    ? defenseValueFromRankingRow ?? getPendingWaiverPlayerValue(waiverPlayer)
+    : getPendingPlayerValue(details, leagueValueMode, rankingRow) ?? getPendingWaiverPlayerValue(waiverPlayer);
+  const rank = isDefense
+    ? defenseRankFromRankingRow || rankFromMap || "DEF"
+    : getPendingPlayerRank(details, leagueValueMode, rankingRow, false, rankFromMap);
+  const modalPick: PlayerModalData = {
+    playerName: displayName,
+    player_id: playerId || undefined,
+    playerPos: position || undefined,
+    playerDetails: modalDetails,
+    boardPositionRank: rank || position || null,
+    sourcePositionRank: rank || position || null,
+    managerAvatarUrl: managerName ? managerAvatars?.[managerName] || null : null,
+    valueMode: normalizeLeagueValueMode(leagueValueMode),
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelectPlayer(modalPick)}
+      className="player-team-tile weekly-momentum-tile group w-full !min-h-[6.85rem] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
+      style={getTeamTileStyle(team)}
+      aria-label={`Open ${displayName} details`}
+    >
+      <div className="weekly-momentum-identity">
+        <PlayerIdentityRow
+          className="weekly-momentum-player"
+          playerId={playerId || undefined}
+          playerName={displayName}
+          team={team}
+          position={position}
+          hideMeta
+        />
+      </div>
+      <div className="activity-card-meta-row">
+        <div className="weekly-momentum-pills flex min-w-0 flex-wrap items-center gap-2">
+          <PositionRankPill rank={rank || position || "-"} />
+          {!isDefense ? <TeamLogoPill team={team} /> : null}
+          <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-xs font-black text-emerald-200">
+            {formatCompactValue(value)}
+          </span>
+        </div>
+        {renderActivityManagerAvatar(managerName, managerAvatars)}
+      </div>
+    </button>
+  );
+}
+
+function PendingPlayerAssetGrid({
+  label,
+  playerIds,
+  playerNames,
+  pickLabels = [],
+  emptyLabel = "No assets listed",
+  playerDetailsById,
+  currentPositionRankById,
+  waiverIntelligence,
+  managerName,
+  managerAvatars,
+  leagueValueMode,
+  rankings,
+  onSelectPlayer,
+}: {
+  label: string;
+  playerIds: string[];
+  playerNames: string[];
+  pickLabels?: string[];
+  emptyLabel?: string;
+  playerDetailsById?: ReportData["playerDetailsById"];
+  currentPositionRankById?: ReportData["currentPositionRankById"];
+  waiverIntelligence?: ReportData["waiverIntelligence"];
+  managerName?: string | null;
+  managerAvatars?: ReportData["managerAvatars"];
+  leagueValueMode: ReportData["leagueValueMode"];
+  rankings?: ReportData["rankings"];
+  onSelectPlayer: (player: PlayerModalData) => void;
+}) {
+  const playerItems = playerNames.map((playerName, index) => ({
+    playerName,
+    playerId: playerIds[index] || null,
+  }));
+
+  return (
+    <div className="space-y-2">
+      {label ? (
+        <p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-cyan-200">
+          {label}
+        </p>
+      ) : null}
+      {playerItems.length || pickLabels.length ? (
+        <div className="grid grid-cols-2 gap-2 sm:[grid-template-columns:repeat(auto-fill,minmax(13.25rem,13.25rem))] sm:justify-start">
+          {playerItems.map(item => (
+            <PendingPlayerAssetCard
+              key={`${label || "asset"}:${item.playerId || item.playerName}`}
+              playerId={item.playerId}
+              playerName={item.playerName}
+              playerDetailsById={playerDetailsById}
+              currentPositionRankById={currentPositionRankById}
+              waiverIntelligence={waiverIntelligence}
+              managerName={managerName}
+              managerAvatars={managerAvatars}
+              leagueValueMode={leagueValueMode}
+              rankings={rankings}
+              onSelectPlayer={onSelectPlayer}
+            />
+          ))}
+          {pickLabels.map(pickLabel => (
+            <div
+              key={`${label || "asset"}:pick:${pickLabel}`}
+              className="player-team-tile rounded-2xl border border-amber-300/20 bg-amber-950/20 p-3"
+            >
+              <p className="text-sm font-black text-amber-100">{pickLabel}</p>
+              <p className="mt-2 text-[0.65rem] font-black uppercase tracking-[0.16em] text-amber-200">
+                Draft pick
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <span className="inline-flex rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-sm text-slate-400">
+          {emptyLabel}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function PendingTradeSides({
+  signal,
+  playerDetailsById,
+  currentPositionRankById,
+  waiverIntelligence,
+  leagueValueMode,
+  managerAvatars,
+  rankings,
+  onSelectPlayer,
+}: {
+  signal: TradeProposalSignal;
+  playerDetailsById?: ReportData["playerDetailsById"];
+  currentPositionRankById?: ReportData["currentPositionRankById"];
+  waiverIntelligence?: ReportData["waiverIntelligence"];
+  leagueValueMode: ReportData["leagueValueMode"];
+  managerAvatars?: ReportData["managerAvatars"];
+  rankings?: ReportData["rankings"];
+  onSelectPlayer: (player: PlayerModalData) => void;
+}) {
+  const sides = signal.tradeSides || [];
+  if (!sides.length) {
+    const fallbackManagers = signal.managers || [];
+    if (fallbackManagers.length > 0) {
+      return (
+        <div className="grid gap-3 md:grid-cols-2">
+          {fallbackManagers.map((manager, index) => {
+            const playerId = signal.playerIds?.[index] || null;
+            const playerName = signal.playerNames?.[index] || null;
+            return (
+              <div
+                key={`${signal.id}:${manager}`}
+                className="rounded-2xl border border-white/10 bg-slate-950/45 p-3"
+              >
+                <ManagerActivityChip
+                  manager={manager}
+                  managerAvatars={managerAvatars}
+                  verb="Sends"
+                />
+                <div className="mt-3">
+                  <PendingPlayerAssetGrid
+                    label=""
+                    playerIds={playerId ? [playerId] : []}
+                    playerNames={playerName ? [playerName] : []}
+                    pickLabels={index === 0 ? signal.pickLabels || [] : []}
+                    playerDetailsById={playerDetailsById}
+                    currentPositionRankById={currentPositionRankById}
+                    waiverIntelligence={waiverIntelligence}
+                    managerName={manager}
+                    managerAvatars={managerAvatars}
+                    leagueValueMode={leagueValueMode}
+                    rankings={rankings}
+                    onSelectPlayer={onSelectPlayer}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <PendingPlayerAssetGrid
+        label=""
+        playerIds={signal.playerIds || []}
+        playerNames={signal.playerNames || []}
+        pickLabels={signal.pickLabels || []}
+        playerDetailsById={playerDetailsById}
+        currentPositionRankById={currentPositionRankById}
+        waiverIntelligence={waiverIntelligence}
+        managerName={signal.managers?.[0] || null}
+        managerAvatars={managerAvatars}
+        leagueValueMode={leagueValueMode}
+        rankings={rankings}
+        onSelectPlayer={onSelectPlayer}
+      />
+    );
+  }
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {sides.map(side => {
+        const outgoingSides = sides.filter(otherSide => otherSide.manager !== side.manager);
+        const outgoingPlayerIds = outgoingSides.flatMap(otherSide => otherSide.playerIds || []);
+        const outgoingPlayerNames = outgoingSides.flatMap(otherSide => otherSide.playerNames || []);
+        const outgoingPickLabels = outgoingSides.flatMap(otherSide => otherSide.pickLabels || []);
+        return (
+        <div
+          key={`${signal.id}:${side.manager}`}
+          className="rounded-2xl border border-white/10 bg-slate-950/45 p-3"
+        >
+          <ManagerActivityChip
+            manager={side.manager}
+            managerAvatars={managerAvatars}
+            verb="Sends"
+          />
+          <div className="mt-3">
+            <PendingPlayerAssetGrid
+              label=""
+              playerIds={outgoingPlayerIds}
+              playerNames={outgoingPlayerNames}
+              pickLabels={outgoingPickLabels}
+              playerDetailsById={playerDetailsById}
+              currentPositionRankById={currentPositionRankById}
+              waiverIntelligence={waiverIntelligence}
+              managerName={side.manager}
+              managerAvatars={managerAvatars}
+              leagueValueMode={leagueValueMode}
+              rankings={rankings}
+              onSelectPlayer={onSelectPlayer}
+            />
+          </div>
+        </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PendingSleeperActivityList({
+  signals,
+  onViewInTradeWarRoom,
+  playerDetailsById,
+  currentPositionRankById,
+  waiverIntelligence,
+  leagueValueMode,
+  managerAvatars,
+  rankings,
+  onSelectPlayer,
+}: {
+  signals: TradeProposalSignal[];
+  onViewInTradeWarRoom: (signal: TradeProposalSignal) => void;
+  playerDetailsById?: ReportData["playerDetailsById"];
+  currentPositionRankById?: ReportData["currentPositionRankById"];
+  waiverIntelligence?: ReportData["waiverIntelligence"];
+  leagueValueMode: ReportData["leagueValueMode"];
+  managerAvatars?: ReportData["managerAvatars"];
+  rankings?: ReportData["rankings"];
+  onSelectPlayer: (player: PlayerModalData) => void;
+}) {
+  if (!signals.length) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-5 text-sm text-slate-300">
+        No live pending Sleeper trades or waiver claims are imported right now.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {signals.map(signal => {
+        const kind = getPendingActivityKind(signal);
+        const isWaiver = kind === "waiver";
+        const adds = signal.waiverAdds?.playerNames?.length
+          ? signal.waiverAdds.playerNames
+          : signal.playerNames || [];
+        const drops = signal.waiverDrops?.playerNames || [];
+        return (
+          <article
+            key={`${signal.id}:${signal.date}`}
+            className="overflow-hidden rounded-2xl border border-cyan-300/15 bg-slate-950/45 shadow-[0_18px_60px_rgba(8,47,73,0.20)]"
+          >
+            <div className="flex flex-col gap-3 border-b border-white/10 bg-white/[0.035] p-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] ${
+                    isWaiver
+                      ? "border border-sky-300/25 bg-sky-300/10 text-sky-100"
+                      : "border border-orange-300/25 bg-orange-300/10 text-orange-100"
+                  }`}>
+                    {isWaiver ? "Waiver claim" : "Trade offer"}
+                  </span>
+                  <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-emerald-100">
+                    {signal.status || "Pending"}
+                  </span>
+                  {isWaiver && typeof signal.waiverBid === "number" ? (
+                    <span className="rounded-full border border-sky-300/25 bg-sky-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-sky-100">
+                      Bid {signal.waiverBid.toLocaleString()} FAAB
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-2 text-sm font-semibold text-slate-300">
+                  {formatPendingActivityDate(signal.date)}
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={() => onViewInTradeWarRoom(signal)}
+                className="h-10 bg-cyan-300 text-slate-950 hover:bg-cyan-200"
+              >
+                <ArrowRightLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+                View in Trade War Room
+              </Button>
+            </div>
+            <div className="p-4">
+              {isWaiver ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-2xl border border-sky-300/15 bg-sky-950/20 p-3">
+                    <ManagerActivityChip
+                      manager={signal.managers?.[0] || "Manager"}
+                      managerAvatars={managerAvatars}
+                      verb="Claims"
+                    />
+                    <div className="mt-3">
+                    <PendingPlayerAssetGrid
+                      label=""
+                      playerIds={signal.waiverAdds?.playerIds || signal.playerIds || []}
+                      playerNames={adds}
+                      playerDetailsById={playerDetailsById}
+                      currentPositionRankById={currentPositionRankById}
+                      waiverIntelligence={waiverIntelligence}
+                      managerName={signal.managers?.[0] || null}
+                      managerAvatars={managerAvatars}
+                      leagueValueMode={leagueValueMode}
+                      rankings={rankings}
+                      onSelectPlayer={onSelectPlayer}
+                    />
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-rose-300/15 bg-rose-950/10 p-3">
+                    <ManagerActivityChip
+                      manager={signal.managers?.[0] || "Manager"}
+                      managerAvatars={managerAvatars}
+                      verb="Drops"
+                    />
+                    <div className="mt-3">
+                    <PendingPlayerAssetGrid
+                      label=""
+                      playerIds={signal.waiverDrops?.playerIds || []}
+                      playerNames={drops}
+                      emptyLabel="No drop attached"
+                      playerDetailsById={playerDetailsById}
+                      currentPositionRankById={currentPositionRankById}
+                      waiverIntelligence={waiverIntelligence}
+                      managerName={signal.managers?.[0] || null}
+                      managerAvatars={managerAvatars}
+                      leagueValueMode={leagueValueMode}
+                      rankings={rankings}
+                      onSelectPlayer={onSelectPlayer}
+                    />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <PendingTradeSides
+                  signal={signal}
+                  playerDetailsById={playerDetailsById}
+                  currentPositionRankById={currentPositionRankById}
+                  waiverIntelligence={waiverIntelligence}
+                  leagueValueMode={leagueValueMode}
+                  managerAvatars={managerAvatars}
+                  rankings={rankings}
+                  onSelectPlayer={onSelectPlayer}
+                />
+              )}
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
 
 function pluralizeImportCount(
   count: number,
@@ -148,6 +942,16 @@ function mapWaiverSignalToTradeProposalSignal(
     playerIds,
     playerNames,
     pickLabels: [],
+    sourceType: "waiver",
+    waiverAdds: {
+      playerIds: signal.playerIds || [],
+      playerNames: signal.playerNames || [],
+    },
+    waiverDrops: {
+      playerIds: signal.dropPlayerIds || [],
+      playerNames: signal.dropPlayerNames || [],
+    },
+    waiverBid: signal.bidAmount,
     note: signal.note,
   };
 }
@@ -187,105 +991,215 @@ export function ReportTradesTab({
   rankingsForReport,
   tradeWarKicker,
   showTradeMarketRadar,
-  onImportSleeperTradeCenter,
-  isImportingSleeperTradeCenter,
+  onImportSleeperTradeCenterSnapshot,
+  isImportingSleeperTradeCenterSnapshot,
   TradeBrowserRead,
   TradeMarketRadar,
-  TradeProposalSignalsTable,
   TradeWarRoom,
   TradeProfitLeaderboardTable,
   TradeTheftDetector,
   TradeHistoryTable,
 }: ReportTradesTabProps) {
-  const sleeperAuthInputId = useId();
-  const sleeperAuthHelpId = useId();
-  const sleeperAuthStatusId = useId();
-  const [sleeperAuthToken, setSleeperAuthToken] = useState("");
-  const [importStatus, setImportStatus] = useState<string | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
+  const [helperSnapshot, setHelperSnapshot] =
+    useState<SleeperExtensionTradeCenterSnapshot | null>(null);
+  const [helperDetected, setHelperDetected] = useState(false);
+  const [helperStatus, setHelperStatus] = useState<string | null>(null);
+  const [helperError, setHelperError] = useState<string | null>(null);
+  const [isHelperCaptureRunning, setIsHelperCaptureRunning] = useState(false);
+  const [tradeWarRoomOpenSignal, setTradeWarRoomOpenSignal] = useState(0);
+  const [tradeWarRoomSignal, setTradeWarRoomSignal] =
+    useState<TradeProposalSignal | null>(null);
+  const [selectedPendingPlayer, setSelectedPendingPlayer] =
+    useState<PlayerModalData | null>(null);
+  const tradeWarRoomRef = useRef<HTMLDivElement | null>(null);
+  const autoImportPendingRef = useRef(false);
+  const hasImportedSleeperActivity =
+    Boolean(reportData.sleeperHiddenLeagueSnapshot) ||
+    Boolean(reportData.adminSleeperTradeProposalSignals?.length) ||
+    Boolean(reportData.adminSleeperWaiverSignals?.length);
 
   const pendingTradeSignals = useMemo(
-    () =>
-      dedupeTradeProposalSignals([
+    () => {
+      const sleeperImportedSignals = [
         ...(reportData.adminSleeperTradeProposalSignals || []),
-        ...(reportData.adminTradeProposalSignals || []),
-        ...(reportData.tradeProposalSignals || []),
         ...(reportData.adminSleeperWaiverSignals || []).map(
           mapWaiverSignalToTradeProposalSignal
         ),
-      ]),
+      ];
+
+      const publicFallbackSignals = [
+        ...(reportData.adminTradeProposalSignals || []),
+        ...(reportData.tradeProposalSignals || []),
+      ];
+
+      return dedupeTradeProposalSignals(
+        hasImportedSleeperActivity
+          ? sleeperImportedSignals
+          : [...sleeperImportedSignals, ...publicFallbackSignals]
+      ).filter(isPendingTradeProposalSignal);
+    },
     [
       reportData.adminSleeperTradeProposalSignals,
       reportData.adminTradeProposalSignals,
       reportData.adminSleeperWaiverSignals,
       reportData.tradeProposalSignals,
+      hasImportedSleeperActivity,
     ]
   );
 
   const warRoomProposalSignals = pendingTradeSignals;
-  const sleeperTradesUrl = leagueId
-    ? `https://sleeper.com/leagues/${encodeURIComponent(leagueId)}/trades`
-    : "https://sleeper.com/";
-  const hiddenSnapshot = reportData.sleeperHiddenLeagueSnapshot;
-  const importedTradeCount =
-    hiddenSnapshot?.tradeCount ??
-    reportData.adminSleeperTradeProposalSignals?.length ??
-    0;
-  const importedWaiverCount =
-    hiddenSnapshot?.waiverCount ?? reportData.adminSleeperWaiverSignals?.length ?? 0;
-  const importedTransactionCount =
-    hiddenSnapshot?.transactionCount ??
-    importedTradeCount + importedWaiverCount;
-  const hasImportedSnapshot = importedTransactionCount > 0;
+  const helperTransactionCount = helperSnapshot?.transactions.length ?? 0;
+  const helperTradeCount =
+    helperSnapshot?.transactions.filter(transaction => transaction.type === "trade")
+      .length ?? 0;
+  const helperWaiverCount =
+    helperSnapshot?.transactions.filter(transaction => transaction.type === "waiver")
+      .length ?? 0;
 
-  const handlePasteFromClipboard = async () => {
-    if (typeof navigator === "undefined" || !navigator.clipboard?.readText) {
-      setImportError("Clipboard paste is not available in this browser.");
-      return;
-    }
+  const importCapturedSnapshot = useCallback(
+    async (
+      snapshot: SleeperExtensionTradeCenterSnapshot,
+      options: { automatic?: boolean } = {}
+    ) => {
+      setHelperError(null);
+      setHelperStatus(
+        options.automatic
+          ? "Importing pending Sleeper trades and waivers..."
+          : "Importing captured Sleeper snapshot..."
+      );
 
-    try {
-      const clipboardText = await navigator.clipboard.readText();
-      if (!clipboardText.trim()) {
-        setImportError("Clipboard is empty. Copy the Sleeper Authorization header first.");
+      try {
+        const result = await onImportSleeperTradeCenterSnapshot(snapshot);
+        setHelperStatus(
+          result.transactionCount > 0
+            ? `Imported ${pluralizeImportCount(result.tradeCount, "pending trade")} and ${pluralizeImportCount(result.waiverCount, "waiver claim")} from Sleeper.`
+            : "Sleeper connected, but there are no pending trade or waiver items right now."
+        );
+      } catch (error: unknown) {
+        setHelperStatus(null);
+        setHelperError(
+          error instanceof Error
+            ? error.message
+            : "Could not import the Sleeper snapshot."
+        );
+      } finally {
+        setIsHelperCaptureRunning(false);
+      }
+    },
+    [onImportSleeperTradeCenterSnapshot]
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleHelperMessage = (event: MessageEvent) => {
+      if (event.source !== window || event.origin !== window.location.origin) return;
+      const message = event.data;
+      if (!message || message.source !== SLEEPER_HELPER_EXTENSION_SOURCE) return;
+
+      if (message.type === "DYNASTY_DEGENS_SLEEPER_HELPER_READY") {
+        setHelperDetected(true);
         return;
       }
 
-      setSleeperAuthToken(clipboardText.trim());
-      setImportStatus("Header pasted locally. Import when ready.");
-      setImportError(null);
-    } catch {
-      setImportError(
-        "Browser blocked clipboard access. Click the field and use Cmd+V instead."
-      );
-    }
-  };
+      if (message.type === "DYNASTY_DEGENS_SLEEPER_HELPER_STATUS") {
+        setHelperDetected(true);
+        const payload = message.payload as { status?: string; detail?: string } | null;
+        if (payload?.status === "error") {
+          autoImportPendingRef.current = false;
+          setIsHelperCaptureRunning(false);
+          setHelperStatus(null);
+          setHelperError(payload.detail || "Sleeper Helper could not import transactions.");
+          return;
+        }
+        if (payload?.detail) {
+          setHelperError(null);
+          setHelperStatus(payload.detail);
+        }
+        return;
+      }
 
-  const importSleeperOffers = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const token = sleeperAuthToken.trim();
-    if (!token) {
-      setImportError("Paste the Sleeper Authorization header first.");
+      if (message.type !== "DYNASTY_DEGENS_SLEEPER_SNAPSHOT") return;
+
+      const payload = message.payload as SleeperExtensionTradeCenterSnapshot | null;
+      if (
+        !payload ||
+        payload.source !== "chrome-extension" ||
+        !Array.isArray(payload.transactions)
+      ) {
+        setHelperError("The Chrome Helper sent an invalid snapshot.");
+        return;
+      }
+
+      if (payload.leagueId !== leagueId) {
+        setHelperSnapshot(null);
+        setHelperError(
+          `Chrome Helper captured league ${payload.leagueId}, but this report is ${leagueId}.`
+        );
+        return;
+      }
+
+      setHelperSnapshot(payload);
+      setHelperDetected(true);
+      setHelperError(null);
+
+      if (autoImportPendingRef.current) {
+        autoImportPendingRef.current = false;
+        void importCapturedSnapshot(payload, { automatic: true });
+        return;
+      }
+
+      setIsHelperCaptureRunning(false);
+      setHelperStatus(
+        payload.transactions.length > 0
+          ? `Chrome Helper captured ${pluralizeImportCount(payload.transactions.length, "pending item")}. Click Import Pending Transactions to import it.`
+          : "Chrome Helper connected, but the Sleeper page did not expose pending trades or waivers."
+      );
+    };
+
+    window.addEventListener("message", handleHelperMessage);
+    window.postMessage(
+      {
+        source: SLEEPER_HELPER_APP_SOURCE,
+        type: "DYNASTY_DEGENS_REQUEST_SLEEPER_HELPER_STATUS",
+      },
+      window.location.origin
+    );
+
+    return () => window.removeEventListener("message", handleHelperMessage);
+  }, [importCapturedSnapshot, leagueId]);
+
+  const importHelperSnapshot = async () => {
+    if (!helperDetected) {
+      setHelperError(
+        "Chrome Helper is not installed or enabled yet. Enable the extension, refresh this page, then click Import Pending Transactions again."
+      );
       return;
     }
 
-    setImportError(null);
-    setImportStatus("Importing pending Sleeper trades and waivers...");
+    autoImportPendingRef.current = true;
+    setHelperError(null);
+    setIsHelperCaptureRunning(true);
+    setHelperStatus("Opening Sleeper and importing pending transactions...");
+    window.postMessage(
+      {
+        source: SLEEPER_HELPER_APP_SOURCE,
+        type: "DYNASTY_DEGENS_START_SLEEPER_IMPORT",
+        payload: { leagueId },
+      },
+      window.location.origin
+    );
+  };
 
-    try {
-      const result = await onImportSleeperTradeCenter(token);
-      setImportStatus(
-        result.transactionCount > 0
-          ? `Imported ${pluralizeImportCount(result.tradeCount, "pending trade")} and ${pluralizeImportCount(result.waiverCount, "waiver claim")}. Trade War Room now includes this snapshot.`
-          : "Sleeper accepted the header, but there are no pending trade or waiver items right now."
-      );
-      setSleeperAuthToken("");
-    } catch (error: unknown) {
-      setImportStatus(null);
-      setImportError(
-        error instanceof Error ? error.message : "Could not import Sleeper offers."
-      );
-    }
+  const viewSignalInTradeWarRoom = (signal: TradeProposalSignal) => {
+    setTradeWarRoomSignal(signal);
+    setTradeWarRoomOpenSignal(Date.now());
+    window.setTimeout(() => {
+      tradeWarRoomRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 80);
   };
 
   return (
@@ -320,164 +1234,106 @@ export function ReportTradesTab({
         premium
         defaultOpen
       >
-        <form
-          className="mb-5 space-y-4 rounded-2xl border border-emerald-300/20 bg-emerald-950/20 p-4 shadow-[0_24px_80px_rgba(16,185,129,0.10)] sm:p-5"
-          onSubmit={importSleeperOffers}
-        >
+        <div className="mb-5 space-y-4 rounded-2xl border border-emerald-300/20 bg-emerald-950/20 p-4 shadow-[0_24px_80px_rgba(16,185,129,0.10)] sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 space-y-2">
               <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em] text-emerald-200">
-                <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
-                Sleeper bridge beta
+                <Cable className="h-3.5 w-3.5" aria-hidden="true" />
+                Chrome Helper MVP
               </p>
               <h3 className="text-base font-black text-slate-50 sm:text-lg">
-                Import live pending trades and waiver claims
+                Import pending Sleeper trades and waivers
               </h3>
               <p className="max-w-3xl text-sm leading-6 text-slate-300">
-                Sleeper's public API only exposes completed transactions. This
-                one-time bridge lets a commissioner or league member import
-                their visible pending activity from an active Sleeper tab.
-              </p>
-            </div>
-            <Button
-              type="button"
-              asChild
-              variant="outline"
-              className="h-10 border-white/20 bg-white/5 text-slate-100 hover:bg-white/10"
-            >
-              <a href={sleeperTradesUrl} target="_blank" rel="noreferrer">
-                Open Sleeper trades
-                <ExternalLink className="h-4 w-4" aria-hidden="true" />
-              </a>
-            </Button>
-          </div>
-
-          <div className="grid gap-3 rounded-xl border border-white/10 bg-slate-950/40 p-3 text-sm text-slate-300 sm:grid-cols-3">
-            <div>
-              <p className="font-bold text-slate-100">1. Open Sleeper</p>
-              <p className="mt-1 text-xs leading-5 text-slate-400">
-                Use the button above for this league's Trades page.
-              </p>
-            </div>
-            <div>
-              <p className="font-bold text-slate-100">2. Copy the header</p>
-              <p className="mt-1 text-xs leading-5 text-slate-400">
-                Copy the Authorization request header from Sleeper's graphql
-                request.
-              </p>
-            </div>
-            <div>
-              <p className="font-bold text-slate-100">3. Import once</p>
-              <p className="mt-1 text-xs leading-5 text-slate-400">
-                The header is cleared after import; the report keeps the
-                imported snapshot.
+                Click once. The Chrome Helper opens Sleeper, captures only
+                sanitized pending transaction data, and imports it back into this
+                report.
               </p>
             </div>
           </div>
 
-          <details className="group rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-slate-300">
-            <summary className="flex cursor-pointer list-none items-center gap-2 font-bold text-slate-100">
-              <Info className="h-4 w-4 text-emerald-200" aria-hidden="true" />
-              Exact copy steps
-            </summary>
-            <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs leading-5 text-slate-400">
-              {SLEEPER_AUTH_COPY_STEPS.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
-          </details>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <label
-              htmlFor={sleeperAuthInputId}
-              className="min-w-0 flex-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"
-            >
-              One-time Sleeper session header
-              <Input
-                id={sleeperAuthInputId}
-                type="password"
-                value={sleeperAuthToken}
-                onChange={(event) => {
-                  setSleeperAuthToken(event.target.value);
-                  if (importError) setImportError(null);
-                  if (importStatus) setImportStatus(null);
-                }}
-                placeholder="Paste Authorization header or copied header value"
-                spellCheck={false}
-                autoCapitalize="off"
-                autoCorrect="off"
-                autoComplete="off"
-                aria-describedby={`${sleeperAuthHelpId} ${sleeperAuthStatusId}`}
-                className="mt-2 normal-case tracking-normal"
-              />
-            </label>
-            <div className="flex gap-2">
+          <div className="rounded-xl border border-white/10 bg-slate-950/40 p-3 text-sm text-slate-300">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-bold text-slate-100">
+                  {isHelperCaptureRunning || isImportingSleeperTradeCenterSnapshot
+                    ? "Importing pending transactions"
+                    : helperSnapshot
+                    ? `Captured ${helperTransactionCount} pending item${helperTransactionCount === 1 ? "" : "s"}`
+                    : helperDetected
+                      ? "Chrome Helper detected"
+                      : "Waiting for Chrome Helper"}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">
+                  {helperSnapshot
+                    ? `${helperTradeCount} trades, ${helperWaiverCount} waiver claims captured ${new Date(helperSnapshot.capturedAt).toLocaleString()}.`
+                    : helperDetected
+                      ? "Ready. The helper will open Sleeper, refresh the right pages, and import the latest pending snapshot."
+                      : "Install or enable the local Chrome Helper, then click the import button again."}
+                </p>
+              </div>
               <Button
                 type="button"
-                variant="outline"
-                onClick={handlePasteFromClipboard}
-                disabled={isImportingSleeperTradeCenter}
-                className="h-10 border-white/20 bg-white/5 text-slate-100 hover:bg-white/10"
-              >
-                <ClipboardPaste className="mr-2 h-4 w-4" aria-hidden="true" />
-                Paste
-              </Button>
-              <Button
-                type="submit"
-                disabled={isImportingSleeperTradeCenter || !sleeperAuthToken.trim()}
+                onClick={importHelperSnapshot}
+                disabled={isHelperCaptureRunning || isImportingSleeperTradeCenterSnapshot}
                 className="h-10 bg-emerald-300 text-slate-950 hover:bg-emerald-200 disabled:opacity-60"
               >
-                {isImportingSleeperTradeCenter ? (
+                {isHelperCaptureRunning || isImportingSleeperTradeCenterSnapshot ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
                   <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
                 )}
-                Import
+                Import Pending Transactions
               </Button>
             </div>
-          </div>
-          <div
-            id={sleeperAuthHelpId}
-            className="flex flex-col gap-1 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <p className="max-w-3xl">
-              The session header is used once and never saved. Imported pending
-              activity is stored as a report snapshot so this league can reuse it.
-            </p>
-            {hasImportedSnapshot ? (
-              <p className="font-semibold text-emerald-200">
-                Imported snapshot: {importedTradeCount} trades,{" "}
-                {importedWaiverCount} waivers
+            {helperStatus ? (
+              <p className="mt-3 rounded-xl border border-emerald-300/20 bg-emerald-950/30 px-3 py-2 text-sm font-semibold text-emerald-200">
+                {helperStatus}
+              </p>
+            ) : null}
+            {helperError ? (
+              <p className="mt-3 rounded-xl border border-rose-300/20 bg-rose-950/30 px-3 py-2 text-sm font-semibold text-rose-200">
+                {helperError}
               </p>
             ) : null}
           </div>
-          <div id={sleeperAuthStatusId} aria-live="polite">
-            {importError ? (
-              <p className="rounded-xl border border-rose-300/20 bg-rose-950/30 px-3 py-2 text-sm font-semibold text-rose-200">
-                {importError}
-              </p>
-            ) : null}
-            {importStatus ? (
-              <p className="rounded-xl border border-emerald-300/20 bg-emerald-950/30 px-3 py-2 text-sm font-semibold text-emerald-200">
-                {importStatus}
-              </p>
-            ) : null}
-          </div>
-        </form>
-        <TradeProposalSignalsTable
-          data={pendingTradeSignals}
+
+        </div>
+        <PendingSleeperActivityList
+          signals={pendingTradeSignals}
+          onViewInTradeWarRoom={viewSignalInTradeWarRoom}
+          playerDetailsById={reportData.playerDetailsById}
+          currentPositionRankById={reportData.currentPositionRankById}
+          waiverIntelligence={reportData.waiverIntelligence}
+          leagueValueMode={leagueValueMode}
           managerAvatars={reportData.managerAvatars}
+          rankings={rankingsForReport}
+          onSelectPlayer={setSelectedPendingPlayer}
         />
       </CollapsibleReportSection>
-      <CollapsibleReportSection
-        title="Trade War Room"
-        kicker={tradeWarKicker}
-        previewMetrics={buildTradePreviewMetrics(
-          reportData,
-          leagueValueMode,
-          "war-room"
-        )}
-      >
+      <PlayerDetailModal
+        isOpen={selectedPendingPlayer !== null}
+        onClose={() => setSelectedPendingPlayer(null)}
+        pick={selectedPendingPlayer}
+        leagueId={leagueId}
+        leagueLogo={leagueLogo}
+        managerAvatars={reportData.managerAvatars}
+        playerDetailsById={reportData.playerDetailsById}
+        leagueDiagnostics={reportData.leagueDiagnostics}
+        calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
+        showAIRead={showManagerPersonalityIntel}
+      />
+      <div ref={tradeWarRoomRef}>
+        <CollapsibleReportSection
+          title="Trade War Room"
+          kicker={tradeWarKicker}
+          previewMetrics={buildTradePreviewMetrics(
+            reportData,
+            leagueValueMode,
+            "war-room"
+          )}
+          openSignal={tradeWarRoomOpenSignal}
+        >
           <TradeWarRoom
             data={reportData.managerRosterIntelligence}
           managerAvatars={reportData.managerAvatars}
@@ -496,8 +1352,10 @@ export function ReportTradesTab({
           leagueValueMode={leagueValueMode}
           showManagerPersonalityIntel={showManagerPersonalityIntel}
           onScoutLeaguemates={onScoutLeaguemates}
+          initialProposalSignal={tradeWarRoomSignal}
         />
-      </CollapsibleReportSection>
+        </CollapsibleReportSection>
+      </div>
       <CollapsibleReportSection
         title={
           leagueValueMode === "redraft"

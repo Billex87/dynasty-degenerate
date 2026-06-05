@@ -3937,6 +3937,7 @@ export async function listWaiverBidHistory(input: {
 type SleeperHiddenLeagueSnapshotPayload = {
   tradeProposalSignals: TradeProposalSignal[];
   waiverSignals: SleeperWaiverClaimSignal[];
+  currentPositionRankById?: Record<string, string | null>;
   transactionCount: number;
   tradeCount: number;
   waiverCount: number;
@@ -3957,6 +3958,9 @@ function normalizeSleeperHiddenLeagueSnapshotRow(row: any): StoredSleeperHiddenL
       waiverCount: Number(payload.waiverCount || 0),
       tradeProposalSignals: Array.isArray(payload.tradeProposalSignals) ? payload.tradeProposalSignals as TradeProposalSignal[] : [],
       waiverSignals: Array.isArray(payload.waiverSignals) ? payload.waiverSignals as SleeperWaiverClaimSignal[] : [],
+      currentPositionRankById: payload.currentPositionRankById && typeof payload.currentPositionRankById === 'object'
+        ? payload.currentPositionRankById as Record<string, string | null>
+        : {},
     };
   } catch (error) {
     console.warn("[Database] Failed to parse hidden Sleeper league snapshot:", error);

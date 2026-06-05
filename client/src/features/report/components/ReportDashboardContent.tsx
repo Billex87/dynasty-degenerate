@@ -24,7 +24,7 @@ import {
   type OwnerIntelSortMode,
 } from "@/features/report/components/OwnerIntelControls";
 import AITeamAutopilot from "@/components/AITeamAutopilot";
-import type { ReportData } from "@shared/types";
+import type { ReportData, SleeperExtensionTradeCenterSnapshot } from "@shared/types";
 import { type LeagueValueMode } from "@/lib/leagueValueMode";
 import type {
   HomeLeagueSelectionLeague,
@@ -167,12 +167,14 @@ type ReportDashboardContentProps = {
   rankingsForReport: ReportData["rankings"];
   rankingsQueryIsLoading: boolean;
   onAnalyze: () => void;
-  onImportSleeperTradeCenter: (authToken: string) => Promise<{
+  onImportSleeperTradeCenterSnapshot: (
+    snapshot: SleeperExtensionTradeCenterSnapshot
+  ) => Promise<{
     transactionCount: number;
     tradeCount: number;
     waiverCount: number;
   }>;
-  isImportingSleeperTradeCenter: boolean;
+  isImportingSleeperTradeCenterSnapshot: boolean;
   onScoutLeaguemates: () => void;
   tradeWarKicker: string;
   previousSavedAt?: number | null;
@@ -197,8 +199,8 @@ export function ReportDashboardContent({
   dashboardViewerManager,
   isRedraftReport,
   leagueFormat,
-  isImportingSleeperTradeCenter,
-  onImportSleeperTradeCenter,
+  isImportingSleeperTradeCenterSnapshot,
+  onImportSleeperTradeCenterSnapshot,
   leagueId,
   leagueLogo,
   leagueName,
@@ -423,8 +425,12 @@ export function ReportDashboardContent({
                   leagueId={leagueId}
                   leagueLogo={leagueLogo}
                   leagueValueMode={leagueValueMode}
-                  isImportingSleeperTradeCenter={isImportingSleeperTradeCenter}
-                  onImportSleeperTradeCenter={onImportSleeperTradeCenter}
+                  isImportingSleeperTradeCenterSnapshot={
+                    isImportingSleeperTradeCenterSnapshot
+                  }
+                  onImportSleeperTradeCenterSnapshot={
+                    onImportSleeperTradeCenterSnapshot
+                  }
                   effectiveViewerManager={effectiveViewerManager}
                   rankingsForReport={rankingsForReport}
                   tradeWarKicker={tradeWarKicker}

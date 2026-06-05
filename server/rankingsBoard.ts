@@ -134,6 +134,7 @@ const RANKING_PROFILE_OPTIONS: RankingProfileOption[] = [
 ];
 
 const DRAFT_BUZZ_SCOREBOARD_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE']);
+const SPECIAL_TEAMS_RANKING_POSITIONS = new Set(['K', 'DEF']);
 
 const PROFILE_KEY_BY_OPTION: Record<string, KtcProfileKey> = {
   dynasty_sf_ppr: 'sf_ppr',
@@ -937,7 +938,16 @@ function buildRowsForProfile({
   const canonicalBaselineValues = canonicalizeRankingMap(baselineKtcValues || {});
   const canonicalFantasyProsDevyRows = option.board === 'devy' ? canonicalizeRankingMap(fantasyProsDevyRows || {}) : {};
   const canonicalFantasyProsRookieRows = option.board === 'dynasty' ? canonicalizeRankingMap(fantasyProsRookieRows || {}) : {};
-  const canonicalRedraftRows = option.board === 'redraft' ? canonicalizeRankingMap(redraftRows || {}) : {};
+  const canonicalRedraftRowsAll = canonicalizeRankingMap(redraftRows || {});
+  const canonicalRedraftRows = option.board === 'redraft'
+    ? canonicalRedraftRowsAll
+    : option.board === 'dynasty'
+      ? Object.fromEntries(
+        Object.entries(canonicalRedraftRowsAll).filter(([, row]) =>
+          SPECIAL_TEAMS_RANKING_POSITIONS.has(normalizePosition(row.position, row.positionRank))
+        )
+      )
+      : {};
   const canonicalProspectRows = option.board === 'devy' ? getProspectRowsFromLookup(prospectLookup) : {};
   const keys = new Set([
     ...Object.keys(canonicalKtcRows),
@@ -985,6 +995,7 @@ function buildRowsForProfile({
     if (option.board === 'redraft' && (isPick || !['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(pos))) {
       continue;
     }
+    const isSpecialTeamsRanking = SPECIAL_TEAMS_RANKING_POSITIONS.has(pos);
     const college = sourceCollege || sanitizeCollegeName(sleeperPlayer?.college) || null;
     const sourceDraftYear = Number(flock?.draftYear || ktc?.draftYear || prospectRow?.draftYear || sleeperPlayer?.metadata?.rookie_year || 0) || null;
     const rawProspectProfile = prospectRow || (prospectLookup
@@ -1041,7 +1052,9 @@ function buildRowsForProfile({
       { value: option.board === 'dynasty' ? dynastyProcessValue : null, weight: sourceWeights?.dynastyProcess || 0 },
     ]);
 
-    if (!value) continue;
+    const resolvedValue = value || (option.board === 'dynasty' && isSpecialTeamsRanking && redraft ? 1 : 0);
+
+    if (!resolvedValue) continue;
 
     const sources = [
       ktcValue ? 'KTC' : null,
@@ -1057,7 +1070,7 @@ function buildRowsForProfile({
       ...(option.board === 'redraft' ? redraft?.sources || [] : []),
     ].filter(Boolean) as string[];
     const baselineValue = option.board === 'redraft' ? null : canonicalBaselineValues[key]?.ktc_value || null;
-    const movement = baselineValue && value ? value - baselineValue : null;
+    const movement = baselineValue && resolvedValue ? resolvedValue - baselineValue : null;
     const displayCollege = prospectProfile?.college || college;
     const displayImageUrl = getRankingImageUrl({ option, flock, dynastyNerds, prospectProfile });
     const athleticProfile = nflversePlayerContext
@@ -1094,7 +1107,7 @@ function buildRowsForProfile({
       positionRank: sourcePositionRank,
       sourceOverallRank,
       sourcePositionRank,
-      value,
+      value: resolvedValue,
       ktcValue,
       ktcRank: ktc?.rank || null,
       flockValue,
@@ -1331,7 +1344,11 @@ export async function buildRankingsBoard({
       ktcRows: option.board === 'devy' ? ktcDevyProfiles[ktcProfileKey] || {} : option.board === 'dynasty' ? ktcValues : {},
       flockRows,
       dynastyNerdsRows,
-      redraftRows: option.board === 'redraft' ? redraftProfiles[option.key as keyof typeof redraftProfiles] || {} : {},
+      redraftRows: option.board === 'redraft'
+        ? redraftProfiles[option.key as keyof typeof redraftProfiles] || {}
+        : option.board === 'dynasty'
+          ? redraftProfiles.redraft_ppr || redraftProfiles.redraft_half_ppr || redraftProfiles.redraft_standard || {}
+          : {},
       dynastySourceWeights: effectiveDynastySourceWeights,
       prospectSourceWeights: effectiveProspectSourceWeights,
       ktcValues,

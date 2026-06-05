@@ -500,9 +500,11 @@ describe("user-load provider boundary", () => {
   });
 
   it("keeps hidden Sleeper trade imports behind report access and rate limits", () => {
-    const importSource = extractSource("importSleeperTradeCenter: publicProcedure", "\n    rankings: publicProcedure");
+    const importSource = extractSource("importSleeperTradeCenter: publicProcedure", "\n    importSleeperTradeCenterSnapshot: publicProcedure");
+    const snapshotImportSource = extractSource("importSleeperTradeCenterSnapshot: publicProcedure", "\n    rankings: publicProcedure");
     const graphqlImportSource = extractSource("async function fetchSleeperTradeCenterTransactions", "\n\ntype SleeperHiddenTradeCenterImport");
     const hiddenImportHelperSource = extractSource("async function loadSleeperHiddenTradeCenterImport", "\n\nfunction buildSleeperHiddenLeagueSnapshotMetadata");
+    const extensionImportHelperSource = extractSource("async function normalizeSleeperExtensionTradeCenterImport", "\n\nfunction buildSleeperHiddenLeagueSnapshotMetadata");
     const accessIndex = importSource.indexOf("assertReportAccess(ctx)");
     const ipRateLimitIndex = importSource.indexOf("id: 'league.importSleeperTradeCenter.ip'");
     const rateLimitIndex = importSource.indexOf("id: 'league.importSleeperTradeCenter',", ipRateLimitIndex);
@@ -517,6 +519,12 @@ describe("user-load provider boundary", () => {
     const tradeSignalLimitIndex = hiddenImportHelperSource.indexOf("SLEEPER_HIDDEN_IMPORT_TRADE_SIGNAL_LIMIT", tradeSignalIndex);
     const waiverSignalIndex = hiddenImportHelperSource.indexOf("buildSleeperWaiverClaimSignals(");
     const waiverSignalLimitIndex = hiddenImportHelperSource.indexOf("SLEEPER_HIDDEN_IMPORT_WAIVER_SIGNAL_LIMIT", waiverSignalIndex);
+    const snapshotAccessIndex = snapshotImportSource.indexOf("assertReportAccess(ctx)");
+    const snapshotIpRateLimitIndex = snapshotImportSource.indexOf("id: 'league.importSleeperTradeCenterSnapshot.ip'");
+    const snapshotRateLimitIndex = snapshotImportSource.indexOf("id: 'league.importSleeperTradeCenterSnapshot',", snapshotIpRateLimitIndex);
+    const snapshotWriteIndex = snapshotImportSource.indexOf("upsertSleeperHiddenLeagueSnapshot({");
+    const extensionTradeSignalIndex = extensionImportHelperSource.indexOf("buildTradeProposalSignals(");
+    const extensionWaiverSignalIndex = extensionImportHelperSource.indexOf("buildSleeperWaiverClaimSignals(");
 
     expect(accessIndex).toBeGreaterThan(0);
     expect(ipRateLimitIndex).toBeGreaterThan(accessIndex);
@@ -536,6 +544,13 @@ describe("user-load provider boundary", () => {
     expect(waiverSignalLimitIndex).toBeGreaterThan(waiverSignalIndex);
     expect(routersSource).toContain("SLEEPER_HIDDEN_IMPORT_TRADE_SIGNAL_LIMIT = 80");
     expect(routersSource).toContain("SLEEPER_HIDDEN_IMPORT_WAIVER_SIGNAL_LIMIT = 120");
+    expect(snapshotAccessIndex).toBeGreaterThan(0);
+    expect(snapshotIpRateLimitIndex).toBeGreaterThan(snapshotAccessIndex);
+    expect(snapshotRateLimitIndex).toBeGreaterThan(snapshotIpRateLimitIndex);
+    expect(snapshotWriteIndex).toBeGreaterThan(snapshotRateLimitIndex);
+    expect(snapshotImportSource).not.toContain("authToken");
+    expect(extensionTradeSignalIndex).toBeGreaterThan(0);
+    expect(extensionWaiverSignalIndex).toBeGreaterThan(extensionTradeSignalIndex);
   });
 
   it("keeps ranking detail endpoints behind report access and rate limits", () => {

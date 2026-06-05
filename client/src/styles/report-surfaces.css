@@ -1332,6 +1332,18 @@ button.player-team-tile:focus-visible {
   height: 1.55rem;
 }
 
+.trade-war-available-pill {
+  margin-left: auto;
+  min-height: 1.15rem !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  background: rgba(15, 23, 42, 0.72) !important;
+  padding: 0 0.42rem !important;
+  color: #cbd5e1 !important;
+  font-size: 0.56rem !important;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 .trade-war-remove {
   position: absolute;
   top: 0.42rem;

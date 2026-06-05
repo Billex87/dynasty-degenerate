@@ -52,6 +52,7 @@ export type TradeWarMode =
   | "waiver-leverage";
 export type TradeWarAsset = ManagerIntelPlayer & {
   manager: string;
+  team?: string | null;
   assetState: "roster" | "bench" | "taxi" | "reserve" | "pick";
   assetKind?: "player" | "pick";
   pickLabel?: string;
@@ -114,6 +115,17 @@ export function isTradeWarPickAsset(asset: TradeWarAsset): boolean {
 
 export function isTradeWarPlayerAsset(asset: TradeWarAsset): boolean {
   return !isTradeWarPickAsset(asset);
+}
+
+function isTradeWarSpecialTeamsPosition(position?: string | null): boolean {
+  const normalized = String(position || "").toUpperCase();
+  return normalized === "K" || normalized === "DEF" || normalized === "DST";
+}
+
+function isAvailableTradeWarAsset(asset: TradeWarAsset): boolean {
+  const manager = String(asset.manager || "").trim().toLowerCase();
+  const owner = String(asset.owner || "").trim().toLowerCase();
+  return manager === "free agent" || owner === "fa" || owner === "free agent";
 }
 
 function parseTradeWarRankingPick(
@@ -195,6 +207,91 @@ function getTradeWarRankingRowsForProfile(
   return rankings.dynastyOneQb || [];
 }
 
+function normalizeTradeWarLookupName(value?: string | null): string {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function findTradeWarRankingRowForAsset(
+  playerId: string | null | undefined,
+  playerName: string | null | undefined,
+  rankingRows: RankingPlayer[]
+): RankingPlayer | null {
+  if (!rankingRows.length) return null;
+  const id = String(playerId || "");
+  if (id) {
+    const byId = rankingRows.find(row => String(row.player_id || "") === id);
+    if (byId) return byId;
+  }
+  const normalizedName = normalizeTradeWarLookupName(playerName);
+  if (!normalizedName) return null;
+  return (
+    rankingRows.find(row => normalizeTradeWarLookupName(row.name) === normalizedName) ||
+    null
+  );
+}
+
+function buildSyntheticWaiverTradeWarAsset({
+  playerId,
+  playerName,
+  manager,
+  playerDetailsById,
+  rankingRows,
+  assetState,
+}: {
+  playerId?: string | null;
+  playerName?: string | null;
+  manager: string;
+  playerDetailsById?: PlayerDetailsById;
+  rankingRows: RankingPlayer[];
+  assetState: TradeWarAsset["assetState"];
+}): TradeWarAsset | null {
+  const id = String(playerId || "").trim();
+  const name = String(playerName || "").trim();
+  if (!id && !name) return null;
+  const details = id ? playerDetailsById?.[id] : undefined;
+  const rankingRow = findTradeWarRankingRowForAsset(id, name, rankingRows);
+  const valueProfile = details?.valueProfile;
+  const dynastyValue =
+    valueProfile?.dynastyValue ??
+    valueProfile?.balancedValue ??
+    rankingRow?.value ??
+    0;
+  const seasonValue =
+    valueProfile?.seasonValue ??
+    valueProfile?.fantasyProsSeasonValue ??
+    rankingRow?.seasonValue ??
+    rankingRow?.value ??
+    dynastyValue;
+  return {
+    player_id: id || `waiver:${manager}:${normalizeTradeWarLookupName(name)}`,
+    name: details?.fullName || rankingRow?.name || name,
+    pos: details?.position || rankingRow?.pos || "FLEX",
+    team: details?.team || rankingRow?.team || null,
+    owner: manager === "Free Agent" ? "FA" : manager,
+    manager,
+    value: Math.round(dynastyValue || 0),
+    seasonValue: Math.round(seasonValue || 0),
+    currentPositionRank:
+      valueProfile?.dynastyPositionRank ||
+      valueProfile?.balancedPositionRank ||
+      rankingRow?.positionRank ||
+      rankingRow?.sourcePositionRank ||
+      null,
+    seasonPositionRank:
+      valueProfile?.seasonPositionRank ||
+      valueProfile?.fantasyProsPositionRank ||
+      rankingRow?.sourcePositionRank ||
+      rankingRow?.positionRank ||
+      null,
+    playerDetails: details,
+    assetState,
+    assetKind: "player",
+  } as TradeWarAsset;
+}
+
 function buildTradeWarPickAsset(
   pick: TradeWarFuturePick,
   rankingOption?: TradeWarRankingPickOption | null,
@@ -268,6 +365,28 @@ export function buildTradeWarAssetPools({
     addPlayers(row.reservePlayers, "reserve");
     addPlayers(row.taxiPlayers, "taxi");
   });
+
+  (rankingRows || [])
+    .filter(row => isTradeWarSpecialTeamsPosition(row.pos))
+    .filter(row => Boolean(row.owner))
+    .forEach(row => {
+      const playerId = row.player_id || `ranking:${row.id}`;
+      if (!playerId || baselineMapped.has(playerId)) return;
+      addAsset({
+        player_id: playerId,
+        name: row.name,
+        pos: row.pos === "DST" ? "DEF" : row.pos,
+        team: row.team || null,
+        owner: row.owner || "",
+        manager: row.owner || "",
+        value: Math.round(row.value || 0),
+        seasonValue: Math.round(row.seasonValue || row.value || 0),
+        currentPositionRank: row.positionRank || row.sourcePositionRank || null,
+        seasonPositionRank: row.sourcePositionRank || row.positionRank || null,
+        assetState: "roster",
+        assetKind: "player",
+      } as TradeWarAsset);
+    });
 
   if (leagueValueMode === "dynasty") {
     const visiblePickPortfolios = filterCompletedFuturePickPortfolios(
@@ -407,7 +526,7 @@ export function getTradeWarAssetTeam(
   player: ManagerIntelPlayer
 ): string | null | undefined {
   if ((player as TradeWarAsset).assetKind === "pick") return null;
-  return player.playerDetails?.team;
+  return player.playerDetails?.team || (player as TradeWarAsset).team;
 }
 
 export function getTradeWarModeLabel(mode: TradeWarMode): string {
@@ -1614,13 +1733,17 @@ function TradeWarAssetPills({
       <span className="trade-war-player-pills">
         <PositionRankPill rank={getTradeWarAssetRank(asset, mode) || "Pick"} />
         <span>{formatCompactValue(value)}</span>
-        {showManagerAvatar && (
-          <TradeWarManagerAvatar
-            manager={asset.manager}
-            managerAvatars={managerAvatars}
-            className="trade-war-owner-avatar trade-war-meta-owner-avatar"
-          />
-        )}
+        {showManagerAvatar ? (
+          isAvailableTradeWarAsset(asset) ? (
+            <span className="trade-war-available-pill">Available</span>
+          ) : (
+            <TradeWarManagerAvatar
+              manager={asset.manager}
+              managerAvatars={managerAvatars}
+              className="trade-war-owner-avatar trade-war-meta-owner-avatar"
+            />
+          )
+        ) : null}
       </span>
     );
   }
@@ -1630,13 +1753,17 @@ function TradeWarAssetPills({
       <TeamLogoPill team={getTradeWarAssetTeam(asset)} />
       <PositionRankPill rank={getTradeWarAssetRank(asset, mode) || asset.pos} />
       <span>{formatCompactValue(value)}</span>
-      {showManagerAvatar && (
-        <TradeWarManagerAvatar
-          manager={asset.manager}
-          managerAvatars={managerAvatars}
-          className="trade-war-owner-avatar trade-war-meta-owner-avatar"
-        />
-      )}
+      {showManagerAvatar ? (
+        isAvailableTradeWarAsset(asset) ? (
+          <span className="trade-war-available-pill">Available</span>
+        ) : (
+          <TradeWarManagerAvatar
+            manager={asset.manager}
+            managerAvatars={managerAvatars}
+            className="trade-war-owner-avatar trade-war-meta-owner-avatar"
+          />
+        )
+      ) : null}
     </span>
   );
 }
@@ -1756,6 +1883,7 @@ export default function TradeWarRoom({
   currentStandings,
   leagueValueMode: leagueValueModeInput = "dynasty",
   onScoutLeaguemates,
+  initialProposalSignal,
 }: {
   data?: ReportData["managerRosterIntelligence"];
   managerAvatars?: ManagerAvatars;
@@ -1776,6 +1904,7 @@ export default function TradeWarRoom({
   currentStandings?: ReportData["currentStandings"];
   leagueValueMode?: ReportData["leagueValueMode"];
   onScoutLeaguemates?: () => void;
+  initialProposalSignal?: NonNullable<ReportData["tradeProposalSignals"]>[number] | null;
 }) {
   const leagueValueMode = normalizeLeagueValueMode(leagueValueModeInput);
   const tradeWarModeOptions: TradeWarMode[] =
@@ -1855,6 +1984,7 @@ export default function TradeWarRoom({
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(
     null
   );
+  const appliedInitialProposalSignalRef = React.useRef<string | null>(null);
   const tradeWarRankingProfileKey =
     leagueValueMode === "dynasty"
       ? rankings?.defaultProfileKey || rankings?.selectedProfileKey || null
@@ -1914,10 +2044,48 @@ export default function TradeWarRoom({
   );
   const allAssets = assetPools.selectableAssets;
   const baselineAssets = assetPools.baselineAssets;
+  const syntheticWaiverAssets = React.useMemo(() => {
+    if (initialProposalSignal?.sourceType !== "waiver") return [];
+    const manager = initialProposalSignal.managers?.[0] || "Waiver claim";
+    const assets: TradeWarAsset[] = [];
+    const addSyntheticAsset = (
+      playerId: string | null | undefined,
+      playerName: string | null | undefined,
+      assetManager: string,
+      assetState: TradeWarAsset["assetState"]
+    ) => {
+      const asset = buildSyntheticWaiverTradeWarAsset({
+        playerId,
+        playerName,
+        manager: assetManager,
+        playerDetailsById,
+        rankingRows: tradeWarRankingRows,
+        assetState,
+      });
+      if (asset) assets.push(asset);
+    };
+    const addNames = initialProposalSignal.waiverAdds?.playerNames || [];
+    const addIds = initialProposalSignal.waiverAdds?.playerIds || [];
+    Array.from({ length: Math.max(addNames.length, addIds.length) }).forEach((_, index) =>
+      addSyntheticAsset(addIds[index], addNames[index], "Free Agent", "bench")
+    );
+    const dropNames = initialProposalSignal.waiverDrops?.playerNames || [];
+    const dropIds = initialProposalSignal.waiverDrops?.playerIds || [];
+    Array.from({ length: Math.max(dropNames.length, dropIds.length) }).forEach((_, index) =>
+      addSyntheticAsset(dropIds[index], dropNames[index], manager, "roster")
+    );
+    return assets;
+  }, [initialProposalSignal, playerDetailsById, tradeWarRankingRows]);
+  const selectableAssets = React.useMemo(() => {
+    if (!syntheticWaiverAssets.length) return allAssets;
+    const mapped = new Map(allAssets.map(asset => [asset.player_id, asset]));
+    syntheticWaiverAssets.forEach(asset => mapped.set(asset.player_id, asset));
+    return Array.from(mapped.values());
+  }, [allAssets, syntheticWaiverAssets]);
 
   const assetById = React.useMemo(
-    () => new Map(allAssets.map(asset => [asset.player_id, asset])),
-    [allAssets]
+    () => new Map(selectableAssets.map(asset => [asset.player_id, asset])),
+    [selectableAssets]
   );
   const sideAAssets = React.useMemo(
     () =>
@@ -2279,12 +2447,14 @@ export default function TradeWarRoom({
     </div>
   );
 
-  const getAssetManagerForIds = (ids: string[]) =>
+  const getAssetManagerForIds = React.useCallback((ids: string[]) =>
     ids
       .map(id => assetById.get(id)?.manager)
-      .find((manager): manager is string => Boolean(manager)) || "";
+      .find((manager): manager is string => Boolean(manager)) || "",
+    [assetById]
+  );
 
-  const setSideAssetPackage = (
+  const setSideAssetPackage = React.useCallback((
     sideKey: "A" | "B",
     ids: string[],
     manager = ""
@@ -2302,7 +2472,127 @@ export default function TradeWarRoom({
     setSideBIds(nextIds);
     setManagerBState(nextManager);
     setQueryB("");
-  };
+  }, [assetById, getAssetManagerForIds]);
+
+  React.useEffect(() => {
+    if (!initialProposalSignal) return;
+    const signalKey = `${initialProposalSignal.id}:${initialProposalSignal.date}`;
+    if (appliedInitialProposalSignalRef.current === signalKey) return;
+    if (!selectableAssets.length) return;
+
+    const targetPlayerIds = new Set(initialProposalSignal.playerIds || []);
+    const matchedAssets = selectableAssets.filter(asset =>
+      targetPlayerIds.has(asset.player_id)
+    );
+    appliedInitialProposalSignalRef.current = signalKey;
+
+    if (
+      initialProposalSignal.sourceType === "waiver" &&
+      tradeWarModeOptions.includes("waiver-leverage")
+    ) {
+      setMode("waiver-leverage");
+      const manager = initialProposalSignal.managers?.[0] || "";
+      const getWaiverAssetIds = ({
+        ids,
+        names,
+        assetManager,
+      }: {
+        ids: string[];
+        names: string[];
+        assetManager: string;
+      }) =>
+        Array.from({ length: Math.max(ids.length, names.length) })
+          .map((_, index) => {
+            const id = ids[index] || "";
+            if (id && assetById.has(id)) return id;
+            return `waiver:${assetManager}:${normalizeTradeWarLookupName(names[index])}`;
+          })
+          .filter(id => assetById.has(id));
+      const addIds = getWaiverAssetIds({
+        ids: initialProposalSignal.waiverAdds?.playerIds || [],
+        names: initialProposalSignal.waiverAdds?.playerNames || [],
+        assetManager: "Free Agent",
+      });
+      const dropIds = getWaiverAssetIds({
+        ids: initialProposalSignal.waiverDrops?.playerIds || [],
+        names: initialProposalSignal.waiverDrops?.playerNames || [],
+        assetManager: manager || "Waiver claim",
+      });
+      setSideAssetPackage("A", dropIds, manager);
+      setSideAssetPackage("B", addIds, "Free Agent");
+      return;
+    }
+
+    if (!matchedAssets.length) return;
+
+    if (initialProposalSignal.tradeSides?.length) {
+      const orderedTradeManagers = Array.from(
+        new Set([
+          ...(initialProposalSignal.managers || []),
+          ...initialProposalSignal.tradeSides.map(side => side.manager),
+        ])
+      ).filter(Boolean);
+      const firstTradeManager = orderedTradeManagers[0];
+      const secondTradeManager = orderedTradeManagers[1];
+      const getOutgoingIdsForManager = (manager: string) =>
+        initialProposalSignal.tradeSides
+          ?.filter(side => side.manager !== manager)
+          .flatMap(side => side.playerIds || [])
+          .filter(id => {
+            const asset = assetById.get(id);
+            return Boolean(asset && asset.manager === manager);
+          }) || [];
+
+      if (firstTradeManager) {
+        setSideAssetPackage(
+          "A",
+          getOutgoingIdsForManager(firstTradeManager),
+          firstTradeManager
+        );
+      }
+      if (secondTradeManager) {
+        setSideAssetPackage(
+          "B",
+          getOutgoingIdsForManager(secondTradeManager),
+          secondTradeManager
+        );
+      } else {
+        setSideAssetPackage("B", [], "");
+      }
+      return;
+    }
+
+    const groupedByManager = new Map<string, string[]>();
+    matchedAssets.forEach(asset => {
+      const ids = groupedByManager.get(asset.manager) || [];
+      ids.push(asset.player_id);
+      groupedByManager.set(asset.manager, ids);
+    });
+
+    const orderedManagers = Array.from(
+      new Set([
+        ...(initialProposalSignal.managers || []),
+        ...matchedAssets.map(asset => asset.manager),
+      ])
+    ).filter(manager => groupedByManager.has(manager));
+    const firstManager = orderedManagers[0];
+    const secondManager = orderedManagers[1];
+
+    if (firstManager) {
+      setSideAssetPackage("A", groupedByManager.get(firstManager) || [], firstManager);
+    }
+    if (secondManager) {
+      setSideAssetPackage("B", groupedByManager.get(secondManager) || [], secondManager);
+    } else {
+      setSideAssetPackage("B", [], "");
+    }
+  }, [
+    assetById,
+    initialProposalSignal,
+    selectableAssets,
+    setSideAssetPackage,
+    tradeWarModeOptions,
+  ]);
 
   const addAssetToSide = (sideKey: "A" | "B", asset: TradeWarAsset) => {
     const hasMatchingAsset = (ids: string[]) =>
@@ -2668,7 +2958,7 @@ export default function TradeWarRoom({
       query,
       sideManager: manager,
       otherManager,
-      allAssets,
+      allAssets: selectableAssets,
       selectedAllIds,
       mode,
     });
