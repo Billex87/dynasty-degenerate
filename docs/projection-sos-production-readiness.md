@@ -35,6 +35,7 @@ The run is production-ready only when all of these are true:
 - `draftsharks-sos-v1` is loaded and not stale.
 - `nfl-schedule-games-v1` is loaded and not stale.
 - `player-projection-snapshots-v1` weekly rows are ready for the active scoring profiles.
+- Sleeper matchup context probe passes for the target league: matchup IDs, paired opponent rosters, submitted starters, player-points row metadata, and stored projection coverage are present.
 - Projection-off mode fails closed with weekly projections blocked, no stored projection claims, and schedule/value fallback preserved.
 - Projection-on mode passes readiness with fresh projection, schedule, and mapping evidence.
 - `playoffSchedulePlanning.managerPlans` and `playoffSchedulePlanning.actionItems` are present.
@@ -89,6 +90,7 @@ Treat any of these as a release blocker:
 - Weekly projection snapshots missing, stale, or not mapped to the active scoring profiles.
 - Projection-off responses contain stored weekly projection claims.
 - Projection-on responses lack lineup strength, redraft valuation, matchup previews, playoff plans, playoff action items, or waiver priority windows.
+- Sleeper matchup context probe lacks matchup IDs, paired opponent rosters, submitted starters, player-points row metadata, or stored projection coverage for the target league.
 - Playoff action items are missing confidence or exceed the projection-off fallback cap.
 - Normal report loads require live non-Sleeper provider calls.
 

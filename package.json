@@ -57,7 +57,7 @@
     "probe:projection-sos-readiness": "tsx scripts/probe-projection-sos-readiness.ts",
     "verify:projection-sos": "pnpm run verify:projection-sos-rollout",
     "verify:projection-sos-rollout": "tsx scripts/verify-projection-sos-rollout.ts",
-    "readiness:projection-sos": "pnpm run audit:source-freshness && pnpm run verify:projection-sos -- --league-id=${PROJECTION_SOS_READINESS_LEAGUE_ID:-1312139584427012096}",
+    "readiness:projection-sos": "pnpm run audit:source-freshness && pnpm run probe:sleeper-matchup-context -- --league-id=${PROJECTION_SOS_READINESS_LEAGUE_ID:-1312139584427012096} && pnpm run verify:projection-sos -- --league-id=${PROJECTION_SOS_READINESS_LEAGUE_ID:-1312139584427012096}",
     "audit:neon-transfer": "node scripts/audit-neon-transfer.mjs",
     "audit:report-payload": "node scripts/audit-report-payload.mjs",
     "audit:report-hotspots": "node scripts/audit-report-hotspots.mjs",

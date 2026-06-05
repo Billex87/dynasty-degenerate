@@ -1154,6 +1154,7 @@
 ### Matchup Preview - Waiting on Real Schedule Data
 - [x] After the NFL schedule release, confirm Sleeper exposes current-week matchup IDs, opponent rosters, submitted lineups, and projection context for the target leagues.
   - 2026-06-05 backend readiness probe: added `pnpm run probe:sleeper-matchup-context`, which checks target leagues through Sleeper-only current-state endpoints for matchup IDs, paired opponent rosters, submitted starters, and player-points row metadata, then joins those starters to stored Sleeper weekly projection snapshots without adding any non-Sleeper live report-load dependency. Unit coverage verifies ready and fail-closed metadata paths without printing raw league IDs or player IDs.
+  - 2026-06-05 readiness wiring: `pnpm run readiness:projection-sos` now runs the Sleeper matchup-context probe between source freshness and report-contract verification, so the standard projection/SOS gate proves matchup IDs, opponent pairing, submitted starters, and stored projection coverage every time.
 - [x] Add server-side matchup ingestion to populate `ReportData.matchupPreviews`.
 - [x] Keep the schedule-pending empty state for offseason and pre-schedule periods.
 - [x] Use the schedule-release feature checklist below so we do not miss other schedule-driven surfaces.
