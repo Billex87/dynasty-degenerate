@@ -42,7 +42,7 @@ Every source needs the same evidence before provider-attributed projection, sche
 | SportsDataIO/FantasyData beyond news | `research` | Blocked | No | Probe players, teams, schedule, injuries, depth charts, scoring, projections, and usage/route fields with approved credentials. |
 | Fantasy Nerds API | `blocked` | Blocked | No | Do not add or enable production key/features until current-season non-TEST rows are confirmed. |
 | GridIron Data | `research` | Blocked | No | Revisit only after key/package access exists. |
-| Dynasty Daddy source selector | `research` | Blocked | No | Capture exact source URLs/API paths, auth, terms, cadence, coverage, and feature mapping. |
+| Dynasty Daddy source selector | `research` | Blocked | No | June 5 audit captured public source-selector labels and player endpoint candidates; keep integration blocked until terms, cadence/rate limits, upstream attribution, player mapping, and privacy review pass. |
 | Official transaction source | `research` | Blocked | No | Add only after a source can classify signings, releases, waivers, and reserve moves without inference. |
 
 Run the gate audit with:
