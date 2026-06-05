@@ -200,6 +200,7 @@ function baseResult(input: {
     path: input.endpoint.path,
     season: input.season,
     scoring: input.scoring,
+    publishedAt: null,
   };
 }
 
