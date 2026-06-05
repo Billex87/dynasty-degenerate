@@ -179,10 +179,10 @@ export function buildContenderPlayoffContext(reportData: ReportData): ContenderP
   if (!contenderRows.length) return null;
   const projectionStatus = getProjectionStatus(reportData);
   const managerPlansByName = new Map(playoffSchedulePlanning.managerPlans.map((plan) => [plan.manager, plan]));
-  const managers: ContenderPlayoffManagerRead[] = contenderRows
-    .map((contender) => {
+  const managers = contenderRows
+    .flatMap((contender): ContenderPlayoffManagerRead[] => {
       const plan = managerPlansByName.get(contender.manager);
-      if (!plan) return null;
+      if (!plan) return [];
       const weeks = plan.weeks.map((week) => buildWeekRead({
         manager: contender.manager,
         week,
@@ -198,7 +198,7 @@ export function buildContenderPlayoffContext(reportData: ReportData): ContenderP
       const confidenceCapReason = projectionStatus === 'ready'
         ? null
         : 'Weekly projection readiness is not ready; contender playoff context is capped to schedule/value evidence.';
-      return {
+      return [{
         manager: contender.manager,
         rosterWindow: contender.rosterWindow,
         contenderScore: contender.contenderScore,
@@ -212,9 +212,8 @@ export function buildContenderPlayoffContext(reportData: ReportData): ContenderP
         confidenceCapReason,
         weeks,
         stashRecommendations,
-      };
-    })
-    .filter((manager): manager is ContenderPlayoffManagerRead => Boolean(manager));
+      }];
+    });
   const rows = managers.flatMap((manager) => manager.weeks);
 
   return {
