@@ -473,7 +473,7 @@ export function PlayerDetailModal({
   const scheduleProfile = details?.schedule || null;
   const scheduleRows = scheduleProfile ? [
     ['Bye Week', scheduleProfile.byeWeek !== null && scheduleProfile.byeWeek !== undefined ? `Week ${scheduleProfile.byeWeek}` : null],
-    ['Season SOS', scheduleProfile.seasonSOS !== null && scheduleProfile.seasonSOS !== undefined ? `${Math.round(scheduleProfile.seasonSOS)}%` : null],
+    ['Season SOS', scheduleProfile.seasonSOS !== null && scheduleProfile.seasonSOS !== undefined ? `${scheduleProfile.seasonSOS >= 0 ? '+' : ''}${Math.round(scheduleProfile.seasonSOS)}` : null],
     ['Schedule Tier', formatScheduleTierLabel(scheduleProfile.scheduleTier)],
     ['Streamer Weeks', formatScheduleWeekList(scheduleProfile.streamerWeeks)],
     ['Avoid Weeks', formatScheduleWeekList(scheduleProfile.avoidWeeks)],
@@ -4718,7 +4718,7 @@ function formatScheduleSummary(schedule?: PlayerSchedule | null) {
   if (!schedule) return null;
   const parts = [
     schedule.byeWeek ? `Bye W${schedule.byeWeek}` : null,
-    schedule.seasonSOS !== null && schedule.seasonSOS !== undefined ? `SOS ${Math.round(schedule.seasonSOS)}%` : null,
+    schedule.seasonSOS !== null && schedule.seasonSOS !== undefined ? `SOS ${schedule.seasonSOS >= 0 ? '+' : ''}${Math.round(schedule.seasonSOS)}` : null,
     formatScheduleTierLabel(schedule.scheduleTier),
   ].filter(Boolean);
   return parts.length ? parts.join(' · ') : null;

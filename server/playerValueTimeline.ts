@@ -724,7 +724,7 @@ function buildTimelineEvents(details?: PlayerDetails): TimelineEvent[] {
       label: details.schedule.scheduleTier === 'easy' ? 'Easy schedule' : 'Hard schedule',
       tone: details.schedule.scheduleTier === 'easy' ? 'up' : 'warning',
       detail: details.schedule.seasonSOS !== null && details.schedule.seasonSOS !== undefined
-        ? `Season SOS ${Math.round(details.schedule.seasonSOS)}%`
+        ? `Season SOS ${details.schedule.seasonSOS >= 0 ? '+' : ''}${Math.round(details.schedule.seasonSOS)}`
         : null,
     });
   }

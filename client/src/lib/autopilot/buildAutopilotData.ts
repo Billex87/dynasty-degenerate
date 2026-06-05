@@ -1776,7 +1776,8 @@ function buildWeeklyActionPlan(
           },
         } as PlayerDetails,
       }, candidate.seasonSOS !== null && candidate.seasonSOS !== undefined
-        ? clampPercent(68 + Math.max(-12, Math.min(12, 50 - candidate.seasonSOS)))
+        // seasonSOS is a signed delta (higher = easier); an easier streamer schedule lifts confidence.
+        ? clampPercent(68 + Math.max(-12, Math.min(12, candidate.seasonSOS)))
         : 64,
       candidate.note || (candidateWeeks ? `Streamer target for ${candidateWeeks}.` : 'Schedule planner streamer target.'),
       candidate.scheduleTier === 'easy' ? 'good' : candidate.scheduleTier === 'hard' ? 'warn' : 'info');

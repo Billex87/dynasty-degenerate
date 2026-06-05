@@ -390,8 +390,9 @@ function getScheduleProjectionAdjustment(playerIds: string[], playerSchedules?: 
     .map((playerId) => playerSchedules[playerId])
     .filter((schedule): schedule is PlayerScheduleProfile => Boolean(schedule))
     .map((schedule) => {
+      // seasonSOS is a signed points-vs-average delta (~ -15..+15), higher = easier.
       const sosAdjustment = typeof schedule.seasonSOS === 'number'
-        ? Math.max(-1.5, Math.min(1.5, (schedule.seasonSOS - 50) / 25))
+        ? Math.max(-1.5, Math.min(1.5, schedule.seasonSOS / 10))
         : 0;
       const tierAdjustment = schedule.scheduleTier === 'elite'
         ? 1
