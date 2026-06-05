@@ -2873,6 +2873,27 @@ function stripWeeklyProjectionFromRedraftValuation(redraftValuation: ReportData[
   };
 }
 
+function stripWeeklyProjectionFromPlayoffSchedulePlanning(
+  playoffSchedulePlanning: ReportData['playoffSchedulePlanning']
+): ReportData['playoffSchedulePlanning'] {
+  if (!playoffSchedulePlanning) return playoffSchedulePlanning;
+  return {
+    ...playoffSchedulePlanning,
+    managerPlans: (playoffSchedulePlanning.managerPlans || []).map((plan) => ({
+      ...plan,
+      weeks: (plan.weeks || []).map((week) => ({
+        ...week,
+        projectedStarterPoints: null,
+        projectionCoverage: {
+          coveredPlayerCount: 0,
+          totalPlayerCount: week.projectionCoverage?.totalPlayerCount || 0,
+          mode: 'schedule-value' as const,
+        },
+      })),
+    })),
+  };
+}
+
 export function stripWeeklyProjectionContextFromReportData(reportData: ReportData): ReportData {
   return {
     ...reportData,
@@ -2907,6 +2928,7 @@ export function stripWeeklyProjectionContextFromReportData(reportData: ReportDat
     })),
     lineupStrength: stripWeeklyProjectionFromLineupStrength(reportData.lineupStrength),
     redraftValuation: stripWeeklyProjectionFromRedraftValuation(reportData.redraftValuation),
+    playoffSchedulePlanning: stripWeeklyProjectionFromPlayoffSchedulePlanning(reportData.playoffSchedulePlanning),
     matchupPreviews: (reportData.matchupPreviews || []).filter((preview) => !/stored weekly projection/i.test(preview.source || '')),
     waiverIntelligence: reportData.waiverIntelligence
       ? {

@@ -38,6 +38,32 @@ describe("projection report sanitizer", () => {
       managerPositionCounts: [],
       lineupStrength: null,
       redraftValuation: null,
+      playoffSchedulePlanning: {
+        source: "NFL.com 2026 bye weeks + Sleeper league data + DraftSharks SOS",
+        status: "ready",
+        updatedAt: "2026-06-01T00:00:00.000Z",
+        weeks: [15, 16, 17],
+        managerPlans: [{
+          manager: "A",
+          riskScore: 2,
+          upsideScore: 1,
+          weeks: [{
+            week: 15,
+            projectedStarterPoints: 112.4,
+            projectionCoverage: {
+              coveredPlayerCount: 8,
+              totalPlayerCount: 9,
+              mode: "stored-weekly-projection-blend",
+            },
+            byePlayers: [],
+            avoidPlayers: [],
+            streamerPlayers: [],
+            note: "A has stored weekly projection context.",
+          }],
+          priorityAdds: [],
+          note: "A should cover playoff risk.",
+        }],
+      },
       matchupPreviews: [
         { source: "Submitted lineup + stored weekly projection blend", teams: [] },
         { source: "Schedule/value model", teams: [] },
@@ -85,6 +111,14 @@ describe("projection report sanitizer", () => {
 
     expect(sanitized.weeklyProjectionDiagnostics.status).toBe("blocked");
     expect(sanitized.weeklyProjectionDiagnostics.attachedPlayerCount).toBe(0);
+    expect(sanitized.playoffSchedulePlanning?.managerPlans[0]?.weeks[0]).toMatchObject({
+      projectedStarterPoints: null,
+      projectionCoverage: {
+        coveredPlayerCount: 0,
+        totalPlayerCount: 9,
+        mode: "schedule-value",
+      },
+    });
     expect(sanitized.matchupPreviews?.map((preview) => preview.source)).toEqual(["Schedule/value model"]);
     expect(JSON.stringify(sanitized.playerDetailsById)).not.toContain("weeklyProjection");
     expect(JSON.stringify(sanitized.waiverIntelligence?.availableTrendingAdds)).not.toContain("weeklyProjection");
