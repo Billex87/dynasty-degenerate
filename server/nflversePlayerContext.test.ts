@@ -275,6 +275,54 @@ describe('nflverse player context', () => {
     expect(usage[0].note).toContain('aggregate stats_player snapshot');
   });
 
+  it('builds rolling usage windows from weekly targets, carries, points, and snap rows', () => {
+    const usage = normalizeNflverseUsageRows({
+      season: '2025',
+      statsRows: [
+        { season: '2025', season_type: 'REG', week: '1', player_id: '00-usage', player_display_name: 'Usage Riser', recent_team: 'DET', position: 'WR', targets: '2', carries: '0', receptions: '1', fantasy_points_ppr: '3.1', target_share: '0.08' },
+        { season: '2025', season_type: 'REG', week: '2', player_id: '00-usage', player_display_name: 'Usage Riser', recent_team: 'DET', position: 'WR', targets: '3', carries: '0', receptions: '2', fantasy_points_ppr: '5.4', target_share: '0.11' },
+        { season: '2025', season_type: 'REG', week: '3', player_id: '00-usage', player_display_name: 'Usage Riser', recent_team: 'DET', position: 'WR', targets: '4', carries: '1', receptions: '3', fantasy_points_ppr: '8.2', target_share: '0.14' },
+        { season: '2025', season_type: 'REG', week: '4', player_id: '00-usage', player_display_name: 'Usage Riser', recent_team: 'DET', position: 'WR', targets: '8', carries: '1', receptions: '5', fantasy_points_ppr: '13.9', target_share: '0.2' },
+        { season: '2025', season_type: 'REG', week: '5', player_id: '00-usage', player_display_name: 'Usage Riser', recent_team: 'DET', position: 'WR', targets: '9', carries: '2', receptions: '6', fantasy_points_ppr: '16.5', target_share: '0.24' },
+        { season: '2025', season_type: 'REG', week: '6', player_id: '00-usage', player_display_name: 'Usage Riser', recent_team: 'DET', position: 'WR', targets: '10', carries: '2', receptions: '7', fantasy_points_ppr: '19.8', target_share: '0.26' },
+      ],
+      snapRows: [
+        { season: '2025', game_type: 'REG', player: 'Usage Riser', position: 'WR', offense_pct: '0.42' },
+        { season: '2025', game_type: 'REG', player: 'Usage Riser', position: 'WR', offense_pct: '0.64' },
+        { season: '2025', game_type: 'REG', player: 'Usage Riser', position: 'WR', offense_pct: '0.76' },
+      ],
+    });
+
+    const row = usage[0];
+    expect(row).toMatchObject({
+      gsisId: '00-usage',
+      team: 'DET',
+      games: 6,
+      targets: 36,
+      carries: 6,
+      receptions: 24,
+      fantasyPointsPpr: 66.9,
+      fantasyPointsPprPerGame: 11.2,
+      avgTargetShare: 0.172,
+      avgOffenseSnapPct: 0.607,
+      recentTargets: 31,
+      recentCarries: 6,
+      targetTrend: 'up',
+      carryTrend: 'up',
+    });
+
+    expect(row.rollingWindows?.find((window) => window.games === 3)).toMatchObject({
+      weeks: [4, 5, 6],
+      targetsPerGame: 9,
+      carriesPerGame: 1.7,
+      receptionsPerGame: 6,
+      fantasyPointsPprPerGame: 16.7,
+      targetDeltaPerGame: 3,
+      carryDeltaPerGame: 0.7,
+    });
+    expect(row.note).toContain('recent four-game targets up and carries up');
+  });
+
   it('keeps high-prospect rookies and multiple returning promotion candidates in room math', () => {
     const rooms = normalizeNflverseRosterRoomRows({
       season: '2026',
