@@ -164,4 +164,56 @@ describe('AI prediction outcome job', () => {
       }),
     });
   });
+
+  it('does not resolve predictions from blank waiver bids or missing matchup points', async () => {
+    vi.spyOn(db, 'listPendingAiPredictionEvents').mockResolvedValue([
+      event({ metadata: { faabMin: 7, faabMax: 11 } }),
+    ]);
+    const updateSpy = vi.spyOn(db, 'updateAiPredictionOutcome').mockResolvedValue(true);
+    vi.spyOn(userLoadPolicy, 'fetchUserLoadJson').mockImplementation(async (url) => {
+      const value = String(url);
+      if (value.endsWith('/league/league-1')) {
+        return { leg: 1, season: '2026', settings: { waiver_budget: 100 } };
+      }
+      if (value.endsWith('/league/league-1/users')) {
+        return [{ user_id: 'u1', display_name: 'Sample Manager' }];
+      }
+      if (value.endsWith('/league/league-1/rosters')) {
+        return [{ roster_id: 1, owner_id: 'u1', metadata: { team_name: 'The Sample Squad' } }];
+      }
+      if (value.endsWith('/league/league-1/transactions/1')) {
+        return [{
+          type: 'waiver',
+          status: 'complete',
+          adds: { p1: 1 },
+          drops: {},
+          roster_ids: [1],
+          leg: 1,
+          settings: { waiver_bid: '' },
+          created: Date.parse('2026-09-02T00:00:00.000Z'),
+        }];
+      }
+      if (value.endsWith('/league/league-1/matchups/1')) {
+        return [{
+          roster_id: 1,
+          starters: ['p1'],
+          players_points: { p1: null },
+        }];
+      }
+      return [];
+    });
+
+    const result = await resolvePendingAIPredictionOutcomes({ limit: 10 });
+
+    expect(result).toMatchObject({
+      resolved: 0,
+      pending: 1,
+      failed: 0,
+    });
+    expect(result.leagues[0]).toMatchObject({
+      transactionFactCount: 1,
+      playerStatFactCount: 0,
+    });
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
 });

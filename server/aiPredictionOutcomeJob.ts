@@ -105,6 +105,8 @@ function asRecord(value: unknown): Record<string, any> {
 }
 
 function numeric(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -303,8 +305,8 @@ function buildPlayerStatFacts(matchupsByWeek: SleeperMatchup[][], weeks: number[
     matchups.forEach((matchup) => {
       const starters = new Set((matchup.starters || []).map(String));
       Object.entries(asRecord(matchup.players_points)).forEach(([playerId, value]) => {
-        const fantasyPoints = Number(value);
-        if (!Number.isFinite(fantasyPoints)) return;
+        const fantasyPoints = numeric(value);
+        if (fantasyPoints === null) return;
         facts.push({
           playerId,
           fantasyPoints,
