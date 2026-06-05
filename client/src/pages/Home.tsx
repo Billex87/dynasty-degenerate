@@ -91,6 +91,9 @@ type SleeperTradeCenterImportSummary = {
   waiverCount: number;
 };
 
+type TradeProposalSignal = NonNullable<ReportData["tradeProposalSignals"]>[number];
+type SleeperWaiverSignal = NonNullable<ReportData["adminSleeperWaiverSignals"]>[number];
+
 type SleeperSignalWithIdentity = {
   id?: string | number | null;
   date?: string | null;
@@ -151,6 +154,38 @@ function mergeSleeperSignalLists<TSignal extends SleeperSignalWithIdentity>(
     if (Number.isFinite(bTime)) return 1;
     return 0;
   });
+}
+
+function mapSleeperWaiverSignalToTradeProposalSignal(
+  signal: SleeperWaiverSignal
+): TradeProposalSignal {
+  const playerNames = Array.from(
+    new Set([...(signal.playerNames || []), ...(signal.dropPlayerNames || [])])
+  );
+  const playerIds = Array.from(
+    new Set([...(signal.playerIds || []), ...(signal.dropPlayerIds || [])])
+  );
+
+  return {
+    id: signal.id,
+    date: signal.date,
+    status: signal.status,
+    managers: signal.managers,
+    playerIds,
+    playerNames,
+    pickLabels: [],
+    sourceType: "waiver",
+    waiverAdds: {
+      playerIds: signal.playerIds || [],
+      playerNames: signal.playerNames || [],
+    },
+    waiverDrops: {
+      playerIds: signal.dropPlayerIds || [],
+      playerNames: signal.dropPlayerNames || [],
+    },
+    waiverBid: signal.bidAmount,
+    note: signal.note,
+  };
 }
 
 export default function Home() {
@@ -640,6 +675,13 @@ export default function Home() {
     setReportData(current => {
       if (!current) return current;
 
+      const importedDisplaySignals = [
+        ...filterPendingSleeperSignals(result.tradeProposalSignals),
+        ...filterPendingSleeperSignals(result.waiverSignals).map(
+          mapSleeperWaiverSignalToTradeProposalSignal
+        ),
+      ];
+
       return {
         ...current,
         adminSleeperTradeProposalSignals: mergeSleeperSignalLists(
@@ -654,6 +696,10 @@ export default function Home() {
           ...(current.currentPositionRankById || {}),
           ...(result.currentPositionRankById || {}),
         },
+        tradeProposalSignals: mergeSleeperSignalLists(
+          current.tradeProposalSignals,
+          importedDisplaySignals
+        ),
         sleeperHiddenLeagueSnapshot: result.sleeperHiddenLeagueSnapshot,
       };
     });

@@ -1653,7 +1653,6 @@ export function ReportTradesTab({
   const mobileFallbackTelemetryRef = useRef(false);
   const isMobileBrowser = useMemo(() => isLikelyMobileBrowser(), []);
   const hasImportedSleeperActivity =
-    Boolean(reportData.sleeperHiddenLeagueSnapshot) ||
     Boolean(reportData.adminSleeperTradeProposalSignals?.length) ||
     Boolean(reportData.adminSleeperWaiverSignals?.length);
 
