@@ -13,10 +13,11 @@ The local key is configured. June 5, 2026 paced expanded/projection probes retur
 
 - Earlier same-day probe loaded current rows: `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, `ROOKIES`, `ADP`, `DYNADP`, `RKADP`, `players` with 8,434 rows, `news` with 25 rows, `injuries` with 6 rows, `player-points` with 2,166 rows, `compare-players`, and `projections` with 597 rows.
 - Later same-day full expanded/projection rerun stopped on `429` at `weekly-ecr:DST:week1` after loading ranking/player/news/injury/player-points metadata; remaining expanded endpoints and projections were skipped.
+- Latest same-day full expanded/projection rerun stopped immediately on `429` at `rankings:DRAFT`; every remaining endpoint was skipped by the stop-on-429 guard.
 - Weekly ECR: Week 1 position-specific `QB`/`RB`/`WR`/`TE`/`K`/`DST` requests returned rows with `last_updated` of `5/18`; Week 2 and Week 3 returned `200` with zero rows and `last_updated` of `1/01`.
 - Reachable but currently empty: `WW` rankings for Week 1 returned `200` with zero rows and `last_updated` of `1/01`.
 - Blocked for this key/package: `targets` and `articles` returned `403 Forbidden`.
-- Rate-limit behavior: the latest full rerun hit `429`, so the expanded/projection cadence is not validated under normal rate limits.
+- Rate-limit behavior: the latest full rerun hit `429` before the first rankings payload completed, so the expanded/projection cadence is not validated under normal rate limits.
 
 Current gate status:
 

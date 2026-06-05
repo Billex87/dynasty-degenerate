@@ -33,7 +33,7 @@ Every source needs the same evidence before provider-attributed projection, sche
 | Full NFL schedule snapshot | `approved-for-snapshot` | Snapshot only | No | Keep source/version evidence attached to every new `nfl-schedule-games-v1` snapshot. |
 | DraftSharks SOS snapshot | `approved-for-snapshot` | Snapshot only | No | Keep weekly/manual snapshot evidence and stale-row fallback visible in source freshness. |
 | Sleeper weekly projection snapshots | `approved-for-snapshot` | Snapshot only | No | Keep projection-off sanitizer and readiness checks proving fail-closed fallback. |
-| FantasyPros projections | `research` | Blocked | No | June 5 metadata probe returned `200` with 597 rows, but a later expanded/projection rerun hit `429` before projection endpoints; keep model/public use blocked until source rights, stored freshness, normal cadence/rate limits, mapping coverage, and attribution are approved. |
+| FantasyPros projections | `research` | Blocked | No | June 5 metadata probes proved the endpoint can return rows, but the latest expanded/projection rerun hit `429` at the first `rankings:DRAFT` request and skipped projections; keep model/public use blocked until source rights, stored freshness, normal cadence/rate limits, mapping coverage, and attribution are approved. |
 | FantasyPros `WW` rankings | `research` | Snapshot only | No | Recheck closer to season and require non-zero rows before waiver-priority use. |
 | FantasyPros targets | `blocked` | Blocked | No | Keep target snapshots off until package access returns `200`. |
 | FantasyPros articles | `blocked` | Blocked | No | Keep article snapshots off until package access and editorial-use terms are approved. |
@@ -73,11 +73,21 @@ pnpm run audit:zero-row-valuation-sources
 
 Latest FantasyPros metadata evidence from June 5, 2026:
 
-- `projections`: earlier probe returned `200` with 597 rows, but the later expanded/projection rerun hit `429` at `weekly-ecr:DST:week1` before projection endpoints completed; research-only until source rights, stored freshness metadata, normal cadence/rate limits, mapping coverage, and attribution are approved.
+- Latest full expanded/projection rerun: `rankings:DRAFT` returned `429 Too Many Requests`; `ROS`, `DYNASTY`, `DEVY`, `ROOKIES`, `ADP`, `DYNADP`, `RKADP`, `players`, `news`, `injuries`, `player-points`, `WW`, weekly ECR, `targets`, `articles`, `compare-players`, and `projections` were skipped by the stop-on-429 guard.
+- `projections`: earlier same-day probe returned `200` with 597 rows, but the latest full rerun did not reach projections; research-only until source rights, stored freshness metadata, normal cadence/rate limits, mapping coverage, and attribution are approved.
 - weekly ECR Week 1: `200` with non-zero position rows; Weeks 2 and 3 returned `200` with zero rows and `last_updated` of `1/01`.
 - `WW` Week 1: `200` with zero rows and `last_updated` of `1/01`; do not use for waiver priority.
 - `targets` and `articles`: `403 Forbidden`; keep snapshots blocked.
 - `players`, `news`, `injuries`, and `player-points`: reachable in metadata probes; production model use still requires the gate evidence above.
+
+Current legal/source evidence from official terms checks on June 5, 2026:
+
+- FantasyPros public API terms are personal/non-commercial by default, include low published call limits, require attribution for published work based on API data, and prohibit competing products without separate approval.
+- SportsDataIO Discovery Lab is not licensed for commercial redistribution; its commercial Leagues API requires a sales conversation and commercial agreement.
+- Sleeper's public API is read-only, tokenless, and documents a frequency guideline, but hidden account-level pending/failed/skipped transactions are not covered by the public API.
+- GridIron Data publishes subscription tiers and rate limits, but its terms prohibit unauthorized resale/redistribution and require use only for the subscribed purpose.
+
+These terms checks are evidence for a human/legal review. They are not legal approval and do not move any gate to `approved-for-public-claim`.
 
 ## Dated Follow-Ups
 
