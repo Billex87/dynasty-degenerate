@@ -2,7 +2,7 @@
 
 Chrome extension for importing pending Sleeper trade and waiver activity into Dynasty Degens without copying Authorization headers.
 
-## Phase 1 scope
+## Scope
 
 - Read-only capture only.
 - Runs only on Sleeper league activity pages: Trades, Players/Waivers, and Transactions, plus `http://localhost:3000/*`, `https://dynastydegens.com/*`, and `https://www.dynastydegens.com/*`.
@@ -10,9 +10,17 @@ Chrome extension for importing pending Sleeper trade and waiver activity into Dy
 - Keeps the latest sanitized capture in Chrome session storage and clears it when the browser session ends.
 - Lets Dynasty Degens request a fresh capture from the app button; the popup remains a manual fallback only.
 
-## Install for beta testing
+## Install from Chrome Web Store
 
-Use this while the helper is still an unpacked Chrome extension.
+Use the published Chrome Web Store listing:
+
+`https://chromewebstore.google.com/detail/dynasty-degens-transactio/hfbmbbcndhdoldlofakfbengicobmgpp`
+
+After installing, open Dynasty Degens on desktop Chrome and use the Trades tab import button.
+
+## Install unpacked for local testing
+
+Use this only for local development or package QA.
 
 1. Open Chrome Extensions: `chrome://extensions`.
 2. Enable Developer mode.

@@ -1,6 +1,6 @@
 # Chrome Web Store Listing Draft
 
-Use this as the Chrome Developer Dashboard copy source for the first beta submission.
+Use this as the Chrome Developer Dashboard copy source for listing edits.
 
 ## Name
 
@@ -16,15 +16,9 @@ Dynasty Degens Transaction Sync connects your logged-in Sleeper web session to D
 
 Sleeper's public API does not expose a user's private pending trade offers or waiver claims. This helper runs only when you start an import from Dynasty Degens, watches the supported Sleeper league pages that open in your own Chrome profile, and sends Dynasty Degens a sanitized pending-transaction snapshot for roster and Trade War Room analysis.
 
-The helper is intentionally narrow:
+The helper is intentionally narrow. It runs only on supported Sleeper league activity pages and Dynasty Degens. It captures Sleeper pending trade and waiver transaction responses already visible to your logged-in browser. It strips those responses down to player IDs, roster IDs, transaction IDs, bid fields, draft picks, type, status, and timestamps. It sends sanitized transaction snapshots to Dynasty Degens only after you start an import. It stores captured snapshots only in Chrome session storage.
 
-- It runs only on supported Sleeper league activity pages and Dynasty Degens.
-- It captures Sleeper pending trade and waiver transaction responses already visible to your logged-in browser.
-- It strips those responses down to player IDs, roster IDs, transaction IDs, bid fields, draft picks, type, status, and timestamps.
-- It sends sanitized transaction snapshots to Dynasty Degens only after the user starts an import.
-- It stores captured snapshots only in Chrome session storage.
-
-The helper does not read, display, store, or transmit Sleeper Authorization headers, cookies, passwords, emails, or arbitrary profile metadata. It does not submit trades, waivers, lineups, accepts, rejects, or any account-changing action.
+The helper does not read, display, store, or transmit Sleeper Authorization headers, cookies, passwords, emails, or arbitrary profile metadata. It does not submit trades, waivers, lineups, accepts, rejects, or any other account-changing action.
 
 ## Single purpose
 
@@ -38,9 +32,11 @@ Sports
 
 English
 
-## Suggested initial visibility
+## Current visibility
 
-Use `Unlisted` or trusted tester distribution for the first beta review, then move to public after the real-user import flow is stable.
+Published Chrome Web Store listing:
+
+`https://chromewebstore.google.com/detail/dynasty-degens-transactio/hfbmbbcndhdoldlofakfbengicobmgpp`
 
 ## Permissions justification
 
@@ -83,6 +79,12 @@ To test:
 Expected result: pending trades and waiver claims appear in Pending Trade Offers and can be opened in Trade War Room.
 
 If reviewers do not have a Sleeper league with pending activity, the extension should still show as installed and detected on the Dynasty Degens Trades tab, but no pending items will import because Sleeper did not expose any current pending activity.
+
+## Current public listing QA notes
+
+- Public listing name, short description, version, privacy disclosure, and support links are correct.
+- Public listing currently has five screenshots.
+- Chrome Web Store does not preserve Markdown bullets inside the detailed description reliably, so use the paragraph version above for future dashboard edits.
 
 ## Screenshot plan
 

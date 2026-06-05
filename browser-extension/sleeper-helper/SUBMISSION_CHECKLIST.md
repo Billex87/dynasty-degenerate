@@ -1,6 +1,10 @@
-# Dynasty Degens Transaction Sync Submission Checklist
+# Dynasty Degens Transaction Sync Store Checklist
 
-Use this checklist for the first Chrome Web Store beta submission.
+Use this checklist for Chrome Web Store package or listing updates.
+
+Published listing:
+
+`https://chromewebstore.google.com/detail/dynasty-degens-transactio/hfbmbbcndhdoldlofakfbengicobmgpp`
 
 ## Package
 
@@ -14,7 +18,7 @@ Use this checklist for the first Chrome Web Store beta submission.
 
 - Name: `Dynasty Degens Transaction Sync`.
 - Short description: `Read-only helper that imports pending Sleeper trades and waivers into Dynasty Degens.`
-- Detailed description: use `STORE_LISTING.md`.
+- Detailed description: use the dashboard-safe paragraph copy in `STORE_LISTING.md`.
 - Category: `Sports`.
 - Language: `English`.
 - Website: `https://dynastydegens.com`.
@@ -68,8 +72,8 @@ Expected result: pending trades and waiver claims appear in Pending Trade Offers
 If the reviewer does not have a Sleeper league with pending activity, the extension should still show as installed and detected on the Dynasty Degens Trades tab, but no pending items will import because Sleeper did not expose current pending activity.
 ```
 
-## Beta release recommendation
+## Release recommendation
 
-- Submit as unlisted or trusted tester distribution first.
-- Use deferred publishing if available so the approved item can be manually released.
-- After approval, test the store-installed extension against `https://dynastydegens.com/?leagueId=1312139584427012096#trades`.
+- Use deferred publishing if available for package changes so the approved item can be manually released.
+- After approval or listing edits, test the store-installed extension against `https://dynastydegens.com/?leagueId=1312139584427012096#trades`.
+- Confirm the public listing still shows the correct privacy disclosure: `Website content`.
