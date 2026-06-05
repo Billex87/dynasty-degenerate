@@ -1,4 +1,10 @@
-const LOCAL_APP_ORIGIN = "http://localhost:3000";
+const DEFAULT_APP_ORIGIN = "https://dynastydegens.com";
+const APP_ORIGINS = [
+  "https://dynastydegens.com",
+  "https://www.dynastydegens.com",
+  "http://localhost:3000"
+];
+const APP_URL_PATTERNS = APP_ORIGINS.map((origin) => `${origin}/*`);
 const SLEEPER_ACTIVITY_URL_PATTERNS = [
   "https://sleeper.com/leagues/*/trades*",
   "https://sleeper.com/leagues/*/players*",
@@ -114,13 +120,20 @@ function waitForTabComplete(tabId) {
 }
 
 async function getOrOpenAppTab(snapshot) {
-  const appUrl = `${LOCAL_APP_ORIGIN}/?leagueId=${encodeURIComponent(snapshot.leagueId)}#trades`;
-  const tabs = await chrome.tabs.query({ url: `${LOCAL_APP_ORIGIN}/*` });
+  const tabGroups = await Promise.all(
+    APP_URL_PATTERNS.map((url) => chrome.tabs.query({ url }))
+  );
+  const tabs = tabGroups.flat();
+  const existingTab = tabs.find((tab) => tab.id && tab.url);
+  const appOrigin = existingTab?.url
+    ? new URL(existingTab.url).origin
+    : DEFAULT_APP_ORIGIN;
+  const appUrl = `${appOrigin}/?leagueId=${encodeURIComponent(snapshot.leagueId)}#trades`;
 
-  if (tabs.length > 0 && tabs[0].id) {
-    await chrome.tabs.update(tabs[0].id, { url: appUrl });
-    await waitForTabComplete(tabs[0].id);
-    return tabs[0].id;
+  if (existingTab?.id) {
+    await chrome.tabs.update(existingTab.id, { url: appUrl });
+    await waitForTabComplete(existingTab.id);
+    return existingTab.id;
   }
 
   const tab = await chrome.tabs.create({ url: appUrl, active: false });
@@ -169,7 +182,7 @@ sendButton.addEventListener("click", async () => {
     await sendSnapshotToApp(latestSnapshot);
     setMessage("Sent snapshot to Dynasty Degens.");
   } catch (error) {
-    setMessage("Could not reach the Dynasty Degens app tab. Reload localhost and try again.", "error");
+    setMessage("Could not reach Dynasty Degens. Open the app, reload the extension, and try again.", "error");
   } finally {
     sendButton.disabled = !latestSnapshot;
   }
@@ -178,8 +191,8 @@ sendButton.addEventListener("click", async () => {
 openButton.addEventListener("click", async () => {
   const leagueId = latestSnapshot?.leagueId || "";
   const url = leagueId
-    ? `${LOCAL_APP_ORIGIN}/?leagueId=${encodeURIComponent(leagueId)}#trades`
-    : LOCAL_APP_ORIGIN;
+    ? `${DEFAULT_APP_ORIGIN}/?leagueId=${encodeURIComponent(leagueId)}#trades`
+    : DEFAULT_APP_ORIGIN;
   await chrome.tabs.create({ url, active: true });
 });
 

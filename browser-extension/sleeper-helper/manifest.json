@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Dynasty Degens Sleeper Helper",
-  "version": "0.1.0",
-  "description": "Read-only local helper that captures pending Sleeper trade and waiver snapshots for Dynasty Degens.",
+  "version": "0.1.1",
+  "description": "Read-only helper that captures pending Sleeper trade and waiver snapshots for Dynasty Degens.",
   "action": {
     "default_title": "Sleeper Helper",
     "default_popup": "popup.html"
@@ -16,7 +16,9 @@
     "https://sleeper.com/leagues/*/players*",
     "https://sleeper.com/leagues/*/waivers*",
     "https://sleeper.com/leagues/*/transactions*",
-    "http://localhost:3000/*"
+    "http://localhost:3000/*",
+    "https://dynastydegens.com/*",
+    "https://www.dynastydegens.com/*"
   ],
   "content_scripts": [
     {
@@ -30,7 +32,11 @@
       "run_at": "document_start"
     },
     {
-      "matches": ["http://localhost:3000/*"],
+      "matches": [
+        "http://localhost:3000/*",
+        "https://dynastydegens.com/*",
+        "https://www.dynastydegens.com/*"
+      ],
       "js": ["content/app-bridge.js"],
       "run_at": "document_start"
     }

@@ -1,4 +1,3 @@
-const LOCAL_APP_ORIGIN = "http://localhost:3000";
 const SLEEPER_ACTIVITY_SLUGS = ["trades", "players"];
 const CAPTURE_TIMEOUT_MS = 14000;
 const CAPTURE_POLL_MS = 900;
