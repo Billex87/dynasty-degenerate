@@ -188,6 +188,20 @@ function classifyTransactionSyncError(detail?: string | null): string {
   return "unknown";
 }
 
+function isLikelyDesktopChromeBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (isLikelyMobileBrowser()) return false;
+  const userAgent = navigator.userAgent || "";
+  const vendor = navigator.vendor || "";
+  return (
+    /Chrome\//.test(userAgent) &&
+    vendor === "Google Inc." &&
+    !/Edg\//.test(userAgent) &&
+    !/OPR\//.test(userAgent) &&
+    !/SamsungBrowser\//.test(userAgent)
+  );
+}
+
 function trackTransactionSyncEvent(
   action: TransactionSyncTelemetryAction,
   properties: TransactionSyncTelemetryProperties = {}
@@ -1652,6 +1666,9 @@ export function ReportTradesTab({
   const helperDetectedTelemetryRef = useRef(false);
   const mobileFallbackTelemetryRef = useRef(false);
   const isMobileBrowser = useMemo(() => isLikelyMobileBrowser(), []);
+  const isDesktopChromeBrowser = useMemo(() => isLikelyDesktopChromeBrowser(), []);
+  const isUnsupportedTransactionSyncBrowser =
+    !isMobileBrowser && !isDesktopChromeBrowser;
   const hasImportedSleeperActivity =
     Boolean(reportData.adminSleeperTradeProposalSignals?.length) ||
     Boolean(reportData.adminSleeperWaiverSignals?.length);
@@ -1946,6 +1963,18 @@ export function ReportTradesTab({
       return;
     }
 
+    if (isUnsupportedTransactionSyncBrowser) {
+      trackTransactionSyncEvent("import_failed", {
+        leagueId,
+        stage: "browser_support",
+        reason: "desktop_chrome_required",
+      });
+      setHelperError(
+        "Transaction Sync requires desktop Chrome. Open this report in desktop Chrome, install the Chrome Web Store extension, then click Import Pending Transactions there."
+      );
+      return;
+    }
+
     if (!helperDetected) {
       trackTransactionSyncEvent("install_link_clicked", {
         leagueId,
@@ -2072,9 +2101,13 @@ export function ReportTradesTab({
                       Import pending Sleeper trades and waivers
                     </h3>
                     <p className="max-w-3xl text-sm leading-6 text-slate-300">
-                      Desktop Chrome only. Install Transaction Sync once, then
-                      click once to open Sleeper, capture sanitized pending
-                      transaction data, and import it back into this report.
+                      {helperDetected
+                        ? "Transaction Sync is ready. Click once to open Sleeper, capture sanitized pending transaction data, and import it back into this report."
+                        : isMobileBrowser
+                          ? "Desktop Chrome required. Chrome extensions do not run on iPhone, iPad, or Android Chrome, so send this report to desktop Chrome to import pending Sleeper activity."
+                          : isUnsupportedTransactionSyncBrowser
+                            ? "Desktop Chrome required. Open this report in Chrome, install Transaction Sync once, then import pending Sleeper activity from there."
+                            : "Install Transaction Sync once from the Chrome Web Store, then click once to open Sleeper, capture sanitized pending transaction data, and import it back into this report."}
                     </p>
                   </div>
                 </div>
@@ -2092,9 +2125,11 @@ export function ReportTradesTab({
                       ? `Captured ${helperTransactionCount} pending item${helperTransactionCount === 1 ? "" : "s"}`
                       : isMobileBrowser
                         ? "Send this report to desktop"
+                      : isUnsupportedTransactionSyncBrowser
+                        ? "Desktop Chrome required"
                       : helperDetected
                         ? "Transaction Sync detected"
-                        : "Waiting for Transaction Sync"}
+                      : "Waiting for Transaction Sync"}
                   </p>
                   <p className="mt-1 text-xs leading-5 text-slate-400">
                     {isHelperImporting
@@ -2103,9 +2138,11 @@ export function ReportTradesTab({
                       ? `${helperTradeCount} trades, ${helperWaiverCount} waiver claims captured ${new Date(helperSnapshot.capturedAt).toLocaleString()}.`
                       : isMobileBrowser
                         ? "Transaction Sync requires desktop Chrome. Copy this report link, open it on desktop Chrome, install the extension, then import pending Sleeper trades and waivers there."
+                      : isUnsupportedTransactionSyncBrowser
+                        ? "This browser cannot run Transaction Sync. Open this report in desktop Chrome, install the extension once, then import pending trades and waivers there."
                       : helperDetected
                         ? "Ready. The helper will open Sleeper, refresh the right pages, and import the latest pending snapshot."
-                        : "Install Transaction Sync from the Chrome Web Store, then refresh this Dynasty Degens tab."}
+                        : "Install Transaction Sync from the Chrome Web Store, refresh this Dynasty Degens tab, then click Import Pending Transactions."}
                   </p>
                   {isMobileBrowser ? (
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -2139,6 +2176,36 @@ export function ReportTradesTab({
                         className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black text-slate-200 transition hover:border-white/20 hover:bg-white/10"
                       >
                         Desktop extension
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                      </a>
+                    </div>
+                  ) : isUnsupportedTransactionSyncBrowser ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={copyReportLinkForDesktop}
+                        className="h-9 rounded-full border-cyan-300/30 bg-cyan-300/10 px-3 text-xs font-black text-cyan-100 hover:border-cyan-200/60 hover:bg-cyan-300/20"
+                      >
+                        {copyReportLinkStatus === "copied"
+                          ? "Report link copied"
+                          : copyReportLinkStatus === "error"
+                            ? "Copy failed"
+                            : "Copy report link"}
+                      </Button>
+                      <a
+                        href={TRANSACTION_SYNC_CHROME_WEB_STORE_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() =>
+                          trackTransactionSyncEvent("install_link_clicked", {
+                            leagueId,
+                            surface: "unsupported_desktop_fallback",
+                          })
+                        }
+                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black text-slate-200 transition hover:border-white/20 hover:bg-white/10"
+                      >
+                        Chrome extension
                         <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                       </a>
                     </div>
