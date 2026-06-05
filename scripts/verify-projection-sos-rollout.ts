@@ -658,7 +658,11 @@ function validateReportContract(input: {
       matchupPreviews: reportData.matchupPreviews,
       lineupStrength: reportData.lineupStrength,
       redraftValuation: reportData.redraftValuation,
-        waiverIntelligence: reportData.waiverIntelligence,
+      waiverIntelligence: reportData.waiverIntelligence,
+      dynastyContentionContext: reportData.dynastyContentionContext,
+      rookieDevelopmentContext: reportData.rookieDevelopmentContext,
+      tradeRecommendationContext: reportData.tradeRecommendationContext,
+      contenderPlayoffContext: reportData.contenderPlayoffContext,
       })) {
       failures.push('projection-off report still contains stored weekly projection claims');
     }

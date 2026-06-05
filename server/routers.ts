@@ -2874,9 +2874,33 @@ function cloneReportWithViewerManager(payload: any, viewerUserId?: string | null
 }
 
 function stripWeeklyProjectionFromPlayer<T extends Record<string, any> | null | undefined>(player: T): T {
-  if (!player || typeof player !== 'object' || !('weeklyProjection' in player)) return player;
-  const { weeklyProjection: _weeklyProjection, ...rest } = player;
-  return rest as T;
+  if (!player || typeof player !== 'object') return player;
+  const {
+    weeklyProjection: _weeklyProjection,
+    projectedPoints: _projectedPoints,
+    projectedFantasyPoints: _projectedFantasyPoints,
+    projection: _projection,
+    fantasyProjection: _fantasyProjection,
+    ...rest
+  } = player;
+  const stripped = rest as Record<string, any>;
+  if (stripped.valueProfile && typeof stripped.valueProfile === 'object') {
+    const {
+      weeklyProjection: _valueWeeklyProjection,
+      projectedPoints: _valueProjectedPoints,
+      projectedFantasyPoints: _valueProjectedFantasyPoints,
+      projection: _valueProjection,
+      fantasyProjection: _valueFantasyProjection,
+      fantasyProsProjection: _valueFantasyProsProjection,
+      fantasyProsProjectedPoints: _valueFantasyProsProjectedPoints,
+      ...valueProfileRest
+    } = stripped.valueProfile as Record<string, any>;
+    stripped.valueProfile = valueProfileRest;
+  }
+  if (stripped.playerDetails && typeof stripped.playerDetails === 'object') {
+    stripped.playerDetails = stripWeeklyProjectionFromPlayer(stripped.playerDetails);
+  }
+  return stripped as T;
 }
 
 function stripWeeklyProjectionFromPlayerArray<T>(players?: T[] | null): T[] | undefined {

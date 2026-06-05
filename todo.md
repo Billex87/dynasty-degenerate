@@ -742,6 +742,7 @@
 - [x] Add regression tests for schedule parsing, team-code normalization, projection normalization, identity matching, scoring conversion, stale-source fallback, and user-load provider guards.
 - [ ] Add Playwright coverage for Overview, Matchup Preview, Player Detail, Autopilot, Rankings, waiver, trade, and playoff schedule surfaces with projection-enabled and projection-disabled states.
   - 2026-06-04 partial coverage added: `tests/e2e/projection-sos-command-center.spec.ts` covers projection/SOS enabled Schedule Edge, projection-disabled Waiver fallback, and regular-viewer raw SOS source-trace suppression in the command-center flow.
+  - 2026-06-05 expanded coverage: `tests/e2e/projection-sos-command-center.spec.ts` now checks projection-enabled Assistant Feature Radar, Matchup Preview, Projected Roster Board, Rankings/Schedule Edge, and Waiver surfaces, plus projection-disabled Assistant Feature Radar, Projected Roster Board, and Waiver fallback across mobile, tablet, and desktop. `server/projectionSosRolloutVerifier.test.ts` now covers backend-only trade and contender playoff projection leaks because those contexts do not render as direct report sections yet. Parent remains open for first-class trade/playoff UI coverage when those surfaces expose the projection contexts directly.
 - [x] Add data seeding fixtures for one normal week, one bye-heavy week, one injury-heavy week, one rookies-heavy roster, and one playoff matchup week.
 - [x] Add performance budgets so projection joins do not slow report generation; prefer precomputed static sections and cached projection contexts over per-user recomputation.
 - [x] Add cache-version bumps when projection or schedule display semantics change so users do not see stale local report cards; DraftSharks-only SOS bumped both client report cache payloads and server league report cache after retiring FantasyPros matchup-calendar reads.
@@ -1180,6 +1181,7 @@
 - [ ] Add schedule badges or notes in Overview and owner-level surfaces when schedule context changes the read.
 - [x] Add tests for schedule normalization, matchup mapping, bye-window rendering, streamer candidate generation, and fallback/offseason states.
 - [ ] Add QA coverage for schedule-dependent surfaces across Overview, Command Center, Matchup Preview, Player Detail, Autopilot, Rankings, and trade/waiver modules.
+  - 2026-06-05 expanded coverage: projection/SOS command-center Playwright checks now exercise rendered schedule-dependent Assistant Feature Radar, Matchup Preview, Projected Roster Board, Rankings/Schedule Edge, and Waiver behavior in projection-enabled and projection-disabled fixtures. Backend verifier coverage covers trade/playoff schedule contexts until direct UI sections exist.
 - [x] Keep pre-schedule and offseason empty states honest until the data exists.
 
 ### Watch Alerts - Server Persistence

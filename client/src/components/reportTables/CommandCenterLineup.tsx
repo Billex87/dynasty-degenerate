@@ -410,7 +410,7 @@ export function buildLineupSwapRecommendations({
               `Lineup strength edge: ${alternative.note}`,
               projectedPointCopy
                 ? `Stored weekly projection edge: ${alternative.alternative.name} is ${projectedPointCopy} ahead of ${starter.name}.`
-                : `No ready stored weekly projection edge is attached for this specific swap.`,
+                : `No ready projection edge is attached for this specific swap.`,
               `Value delta: ${formatCompactValue(alternative.valueDelta)}.`,
             ],
           };
@@ -473,7 +473,7 @@ export function buildLineupSwapRecommendations({
           const reasonBullets = [
             projectedPointCopy
               ? `Stored weekly projection edge: ${candidate.name} is ${projectedPointCopy} ahead of ${starter.name}.`
-              : `No ready stored weekly projection is attached for this matchup; using current-season value, rank, and availability.`,
+              : `No ready projection edge is attached for this matchup; using current-season value, rank, and availability.`,
             scoreEdge > 0
               ? `Starter-score edge: ${formatCompactValue(scoreEdge)} in the current-season model.`
               : starterIsFlagged

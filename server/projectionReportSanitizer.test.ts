@@ -53,7 +53,25 @@ describe("projection report sanitizer", () => {
         warnings: [],
       },
       playerDetailsById: {
-        wr1: { id: "wr1", name: "Projection Receiver", weeklyProjection: projection },
+        wr1: {
+          id: "wr1",
+          name: "Projection Receiver",
+          weeklyProjection: projection,
+          projectedPoints: 12.4,
+          projectedFantasyPoints: 12.4,
+          projection: 12.4,
+          fantasyProjection: 12.4,
+          valueProfile: {
+            weeklyProjection: projection,
+            projectedPoints: 12.4,
+            projectedFantasyPoints: 12.4,
+            projection: 12.4,
+            fantasyProjection: 12.4,
+            fantasyProsProjection: 12.4,
+            fantasyProsProjectedPoints: 12.4,
+            seasonValue: 5200,
+          },
+        },
       },
       managerPositionCounts: [],
       lineupStrength: null,
@@ -297,6 +315,8 @@ describe("projection report sanitizer", () => {
     expect(sanitized.matchupPreviews?.[0]?.mustStarts?.[0]).not.toHaveProperty("weeklyProjection");
     expect(sanitized.matchupPreviews?.[0]?.positionEdges?.[0]?.note).not.toContain("stored weekly projection");
     expect(JSON.stringify(sanitized.playerDetailsById)).not.toContain("weeklyProjection");
+    expect(JSON.stringify(sanitized.playerDetailsById)).not.toContain("projectedFantasyPoints");
+    expect(JSON.stringify(sanitized.playerDetailsById)).not.toContain("fantasyProsProjection");
     expect(JSON.stringify(sanitized.playoffSchedulePlanning)).not.toContain("stored weekly projection blend");
     expect(JSON.stringify(sanitized.waiverIntelligence?.availableTrendingAdds)).not.toContain("weeklyProjection");
     expect(JSON.stringify(sanitized.waiverIntelligence?.highestKtcAvailable)).not.toContain("weeklyProjection");

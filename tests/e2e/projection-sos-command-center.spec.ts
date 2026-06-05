@@ -123,10 +123,32 @@ async function openReportSection(page: Page, title: string) {
 
 function stripWeeklyProjectionContext(report: CachedCommandCenterReport) {
   const reportData = report.reportData as any;
+  const projectionFields = [
+    "weeklyProjection",
+    "projectedPoints",
+    "projectedFantasyPoints",
+    "projection",
+    "fantasyProjection",
+  ];
+  const valueProfileProjectionFields = [
+    ...projectionFields,
+    "fantasyProsProjection",
+    "fantasyProsProjectedPoints",
+  ];
   const walk = (value: unknown) => {
     if (!value || typeof value !== "object") return;
-    if ("weeklyProjection" in value) {
-      delete (value as { weeklyProjection?: unknown }).weeklyProjection;
+    for (const field of projectionFields) {
+      if (field in value) {
+        delete (value as Record<string, unknown>)[field];
+      }
+    }
+    const valueProfile = (value as Record<string, unknown>).valueProfile;
+    if (valueProfile && typeof valueProfile === "object") {
+      for (const field of valueProfileProjectionFields) {
+        if (field in valueProfile) {
+          delete (valueProfile as Record<string, unknown>)[field];
+        }
+      }
     }
     Object.values(value).forEach(walk);
   };
@@ -504,6 +526,22 @@ test.describe("projection/SOS command center smoke", () => {
     const report = createCachedCommandCenterReport("projection-disabled-command-smoke");
     attachProjectionBackedReportMechanics(report);
     stripWeeklyProjectionContext(report);
+
+    await loadCachedReport(page, report, "#autopilot");
+
+    const assistantSection = await openReportSection(page, "Assistant Feature Radar");
+    await expect(assistantSection.getByText("Waiver Assistant").first()).toBeVisible();
+    await expect(assistantSection.getByText("Projection Scout")).toHaveCount(0);
+    await expect(assistantSection.getByText("10.7 stored projection pts")).toHaveCount(0);
+    await expect(assistantSection.getByText("123.4")).toHaveCount(0);
+
+    const rosterBoardSection = await openReportSection(page, "Projected Roster Board");
+    await rosterBoardSection
+      .locator(".command-depth-tile")
+      .filter({ hasText: "Tester" })
+      .click();
+    await expect(page.locator(".manager-command-swap-read").getByText(/\+4\.1 pts/)).toHaveCount(0);
+    await expect(page.locator(".manager-command-swap-read").getByText(/stored weekly projection/i)).toHaveCount(0);
 
     await loadCachedReport(page, report, "#momentum");
 

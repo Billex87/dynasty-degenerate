@@ -57,6 +57,89 @@ function baseReportData(overrides: Record<string, any> = {}) {
     redraftValuation: {
       status: 'value-only',
     },
+    tradeRecommendationContext: {
+      status: 'partial',
+      source: 'stored-report-trade-recommendation',
+      projectionStatus: 'blocked',
+      generatedAt: '2026-06-05T00:00:00.000Z',
+      note: 'Fixture trade context is capped to value and schedule evidence.',
+      rows: [{
+        id: 'fixture-trade-hold',
+        manager: 'Fixture',
+        targetManager: 'Rival',
+        action: 'hold',
+        rosterWindow: 'middle',
+        player: { player_id: 'fixture-wr', name: 'Fixture Receiver', pos: 'WR', team: 'NYJ' },
+        score: 58,
+        confidence: 58,
+        confidenceReasons: ['Fixture trade context uses schedule/value fallback.'],
+        confidenceCapReason: 'Fixture fallback cap.',
+        shortTermValue: 3000,
+        dynastyValue: 3200,
+        valueGap: 200,
+        projectedFantasyPoints: null,
+        projectionStatus: 'blocked',
+        playoffLeverageScore: null,
+        scheduleAdjustment: 0,
+        byeAdjustment: 0,
+        scheduleContextScore: 12,
+        contenderFitScore: 46,
+        rebuilderFitScore: 54,
+        fragileProjectionSpike: false,
+        signals: ['schedule-value'],
+        sourceTrace: ['fixture-trade-value'],
+      }],
+      managers: [{
+        manager: 'Fixture',
+        rosterWindow: 'middle',
+        tradeFor: [],
+        tradeAway: [],
+        hold: [],
+      }],
+    },
+    contenderPlayoffContext: {
+      status: 'partial',
+      source: 'stored-report-contender-playoff',
+      projectionStatus: 'blocked',
+      generatedAt: '2026-06-05T00:00:00.000Z',
+      weeks: [15],
+      note: 'Fixture contender context is capped to schedule/value evidence.',
+      rows: [{
+        id: 'fixture-playoff-week-15',
+        manager: 'Fixture',
+        week: 15,
+        projectedStarterPoints: null,
+        projectionCoverage: {
+          coveredPlayerCount: 0,
+          totalPlayerCount: 1,
+          mode: 'schedule-value',
+        },
+        opponentDifficultyScore: 20,
+        byeBenchPressureScore: 10,
+        stashValueScore: 8,
+        affectedPlayers: [],
+        stashRecommendations: [],
+        confidence: 58,
+        confidenceReasons: ['Fixture contender context uses schedule/value fallback.'],
+        confidenceCapReason: 'Fixture fallback cap.',
+        sourceTrace: ['fixture-playoff-schedule'],
+      }],
+      managers: [{
+        manager: 'Fixture',
+        rosterWindow: 'middle',
+        contenderScore: 62,
+        rebuildScore: 38,
+        projectedLineupStrength: null,
+        opponentDifficultyScore: 20,
+        byeBenchPressureScore: 10,
+        stashValueScore: 8,
+        confidence: 58,
+        confidenceReasons: ['Fixture contender context uses schedule/value fallback.'],
+        confidenceCapReason: 'Fixture fallback cap.',
+        weeks: [],
+        stashRecommendations: [],
+      }],
+    },
     waiverIntelligence: {
       priorityWaiverTargets: [{
         confidence: 58,
@@ -121,6 +204,8 @@ describe('validateReportContract', () => {
     expect(result.ok).toBe(true);
     expect(result.failures).toEqual([]);
     expect(result.summary.specialTeamsStreamerProjectionSupportCount).toBe(1);
+    expect(result.summary.tradeRecommendationProjectedRowCount).toBe(0);
+    expect(result.summary.contenderPlayoffProjectedRowCount).toBe(0);
   });
 
   it('accepts a projection-on report with projection-backed matchup coverage and streamer support', () => {
@@ -209,5 +294,52 @@ describe('validateReportContract', () => {
     expect(result.failures).toContain('projection-off specialTeamsStreamerTargets still expose projection-backed support');
     expect(result.failures).toContain('projection-off specialTeamsStreamerTargets still expose weekly projections');
     expect(result.failures).toContain('projection-off specialTeamsStreamerTargets still expose projected fantasy points');
+  });
+
+  it('rejects projection-off reports that leak trade or playoff projection context', () => {
+    const reportData = baseReportData({
+      tradeRecommendationContext: {
+        ...baseReportData().tradeRecommendationContext,
+        rows: [{
+          ...baseReportData().tradeRecommendationContext.rows[0],
+          projectedFantasyPoints: 18.6,
+          projectionStatus: 'ready',
+          fragileProjectionSpike: true,
+          confidence: 79,
+          confidenceReasons: ['Stored weekly projection spike fixture.'],
+          sourceTrace: ['stored-weekly-projection:fixture'],
+        }],
+      },
+      contenderPlayoffContext: {
+        ...baseReportData().contenderPlayoffContext,
+        rows: [{
+          ...baseReportData().contenderPlayoffContext.rows[0],
+          projectedStarterPoints: 128.4,
+          projectionCoverage: {
+            coveredPlayerCount: 1,
+            totalPlayerCount: 1,
+            mode: 'stored-weekly-projection',
+          },
+          confidence: 79,
+          confidenceReasons: ['Stored weekly projection playoff fixture.'],
+          sourceTrace: ['stored-weekly-projection:fixture'],
+        }],
+      },
+    });
+
+    const result = validateReportContract({
+      mode: 'projection-off',
+      leagueId: 'fixture',
+      reportData,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.failures).toContain('projection-off report still contains stored weekly projection claims');
+    expect(result.failures).toContain('projection-off tradeRecommendationContext still exposes projected fantasy points');
+    expect(result.failures).toContain('projection-off tradeRecommendationContext still exposes fragile projection spikes');
+    expect(result.failures).toContain('projection-off tradeRecommendationContext confidence exceeds fallback cap: 79');
+    expect(result.failures).toContain('projection-off contenderPlayoffContext still exposes projected starter points');
+    expect(result.failures).toContain('projection-off contenderPlayoffContext still exposes projection-backed coverage');
+    expect(result.failures).toContain('projection-off contenderPlayoffContext confidence exceeds fallback cap: 79');
   });
 });
