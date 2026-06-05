@@ -80,15 +80,6 @@ Latest FantasyPros metadata evidence from June 5, 2026:
 - `targets` and `articles`: `403 Forbidden`; keep snapshots blocked.
 - `players`, `news`, `injuries`, and `player-points`: reachable in metadata probes; production model use still requires the gate evidence above.
 
-Current legal/source evidence from official terms checks on June 5, 2026:
-
-- FantasyPros public API terms are personal/non-commercial by default, include low published call limits, require attribution for published work based on API data, and prohibit competing products without separate approval.
-- SportsDataIO Discovery Lab is not licensed for commercial redistribution; its commercial Leagues API requires a sales conversation and commercial agreement.
-- Sleeper's public API is read-only, tokenless, and documents a frequency guideline, but hidden account-level pending/failed/skipped transactions are not covered by the public API.
-- GridIron Data publishes subscription tiers and rate limits, but its terms prohibit unauthorized resale/redistribution and require use only for the subscribed purpose.
-
-These terms checks are evidence for a human/legal review. They are not legal approval and do not move any gate to `approved-for-public-claim`.
-
 ## Dated Follow-Ups
 
 - Re-review the projection-source baseline in August 2026, when weekly projections, waiver rankings, targets, injuries, and depth-chart packages should be mature enough to re-evaluate.
