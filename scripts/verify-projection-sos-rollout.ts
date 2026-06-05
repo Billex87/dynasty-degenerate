@@ -118,6 +118,105 @@ function containsStoredWeeklyProjectionClaim(value: unknown): boolean {
   return /stored-weekly-projection|stored weekly projection blend/i.test(JSON.stringify(value || null));
 }
 
+function asArray(value: unknown): any[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function getPlayoffPlanWeeks(playoffSchedulePlanning: any): any[] {
+  return asArray(playoffSchedulePlanning?.managerPlans)
+    .flatMap((plan: any) => asArray(plan?.weeks));
+}
+
+function summarizePlayoffConfidence(playoffSchedulePlanning: any) {
+  const managerPlans = asArray(playoffSchedulePlanning?.managerPlans);
+  const planWeeks = getPlayoffPlanWeeks(playoffSchedulePlanning);
+  const confidence = finiteNumber(playoffSchedulePlanning?.confidence);
+  const confidenceReasons = asArray(playoffSchedulePlanning?.confidenceReasons)
+    .filter((reason: unknown): reason is string => typeof reason === 'string' && reason.trim().length > 0);
+  const managerConfidences = managerPlans
+    .map((plan: any) => finiteNumber(plan?.confidence))
+    .filter((value: number | null): value is number => value !== null);
+  const weekConfidences = planWeeks
+    .map((week: any) => finiteNumber(week?.confidence))
+    .filter((value: number | null): value is number => value !== null);
+  const weekCapReasons = planWeeks
+    .map((week: any) => typeof week?.confidenceCapReason === 'string' ? week.confidenceCapReason.trim() : '')
+    .filter(Boolean);
+  const weekConfidenceReasons = planWeeks
+    .flatMap((week: any) => asArray(week?.confidenceReasons))
+    .filter((reason: unknown): reason is string => typeof reason === 'string' && reason.trim().length > 0);
+
+  return {
+    confidence,
+    confidenceReasonCount: confidenceReasons.length,
+    managerConfidenceCount: managerConfidences.length,
+    weekConfidenceCount: weekConfidences.length,
+    weekConfidenceCapReasonCount: weekCapReasons.length,
+    weekConfidenceReasonCount: weekConfidenceReasons.length,
+    planCount: managerPlans.length,
+    planWeekCount: planWeeks.length,
+    minPlanConfidence: managerConfidences.length ? Math.min(...managerConfidences) : null,
+    maxPlanConfidence: managerConfidences.length ? Math.max(...managerConfidences) : null,
+    minWeekConfidence: weekConfidences.length ? Math.min(...weekConfidences) : null,
+    maxWeekConfidence: weekConfidences.length ? Math.max(...weekConfidences) : null,
+    hasConfidenceCapEvidence: confidenceReasons.length > 0 || weekCapReasons.length > 0 || weekConfidenceReasons.length > 0,
+  };
+}
+
+function getPriorityWaiverTargets(reportData: any): any[] {
+  return asArray(reportData?.waiverIntelligence?.priorityWaiverTargets || reportData?.priorityWaiverTargets);
+}
+
+function hasWindowEvidence(window: any): boolean {
+  return Boolean(
+    window &&
+    Array.isArray(window.weeks) &&
+    window.weeks.length > 0 &&
+    (
+      finiteNumber(window.score) !== null ||
+      finiteNumber(window.averageStars) !== null ||
+      finiteNumber(window.playableWeeks) !== null ||
+      finiteNumber(window.easyWeeks) !== null ||
+      finiteNumber(window.hardWeeks) !== null
+    )
+  );
+}
+
+function hasScheduleWindowEvidence(target: any): boolean {
+  const windows = target?.scheduleSignal?.matchupWindows;
+  return Boolean(
+    hasWindowEvidence(windows?.next3) ||
+    hasWindowEvidence(windows?.next6) ||
+    hasWindowEvidence(windows?.playoffs)
+  );
+}
+
+function hasScheduleWindowReason(target: any): boolean {
+  return /schedule|upcoming|six-week|playoff-window|window/i.test(
+    asArray(target?.reasons).join(' ')
+  );
+}
+
+function summarizePriorityWaiverTargets(reportData: any) {
+  const targets = getPriorityWaiverTargets(reportData);
+  const targetsWithScheduleWindows = targets.filter(hasScheduleWindowEvidence);
+  const targetsWithScheduleReasons = targets.filter(hasScheduleWindowReason);
+  const targetsWithWeeklyProjection = targets.filter((target: any) => Boolean(target?.weeklyProjection));
+
+  return {
+    count: targets.length,
+    targetsWithScheduleWindows: targetsWithScheduleWindows.length,
+    targetsWithScheduleReasons: targetsWithScheduleReasons.length,
+    targetsWithWeeklyProjection: targetsWithWeeklyProjection.length,
+    hasPriorityWaiverTargets: targets.length > 0,
+    hasScheduleWindowBackedTarget: targetsWithScheduleWindows.length > 0,
+  };
+}
+
 function validateReportContract(input: {
   mode: Mode;
   leagueId: string;
@@ -129,6 +228,8 @@ function validateReportContract(input: {
   const playoffSchedulePlanning = reportData.playoffSchedulePlanning;
   const playoffWeeks = Array.isArray(playoffSchedulePlanning?.weeks) ? playoffSchedulePlanning.weeks : [];
   const matchupPreviews = Array.isArray(reportData.matchupPreviews) ? reportData.matchupPreviews : [];
+  const playoffConfidence = summarizePlayoffConfidence(playoffSchedulePlanning);
+  const priorityWaiverTargets = summarizePriorityWaiverTargets(reportData);
 
   if (!schedulePlanning) failures.push('missing schedulePlanning');
   if (!playoffSchedulePlanning) failures.push('missing playoffSchedulePlanning');
@@ -139,13 +240,33 @@ function validateReportContract(input: {
   if (!reportData.lineupStrength) failures.push('missing lineupStrength');
   if (!reportData.redraftValuation) failures.push('missing redraftValuation');
   if (!matchupPreviews.length) failures.push('missing matchupPreviews');
+  if (!priorityWaiverTargets.hasPriorityWaiverTargets) failures.push('missing priorityWaiverTargets');
+  if (priorityWaiverTargets.hasPriorityWaiverTargets && !priorityWaiverTargets.hasScheduleWindowBackedTarget) {
+    failures.push('priorityWaiverTargets missing source-backed matchup window evidence');
+  }
+
+  if (playoffSchedulePlanning) {
+    if (playoffConfidence.confidence === null) failures.push('missing playoffSchedulePlanning confidence');
+    if (playoffConfidence.planCount > 0 && playoffConfidence.managerConfidenceCount !== playoffConfidence.planCount) {
+      failures.push('missing playoff manager plan confidence');
+    }
+    if (playoffConfidence.planWeekCount > 0 && playoffConfidence.weekConfidenceCount !== playoffConfidence.planWeekCount) {
+      failures.push('missing playoff week confidence');
+    }
+    if (
+      playoffConfidence.confidence !== null &&
+      (playoffConfidence.confidence < 0 || playoffConfidence.confidence > 100)
+    ) {
+      failures.push(`playoffSchedulePlanning confidence out of range: ${playoffConfidence.confidence}`);
+    }
+  }
 
   if (input.mode === 'projection-on') {
     if (reportData.weeklyProjectionDiagnostics?.status !== 'ready') {
       failures.push(`weekly projections not ready: ${reportData.weeklyProjectionDiagnostics?.status || 'missing'}`);
     }
-    if (!hasProjectionBackedPlayoffWeek(reportData)) {
-      failures.push('playoffSchedulePlanning has no projection-backed week');
+    if (!hasProjectionBackedPlayoffWeek(reportData) && !playoffConfidence.hasConfidenceCapEvidence) {
+      failures.push('playoffSchedulePlanning has no projection-backed week or confidence cap evidence');
     }
   } else {
     if (reportData.weeklyProjectionDiagnostics?.status !== 'blocked') {
@@ -159,9 +280,18 @@ function validateReportContract(input: {
       matchupPreviews: reportData.matchupPreviews,
       lineupStrength: reportData.lineupStrength,
       redraftValuation: reportData.redraftValuation,
-      waiverIntelligence: reportData.waiverIntelligence,
-    })) {
+        waiverIntelligence: reportData.waiverIntelligence,
+      })) {
       failures.push('projection-off report still contains stored weekly projection claims');
+    }
+    if (playoffConfidence.confidence !== null && playoffConfidence.confidence > 58) {
+      failures.push(`projection-off playoff confidence exceeds fallback cap: ${playoffConfidence.confidence}`);
+    }
+    if (playoffConfidence.maxPlanConfidence !== null && playoffConfidence.maxPlanConfidence > 58) {
+      failures.push(`projection-off manager playoff confidence exceeds fallback cap: ${playoffConfidence.maxPlanConfidence}`);
+    }
+    if (playoffConfidence.maxWeekConfidence !== null && playoffConfidence.maxWeekConfidence > 58) {
+      failures.push(`projection-off week playoff confidence exceeds fallback cap: ${playoffConfidence.maxWeekConfidence}`);
     }
   }
 
@@ -180,6 +310,17 @@ function validateReportContract(input: {
       matchupPreviewCount: matchupPreviews.length,
       weeklyProjectionStatus: reportData.weeklyProjectionDiagnostics?.status || null,
       weeklyProjectionRows: reportData.weeklyProjectionDiagnostics?.rowCount || 0,
+      playoffConfidence: playoffConfidence.confidence,
+      playoffConfidenceReasonCount: playoffConfidence.confidenceReasonCount,
+      playoffManagerConfidenceCount: playoffConfidence.managerConfidenceCount,
+      playoffWeekConfidenceCount: playoffConfidence.weekConfidenceCount,
+      playoffWeekConfidenceCapReasonCount: playoffConfidence.weekConfidenceCapReasonCount,
+      playoffWeekConfidenceReasonCount: playoffConfidence.weekConfidenceReasonCount,
+      hasPlayoffConfidenceCapEvidence: playoffConfidence.hasConfidenceCapEvidence,
+      priorityWaiverTargetCount: priorityWaiverTargets.count,
+      priorityWaiverTargetsWithScheduleWindows: priorityWaiverTargets.targetsWithScheduleWindows,
+      priorityWaiverTargetsWithScheduleReasons: priorityWaiverTargets.targetsWithScheduleReasons,
+      priorityWaiverTargetsWithWeeklyProjection: priorityWaiverTargets.targetsWithWeeklyProjection,
     },
   };
 }
