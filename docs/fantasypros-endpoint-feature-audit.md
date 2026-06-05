@@ -9,15 +9,17 @@ Sources:
 
 ## Current Local Probe Result
 
-The local key is configured. The paced expanded smoke on May 19, 2026 returned:
+The local key is configured. The paced expanded/projection smoke on June 5, 2026 returned metadata-only evidence:
 
-- Loaded: `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, `ROOKIES`, `ADP`, `DYNADP`, `RKADP`, `players`, `news`, `injuries`, `player-points`, weekly `QB` ECR for Week 1, `compare-players`, and `projections`.
+- Loaded current rows: `DRAFT`, `ROS`, `DYNASTY`, `DEVY`, `ROOKIES`, `ADP`, `DYNADP`, `RKADP`, `players` with 8,434 rows, `news` with 25 rows, `injuries` with 6 rows, `player-points` with 2,166 rows, `compare-players`, and `projections` with 597 rows.
+- Weekly ECR: Week 1 position-specific `QB`/`RB`/`WR`/`TE`/`K`/`DST` requests returned rows with `last_updated` of `5/18`; Week 2 and Week 3 returned `200` with zero rows and `last_updated` of `1/01`.
 - Reachable but currently empty: `WW` rankings for Week 1 returned `200` with zero rows and `last_updated` of `1/01`.
 - Blocked for this key/package: `targets` and `articles` returned `403 Forbidden`.
+- Rate-limit behavior: this run did not hit `429`, but the two `403` endpoints mean the expanded check still exits non-zero until those entitlements change.
 
 Current gate status:
 
-- Projections: blocked for public projection claims until commercial/source rights, endpoint freshness, normal rate limits, and mapping coverage are approved.
+- Projections: research-only. The endpoint currently returns rows, but normal report loads, model weighting, stored production snapshots, and public projection claims remain blocked until commercial/source rights, stored freshness metadata, normal cadence/rate limits, mapping coverage, and attribution language are approved.
 - `WW`: research only until closer-to-season snapshots return non-zero rows.
 - Targets and articles: blocked until package access returns `200` and usage terms are approved.
 - News: snapshot/research only until production coverage, cadence, rate limits, and attribution terms are confirmed.
