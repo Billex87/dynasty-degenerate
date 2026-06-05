@@ -349,7 +349,7 @@ describe("user-load provider boundary", () => {
     const retainedTraceIndex = sanitizeSource.indexOf("sanitized.stats.retainedSourceTraceFields");
     const usageCheckIndex = sanitizeSource.indexOf("checkPersistedUsageLimit({");
     const usageRecordIndex = sanitizeSource.indexOf("recordLimitedUsageEvent({");
-    const returnIndex = sanitizeSource.indexOf("return sanitized.payload");
+    const returnIndex = sanitizeSource.indexOf("return applyAnalyzeResponseProjectionPolicy(sanitized.payload)");
 
     expect(accessIndex).toBeGreaterThan(0);
     expect(sanitizeIndex).toBeGreaterThan(accessIndex);
