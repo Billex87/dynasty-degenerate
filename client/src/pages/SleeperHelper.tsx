@@ -68,6 +68,29 @@ const supportNotes = [
   }
 ];
 
+const browserPaths = [
+  {
+    label: "Desktop Chrome",
+    status: "Best path",
+    body: "Install Transaction Sync once, open your Dynasty Degens report, and click Import Pending Transactions from the Trades tab.",
+    accent: "cyan"
+  },
+  {
+    label: "iPhone, iPad, Android, or Safari",
+    status: "Handoff required",
+    body: "Copy your report link, send it to yourself, then open that same report in desktop Chrome. Mobile browsers and the Sleeper app cannot run this Chrome extension.",
+    accent: "orange"
+  }
+];
+
+const mobileHandoffSteps = [
+  "Open the Dynasty Degens report on your phone or Safari.",
+  "Use Copy report link from the Transaction Sync card.",
+  "Send that link to the computer where you use desktop Chrome.",
+  "Install Transaction Sync from the Chrome Web Store if it is not installed yet.",
+  "Open the copied report link in desktop Chrome and click Import Pending Transactions."
+];
+
 function SleeperHelperPage() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#050914] text-slate-100">
@@ -149,6 +172,52 @@ function SleeperHelperPage() {
                   {boundary}
                 </div>
               ))}
+            </div>
+          </section>
+
+          <section className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
+            <div className="grid gap-4">
+              {browserPaths.map((path) => (
+                <article
+                  key={path.label}
+                  className={`rounded-[2rem] border p-5 ${
+                    path.accent === "cyan"
+                      ? "border-cyan-300/25 bg-cyan-300/10"
+                      : "border-orange-300/25 bg-orange-300/10"
+                  }`}
+                >
+                  <p
+                    className={`w-fit rounded-full border px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em] ${
+                      path.accent === "cyan"
+                        ? "border-cyan-300/25 bg-cyan-300/10 text-cyan-100"
+                        : "border-orange-300/25 bg-orange-300/10 text-orange-100"
+                    }`}
+                  >
+                    {path.status}
+                  </p>
+                  <h2 className="mt-4 text-2xl font-black uppercase tracking-[-0.04em] text-white">
+                    {path.label}
+                  </h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-300">{path.body}</p>
+                </article>
+              ))}
+            </div>
+
+            <div className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-6">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-200">Mobile handoff</p>
+              <h2 className="mt-3 text-3xl font-black uppercase tracking-[-0.04em] text-white">
+                If you start on your phone, do this.
+              </h2>
+              <ol className="mt-6 space-y-3">
+                {mobileHandoffSteps.map((step, index) => (
+                  <li key={step} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cyan-300 text-xs font-black text-slate-950">
+                      {index + 1}
+                    </span>
+                    <span className="pt-1 text-sm font-semibold leading-6 text-slate-200">{step}</span>
+                  </li>
+                ))}
+              </ol>
             </div>
           </section>
 
