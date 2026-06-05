@@ -52,6 +52,14 @@ Run the gate audit with:
 pnpm run audit:source-readiness-gates
 ```
 
+Before any public provider-attributed projection, SOS, news, usage, or role claim ships, run the stricter public-claim preflight:
+
+```sh
+pnpm run audit:source-readiness-gates -- --require-public-claim-ready
+```
+
+This command must fail until at least one gate is `approved-for-public-claim`, `publicClaimAllowed: true`, and has complete evidence for terms, endpoint/storage key, auth model, row count, freshness, rate limits, mapping coverage, and allowed attribution language.
+
 ## Metadata-Only Audits
 
 Use these commands before any model consumes new provider fields:

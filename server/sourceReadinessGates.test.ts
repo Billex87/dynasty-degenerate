@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   SOURCE_READINESS_GATES,
+  getPublicClaimReadyGates,
   summarizeSourceReadinessGates,
+  validatePublicClaimReadiness,
   validateSourceReadinessGates,
   type SourceReadinessGate,
 } from './sourceReadinessGates';
@@ -21,6 +23,10 @@ describe('source readiness gates', () => {
     expect(summary.snapshotReady).toBeGreaterThan(0);
     expect(summary.blockedOrResearch).toBeGreaterThan(0);
     expect(summary.publicClaimReady).toBe(0);
+    expect(getPublicClaimReadyGates()).toEqual([]);
+    expect(validatePublicClaimReadiness()).toContain(
+      'No source readiness gate is approved for public provider-attributed claims.',
+    );
   });
 
   it('rejects public claims without complete evidence', () => {
@@ -46,5 +52,30 @@ describe('source readiness gates', () => {
     expect(validateSourceReadinessGates([gate])).toEqual([
       'bad-public-claim is missing public-claim evidence: endpointPath, allowedAttributionLanguage',
     ]);
+  });
+
+  it('recognizes a complete public-claim gate only when attribution evidence is complete', () => {
+    const gate: SourceReadinessGate = {
+      id: 'good-public-claim',
+      source: 'Good public claim',
+      status: 'approved-for-public-claim',
+      normalReportLoad: 'snapshot-only',
+      publicClaimAllowed: true,
+      evidence: {
+        termsApproval: 'approved terms',
+        endpointPath: 'providerDataSnapshots good-public-claim-v1',
+        authModel: 'cron/admin snapshot only',
+        rowCount: '100 current rows',
+        freshnessTimestamp: '2026-08-15T00:00:00.000Z',
+        rateLimitResult: 'paced snapshot passed',
+        mappingCoverage: '99% mapped',
+        allowedAttributionLanguage: 'Use Example projections.',
+      },
+      nextAction: 'monitor freshness',
+    };
+
+    expect(getPublicClaimReadyGates([gate])).toEqual([gate]);
+    expect(validatePublicClaimReadiness([gate])).toEqual([]);
+    expect(summarizeSourceReadinessGates([gate]).publicClaimReady).toBe(1);
   });
 });

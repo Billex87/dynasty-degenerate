@@ -314,6 +314,23 @@ export function missingPublicClaimEvidence(gate: SourceReadinessGate): Array<key
   return PUBLIC_CLAIM_EVIDENCE_FIELDS.filter((field) => !gate.evidence[field]);
 }
 
+export function getPublicClaimReadyGates(gates: SourceReadinessGate[] = SOURCE_READINESS_GATES): SourceReadinessGate[] {
+  return gates.filter((gate) =>
+    gate.status === 'approved-for-public-claim' &&
+    gate.publicClaimAllowed &&
+    missingPublicClaimEvidence(gate).length === 0
+  );
+}
+
+export function validatePublicClaimReadiness(gates: SourceReadinessGate[] = SOURCE_READINESS_GATES): string[] {
+  const errors = validateSourceReadinessGates(gates);
+  const readyGates = getPublicClaimReadyGates(gates);
+  if (!readyGates.length) {
+    errors.push('No source readiness gate is approved for public provider-attributed claims.');
+  }
+  return errors;
+}
+
 export function validateSourceReadinessGates(gates: SourceReadinessGate[] = SOURCE_READINESS_GATES): string[] {
   const ids = new Set<string>();
   const errors: string[] = [];
@@ -354,7 +371,7 @@ export function summarizeSourceReadinessGates(gates: SourceReadinessGate[] = SOU
   return {
     total: gates.length,
     totals,
-    publicClaimReady: gates.filter((gate) => gate.status === 'approved-for-public-claim' && gate.publicClaimAllowed).length,
+    publicClaimReady: getPublicClaimReadyGates(gates).length,
     snapshotReady: gates.filter((gate) => gate.status === 'approved-for-snapshot').length,
     blockedOrResearch: gates.filter((gate) => gate.status === 'blocked' || gate.status === 'research').length,
   };
