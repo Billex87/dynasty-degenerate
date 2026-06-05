@@ -777,7 +777,8 @@
 - [ ] Recheck FantasyPros `WW` waiver-wire ranking snapshots closer to the season; the endpoint is reachable but currently returns `200` with zero rows for early 2026 Week 1 probes.
 - [ ] Add FantasyPros targets snapshots after package access is approved and the endpoint returns `200`; join them with existing usage context so waiver intelligence can detect role growth without pretending targets are route share.
 - [x] Retire FantasyPros matchup-calendar snapshots after DraftSharks coverage is live; keep them out of `PlayerScheduleProfile`, streamer weeks, start/sit edges, D/ST/K pairings, waiver intelligence actions, source freshness checks, and scheduled/admin refreshes.
-- [ ] Use FantasyPros player-points history to validate prior-season production, weekly consistency, and value-confidence calibration.
+- [x] Use FantasyPros player-points history to validate prior-season production, weekly consistency, and value-confidence calibration.
+  - 2026-06-05 completion: redraft valuation now consumes stored FantasyPros `PLAYER_POINTS` source-trace rows as a conservative player-points-history component when projection readiness passes. Historical average points can calibrate final value, confidence, source count, and component trace while projection-off/value-only reports keep the existing base-value fallback.
 - [ ] Use FantasyPros injuries and practice-report probabilities in player availability, lineup risk, and AI confidence notes.
 - [ ] Use FantasyPros news categories for player-specific news, injury, transaction, rumor, and breaking-news context, then connect news timestamps to value movement when snapshots overlap.
 - [x] Normalize or enrich `latestNews.url` from upstream news payloads so the player modal's latest-news card stays clickable whenever the source provides a link.

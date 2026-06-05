@@ -218,6 +218,40 @@ describe("buildRedraftValuation", () => {
     ]);
   });
 
+  it("uses stored FantasyPros player-points history to calibrate redraft valuation confidence", () => {
+    const report = baseReport("ready");
+    const details = report.playerDetailsById?.wr1 as any;
+    details.valueProfile.fantasyProsSourceTrace = [{
+      source: "FantasyPros",
+      key: "PLAYER_POINTS",
+      label: "FantasyPros Player Points",
+      value: 15.2,
+      evidence: "season points 258.4; average 15.2; games 17; endpoint metadata: fantasypros-player-points.",
+    }];
+
+    const result = buildRedraftValuation(report, {
+      currentWeek: 1,
+    });
+    const row = result.rows.find(item => item.playerId === "wr1");
+
+    expect(row).toMatchObject({
+      playerPointsAdjustment: 120,
+      finalValue: 6542,
+      valueDelta: 1342,
+      status: "ready",
+    });
+    expect(row?.components.map(component => component.key)).toEqual([
+      "base-value",
+      "weekly-projection",
+      "rest-of-season-projection",
+      "schedule-sos",
+      "bye-context",
+      "role-trend",
+      "player-points-history",
+    ]);
+    expect(row?.confidenceReasons).toContain("Stored player-points history calibrated the value.");
+  });
+
   it("fails closed to existing current-season value when projections are blocked", () => {
     const result = buildRedraftValuation(baseReport("blocked"), {
       currentWeek: 1,

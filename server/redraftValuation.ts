@@ -82,10 +82,33 @@ function getReadyProjection(player: RedraftPlayerLike, details: PlayerDetails | 
   return projection;
 }
 
-function getProjectionValue(player: RedraftPlayerLike, details: PlayerDetails | null, projectionReady: boolean): number | null {
-  const projection = getReadyProjection(player, details, projectionReady);
-  if (!projection) return null;
-  return round(projection.projectedFantasyPoints * PROJECTION_VALUE_MULTIPLIER);
+function getPlayerPointsHistoryAdjustment(
+  details: PlayerDetails | null,
+  projection: WeeklyProjectionContext | null
+): { adjustment: number; note: string | null } {
+  const trace = details?.valueProfile?.fantasyProsSourceTrace?.find((row) => row.key === "PLAYER_POINTS");
+  const historicalAverage = asNumber(trace?.value);
+  if (historicalAverage === null || historicalAverage <= 0) return { adjustment: 0, note: null };
+
+  const projectedPoints = asNumber(projection?.projectedFantasyPoints);
+  let adjustment = 0;
+  if (projectedPoints !== null) {
+    const delta = historicalAverage - projectedPoints;
+    if (historicalAverage >= 10 && Math.abs(delta) <= 2.5) adjustment = 120;
+    else if (historicalAverage >= 14 && delta >= 1) adjustment = 170;
+    else if (historicalAverage <= 7 && projectedPoints >= 12) adjustment = -160;
+  } else if (historicalAverage >= 14) {
+    adjustment = 90;
+  } else if (historicalAverage <= 6) {
+    adjustment = -90;
+  }
+
+  return {
+    adjustment,
+    note: adjustment
+      ? `FantasyPros player-points history average ${roundOne(historicalAverage)} PPG calibrates projection confidence.`
+      : null,
+  };
 }
 
 function getRestOfSeasonProjection(input: {
@@ -307,6 +330,7 @@ function getBlendValue(input: {
   roleAdjustment: number;
   injuryAdjustment: number;
   replacementAdjustment: number;
+  playerPointsAdjustment: number;
   projectionReady: boolean;
 }): number {
   if (!input.projectionReady) return input.baseValue;
@@ -323,7 +347,8 @@ function getBlendValue(input: {
       input.byeAdjustment +
       input.roleAdjustment +
       input.injuryAdjustment +
-      input.replacementAdjustment
+      input.replacementAdjustment +
+      input.playerPointsAdjustment
     )
   );
 }
@@ -336,6 +361,7 @@ function getConfidence(input: {
   roleAdjustment: number;
   injuryAdjustment: number;
   replacementAdjustment: number;
+  playerPointsAdjustment: number;
   baseValue: number;
 }): number {
   return Math.min(
@@ -348,7 +374,8 @@ function getConfidence(input: {
       (input.scheduleAdjustment !== 0 ? 7 : 0) +
       (input.roleAdjustment !== 0 ? 7 : 0) +
       (input.injuryAdjustment !== 0 ? 5 : 0) +
-      (input.replacementAdjustment !== 0 ? 5 : 0)
+      (input.replacementAdjustment !== 0 ? 5 : 0) +
+      (input.playerPointsAdjustment !== 0 ? 4 : 0)
     )
   );
 }
@@ -362,6 +389,7 @@ function getSourceCount(input: {
   roleAdjustment: number;
   injuryAdjustment: number;
   replacementAdjustment: number;
+  playerPointsAdjustment: number;
 }): number {
   return [
     input.baseValue > 0,
@@ -372,6 +400,7 @@ function getSourceCount(input: {
     input.roleAdjustment !== 0,
     input.injuryAdjustment !== 0,
     input.replacementAdjustment !== 0,
+    input.playerPointsAdjustment !== 0,
   ].filter(Boolean).length;
 }
 
@@ -384,6 +413,7 @@ function getConfidenceReasons(input: {
   roleAdjustment: number;
   injuryAdjustment: number;
   replacementAdjustment: number;
+  playerPointsAdjustment: number;
 }): { confidenceReasons: string[]; confidenceCapReason: string | null } {
   if (!input.projectionReady) {
     return {
@@ -400,6 +430,7 @@ function getConfidenceReasons(input: {
     input.roleAdjustment !== 0 ? "Usage or situation trend adjusted the value." : null,
     input.injuryAdjustment !== 0 ? "Injury/news context adjusted the value." : null,
     input.replacementAdjustment !== 0 ? "Available replacement-level context adjusted the value." : null,
+    input.playerPointsAdjustment !== 0 ? "Stored player-points history calibrated the value." : null,
   ].filter((reason): reason is string => Boolean(reason));
 
   if (input.projectionValue === null) {
@@ -470,7 +501,8 @@ function buildRow(
   if (!name || position === "PICK") return null;
 
   const baseValue = getBaseValue(player, details);
-  const projectionValue = getProjectionValue(player, details, projectionReady);
+  const readyProjection = getReadyProjection(player, details, projectionReady);
+  const projectionValue = readyProjection ? round(readyProjection.projectedFantasyPoints * PROJECTION_VALUE_MULTIPLIER) : null;
   const restOfSeasonRead = getRestOfSeasonProjection({
     player,
     details,
@@ -485,8 +517,12 @@ function buildRow(
   const replacementRead = projectionReady
     ? getReplacementAdjustment({ player, details, baseValue, replacementBaselines })
     : { adjustment: 0, note: null };
+  const playerPointsRead = projectionReady
+    ? getPlayerPointsHistoryAdjustment(details, readyProjection)
+    : { adjustment: 0, note: null };
   const injuryAdjustment = injuryRead.adjustment;
   const replacementAdjustment = replacementRead.adjustment;
+  const playerPointsAdjustment = playerPointsRead.adjustment;
   const finalValue = getBlendValue({
     baseValue,
     projectionValue,
@@ -496,6 +532,7 @@ function buildRow(
     roleAdjustment,
     injuryAdjustment,
     replacementAdjustment,
+    playerPointsAdjustment,
     projectionReady,
   });
   const confidenceRead = getConfidenceReasons({
@@ -507,6 +544,7 @@ function buildRow(
     roleAdjustment,
     injuryAdjustment,
     replacementAdjustment,
+    playerPointsAdjustment,
   });
   const status: RedraftValuationRow["status"] = !projectionReady
     ? "value-only"
@@ -530,6 +568,7 @@ function buildRow(
     roleAdjustment,
     injuryAdjustment,
     replacementAdjustment,
+    playerPointsAdjustment,
     finalValue,
     valueDelta: finalValue - baseValue,
     confidence: getConfidence({
@@ -540,6 +579,7 @@ function buildRow(
       roleAdjustment,
       injuryAdjustment,
       replacementAdjustment,
+      playerPointsAdjustment,
       baseValue,
     }),
     confidenceReasons: confidenceRead.confidenceReasons,
@@ -554,6 +594,7 @@ function buildRow(
       roleAdjustment,
       injuryAdjustment,
       replacementAdjustment,
+      playerPointsAdjustment,
     }),
     components: [
       { key: "base-value", label: "Current-season value", value: baseValue, note: "Existing redraft/season value fallback." },
@@ -577,6 +618,9 @@ function buildRow(
         : null,
       replacementAdjustment
         ? { key: "replacement-level", label: "Replacement level", value: replacementAdjustment, note: replacementRead.note || "Same-position replacement availability adjustment." }
+        : null,
+      playerPointsAdjustment
+        ? { key: "player-points-history", label: "Player-points history", value: playerPointsAdjustment, note: playerPointsRead.note || "Stored player-points history adjustment." }
         : null,
     ].filter((component): component is RedraftValuationRow["components"][number] => Boolean(component)),
     note: status === "value-only"

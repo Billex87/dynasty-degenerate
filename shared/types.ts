@@ -462,7 +462,7 @@ export interface LineupStrengthSummary {
 }
 
 export interface RedraftValuationComponent {
-  key: 'base-value' | 'weekly-projection' | 'rest-of-season-projection' | 'schedule-sos' | 'bye-context' | 'role-trend' | 'injury-news' | 'replacement-level';
+  key: 'base-value' | 'weekly-projection' | 'rest-of-season-projection' | 'schedule-sos' | 'bye-context' | 'role-trend' | 'injury-news' | 'replacement-level' | 'player-points-history';
   label: string;
   value: number;
   note: string;
@@ -484,6 +484,7 @@ export interface RedraftValuationRow {
   roleAdjustment: number;
   injuryAdjustment?: number;
   replacementAdjustment?: number;
+  playerPointsAdjustment?: number;
   finalValue: number;
   valueDelta: number;
   confidence: number;
