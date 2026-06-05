@@ -114,4 +114,42 @@ describe('waiver priority calibration', () => {
     expect(missing.rankedRowCount).toBe(0);
     expect(missing.maxConfidence).toBe(34);
   });
+
+  it('keeps explicit null or empty provider fields as missing evidence, not real zeroes', () => {
+    const summary = summarizeWaiverPriorityCalibration({
+      rosters: [
+        {
+          rosterId: 1,
+          manager: 'Missing Fields',
+          settings: {
+            waiver_position: '',
+            wins: null,
+            losses: null,
+            fpts: null,
+            fpts_decimal: null,
+            total_moves: '',
+          },
+        },
+      ],
+    });
+
+    expect(summary).toMatchObject({
+      status: 'missing',
+      rankedRowCount: 0,
+      rows: [
+        {
+          waiverPosition: null,
+          pointsFor: null,
+          totalMoves: null,
+          activityLevel: 'unknown',
+          confidence: 34,
+          reasons: expect.arrayContaining([
+            'Sleeper waiver position missing.',
+            'Standings context missing.',
+            'Move-count context missing.',
+          ]),
+        },
+      ],
+    });
+  });
 });

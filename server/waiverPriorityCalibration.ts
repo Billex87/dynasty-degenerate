@@ -55,6 +55,8 @@ const PUBLIC_WAIVER_PRIORITY_CAP_REASON =
   'Public Sleeper roster settings expose waiver order, standings, and move counts, but skipped, losing, pending, or cancelled claim evidence is not approved.';
 
 function numeric(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
