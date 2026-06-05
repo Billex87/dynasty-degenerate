@@ -19,6 +19,13 @@ type ProjectionPointsResult = {
   fullCoverage: boolean;
 } | null;
 
+type LineupProjectionResult = {
+  points: number | null;
+  mode: 'stored-weekly-projection' | 'stored-weekly-projection-blend' | 'schedule-value';
+  coveredPlayerCount: number;
+  totalPlayerCount: number;
+};
+
 type SchedulePlayer = {
   player_id?: string;
   full_name?: string;
@@ -338,6 +345,20 @@ function getMatchupProjection(input: {
   return Math.round(raw * 10) / 10;
 }
 
+function getReadyWeeklyProjection(
+  playerId: string,
+  week: number,
+  weeklyProjectionByPlayerId?: Record<string, WeeklyProjectionContext | null | undefined>,
+): WeeklyProjectionContext | null {
+  const projection = weeklyProjectionByPlayerId?.[playerId] || null;
+  return projection
+    && projection.status === 'ready'
+    && projection.week === week
+    && Number.isFinite(projection.projectedFantasyPoints)
+    ? projection
+    : null;
+}
+
 function getProjectionPointsForPlayers(
   playerIds: string[],
   week: number,
@@ -347,13 +368,8 @@ function getProjectionPointsForPlayers(
   const uniqueIds = uniquePlayerIds(playerIds);
   if (!uniqueIds.length) return null;
   const values = uniqueIds
-    .map((playerId) => weeklyProjectionByPlayerId[playerId])
-    .filter((projection): projection is WeeklyProjectionContext => Boolean(
-      projection
-      && projection.status === 'ready'
-      && projection.week === week
-      && Number.isFinite(projection.projectedFantasyPoints)
-    ))
+    .map((playerId) => getReadyWeeklyProjection(playerId, week, weeklyProjectionByPlayerId))
+    .filter((projection): projection is WeeklyProjectionContext => Boolean(projection))
     .map((projection) => projection.projectedFantasyPoints);
   if (!values.length) return null;
   return {
@@ -361,6 +377,83 @@ function getProjectionPointsForPlayers(
     coveredPlayerCount: values.length,
     totalPlayerCount: uniqueIds.length,
     fullCoverage: values.length === uniqueIds.length,
+  };
+}
+
+function getAllocatedFallbackPointsForMissingPlayers(input: {
+  allPlayerIds: string[];
+  missingPlayerIds: string[];
+  fallbackTotal: number | null;
+  players: Record<string, SchedulePlayer>;
+  ktcValues: KTCValues;
+}): number | null {
+  if (input.fallbackTotal === null || !input.missingPlayerIds.length) return 0;
+  const weights = input.allPlayerIds
+    .map((playerId) => ({
+      playerId,
+      value: Math.max(1000, getScheduleValue(playerId, input.players, input.ktcValues)),
+    }))
+    .filter((row) => row.value > 0);
+  const totalWeight = weights.reduce((sum, row) => sum + row.value, 0);
+  if (!totalWeight) return null;
+  const missing = new Set(input.missingPlayerIds);
+  const missingWeight = weights
+    .filter((row) => missing.has(row.playerId))
+    .reduce((sum, row) => sum + row.value, 0);
+  return Math.round((input.fallbackTotal * (missingWeight / totalWeight)) * 10) / 10;
+}
+
+function getLineupProjection(input: {
+  playerIds: string[];
+  week: number;
+  players: Record<string, SchedulePlayer>;
+  ktcValues: KTCValues;
+  playerSchedules?: Record<string, PlayerScheduleProfile>;
+  weeklyProjectionByPlayerId?: Record<string, WeeklyProjectionContext | null | undefined>;
+}): LineupProjectionResult {
+  const uniqueIds = uniquePlayerIds(input.playerIds);
+  const fallbackTotal = getMatchupProjection({
+    playerIds: uniqueIds,
+    players: input.players,
+    ktcValues: input.ktcValues,
+    playerSchedules: input.playerSchedules,
+  });
+  const projectionResult = getProjectionPointsForPlayers(uniqueIds, input.week, input.weeklyProjectionByPlayerId);
+  if (!projectionResult) {
+    return {
+      points: fallbackTotal,
+      mode: 'schedule-value',
+      coveredPlayerCount: 0,
+      totalPlayerCount: uniqueIds.length,
+    };
+  }
+
+  if (projectionResult.fullCoverage) {
+    return {
+      points: projectionResult.points,
+      mode: 'stored-weekly-projection',
+      coveredPlayerCount: projectionResult.coveredPlayerCount,
+      totalPlayerCount: projectionResult.totalPlayerCount,
+    };
+  }
+
+  const missingPlayerIds = uniqueIds.filter((playerId) => !getReadyWeeklyProjection(playerId, input.week, input.weeklyProjectionByPlayerId));
+  const fallbackMissingPoints = getAllocatedFallbackPointsForMissingPlayers({
+    allPlayerIds: uniqueIds,
+    missingPlayerIds,
+    fallbackTotal,
+    players: input.players,
+    ktcValues: input.ktcValues,
+  });
+  const blendedPoints = fallbackMissingPoints === null
+    ? fallbackTotal ?? projectionResult.points
+    : Math.round((projectionResult.points + fallbackMissingPoints) * 10) / 10;
+
+  return {
+    points: blendedPoints,
+    mode: 'stored-weekly-projection-blend',
+    coveredPlayerCount: projectionResult.coveredPlayerCount,
+    totalPlayerCount: projectionResult.totalPlayerCount,
   };
 }
 
@@ -469,25 +562,47 @@ export function buildMatchupPreviews(input: {
       const opponentStarterIds = uniquePlayerIds(opponent.starters?.length ? opponent.starters : fallbackOpponentRoster?.starters || fallbackOpponentRoster?.players || []);
       const actualPoints = Number(row.points);
       const actualOpponentPoints = Number(opponent.points);
-      const starterProjectionResult = getProjectionPointsForPlayers(starterIds, input.week, weeklyProjectionByPlayerId);
-      const opponentProjectionResult = getProjectionPointsForPlayers(opponentStarterIds, input.week, weeklyProjectionByPlayerId);
-      const matchupUsesWeeklyProjectionTotals = Boolean(
-        starterProjectionResult?.fullCoverage &&
-        opponentProjectionResult?.fullCoverage
-      );
+      const starterProjectionResult = getLineupProjection({
+        playerIds: starterIds,
+        week: input.week,
+        players: input.players,
+        ktcValues: input.ktcValues,
+        playerSchedules: input.playerSchedules,
+        weeklyProjectionByPlayerId,
+      });
+      const opponentProjectionResult = getLineupProjection({
+        playerIds: opponentStarterIds,
+        week: input.week,
+        players: input.players,
+        ktcValues: input.ktcValues,
+        playerSchedules: input.playerSchedules,
+        weeklyProjectionByPlayerId,
+      });
+      const starterProjectionMode = Number.isFinite(actualPoints) && actualPoints > 0
+        ? 'schedule-value'
+        : starterProjectionResult.mode;
+      const opponentProjectionMode = Number.isFinite(actualOpponentPoints) && actualOpponentPoints > 0
+        ? 'schedule-value'
+        : opponentProjectionResult.mode;
+      const matchupUsesWeeklyProjectionTotals = starterProjectionMode === 'stored-weekly-projection'
+        && opponentProjectionMode === 'stored-weekly-projection';
+      const matchupUsesAnyWeeklyProjection = [starterProjectionMode, opponentProjectionMode]
+        .some((mode) => mode === 'stored-weekly-projection' || mode === 'stored-weekly-projection-blend');
+      const matchupUsesWeeklyProjectionBlend = !matchupUsesWeeklyProjectionTotals && matchupUsesAnyWeeklyProjection;
       const projectedPoints = Number.isFinite(actualPoints) && actualPoints > 0
         ? Math.round(actualPoints * 10) / 10
-        : matchupUsesWeeklyProjectionTotals
-          ? starterProjectionResult?.points ?? null
-          : getMatchupProjection({ playerIds: starterIds, players: input.players, ktcValues: input.ktcValues, playerSchedules: input.playerSchedules });
+        : starterProjectionResult.points;
       const opponentProjectedPoints = Number.isFinite(actualOpponentPoints) && actualOpponentPoints > 0
         ? Math.round(actualOpponentPoints * 10) / 10
-        : matchupUsesWeeklyProjectionTotals
-          ? opponentProjectionResult?.points ?? null
-          : getMatchupProjection({ playerIds: opponentStarterIds, players: input.players, ktcValues: input.ktcValues, playerSchedules: input.playerSchedules });
+        : opponentProjectionResult.points;
       const edge = projectedPoints !== null && opponentProjectedPoints !== null
         ? Math.round((projectedPoints - opponentProjectedPoints) * 10) / 10
         : null;
+      const edgeSourceLabel = matchupUsesWeeklyProjectionTotals
+        ? 'stored projection'
+        : matchupUsesWeeklyProjectionBlend
+          ? 'stored projection blend'
+          : 'schedule/value';
       const starterPlayers = starterIds
         .map((playerId) => toStarterPlayer(playerId, manager, input.players, input.ktcValues, weeklyProjectionByPlayerId))
         .sort((left, right) => (right.weeklyProjection?.projectedFantasyPoints || right.seasonValue || right.value) - (left.weeklyProjection?.projectedFantasyPoints || left.seasonValue || left.value));
@@ -515,15 +630,19 @@ export function buildMatchupPreviews(input: {
             managerProjected: Math.round(managerProjected * 10) / 10,
             opponentProjected: Math.round(opponentProjected * 10) / 10,
             edge: Math.round((managerProjected - opponentProjected) * 10) / 10,
-            note: `${position} edge from submitted lineup context${matchupUsesWeeklyProjectionTotals ? ' and stored weekly projections' : input.playerSchedules ? ' and stored bye/SOS profiles' : ''}.`,
+            note: `${position} edge from submitted lineup context${matchupUsesAnyWeeklyProjection ? ' and stored weekly projections' : input.playerSchedules ? ' and stored bye/SOS profiles' : ''}.`,
           };
         }).filter((row) => row.managerProjected || row.opponentProjected),
         howToWin: edge === null
           ? `Sleeper returned matchup ${row.matchup_id || ''}, but lineup projection inputs are still thin.`
           : edge >= 0
-            ? `Protect the ${edge.toFixed(1)} point ${matchupUsesWeeklyProjectionTotals ? 'stored projection' : 'schedule/value'} edge against ${opponentManager}; use stored bye/SOS context before taking streamer risk.`
-            : `Close a ${Math.abs(edge).toFixed(1)} point ${matchupUsesWeeklyProjectionTotals ? 'stored projection' : 'schedule/value'} gap against ${opponentManager} through lineup upgrades, streamer checks, and stored bye/SOS context.`,
-        source: matchupUsesWeeklyProjectionTotals ? 'Submitted lineup + stored weekly projection model' : 'Sleeper + Dynasty Degenerates schedule model',
+            ? `Protect the ${edge.toFixed(1)} point ${edgeSourceLabel} edge against ${opponentManager}; use stored bye/SOS context before taking streamer risk.`
+            : `Close a ${Math.abs(edge).toFixed(1)} point ${edgeSourceLabel} gap against ${opponentManager} through lineup upgrades, streamer checks, and stored bye/SOS context.`,
+        source: matchupUsesWeeklyProjectionTotals
+          ? 'Submitted lineup + stored weekly projection model'
+          : matchupUsesWeeklyProjectionBlend
+            ? 'Submitted lineup + stored weekly projection blend'
+            : 'Sleeper + Dynasty Degenerates schedule model',
         updatedAt: new Date().toISOString(),
       });
     }

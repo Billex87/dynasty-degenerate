@@ -263,7 +263,7 @@ describe('schedule planning', () => {
     expect(bill?.positionEdges?.[0]?.note).toContain('stored weekly projections');
   });
 
-  it('falls back to schedule/value matchup totals when stored weekly projection coverage is partial', () => {
+  it('blends stored weekly projections with schedule/value fallback when projection coverage is partial', () => {
     const previews = buildMatchupPreviews({
       season: '2026',
       week: 1,
@@ -293,11 +293,10 @@ describe('schedule planning', () => {
     });
 
     const bill = previews.find((preview) => preview.manager === 'Bill');
-    expect(bill?.source).toBe('Sleeper + Dynasty Degenerates schedule model');
-    expect(bill?.projectedPoints).not.toBe(21.5);
+    expect(bill?.source).toBe('Submitted lineup + stored weekly projection blend');
     expect(bill?.projectedPoints || 0).toBeGreaterThan(21.5);
-    expect(bill?.positionEdges?.[0]?.note).not.toContain('stored weekly projections');
-    expect(bill?.howToWin).toContain('schedule/value');
+    expect(bill?.positionEdges?.[0]?.note).toContain('stored weekly projections');
+    expect(bill?.howToWin).toContain('stored projection blend');
   });
 
   it('ignores stored weekly projections when projection readiness is blocked', () => {
