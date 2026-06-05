@@ -15,6 +15,7 @@ import type { KTCValues, LastSeasonPlayerRank } from "./reportGenerator";
 import { getKtcSnapshotFromDaysAgo, getKtcSnapshotOnOrBeforeDate } from "./ktcSnapshotJob";
 import { generateReport } from "./reportGenerator";
 import { fetchDraftData, calculateADPFromPicks, analyzeDraftPicks } from "./draftAnalysis";
+import { buildFantasyProsDraftAdpData } from "./fantasyProsDraftCostContext";
 import { buildSleeperRookieAdpData } from "./sleeperRookieAdp";
 import { buildSleeperStartupAdpData } from "./startupAdpSnapshots";
 import { getRookieValueBaseline, getRookieValueBaselines } from "./rookieValueBaselines";
@@ -10116,6 +10117,12 @@ export const appRouter = router({
                 .map((pick: any) => [String(pick.season), dynastyMainDraftValueWindowsByDraftId?.[pick.draft_id]?.baselineSnapshotKey || null])
             );
             const draftDerivedAdpData = calculateADPFromPicks(draftPicks);
+            const fantasyProsDraftAdpData = buildFantasyProsDraftAdpData({
+              draftPicks,
+              players,
+              fantasyProsSnapshotContext,
+              leagueValueMode,
+            });
             const sleeperRookieAdpData = leagueValueMode === 'dynasty'
               ? await buildSleeperRookieAdpData(draftPicks, players, leagueValueOptions)
               : {};
@@ -10128,6 +10135,7 @@ export const appRouter = router({
               : {};
             const adpData = {
               ...draftDerivedAdpData,
+              ...fantasyProsDraftAdpData,
               ...sleeperRookieAdpData,
               ...sleeperStartupAdpData,
             };
