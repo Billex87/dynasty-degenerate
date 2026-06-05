@@ -20,6 +20,7 @@ const sourceLogo = path.join(
 const iconSizes = [16, 32, 48, 128];
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const iconAlphaTrimThreshold = 8;
+const storePackageExcludedMatches = new Set(["http://localhost:3000/*"]);
 
 function paethPredictor(left, up, upLeft) {
   const estimate = left + up - upLeft;
@@ -282,13 +283,35 @@ async function copyExtensionFiles() {
   await rm(distRoot, { recursive: true, force: true });
   await mkdir(packageRoot, { recursive: true });
   await Promise.all([
-    cp(path.join(extensionRoot, "manifest.json"), path.join(packageRoot, "manifest.json")),
     cp(path.join(extensionRoot, "background.js"), path.join(packageRoot, "background.js")),
     cp(path.join(extensionRoot, "popup.html"), path.join(packageRoot, "popup.html")),
     cp(path.join(extensionRoot, "popup.js"), path.join(packageRoot, "popup.js")),
+    cp(path.join(extensionRoot, "assets"), path.join(packageRoot, "assets"), { recursive: true }),
     cp(path.join(extensionRoot, "content"), path.join(packageRoot, "content"), { recursive: true }),
     cp(path.join(extensionRoot, "icons"), path.join(packageRoot, "icons"), { recursive: true })
   ]);
+  await writeStoreManifest();
+}
+
+async function writeStoreManifest() {
+  const manifestPath = path.join(extensionRoot, "manifest.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.host_permissions = (manifest.host_permissions || []).filter(
+    (match) => !storePackageExcludedMatches.has(match)
+  );
+  manifest.content_scripts = (manifest.content_scripts || [])
+    .map((script) => ({
+      ...script,
+      matches: (script.matches || []).filter(
+        (match) => !storePackageExcludedMatches.has(match)
+      )
+    }))
+    .filter((script) => script.matches.length > 0);
+
+  await writeFile(
+    path.join(packageRoot, "manifest.json"),
+    `${JSON.stringify(manifest, null, 2)}\n`
+  );
 }
 
 async function packageExtension() {
@@ -297,7 +320,7 @@ async function packageExtension() {
   });
   const zipPath = path.join(
     distRoot,
-    `dynasty-degens-sleeper-helper-${manifest.default.version}.zip`
+    `dynasty-degens-transaction-sync-${manifest.default.version}.zip`
   );
   execFileSync("zip", ["-qr", zipPath, "."], { cwd: packageRoot });
   return zipPath;
@@ -306,4 +329,4 @@ async function packageExtension() {
 await generateIcons();
 await copyExtensionFiles();
 const zipPath = await packageExtension();
-console.log(`Sleeper Helper package ready: ${path.relative(repoRoot, zipPath)}`);
+console.log(`Transaction Sync package ready: ${path.relative(repoRoot, zipPath)}`);

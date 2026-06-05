@@ -22,9 +22,9 @@
   function getRuntimeErrorMessage(error) {
     const message = String(error?.message || error || "");
     if (/context invalidated|extension context/i.test(message)) {
-      return "The Sleeper Helper was reloaded. Refresh this Dynasty Degens tab, then click Import Pending Transactions again.";
+      return "Transaction Sync was reloaded. Refresh this Dynasty Degens tab, then click Import Pending Transactions again.";
     }
-    return "Could not reach the Sleeper Helper extension.";
+    return "Could not reach the Transaction Sync extension.";
   }
 
   function postRuntimeError(error) {
@@ -69,7 +69,7 @@
         if (response?.ok) return;
         postStatus({
           status: "error",
-          detail: response?.error || "Could not start the Sleeper Helper import."
+          detail: response?.error || "Could not start the Transaction Sync import."
         });
       });
     } catch (error) {

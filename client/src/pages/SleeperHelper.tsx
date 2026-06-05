@@ -77,7 +77,7 @@ function SleeperHelperPage() {
 
             <div className="rounded-[2rem] border border-cyan-300/20 bg-slate-950/70 p-5 shadow-[0_0_80px_rgba(34,211,238,0.14)]">
               <div className="rounded-[1.45rem] border border-orange-300/25 bg-gradient-to-br from-orange-500/15 via-slate-900 to-cyan-500/15 p-5">
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-orange-200">Current status</p>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-orange-200">Transaction Sync status</p>
                 <h2 className="mt-3 text-2xl font-black text-white">Local unpacked MVP, production-domain ready.</h2>
                 <p className="mt-3 text-sm leading-6 text-slate-300">
                   Use this route for installation, privacy review, and troubleshooting until the Chrome Web Store listing is approved.

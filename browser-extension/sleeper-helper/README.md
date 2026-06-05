@@ -1,6 +1,6 @@
-# Dynasty Degens Sleeper Helper
+# Dynasty Degens Transaction Sync
 
-Chrome extension helper for importing pending Sleeper trade and waiver activity into Dynasty Degens without copying Authorization headers.
+Chrome extension for importing pending Sleeper trade and waiver activity into Dynasty Degens without copying Authorization headers.
 
 ## Phase 1 scope
 
@@ -21,7 +21,7 @@ Use this while the helper is still an unpacked Chrome extension.
 5. Confirm the extension shows version `0.2.0` or newer.
 
 If you are testing the packaged zip instead, unzip
-`dist/browser-extension/sleeper-helper/dynasty-degens-sleeper-helper-0.2.0.zip`
+`dist/browser-extension/sleeper-helper/dynasty-degens-transaction-sync-0.2.0.zip`
 first, then load the unzipped folder with Load unpacked.
 
 ## Local test flow
@@ -57,6 +57,12 @@ pnpm package:sleeper-helper
 ```
 
 The script regenerates extension icons and writes the review zip to `dist/browser-extension/sleeper-helper/`.
+
+The checked-in unpacked manifest keeps `http://localhost:3000/*` for local QA.
+The packaged Chrome Web Store zip strips that development-only match and keeps
+only Sleeper plus production Dynasty Degens host permissions.
+
+Before submission, complete `SUBMISSION_CHECKLIST.md`.
 
 ## Troubleshooting
 

@@ -3,43 +3,133 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dynasty Degens Sleeper Helper</title>
+    <title>Dynasty Degens Transaction Sync</title>
     <style>
       :root { color-scheme: dark; font-family: Sora, ui-sans-serif, system-ui, sans-serif; }
-      body { width: 360px; margin: 0; background: radial-gradient(circle at 18% 0%, rgba(251, 146, 60, .2), transparent 34%), radial-gradient(circle at 96% 10%, rgba(34, 211, 238, .18), transparent 30%), #06111d; color: #e5f2ff; }
-      main { padding: 16px; display: grid; gap: 12px; }
-      h1 { margin: 0; font-size: 18px; letter-spacing: -0.03em; line-height: 1.05; }
+      html { overflow: hidden; background: transparent; }
+      body { width: 360px; margin: 0; background: #06111d; color: #e5f2ff; }
+      main {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+        text-align: center;
+        border: 1px solid rgba(125, 247, 255, .18);
+        background:
+          linear-gradient(145deg, rgba(2, 8, 23, .9), rgba(6, 17, 29, .84)),
+          #06111d;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, .05),
+          0 0 34px rgba(34, 211, 238, .14);
+      }
+      main::before,
+      main::after { position: absolute; inset: -38%; z-index: -1; content: ""; pointer-events: none; }
+      main::before {
+        background:
+          radial-gradient(circle at 18% 0%, rgba(251, 146, 60, .24), transparent 34%),
+          radial-gradient(circle at 96% 10%, rgba(34, 211, 238, .2), transparent 30%),
+          radial-gradient(circle at 50% 96%, rgba(16, 185, 129, .12), transparent 30%);
+        animation: bg-drift 12s ease-in-out infinite alternate;
+      }
+      main::after {
+        inset: 0;
+        background: linear-gradient(110deg, transparent 0%, rgba(125, 247, 255, .07) 42%, rgba(255, 180, 106, .08) 50%, transparent 62%);
+        opacity: .38;
+        transform: translateX(-120%);
+        animation: bg-scan 13s cubic-bezier(.16, 1, .3, 1) infinite;
+      }
+      .bg-dots {
+        position: absolute;
+        inset: -18%;
+        z-index: -1;
+        pointer-events: none;
+        opacity: .42;
+        background-image:
+          radial-gradient(circle, rgba(125, 247, 255, .78) 0 1px, transparent 1.6px),
+          radial-gradient(circle, rgba(255, 180, 106, .52) 0 1px, transparent 1.8px),
+          radial-gradient(circle, rgba(226, 232, 240, .42) 0 .8px, transparent 1.4px);
+        background-size: 34px 34px, 51px 51px, 73px 73px;
+        background-position: 0 0, 17px 8px, 9px 23px;
+        animation: dots-drift 14s linear infinite;
+      }
+      .brand-logo { display: block; width: min(292px, 90%); height: auto; margin: -3px auto 2px; filter: drop-shadow(0 0 18px rgba(34, 211, 238, .18)); }
+      h1 {
+        margin: 0;
+        font-size: 26px;
+        letter-spacing: -0.05em;
+        line-height: 0.95;
+        text-transform: uppercase;
+        color: #f8fafc;
+        text-shadow: 0 0 24px rgba(34, 211, 238, .14);
+      }
+      .title-blue,
+      .title-orange {
+        display: inline-block;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .title-blue { background-image: linear-gradient(90deg, #61c7e1, #00c8e8 18%, #d8fbff 50%, #00c8e8 78%, #61c7e1); }
+      .title-orange { background-image: linear-gradient(90deg, #c2410c, #fb923c 18%, #fed7aa 48%, #fb923c 76%, #c2410c); }
+      .title-gap { display: inline-block; width: .28em; }
       p { margin: 0; color: #a9bdd3; font-size: 12px; line-height: 1.45; }
-      .badge { display: inline-flex; width: fit-content; border: 1px solid rgba(52, 211, 153, .35); border-radius: 999px; padding: 4px 8px; color: #a7f3d0; background: rgba(16, 185, 129, .12); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+      .subtitle { max-width: 285px; margin: 0 auto; font-size: 13.5px; line-height: 1.42; color: #c8d8ea; }
       .card { border: 1px solid rgba(148, 163, 184, .18); border-radius: 16px; padding: 12px; background: linear-gradient(135deg, rgba(15, 23, 42, .88), rgba(2, 6, 23, .74)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04); }
       .status { font-weight: 800; color: #f8fafc; }
-      .safe-list { display: grid; gap: 6px; }
-      .safe-list span { display: block; color: #c7d2fe; font-size: 11px; }
-      button { width: 100%; border: 0; border-radius: 12px; padding: 10px 12px; font-weight: 900; cursor: pointer; color: #04111f; background: linear-gradient(135deg, #6ee7b7, #22d3ee); }
-      button.secondary { background: rgba(148, 163, 184, .14); color: #e5f2ff; border: 1px solid rgba(148, 163, 184, .24); }
+      button {
+        width: 100%;
+        border: 0;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-weight: 900;
+        cursor: pointer;
+        color: #03111f;
+        background-image: linear-gradient(90deg, #61c7e1, #00c8e8 18%, #d8fbff 50%, #00c8e8 78%, #61c7e1);
+        box-shadow: 0 0 22px rgba(34, 211, 238, .16);
+      }
+      button.secondary {
+        color: #160b02;
+        background-image: linear-gradient(90deg, #c2410c, #fb923c 18%, #fed7aa 48%, #fb923c 76%, #c2410c);
+        border: 0;
+        box-shadow: 0 0 22px rgba(251, 146, 60, .16);
+      }
       button:disabled { opacity: .55; cursor: not-allowed; }
       #message { min-height: 18px; color: #a7f3d0; }
       .warn { color: #fbbf24; }
       .error { color: #fda4af; }
+      @keyframes bg-drift {
+        from { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+        to { transform: translate3d(1.5%, 1%, 0) scale(1.04); }
+      }
+      @keyframes bg-scan {
+        0%, 45% { transform: translateX(-120%); }
+        82%, 100% { transform: translateX(120%); }
+      }
+      @keyframes dots-drift {
+        from { transform: translate3d(0, -4%, 0); }
+        to { transform: translate3d(2%, 6%, 0); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        main::before,
+        main::after,
+        .bg-dots { animation: none; }
+      }
     </style>
   </head>
   <body>
     <main>
-      <span class="badge">Read only helper</span>
-      <h1>Dynasty Degens Sleeper Helper</h1>
-      <p>Use the Dynasty Degens Trades tab for the one-click import. This popup is a fallback and status check.</p>
-      <section class="card safe-list" aria-label="Privacy boundaries">
-        <span>Never reads or sends Sleeper cookies.</span>
-        <span>Never displays Authorization headers.</span>
-        <span>Only sends sanitized pending trade and waiver data.</span>
-      </section>
+      <span class="bg-dots" aria-hidden="true"></span>
+      <img class="brand-logo" src="assets/report-header-logo-compact-transparent-cropped.png" alt="Dynasty Degens" />
+      <h1><span class="title-blue">Transaction</span><span class="title-gap"></span><span class="title-orange">Sync</span></h1>
+      <p class="subtitle">Import pending Sleeper trades and waivers into Dynasty Degens.</p>
       <section class="card">
         <p class="status" id="status">Checking for captured activity...</p>
         <p id="detail"></p>
       </section>
       <button id="send" disabled>Send Snapshot Manually</button>
       <button id="open" class="secondary">Open Dynasty Degens</button>
-      <button id="help" class="secondary">Install + Privacy Help</button>
       <p id="message"></p>
     </main>
     <script src="popup.js"></script>

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Dynasty Degens Sleeper Helper",
+  "name": "Dynasty Degens Transaction Sync",
   "version": "0.2.0",
   "description": "Read-only helper that imports pending Sleeper trades and waivers into Dynasty Degens.",
   "icons": {
@@ -10,7 +10,7 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "Sleeper Helper",
+    "default_title": "Transaction Sync",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",

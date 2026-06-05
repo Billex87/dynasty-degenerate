@@ -1,5 +1,4 @@
 const DEFAULT_APP_ORIGIN = "https://dynastydegens.com";
-const HELP_PATH = "/sleeper-helper";
 const APP_ORIGINS = [
   "https://dynastydegens.com",
   "https://www.dynastydegens.com",
@@ -18,7 +17,6 @@ const detailEl = document.getElementById("detail");
 const messageEl = document.getElementById("message");
 const sendButton = document.getElementById("send");
 const openButton = document.getElementById("open");
-const helpButton = document.getElementById("help");
 let latestSnapshot = null;
 
 function summarize(snapshot) {
@@ -82,7 +80,16 @@ function render(snapshot) {
   statusEl.textContent = summary.total > 0
     ? `Captured ${summary.tradeCount} trade item${summary.tradeCount === 1 ? "" : "s"} and ${summary.waiverCount} waiver item${summary.waiverCount === 1 ? "" : "s"}.`
     : "Captured Sleeper activity, but no current pending items were visible.";
-  detailEl.textContent = `League ${latestSnapshot.leagueId} · ${new Date(latestSnapshot.capturedAt).toLocaleString()}`;
+  const capturedAt = new Date(latestSnapshot.capturedAt);
+  const capturedTime = capturedAt.toLocaleString([], {
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: false
+  });
+  detailEl.textContent = `League ${latestSnapshot.leagueId} · ${capturedTime}`;
 }
 
 async function loadLatestCapture() {
@@ -196,10 +203,6 @@ openButton.addEventListener("click", async () => {
     ? `${DEFAULT_APP_ORIGIN}/?leagueId=${encodeURIComponent(leagueId)}#trades`
     : DEFAULT_APP_ORIGIN;
   await chrome.tabs.create({ url, active: true });
-});
-
-helpButton.addEventListener("click", async () => {
-  await chrome.tabs.create({ url: `${DEFAULT_APP_ORIGIN}${HELP_PATH}`, active: true });
 });
 
 chrome.runtime.onMessage.addListener((message) => {
