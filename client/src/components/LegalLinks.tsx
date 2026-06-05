@@ -5,6 +5,7 @@ export const LEGAL_LINKS = [
   { href: "/privacy", label: "Privacy" },
   { href: "/refunds", label: "Refunds" },
   { href: "/data-disclosures", label: "Data Sources" },
+  { href: "/services", label: "Services" },
   { href: "/support", label: "Support" },
 ] as const;
 

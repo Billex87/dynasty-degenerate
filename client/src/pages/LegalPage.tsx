@@ -4,7 +4,7 @@ import { HomeFooterChrome } from "@/features/home/components/HomeChrome";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 
-type LegalSectionKey = "terms" | "privacy" | "refunds" | "data-disclosures" | "support";
+type LegalSectionKey = "terms" | "privacy" | "refunds" | "data-disclosures" | "services" | "support";
 
 type LegalSection = {
   eyebrow: string;
@@ -16,7 +16,7 @@ type LegalSection = {
   }>;
 };
 
-const UPDATED_AT = "June 2, 2026";
+const UPDATED_AT = "June 5, 2026";
 
 const SECTIONS: Record<LegalSectionKey, LegalSection> = {
   terms: {
@@ -155,6 +155,42 @@ const SECTIONS: Record<LegalSectionKey, LegalSection> = {
         heading: "No betting use",
         body: [
           "Dynasty Degenerates is built for fantasy football roster decisions. It is not a sportsbook, betting model, odds product, or gambling advice service.",
+        ],
+      },
+    ],
+  },
+  services: {
+    eyebrow: "Services and Product Scope",
+    title: "Services, Subscriptions, and Product Boundaries",
+    intro:
+      "This page describes what Dynasty Degenerates provides, what it does not provide, and which product controls must be in place before paid services are marketed or charged.",
+    rows: [
+      {
+        heading: "Current service",
+        body: [
+          "Dynasty Degenerates generates fantasy football roster, trade, waiver, draft, matchup, and lineup decision support from public league data, stored snapshots, source-health checks, and internal fantasy-football logic.",
+          "The service is designed for entertainment and fantasy-football strategy. It does not manage league transactions, submit lineup changes, place wagers, guarantee outcomes, or replace a user's own verification inside the league platform.",
+        ],
+      },
+      {
+        heading: "AI and recommendation boundaries",
+        body: [
+          "AI-assisted readouts, rankings, confidence labels, source traces, and suggested actions are decision-support outputs. They can be incomplete, stale, or wrong when player news, injuries, depth charts, schedules, scoring settings, or source snapshots change.",
+          "Users remain responsible for confirming live roster, lineup, waiver, trade, transaction, injury, scoring, and eligibility details before acting on a recommendation.",
+        ],
+      },
+      {
+        heading: "Paid service launch requirements",
+        body: [
+          "Before subscriptions, League Passes, one-time reports, exports, alerts, or other paid services are sold, checkout terms, cancellation handling, refund boundaries, usage limits, account access, and server-side entitlements must be active and tested.",
+          "Paid access should never depend only on frontend state. Billing events, plan changes, refunds, failed payments, and entitlement overrides must be enforced by server-side records before a paid feature is presented as available.",
+        ],
+      },
+      {
+        heading: "Service limits and source availability",
+        body: [
+          "Features may be limited, delayed, hidden, downgraded, or moved to fallback language when source data is missing, stale, rate limited, contractually restricted, or not approved for public use.",
+          "Provider names identify source categories or stored snapshots where available. They do not imply sponsorship, endorsement, full coverage, live availability, or redistribution rights unless an approved provider agreement says so.",
         ],
       },
     ],

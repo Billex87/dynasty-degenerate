@@ -46,6 +46,11 @@ function Router() {
           <LegalPage section="data-disclosures" />
         </Suspense>
       </Route>
+      <Route path={"/services"}>
+        <Suspense fallback={<RouteSuspenseFallback />}>
+          <LegalPage section="services" />
+        </Suspense>
+      </Route>
       <Route path={"/support"}>
         <Suspense fallback={<RouteSuspenseFallback />}>
           <LegalPage section="support" />

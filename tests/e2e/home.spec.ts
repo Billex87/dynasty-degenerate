@@ -32,13 +32,14 @@ test.describe('homepage smoke', () => {
       ['/privacy', 'Privacy and Data Handling'],
       ['/refunds', 'Refunds, Cancellations, and Paid Access'],
       ['/data-disclosures', 'Fantasy Data Source and Confidence Disclosures'],
+      ['/services', 'Services, Subscriptions, and Product Boundaries'],
       ['/support', 'Support and Contact'],
     ] as const;
 
     for (const [path, heading] of routes) {
       await page.goto(path, { waitUntil: 'domcontentloaded' });
       await expect(page.getByRole('heading', { name: heading })).toBeVisible();
-      await expect(page.getByText('Last updated: June 2, 2026')).toBeVisible();
+      await expect(page.getByText('Last updated: June 5, 2026')).toBeVisible();
       await expect(
         page.getByRole('main').getByRole('navigation', { name: 'Legal sections' })
       ).toBeVisible();
