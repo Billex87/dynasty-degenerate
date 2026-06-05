@@ -5,6 +5,7 @@ import path from 'node:path';
 import '../server/_core/env';
 import {
   buildZeroRowValuationAudit,
+  summarizeZeroRowValuationAudit,
   type ValueSourceCoverageRow,
 } from '../server/valueSourceZeroRowAudit';
 
@@ -69,11 +70,13 @@ async function loadRowsFromRegistry(): Promise<ValueSourceCoverageRow[]> {
 
 const rows = await loadRowsFromCoverageAudit() || await loadRowsFromRegistry();
 const zeroRows = buildZeroRowValuationAudit(rows);
+const summary = summarizeZeroRowValuationAudit(rows);
 
 console.log('# Zero-Row Valuation Source Audit');
 console.log(`Input: ${fs.existsSync(auditPath) ? path.relative(rootDir, auditPath) : 'value-history-source-registry fallback'}`);
-console.log(`Configured sources: ${rows.length}`);
-console.log(`Zero-row sources: ${zeroRows.length}`);
+console.log(`Configured sources: ${summary.totalSources}`);
+console.log(`Zero-row sources: ${summary.zeroRowSources}`);
+console.log(`Disposition counts: fix=${summary.byDisposition.fix}, watch=${summary.byDisposition.watch}, disable=${summary.byDisposition.disable}, benchmark-only=${summary.byDisposition['benchmark-only']}`);
 
 if (!zeroRows.length) {
   console.log('No zero-row valuation sources found.');
@@ -89,6 +92,12 @@ if (!zeroRows.length) {
 }
 
 const fixRows = zeroRows.filter((row) => row.disposition === 'fix');
+if (summary.errors.length) {
+  console.log('\nValidation errors:');
+  for (const error of summary.errors) console.log(`- ${error}`);
+  process.exitCode = 1;
+}
+
 if (fixRows.length) {
   console.log('\nActive-weight sources needing action:');
   for (const row of fixRows) {

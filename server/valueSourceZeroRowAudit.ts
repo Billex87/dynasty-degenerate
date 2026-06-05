@@ -21,6 +21,13 @@ export type ZeroRowValuationAuditRow = ValueSourceCoverageRow & {
   reason: string;
 };
 
+export type ZeroRowValuationAuditSummary = {
+  totalSources: number;
+  zeroRowSources: number;
+  byDisposition: Record<Exclude<ZeroRowValuationDisposition, 'active'>, number>;
+  errors: string[];
+};
+
 function normalizedStatus(row: ValueSourceCoverageRow): string {
   return `${row.configuredStatus || ''} ${row.archiveStatus || ''}`.toLowerCase();
 }
@@ -34,6 +41,13 @@ export function classifyZeroRowValuationSource(row: ValueSourceCoverageRow): Pic
   }
 
   const status = normalizedStatus(row);
+  if (row.currentWeight > 0) {
+    return {
+      disposition: 'fix',
+      reason: 'Source has active blend weight but no archived rows; fix coverage or remove weight before trusting it.',
+    };
+  }
+
   if (status.includes('benchmark-only')) {
     return {
       disposition: 'benchmark-only',
@@ -45,13 +59,6 @@ export function classifyZeroRowValuationSource(row: ValueSourceCoverageRow): Pic
     return {
       disposition: 'watch',
       reason: 'Future licensed/provider source should stay visible but cannot affect active weights yet.',
-    };
-  }
-
-  if (row.currentWeight > 0) {
-    return {
-      disposition: 'fix',
-      reason: 'Source has active blend weight but no archived rows; fix coverage or remove weight before trusting it.',
     };
   }
 
@@ -85,4 +92,35 @@ export function buildZeroRowValuationAudit(rows: ValueSourceCoverageRow[]): Zero
       };
       return priority[a.disposition] - priority[b.disposition] || a.label.localeCompare(b.label);
     });
+}
+
+export function summarizeZeroRowValuationAudit(rows: ValueSourceCoverageRow[]): ZeroRowValuationAuditSummary {
+  const zeroRows = buildZeroRowValuationAudit(rows);
+  const byDisposition: ZeroRowValuationAuditSummary['byDisposition'] = {
+    fix: 0,
+    watch: 0,
+    disable: 0,
+    'benchmark-only': 0,
+  };
+  const errors: string[] = [];
+
+  for (const row of zeroRows) {
+    if (row.disposition === 'active') {
+      errors.push(`${row.key} has zero rows but was classified as active.`);
+      continue;
+    }
+
+    byDisposition[row.disposition] += 1;
+
+    if (row.currentWeight > 0 && row.disposition !== 'fix') {
+      errors.push(`${row.key} has active weight ${row.currentWeight} but was classified as ${row.disposition}.`);
+    }
+  }
+
+  return {
+    totalSources: rows.length,
+    zeroRowSources: zeroRows.length,
+    byDisposition,
+    errors,
+  };
 }

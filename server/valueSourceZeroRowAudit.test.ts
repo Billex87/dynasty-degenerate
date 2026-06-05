@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildZeroRowValuationAudit,
   classifyZeroRowValuationSource,
+  summarizeZeroRowValuationAudit,
 } from './valueSourceZeroRowAudit';
 
 describe('zero-row valuation source audit', () => {
@@ -38,6 +39,26 @@ describe('zero-row valuation source audit', () => {
     }).disposition).toBe('watch');
   });
 
+  it('treats weighted future or benchmark zero-row sources as fixes', () => {
+    expect(classifyZeroRowValuationSource({
+      key: 'weightedBenchmark',
+      label: 'Weighted Benchmark',
+      currentWeight: 0.05,
+      configuredStatus: 'benchmark-only',
+      archiveStatus: 'benchmark-only',
+      archivedPointCount: 0,
+    }).disposition).toBe('fix');
+
+    expect(classifyZeroRowValuationSource({
+      key: 'weightedFuture',
+      label: 'Weighted Future',
+      currentWeight: 0.05,
+      configuredStatus: 'future',
+      archiveStatus: 'future',
+      archivedPointCount: 0,
+    }).disposition).toBe('fix');
+  });
+
   it('returns only zero-row sources ordered by action priority', () => {
     const rows = buildZeroRowValuationAudit([
       {
@@ -68,5 +89,46 @@ describe('zero-row valuation source audit', () => {
 
     expect(rows.map((row) => row.key)).toEqual(['weighted', 'future']);
     expect(rows.map((row) => row.disposition)).toEqual(['fix', 'watch']);
+  });
+
+  it('summarizes classified zero-row sources and validation errors', () => {
+    const summary = summarizeZeroRowValuationAudit([
+      {
+        key: 'future',
+        label: 'Future Source',
+        currentWeight: 0,
+        configuredStatus: 'future',
+        archiveStatus: 'future',
+        archivedPointCount: 0,
+      },
+      {
+        key: 'benchmark',
+        label: 'Benchmark Source',
+        currentWeight: 0,
+        configuredStatus: 'benchmark-only',
+        archiveStatus: 'benchmark-only',
+        archivedPointCount: 0,
+      },
+      {
+        key: 'disabled',
+        label: 'Disabled Source',
+        currentWeight: 0,
+        configuredStatus: 'disabled',
+        archiveStatus: 'disabled',
+        archivedPointCount: 0,
+      },
+    ]);
+
+    expect(summary).toMatchObject({
+      totalSources: 3,
+      zeroRowSources: 3,
+      byDisposition: {
+        fix: 0,
+        watch: 1,
+        disable: 1,
+        'benchmark-only': 1,
+      },
+      errors: [],
+    });
   });
 });
