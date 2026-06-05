@@ -254,38 +254,66 @@ function buildSyntheticWaiverTradeWarAsset({
   const details = id ? playerDetailsById?.[id] : undefined;
   const rankingRow = findTradeWarRankingRowForAsset(id, name, rankingRows);
   const valueProfile = details?.valueProfile;
-  const dynastyValue =
+  const resolvedPosition = details?.position || rankingRow?.pos || "FLEX";
+  const normalizedPosition =
+    isTradeWarSpecialTeamsPosition(resolvedPosition) &&
+    String(resolvedPosition).toUpperCase() !== "K"
+      ? "DEF"
+      : resolvedPosition;
+  const isSpecialTeamsAsset = isTradeWarSpecialTeamsPosition(normalizedPosition);
+  const profileDynastyValue =
     valueProfile?.dynastyValue ??
     valueProfile?.balancedValue ??
-    rankingRow?.value ??
     0;
-  const seasonValue =
+  const profileSeasonValue =
     valueProfile?.seasonValue ??
     valueProfile?.fantasyProsSeasonValue ??
-    rankingRow?.seasonValue ??
-    rankingRow?.value ??
-    dynastyValue;
+    0;
+  const rankingDynastyValue = rankingRow?.value ?? 0;
+  const rankingSeasonValue = rankingRow?.seasonValue ?? rankingRow?.value ?? 0;
+  const dynastyValue =
+    (isSpecialTeamsAsset
+      ? rankingDynastyValue || profileDynastyValue
+      : profileDynastyValue || rankingDynastyValue) || 0;
+  const seasonValue =
+    (isSpecialTeamsAsset
+      ? rankingSeasonValue || profileSeasonValue
+      : profileSeasonValue || rankingSeasonValue) || dynastyValue;
+  const currentPositionRank = isSpecialTeamsAsset
+    ? rankingRow?.positionRank ||
+      rankingRow?.sourcePositionRank ||
+      valueProfile?.dynastyPositionRank ||
+      valueProfile?.balancedPositionRank ||
+      null
+    : valueProfile?.dynastyPositionRank ||
+      valueProfile?.balancedPositionRank ||
+      rankingRow?.positionRank ||
+      rankingRow?.sourcePositionRank ||
+      null;
+  const seasonPositionRank = isSpecialTeamsAsset
+    ? rankingRow?.sourcePositionRank ||
+      rankingRow?.positionRank ||
+      valueProfile?.seasonPositionRank ||
+      valueProfile?.fantasyProsPositionRank ||
+      null
+    : valueProfile?.seasonPositionRank ||
+      valueProfile?.fantasyProsPositionRank ||
+      rankingRow?.sourcePositionRank ||
+      rankingRow?.positionRank ||
+      null;
   return {
     player_id: id || `waiver:${manager}:${normalizeTradeWarLookupName(name)}`,
     name: details?.fullName || rankingRow?.name || name,
-    pos: details?.position || rankingRow?.pos || "FLEX",
-    team: details?.team || rankingRow?.team || null,
+    pos: normalizedPosition,
+    team: isSpecialTeamsAsset
+      ? rankingRow?.team || details?.team || null
+      : details?.team || rankingRow?.team || null,
     owner: manager === "Free Agent" ? "FA" : manager,
     manager,
     value: Math.round(dynastyValue || 0),
     seasonValue: Math.round(seasonValue || 0),
-    currentPositionRank:
-      valueProfile?.dynastyPositionRank ||
-      valueProfile?.balancedPositionRank ||
-      rankingRow?.positionRank ||
-      rankingRow?.sourcePositionRank ||
-      null,
-    seasonPositionRank:
-      valueProfile?.seasonPositionRank ||
-      valueProfile?.fantasyProsPositionRank ||
-      rankingRow?.sourcePositionRank ||
-      rankingRow?.positionRank ||
-      null,
+    currentPositionRank,
+    seasonPositionRank,
     playerDetails: details,
     assetState,
     assetKind: "player",
