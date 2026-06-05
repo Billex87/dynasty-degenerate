@@ -82,6 +82,9 @@ async function loadCachedReport(
   await page.goto(`/?leagueId=${cachedReport.leagueId}${hash}`, {
     waitUntil: 'domcontentloaded',
   });
+  await expect(page.locator('details.report-disclosure').first()).toBeVisible({
+    timeout: 45_000,
+  });
 }
 
 async function openReportSection(page: Page, title: string) {
@@ -135,8 +138,12 @@ function attachProjectionContext(
   });
   Object.entries(reportData.playerDetailsById || {}).forEach(
     ([playerId, details]: [string, any]) => {
-      if (!details?.weeklyProjection && fallbackPointsById[playerId]) {
-        details.weeklyProjection = toContext(fallbackPointsById[playerId], details.team);
+      const fallbackPoints = fallbackPointsById[playerId];
+      if (details && typeof fallbackPoints === 'number') {
+        details.weeklyProjection = {
+          ...(details.weeklyProjection || {}),
+          ...toContext(fallbackPoints, details.team),
+        };
       }
     },
   );
@@ -148,6 +155,14 @@ function attachProjectionContext(
         row.weeklyProjection,
         row.team || row.playerDetails?.team,
       );
+      if (row.playerDetails && typeof row.playerDetails === 'object') {
+        row.playerDetails.weeklyProjection = row.weeklyProjection;
+      }
+    } else if (row.weeklyProjection && typeof row.weeklyProjection === 'object') {
+      row.weeklyProjection = {
+        ...row.weeklyProjection,
+        scoringProfile,
+      };
       if (row.playerDetails && typeof row.playerDetails === 'object') {
         row.playerDetails.weeklyProjection = row.weeklyProjection;
       }
