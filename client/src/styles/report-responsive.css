@@ -15221,9 +15221,7 @@
 }
 
 .report-shell .report-overview-hero::after {
-  background:
-    linear-gradient(90deg, rgba(3, 8, 12, 0.46) 0%, rgba(3, 8, 12, 0.22) 42%, rgba(3, 8, 12, 0.04) 76%, transparent 100%),
-    linear-gradient(180deg, transparent 0%, rgba(3, 8, 12, 0.08) 58%, rgba(3, 8, 12, 0.28) 100%) !important;
+  background: none !important;
 }
 
 .report-shell .report-dashboard-spotlight::before {
@@ -21244,5 +21242,37 @@
   .report-shell .report-dashboard-spotlight-inline,
   .report-shell .report-dashboard-spotlight-inline.dashboard-spotlight-inline-glass {
     display: none !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .report-shell .report-dashboard-shell {
+    align-items: stretch !important;
+    padding-bottom: 0 !important;
+  }
+
+  .report-shell .report-dashboard-main {
+    align-self: stretch !important;
+    align-items: stretch !important;
+  }
+
+  .report-shell .report-command-canvas {
+    min-height: 100% !important;
+    width: 100%;
+  }
+
+  .report-shell .report-dashboard-sidebar {
+    align-self: stretch !important;
+  }
+
+  .report-shell .report-dashboard-spotlight {
+    align-self: stretch !important;
+    height: 100% !important;
+  }
+
+  .report-shell .report-dashboard-spotlight::before {
+    background-image: url("/brand/side-panel/png/ai-field-stadium-tablet-portrait-long-1086x1448.png") !important;
+    background-position: calc(100% + 9rem) -8rem !important;
+    background-size: auto calc(100% + 8rem) !important;
   }
 }
