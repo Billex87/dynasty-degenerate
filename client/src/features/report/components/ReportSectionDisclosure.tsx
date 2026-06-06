@@ -45,6 +45,7 @@ export function CollapsibleReportSection({
   kicker,
   previewMetrics,
   previewAccessory,
+  afterSummaryAccessory,
   previewAccessoryPlacement = "end",
   defaultOpen = false,
   openSignal = 0,
@@ -56,6 +57,7 @@ export function CollapsibleReportSection({
   kicker?: string;
   previewMetrics?: PreviewMetric[];
   previewAccessory?: ReactNode;
+  afterSummaryAccessory?: ReactNode;
   previewAccessoryPlacement?: "end" | "middle";
   defaultOpen?: boolean;
   openSignal?: number;
@@ -159,6 +161,11 @@ export function CollapsibleReportSection({
         )}
         <ChevronDown className="report-disclosure-icon" aria-hidden="true" />
       </summary>
+      {afterSummaryAccessory && (
+        <div className="report-disclosure-after-summary-accessory">
+          {afterSummaryAccessory}
+        </div>
+      )}
       <div className="report-disclosure-body">
         {hasRenderedContent ? (
           <div className="report-disclosure-body-inner">

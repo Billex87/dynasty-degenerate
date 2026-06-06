@@ -103,6 +103,19 @@
   box-shadow: none !important;
 }
 
+/* ── Position-colored labels on metric pills ──────────────────────────────
+   Reuse the existing positional rank palette (QB violet, RB green, WR blue,
+   TE orange, K gold, DEF teal) on the position label of metric pills, while the
+   pill itself keeps its performance tone (good/bad vs avg). The component
+   stamps data-position={label}; non-position labels simply don't match. */
+.report-metric-pill[data-position="QB"] > span:first-child,
+.report-metric-pill[data-position="QB_SF"] > span:first-child { color: #c084fc !important; }
+.report-metric-pill[data-position="RB"] > span:first-child { color: #4ade80 !important; }
+.report-metric-pill[data-position="WR"] > span:first-child { color: #60a5fa !important; }
+.report-metric-pill[data-position="TE"] > span:first-child { color: #fb923c !important; }
+.report-metric-pill[data-position="K"]  > span:first-child { color: #facc15 !important; }
+.report-metric-pill[data-position="DEF"] > span:first-child { color: #2dd4bf !important; }
+
 /* ── Player tiles: 4 per row on desktop ───────────────────────────────────
    Roster player tiles were 3-up (33% basis); show 4 per row at desktop widths.
    Phones keep their responsive (narrower) layout below the breakpoint. */
@@ -260,17 +273,19 @@
   font-size: 0.54rem !important;
   font-weight: 850 !important;
   letter-spacing: 0.07em !important;
-  line-height: 1.05 !important;
+  line-height: 1.22 !important;
   text-transform: uppercase !important;
 }
 
 .report-shell .ai-read-panel-r3f .ai-read-subtitle-inline,
 .ai-read-panel-r3f .ai-read-subtitle-inline {
-  display: inline-block !important;
+  display: inline-flex !important;
   max-width: min(100%, 36rem) !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: break-word !important;
 }
 
 .report-shell .ai-read-panel-r3f .ai-read-confidence,
@@ -487,7 +502,7 @@
   color: rgba(203, 213, 225, 0.74) !important;
   font-size: 0.62rem !important;
   font-weight: 680 !important;
-  line-height: 1.22 !important;
+  line-height: 1.36 !important;
   -webkit-box-orient: vertical !important;
   -webkit-line-clamp: 1 !important;
   line-clamp: 1 !important;

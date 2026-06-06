@@ -18,7 +18,7 @@ export function OwnerIntelSortControls({
   onChange: (nextValue: OwnerIntelSortMode) => void;
 }) {
   return (
-    <span className="owner-intel-sort-controls" aria-label="Sort managers">
+    <span className="owner-intel-sort-controls" role="group" aria-label="Sort managers">
       {OWNER_INTEL_SORT_OPTIONS.map(option => (
         <button
           key={option.key}

@@ -7329,6 +7329,7 @@
 
 .team-blueprint-panel,
 .team-breakdown-grid > section {
+  align-self: start;
   min-width: 0;
   overflow: hidden;
   border: 1px solid rgba(34, 211, 238, 0.15);
@@ -7341,6 +7342,20 @@
 .team-blueprint-ai,
 .team-breakdown-ai {
   grid-column: 1 / -1;
+}
+
+.team-blueprint-stack-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.85rem;
+}
+
+.team-blueprint-stack-column {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+  min-width: 0;
 }
 
 .team-blueprint-panel h4,
@@ -10115,6 +10130,7 @@
   }
 
   .team-blueprint-grid,
+  .team-blueprint-stack-grid,
   .trade-finder-package-sides,
   .team-breakdown-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -10374,7 +10390,7 @@
 
 @media (max-width: 767px) {
   .rankings-controls.value-board__toolbar {
-    --rankings-mobile-league-column: min(var(--rankings-league-type-width, 9.35rem), 9.25rem);
+    --rankings-mobile-league-column: clamp(9.4rem, var(--rankings-league-type-width, 10.25rem), 11.25rem);
     display: flex !important;
     flex-wrap: wrap;
     align-items: center;
@@ -11265,7 +11281,7 @@
 /* Mobile rankings polish: league + search, full-width position row, stronger card metadata. */
 @media (max-width: 767px) {
   .rankings-controls.value-board__toolbar {
-    --rankings-mobile-league-column: min(var(--rankings-league-type-width, 9.35rem), 9.25rem);
+    --rankings-mobile-league-column: clamp(9.4rem, var(--rankings-league-type-width, 10.25rem), 11.25rem);
     display: flex !important;
     flex-wrap: wrap;
     align-items: center;
@@ -11426,7 +11442,7 @@
 
 @media (max-width: 390px) {
   .rankings-controls.value-board__toolbar {
-    --rankings-mobile-league-column: 8.55rem;
+    --rankings-mobile-league-column: 9.4rem;
   }
 
   .rankings-controls.value-board__toolbar .value-board__filters {
@@ -11474,9 +11490,9 @@
   }
 
   .rankings-controls.value-board__toolbar .rankings-league-type-control {
-    flex: 0 0 min(var(--rankings-league-type-width, 9.6rem), 10.2rem);
-    width: min(var(--rankings-league-type-width, 9.6rem), 10.2rem) !important;
-    max-width: 10.2rem;
+    flex: 0 0 clamp(9.6rem, var(--rankings-league-type-width, 10.6rem), 11.5rem);
+    width: clamp(9.6rem, var(--rankings-league-type-width, 10.6rem), 11.5rem) !important;
+    max-width: 11.5rem;
   }
 
   .rankings-controls.value-board__toolbar .rankings-league-type-trigger {
@@ -15950,6 +15966,10 @@
   ) {
   font-size: var(--dd-readable-meta-font) !important;
   line-height: 1.26 !important;
+}
+
+.report-shell .owner-summary-tile .draft-decision-manager-read {
+  line-height: 1.45 !important;
 }
 
 .report-shell

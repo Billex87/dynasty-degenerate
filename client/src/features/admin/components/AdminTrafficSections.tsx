@@ -801,7 +801,13 @@ function AdminAbuseTelemetryPanel({
               sourceHealth.recentEvents.slice(0, 8).map(event => (
                 <div
                   key={event.id}
-                  className={`admin-traffic-row admin-traffic-row-${event.level === "danger" ? "error" : "success"}`}
+                  className={`admin-traffic-row admin-traffic-row-${
+                    event.level === "danger"
+                      ? "error"
+                      : event.level === "warn"
+                        ? "warn"
+                        : "success"
+                  }`}
                 >
                   <strong>{event.source}</strong>
                   <span>
@@ -827,4 +833,3 @@ function AdminAbuseTelemetryPanel({
 }
 
 export { AdminProviderTelemetrySection, AdminTrafficTelemetrySection };
-

@@ -384,7 +384,7 @@
   color: rgba(203, 213, 225, 0.78);
   font-size: 0.72rem;
   font-weight: 780;
-  line-height: 1.28;
+  line-height: 1.36;
 }
 
 .ai-action-summary-main p {
@@ -969,10 +969,12 @@
 .autopilot-main-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: clamp(0.85rem, 1.8vw, 1.2rem);
 }
 
 .autopilot-section {
+  align-self: start;
   min-width: 0;
   padding: clamp(0.82rem, 1.8vw, 1.08rem);
 }

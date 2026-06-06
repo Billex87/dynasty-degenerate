@@ -298,32 +298,6 @@ export function AdminPlayerReceiptDiagnosticsSection({
           </span>
         </div>
 
-        {diagnostics.guardrailRows.length > 0 && (
-          <div className="admin-ai-readout-surface-grid" aria-label="Player receipt guardrail rows">
-            {diagnostics.guardrailRows.map(row => (
-              <article
-                key={row.id}
-                className={`admin-ai-readout-row admin-ai-readout-row-${row.tone}`}
-              >
-                <div>
-                  <span>{row.status}</span>
-                  <strong>{row.name} · {row.position}</strong>
-                </div>
-                <p>{row.reason}</p>
-                <div className="admin-ai-readout-chip-row">
-                  <em>{row.bucket}</em>
-                  <em>{row.recommendation}</em>
-                  <em>{row.confidenceGrade}</em>
-                  <em>{row.sampleSize ?? "n/a"} samples</em>
-                  {row.guardrails.map(flag => (
-                    <em key={flag}>{flag}</em>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-
         {diagnostics.guardrailRows.length > 0 ? (
           <section
             className="admin-ai-readout-flag-panel"
@@ -348,6 +322,10 @@ export function AdminPlayerReceiptDiagnosticsSection({
                   </div>
                   <p>{row.reason}</p>
                   <div className="admin-ai-readout-chip-row">
+                    <em>{row.bucket}</em>
+                    <em>{row.recommendation}</em>
+                    <em>{row.confidenceGrade}</em>
+                    <em>{row.sampleSize ?? "n/a"} samples</em>
                     {row.guardrails.map(flag => (
                       <em key={flag}>{flag}</em>
                     ))}

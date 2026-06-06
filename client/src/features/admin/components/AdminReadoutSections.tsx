@@ -182,6 +182,9 @@ export function AdminManagerPersonalityIntelSection({
 
         <div className="admin-schedule-edge-table-wrap">
           <table className="admin-schedule-edge-table admin-manager-personality-table">
+            <caption className="sr-only">
+              Leaguemate personality diagnostics by manager.
+            </caption>
             <thead>
               <tr>
                 <th>Manager</th>

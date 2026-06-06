@@ -415,17 +415,17 @@ export function ResponsiveDataTable<T>({
   }
 
   return (
-    <div className={cn('responsive-data-table', className)}>
+    <div className={cn('responsive-data-table', className)} role="table">
       <div className="responsive-data-table-header" role="row">
         {columns.map((column) => (
           <span key={column.key} role="columnheader">{column.label}</span>
         ))}
       </div>
-      <div className="responsive-data-table-body">
+      <div className="responsive-data-table-body" role="rowgroup">
         {rows.map((row, rowIndex) => (
           <div key={getRowKey(row, rowIndex)} className="responsive-data-table-row" role="row">
             {columns.map((column) => (
-              <span key={column.key} className={column.mobilePrimary ? 'responsive-data-table-cell-primary' : undefined} data-label={column.label}>
+              <span key={column.key} className={column.mobilePrimary ? 'responsive-data-table-cell-primary' : undefined} data-label={column.label} role="cell">
                 {column.render(row)}
               </span>
             ))}

@@ -39,6 +39,10 @@ function formatAdminBytes(value?: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function formatAdminList(values: string[]): string {
+  return values.length ? values.join(", ") : "n/a";
+}
+
 function getSourceCoverageStatusLabel(row: SourceCoverageRow): string {
   if (row.status === "loaded") return "Loaded";
   if (row.status === "stale") return "Stale";
@@ -255,15 +259,15 @@ function AdminSourceCoveragePanel({
                   </em>
                   <div className="admin-source-coverage-fields">
                     <span>Returns</span>
-                    <p>{row.fieldMap.join(", ")}</p>
+                    <p>{formatAdminList(row.fieldMap)}</p>
                   </div>
                   <div className="admin-source-coverage-fields">
                     <span>Used now</span>
-                    <p>{row.usedNow.join(", ")}</p>
+                    <p>{formatAdminList(row.usedNow)}</p>
                   </div>
                   <div className="admin-source-coverage-fields">
                     <span>Could power</span>
-                    <p>{row.couldPowerLater.join(", ")}</p>
+                    <p>{formatAdminList(row.couldPowerLater)}</p>
                   </div>
                   {row.lastHealthMessage ? (
                     <em>

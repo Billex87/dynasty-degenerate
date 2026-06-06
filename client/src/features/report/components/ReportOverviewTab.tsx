@@ -375,7 +375,7 @@ export function ReportOverviewTab({
                 {
                   label: "Data",
                   compactLabel: "Data",
-                  value: "No fake reads",
+                  value: "Ready tools",
                   tone: "info",
                 },
                 {
@@ -399,7 +399,7 @@ export function ReportOverviewTab({
         title={ownerTitle}
         kicker={ownerKicker}
         defaultOpen
-        previewAccessory={
+        afterSummaryAccessory={
           !isRedraftReport ? (
             <OwnerIntelSortControls
               value={ownerIntelSortMode}

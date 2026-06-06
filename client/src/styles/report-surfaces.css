@@ -8374,6 +8374,13 @@ body {
   justify-content: end;
 }
 
+.dashboard-overview-section-stack .report-disclosure-after-summary-accessory,
+.report-command-section-stack .report-disclosure-after-summary-accessory {
+  display: flex;
+  justify-content: center;
+  padding: 0.2rem 1rem 0.75rem;
+}
+
 .dashboard-overview-section-stack .report-disclosure-body-inner,
 .report-command-section-stack .report-disclosure-body-inner {
   padding-top: 0.8rem;

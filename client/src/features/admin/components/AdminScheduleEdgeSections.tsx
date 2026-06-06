@@ -119,6 +119,7 @@ export function AdminScheduleEdgeSection({
                         : "admin-schedule-edge-filter"
                     }
                     disabled={disabled}
+                    aria-pressed={positionFilter === position}
                     onClick={() => setPositionFilter(position)}
                   >
                     {position === "ALL" ? "All" : position}
@@ -203,6 +204,7 @@ export function AdminScheduleEdgeSection({
                       ? "admin-schedule-edge-filter admin-schedule-edge-filter-active"
                       : "admin-schedule-edge-filter"
                   }
+                  aria-pressed={sortMode === option.value}
                   onClick={() => setSortMode(option.value)}
                 >
                   {option.label}
@@ -222,6 +224,9 @@ export function AdminScheduleEdgeSection({
         {rows.length ? (
           <div className="admin-schedule-edge-table-wrap">
             <table className="admin-schedule-edge-table">
+              <caption className="sr-only">
+                Schedule edge player rows for the selected week range.
+              </caption>
               <thead>
                 <tr>
                   <th>Player</th>
@@ -342,6 +347,9 @@ export function AdminScheduleEdgeSection({
             <div className="admin-schedule-health">
               <div className="admin-schedule-edge-table-wrap">
                 <table className="admin-schedule-edge-table admin-schedule-health-table">
+                  <caption className="sr-only">
+                    Schedule snapshot coverage by week and position.
+                  </caption>
                   <thead>
                     <tr>
                       <th>Week</th>

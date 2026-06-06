@@ -80,7 +80,7 @@ export function ReportRankingsTab({
           title="Scout Leaguemates"
           kicker="Manager ranks"
           openSignal={rosterScannerFocusKey}
-          previewAccessory={
+          afterSummaryAccessory={
             !isRedraftReport ? (
               <LeagueRosterScannerModeControls
                 value={leagueRosterScannerMode}
