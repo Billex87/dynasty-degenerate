@@ -66,6 +66,7 @@ test-results/
 playwright-report/
 blob-report/
 output/
+reports/ui-audit/
 
 # nyc test coverage
 .nyc_output

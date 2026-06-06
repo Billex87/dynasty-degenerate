@@ -11472,7 +11472,7 @@ body {
   color: #f8fafc;
   font-size: clamp(1rem, 1.12vw, 1.28rem);
   font-weight: 850;
-  line-height: 1.28;
+  line-height: 1.42;
   text-align: left;
   text-shadow:
     0 1px 1px rgba(0, 0, 0, 0.92),
@@ -11569,6 +11569,12 @@ body {
   grid-area: features;
   width: 100%;
   min-width: 0;
+}
+
+.home-hero-dashboard .home-feature-carousel-window:focus-visible {
+  border-radius: 1rem;
+  outline: var(--dd-focus-ring-w, 2px) solid var(--dd-focus-ring-color, #22e6ff);
+  outline-offset: 0.35rem;
 }
 
 .home-hero-dashboard .home-feature-grid {

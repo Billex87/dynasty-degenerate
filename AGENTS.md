@@ -42,6 +42,16 @@ This repository should be maintained like a senior-level production codebase:
 - Use Browser/Playwright for any meaningful frontend completion claim. Screenshots and rendered evidence matter more than code inspection for typography, spacing, wrapping, clipping, overlap, loading states, error states, and mobile polish.
 - Use Vercel/GitHub capabilities when the task is deployment, preview QA, CI, production env inspection, or live-route validation. Keep preview/live/manual verification separate from code completion.
 
+## CSS/UI audit defaults
+
+- For CSS/UI polish or frontend visual QA, use the existing Playwright, axe, and visual snapshot setup first.
+- Prefer rendered evidence over CSS-only inspection. When a route-level audit would help, run `pnpm run audit:ui` to capture screenshots, axe results, overflow/clipping checks, typography signals, and console/page health.
+- Check desktop plus one mobile viewport when practical; use all three default viewports for broad UI work.
+- Inspect typography scale, spacing, hierarchy, wrapping, clipping, overlap, contrast, loading/error states, accessibility basics, and console health.
+- Route CSS fixes through existing tokens/primitives first: `client/src/styles/premium-tokens.css`, `report-foundation.css`, `report-surfaces.css`, `report-responsive.css`, `client/src/components/reportPrimitives.tsx`, and tile primitives.
+- Do not add a parallel design system. Do not add BackstopJS, Pa11y, Stylelint, Project Wallace, Lighthouse CI, or image-diff packages unless the task specifically needs a persistent audit gate and the dependency is justified.
+- Treat `reports/ui-audit/` as local evidence output, not source code.
+
 ## Agent reference docs
 
 - Issue/spec lookup and review context: `docs/agents/issue-tracker.md`

@@ -66,6 +66,7 @@
     "audit:report-payload": "node scripts/audit-report-payload.mjs",
     "audit:report-hotspots": "node scripts/audit-report-hotspots.mjs",
     "audit:report-semantics": "tsx scripts/audit-report-semantics.ts",
+    "audit:ui": "tsx scripts/audit-ui.ts",
     "audit:source-freshness": "tsx scripts/audit-source-freshness.ts",
     "audit:source-readiness-gates": "tsx scripts/audit-source-readiness-gates.ts",
     "audit:zero-row-valuation-sources": "tsx scripts/audit-zero-row-valuation-sources.ts",

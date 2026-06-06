@@ -44,6 +44,7 @@ For small fixes, check the touched surface plus one mobile viewport. For broad U
 ## Useful Commands
 
 ```bash
+pnpm run audit:ui
 pnpm run validate:report
 pnpm run check
 pnpm test

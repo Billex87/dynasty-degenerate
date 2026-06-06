@@ -345,7 +345,7 @@
   .home-shell .home-hero-dashboard .home-subtitle-detail {
     max-width: var(--home-body-width);
     font-size: var(--home-body-size) !important;
-    line-height: 1.32;
+    line-height: 1.45;
     text-align: left;
     text-wrap: balance;
   }
@@ -1024,7 +1024,7 @@
     max-width: calc(100vw - 2rem);
     margin-top: 0.35rem !important;
     font-size: clamp(0.79rem, 3.85vw, 0.95rem) !important;
-    line-height: 1.32;
+    line-height: 1.45;
     text-align: center;
   }
 }

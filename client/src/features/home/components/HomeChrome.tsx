@@ -10,7 +10,7 @@ const DYNASTY_MOBILE_REPORT_LOGO_SRC =
 
 function HomeBrandLockup() {
   return (
-    <div className="home-footer-brand" aria-label="Dynasty Degenerates">
+    <div className="home-footer-brand">
       <img
         src={DYNASTY_LOGO_SRC}
         alt="Dynasty Degenerates"
@@ -62,7 +62,7 @@ function HomeHeaderBrandLockup({
   }
 
   return (
-    <div className="home-header-logo-wrap" aria-label="Dynasty Degenerates">
+    <div className="home-header-logo-wrap">
       {content}
     </div>
   );

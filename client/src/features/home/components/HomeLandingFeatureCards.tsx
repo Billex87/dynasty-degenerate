@@ -97,7 +97,12 @@ export function HomeLandingFeatureCards() {
   ] as Array<FeatureCard & { isClone?: boolean }>;
 
   return (
-    <div className="home-feature-carousel-window">
+    <div
+      className="home-feature-carousel-window"
+      role="region"
+      aria-label="Feature carousel"
+      tabIndex={0}
+    >
       <div className="home-feature-grid">
         {carouselCards.map(card => (
           <HomeLandingFeatureCard
