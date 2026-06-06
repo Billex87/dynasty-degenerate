@@ -59,7 +59,7 @@
    (green here, other colors elsewhere). Strip the pill and render it as a clean
    number in one consistent brand color everywhere it appears. */
 :root {
-  --dd-value-color: #41e6ff; /* brand cyan — the single player-value color */
+  --dd-value-color: #f8fafc; /* white — the single player-value color */
 }
 .starter-player-meta-main > strong {
   background: none !important;
@@ -68,4 +68,49 @@
   padding: 0 !important;
   color: var(--dd-value-color) !important;
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Position rank: no pill, consistent size ──────────────────────────────
+   "QB10" sat in a tight pill that shrank its font below the surrounding text.
+   Drop the pill chrome and bump it to a consistent label size so it reads in
+   line with the rest of the card (it keeps its position-color text). */
+.position-rank-pill {
+  background: none !important;
+  border-width: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  font-size: 0.72rem !important;
+}
+
+/* ── Team icons: no pill/frame ────────────────────────────────────────────
+   The team logo mark shouldn't sit inside a pill/frame — render it cleanly. */
+.team-logo-pill,
+.team-logo-pill-league-mark {
+  background: none !important;
+  border-width: 0 !important;
+}
+
+/* ── De-pill everything EXCEPT status/availability ────────────────────────
+   Per request: strip the pill chrome (bg, border, shadow) from all data pills,
+   badges, and chips so they read as clean text/marks. Player availability
+   status (Active / Taxi / Questionable / Available / Injured / Out …) KEEPS its
+   pill — those are excluded via the :not() guards below. */
+:is([class*="-pill"], [class*="-badge"], [class*="-chip"], [class*="-lozenge"]):not([class*="status"]):not([class*="availability"]):not([class*="injury"]):not([class*="avail"]):not([class*="preview-chip"]):not([class*="sort-button"]):not([class*="-controls"]) {
+  background: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* ── Player tiles: 4 per row on desktop ───────────────────────────────────
+   Roster player tiles were 3-up (33% basis); show 4 per row at desktop widths.
+   Phones keep their responsive (narrower) layout below the breakpoint. */
+@media (min-width: 768px) {
+  .player-team-tile.starter-player-tile,
+  .starter-grid > .player-team-tile,
+  .starter-grid > .starter-player-tile {
+    flex-basis: calc(25% - 0.95rem) !important;
+    max-width: calc(25% - 0.95rem) !important;
+  }
 }
