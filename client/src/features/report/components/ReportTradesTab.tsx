@@ -2051,11 +2051,7 @@ export function ReportTradesTab({
       {showTradeMarketRadar && (
         <CollapsibleReportSection
           title="Trade Market Radar"
-          kicker={
-            leagueValueMode === "redraft"
-              ? "Current-season buy and sell signals"
-              : "Buy and sell signals"
-          }
+          kicker="Buy/sell signals"
           previewMetrics={buildMomentumPreviewMetrics(reportData)}
         >
           <TradeMarketRadar
@@ -2074,7 +2070,7 @@ export function ReportTradesTab({
 {showSleeperPendingActivity ? (
         <CollapsibleReportSection
           title="Pending Trade Offers"
-          kicker="Public proposal history plus imported Sleeper trade center activity"
+          kicker="Pending offers"
           previewMetrics={buildTradeProposalPreviewMetrics(reportData)}
           premium
           defaultOpen
@@ -2397,11 +2393,7 @@ export function ReportTradesTab({
             ? "Trade Value Board"
             : "Trade Profit Board"
         }
-        kicker={
-          leagueValueMode === "redraft"
-            ? "Current-season trade edge"
-            : "Net trade edge"
-        }
+        kicker="Trade edge"
         previewMetrics={buildTradePreviewMetrics(
           reportData,
           leagueValueMode,
@@ -2434,11 +2426,7 @@ export function ReportTradesTab({
             ? "Trade Balance Review"
             : "Trade Theft Detector"
         }
-        kicker={
-          leagueValueMode === "redraft"
-            ? "Largest current-season gaps"
-            : "Who got cooked"
-        }
+        kicker="Value gaps"
         previewMetrics={buildTradePreviewMetrics(
           reportData,
           leagueValueMode,
@@ -2464,7 +2452,7 @@ export function ReportTradesTab({
       </CollapsibleReportSection>
       <ModalReportSection
         title="Trade Receipts"
-        kicker="Every completed trade"
+        kicker="Completed trades"
         previewMetrics={buildTradePreviewMetrics(
           reportData,
           leagueValueMode,

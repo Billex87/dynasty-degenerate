@@ -637,6 +637,24 @@
       padding-inline: 0.5rem !important;
     }
 
+    .report-shell
+      .home-portfolio-preview-chip.analysis-preview-chip-has-icon
+      .analysis-preview-chip-label-text-full {
+      display: none !important;
+    }
+
+    .report-shell
+      .home-portfolio-preview-chip.analysis-preview-chip-has-icon
+      .analysis-preview-chip-label-text-compact {
+      display: inline-block !important;
+    }
+
+    .report-shell
+      .home-portfolio-preview-chip.analysis-preview-chip-label-hidden
+      .analysis-preview-chip-label-text {
+      display: none !important;
+    }
+
     .report-shell .dashboard-overview-section-stack .command-depth-subtitle {
       max-width: min(100%, 8.8rem);
       font-size: clamp(0.58rem, 2.55vw, 0.68rem) !important;

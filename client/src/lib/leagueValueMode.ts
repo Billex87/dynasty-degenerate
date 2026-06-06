@@ -226,26 +226,26 @@ export function getLeagueModeCopy(modeInput: ReportData['leagueValueMode'] | str
   return mode === 'redraft'
     ? {
         ownerTitle: 'Owner Reads',
-        ownerKicker: 'Current-season roster reads',
+        ownerKicker: 'Owner reads',
         rosterTitle: 'Projected Roster Board',
-        rosterKicker: 'Starter strength and bench depth',
+        rosterKicker: 'Starter depth',
         rankingsTitle: 'Redraft Value Board',
-        rankingsKicker: 'Current-season player values',
+        rankingsKicker: 'Season values',
         rankingsDescription: 'Current-season player values, roster strength, and positional context for this redraft league.',
-        tradeWarKicker: 'Current-season trade calculator',
+        tradeWarKicker: 'Trade calculator',
         draftTitle: 'Draft Recap',
-        draftKicker: 'Draft-day vs current value',
+        draftKicker: 'Draft value',
       }
     : {
         ownerTitle: 'Owner Intel Lab',
-        ownerKicker: 'Dynasty owner reads',
+        ownerKicker: 'Owner reads',
         rosterTitle: 'Projected Roster Board',
-        rosterKicker: 'Season starter room',
+        rosterKicker: 'Starter room',
         rankingsTitle: 'Dynasty Value Board',
-        rankingsKicker: 'League-matched values',
+        rankingsKicker: 'Player values',
         rankingsDescription: 'Format-aware dynasty player and pick values matched to this league type. Use the selector to compare how the board shifts across SuperFlex, Standard, and TE-premium rooms.',
-        tradeWarKicker: 'Context-aware calculator',
+        tradeWarKicker: 'Trade calculator',
         draftTitle: 'Draft History',
-        draftKicker: 'Startup, rookie, and board value',
+        draftKicker: 'Draft value',
       };
 }

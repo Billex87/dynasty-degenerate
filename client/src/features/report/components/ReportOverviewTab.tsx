@@ -161,17 +161,18 @@ export function ReportOverviewTab({
   const playerHoardSection = orderedUserLeagues.length > 0 ? (
     <CollapsibleReportSection
       title="Cross League Exposure"
-      kicker="Roster overlap and stash risk across every saved league"
+      kicker="Exposure map"
       previewAccessory={
         <span className="home-portfolio-open-chip">Open portfolio</span>
       }
       previewMetrics={[
         {
           label: "Players",
-          compactLabel: "Ply",
+          compactLabel: "P",
           icon: <Users size={13} />,
           value: homePortfolioRows.length || 0,
           tone: homePortfolioRows.length ? "info" : "neutral",
+          hideLabel: true,
           className: "home-portfolio-preview-chip",
         },
         {
@@ -180,6 +181,7 @@ export function ReportOverviewTab({
           icon: <Layers2 size={13} />,
           value: portfolioOverlapCount,
           tone: portfolioOverlapCount ? "warn" : "neutral",
+          hideLabel: true,
           className: "home-portfolio-preview-chip",
         },
         {
@@ -188,6 +190,7 @@ export function ReportOverviewTab({
           icon: <Shield size={13} />,
           value: orderedUserLeagues.length,
           tone: orderedUserLeagues.length > 1 ? "good" : "neutral",
+          hideLabel: true,
           className: "home-portfolio-preview-chip",
         },
       ]}
@@ -218,21 +221,24 @@ export function ReportOverviewTab({
           {playerHoardSection}
           <CollapsibleReportSection
             title="Monthly Team Blueprint"
-            kicker="Monthly direction, roster age, and plan cadence"
+            kicker="Monthly roster plan"
             premium
             previewMetrics={[
               {
-                label: "Cadence",
+                label: "Cycle",
+                compactLabel: "Cycle",
                 value: "Monthly",
                 tone: "neutral",
               },
               {
-                label: "Plan Lens",
+                label: "Lens",
+                compactLabel: "Lens",
                 value: isRedraftReport ? "Season" : "Dynasty",
                 tone: "neutral",
               },
               {
-                label: "Snapshot",
+                label: "Snap",
+                compactLabel: "Snap",
                 value: reportData.weeklyRisers?.length ? "Partial" : "Current",
                 tone: reportData.weeklyRisers?.length ? "info" : "warn",
               },
@@ -249,24 +255,26 @@ export function ReportOverviewTab({
             title="League Power Rankings"
             kicker={
               isRedraftReport
-                ? "Weekly league ordering and relative strength tiers"
-                : "League ordering, value tiers, and relative strength"
+                ? "Weekly power"
+                : "League power"
             }
             premium
             previewMetrics={[
               {
-                label: "Ranked Teams",
-                compactLabel: "Teams",
+                label: "Teams",
+                compactLabel: "Tms",
                 value: reportData.powerRankings?.length || 0,
                 tone: reportData.powerRankings?.length ? "info" : "warn",
               },
               {
-                label: "Ordering",
+                label: "Order",
+                compactLabel: "Order",
                 value: "Power",
                 tone: "neutral",
               },
               {
                 label: "Lens",
+                compactLabel: "Lens",
                 value: isRedraftReport ? "Weekly" : "Dynasty",
                 tone: "neutral",
               },
@@ -279,23 +287,24 @@ export function ReportOverviewTab({
           </CollapsibleReportSection>
           <CollapsibleReportSection
             title="Team Breakdown & Roster Recon"
-            kicker="Per-roster strengths, leaks, surplus, and next move"
+            kicker="Roster recon"
             premium
             previewMetrics={[
               {
                 label: "Scope",
+                compactLabel: "Scope",
                 value: "Team-by-team",
                 tone: "neutral",
               },
               {
-                label: "Recon Rows",
-                compactLabel: "Rows",
+                label: "Rows",
+                compactLabel: "R",
                 value: reportData.managerRosterIntelligence?.length || 0,
                 tone: reportData.managerRosterIntelligence?.length ? "info" : "warn",
               },
               {
-                label: "Flag Source",
-                compactLabel: "Flags",
+                label: "Flags",
+                compactLabel: "F",
                 value: reportData.positionDepth?.length || 0,
                 tone: reportData.positionDepth?.length ? "warn" : "neutral",
               },
@@ -308,25 +317,24 @@ export function ReportOverviewTab({
           </CollapsibleReportSection>
           <CollapsibleReportSection
             title="Trade Finder"
-            kicker={
-              isRedraftReport
-                ? "Trade partners, upgrade lanes, and weekly pressure points"
-                : "Trade partners, package lanes, and league pressure points"
-            }
+            kicker="Trade lanes"
             premium
             previewMetrics={[
               {
-                label: "Owner",
+                label: "Market",
+                compactLabel: "Mkt",
                 value: "Trade market",
                 tone: "neutral",
               },
               {
                 label: "Inputs",
+                compactLabel: "In",
                 value: isRedraftReport ? "Needs/Fits" : "Needs/Picks",
                 tone: "info",
               },
               {
-                label: isRedraftReport ? "Fit Rows" : "Pick Rows",
+                label: "Rows",
+                compactLabel: "R",
                 value: isRedraftReport
                   ? reportData.managerRosterIntelligence?.length || 0
                   : reportData.pickPortfolios?.length || 0,
@@ -355,21 +363,24 @@ export function ReportOverviewTab({
           {showAssistantFeatureRadar && (
             <CollapsibleReportSection
               title="Assistant Feature Radar"
-              kicker="Useful shells without fake data"
+              kicker="Feature status"
               premium
               previewMetrics={[
                 {
                   label: "Status",
+                  compactLabel: "Status",
                   value: "Shells",
                   tone: "neutral",
                 },
                 {
                   label: "Data",
+                  compactLabel: "Data",
                   value: "No fake reads",
                   tone: "info",
                 },
                 {
                   label: "Mode",
+                  compactLabel: "Mode",
                   value: "Inventory",
                   tone: "neutral",
                 },
@@ -433,7 +444,7 @@ export function ReportOverviewTab({
       {hasTaxiTriage && (
         <CollapsibleReportSection
           title="Taxi Squad Triage"
-          kicker="Taxi-only activation checks"
+          kicker="Taxi checks"
           defaultOpen
           previewMetrics={buildTaxiPreviewMetrics(reportData)}
         >
@@ -453,8 +464,8 @@ export function ReportOverviewTab({
           title="Manager Position Counts"
           kicker={
             isRedraftReport
-              ? "Starter depth and position gaps"
-              : "Full roster depth map"
+              ? "Position gaps"
+              : "Depth map"
           }
           defaultOpen
           previewMetrics={buildManagerPositionRoomPreviewMetrics(reportData)}

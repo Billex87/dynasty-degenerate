@@ -23,8 +23,8 @@ const AI_VOICE_MODE_LABELS: Record<AIVoiceMode, string> = {
 
 const AI_VOICE_MODE_DESCRIPTIONS: Record<AIVoiceMode, string> = {
   straight: "Clean evidence-first readouts.",
-  degen: "Fantasy lingo with a sharper edge.",
-  roast: "More bite when the evidence is ugly.",
+  degen: "Sharper fantasy readouts.",
+  roast: "Direct warnings when the signal is weak.",
 };
 
 function cleanText(value?: string | null): string {
@@ -117,16 +117,16 @@ function getDecisionLabel(
   if (tone === "go" && !isDirectGoActionLabel(fallback)) return fallback;
 
   if (mode === "roast") {
-    if (tone === "go") return "Do this. Don't overthink it.";
+    if (tone === "go") return "Do this. Keep it simple.";
     if (tone === "stop") return "Absolutely not";
-    if (tone === "thin") return "Not enough receipts to talk spicy";
-    return "Hands off, buddy";
+    if (tone === "thin") return "Not enough signal";
+    return "Wait for better signal";
   }
 
   if (tone === "go") return "Do this";
   if (tone === "stop") return "Do not do this";
-  if (tone === "thin") return "Not enough receipts";
-  return "Don't get cute yet";
+  if (tone === "thin") return "Not enough signal";
+  return "Do not force it";
 }
 
 function getDecisionStatus(
@@ -143,25 +143,25 @@ function getDecisionStatus(
   if (tone === "go") return statusWithPrefix(status, "Green light");
   if (tone === "stop") return statusWithPrefix(status, "Blocked");
   if (tone === "thin") return statusWithPrefix(status, "Thin read");
-  return statusWithPrefix(status, "Wait for it");
+  return statusWithPrefix(status, "Watch");
 }
 
 function getDecisionQuip(tone: AIReadDecisionTone, mode: AIVoiceMode, fallbackLabel?: string) {
   if (mode === "straight") return "";
   if (tone === "go" && !isDirectGoActionLabel(fallbackLabel)) return "";
   if (mode === "roast") {
-    if (tone === "go") return "Try not to galaxy-brain the obvious answer.";
+    if (tone === "go") return "Keep the move simple.";
     if (tone === "stop") {
-      return "Buddy, is this your first day playing fantasy football?";
+      return "This move does not clear the bar.";
     }
-    if (tone === "thin") return "No receipts, no victory lap.";
-    return "Your lineup does not need improv comedy right now.";
+    if (tone === "thin") return "Not enough signal to act.";
+    return "Wait until the read gets cleaner.";
   }
 
-  if (tone === "go") return "Don't galaxy-brain it.";
-  if (tone === "stop") return "Buddy, this is how benches catch fire.";
-  if (tone === "thin") return "Not enough receipts to talk spicy yet.";
-  return "Hands off until the receipts improve.";
+  if (tone === "go") return "Keep the move simple.";
+  if (tone === "stop") return "This move does not clear the bar.";
+  if (tone === "thin") return "Not enough signal to act yet.";
+  return "Wait for a cleaner signal.";
 }
 
 export function getVoicedAIReadDecision(
@@ -189,10 +189,10 @@ export function getVoicedAIConfidenceLabel(
     return "Low evidence";
   }
 
-  if (value >= 78) return mode === "roast" ? "Receipts are loud" : "Loud receipts";
-  if (value >= 62) return "Receipts warming up";
-  if (value >= 46) return "Thin receipts";
-  return mode === "roast" ? "Bad receipts" : "Low receipts";
+  if (value >= 78) return "Strong signal";
+  if (value >= 62) return "Building signal";
+  if (value >= 46) return "Thin signal";
+  return "Low signal";
 }
 
 export function getVoicedAIActionDecisionCopy(
@@ -208,15 +208,15 @@ export function getVoicedAIActionDecisionCopy(
 
   if (mode === "roast") {
     if (decision === "do") return "Green light";
-    if (decision === "blocked") return "Blocked. Read the room.";
-    if (decision === "hold") return "No move. Chill.";
-    return "Watchlist. Hands off.";
+    if (decision === "blocked") return "Blocked";
+    if (decision === "hold") return "No forced move";
+    return "Watch only";
   }
 
   if (decision === "do") return "Green light";
   if (decision === "blocked") return "Blocked";
-  if (decision === "hold") return "No move. Chill.";
-  return "Watchlist. Hands off.";
+  if (decision === "hold") return "No forced move";
+  return "Watch only";
 }
 
 export function getVoicedAIActionLabel(
@@ -228,8 +228,8 @@ export function getVoicedAIActionLabel(
   const clean = cleanText(label).toLowerCase();
   if (decision === "do" || clean.includes("do this")) return "Do this";
   if (decision === "blocked" || clean.includes("blocked")) return "Do not do this";
-  if (decision === "hold" || clean.includes("no move")) return "No move is the move";
-  return "Don't get cute yet";
+  if (decision === "hold" || clean.includes("no move")) return "Hold current setup";
+  return "Watch only";
 }
 
 export function getVoicedAIActionDetail(
@@ -243,11 +243,11 @@ export function getVoicedAIActionDetail(
       ? "Do it before your league notices."
       : decision === "blocked"
         ? mode === "roast"
-          ? "Buddy, you cannot wishcast your way through a blocker."
+          ? "The blocker is real."
           : "The blocker is real."
         : decision === "hold"
-          ? "No need to turn a small leak into a house fire."
-          : "Hands off until the receipts get louder.";
+          ? "Hold unless a move clearly improves value, role, or roster fit."
+          : "Wait for a clearer signal.";
   return appendQuip(detail, quip, mode) || quip;
 }
 
@@ -256,10 +256,13 @@ export function getVoicedAIActionQueueSubtitle(
   mode: AIVoiceMode = getAIVoiceMode()
 ): string {
   if (mode === "straight") return subtitle;
-  if (/overview/i.test(subtitle)) {
-    return "Only the top AI move gets the mic. The rest can sit quietly in receipts.";
+  if (/next move/i.test(subtitle)) {
+    return "Autopilot makes the next move call: do it, watch it, hold it, or block it.";
   }
-  return "One call: do it, watch it, hold it, or block it. No four-card fortune cookie nonsense.";
+  if (/overview/i.test(subtitle)) {
+    return "Only the top AI move gets the spotlight. Supporting reads stay secondary.";
+  }
+  return "One call: do it, watch it, hold it, or block it.";
 }
 
 export function getVoicedSuppressedAIActionsCopy(
@@ -271,7 +274,7 @@ export function getVoicedSuppressedAIActionsCopy(
       label: "Alternates held back",
       countLabel: `${count} supporting read${count === 1 ? "" : "s"}`,
       body:
-        "Lower-ranked actions stay in receipts and source tables so this surface makes one call instead of competing with itself.",
+        "Lower-ranked actions stay secondary so this surface makes one clear call instead of competing with itself.",
     };
   }
 
@@ -279,7 +282,7 @@ export function getVoicedSuppressedAIActionsCopy(
     label: "Bench reads held back",
     countLabel: `${count} bench read${count === 1 ? "" : "s"}`,
     body:
-      "The extra takes stay in receipts. This card makes one call, because four AI opinions at once is how people talk themselves into bad trades.",
+      "Secondary reads stay out of the main verdict so this card makes one clear call.",
   };
 }
 
@@ -299,7 +302,7 @@ export function getAIDeltaBriefCopy(
   }
 
   return {
-    kicker: "AI Receipt Check",
+    kicker: "AI Delta Check",
     title: "What Changed Since Last Report",
     hidden:
       hiddenCount > 0

@@ -67,6 +67,7 @@ type AutopilotRosterOwnerLookup = {
 };
 
 type ScheduleStreamerCandidate = NonNullable<NonNullable<ReportData['schedulePlanning']>['streamerCandidates']>[number];
+type ScheduleSosTarget = NonNullable<ReportData['scheduleEdgeTargets']>[number];
 type RedraftValuationRead = NonNullable<NonNullable<ReportData['redraftValuation']>['rows']>[number];
 
 type AutopilotBuildInput = {
@@ -3558,15 +3559,54 @@ function buildProjectedValueProjection(player: PlayerInfo, direction: ValueDirec
   };
 }
 
+function isDraftSharksScheduleTarget(target?: ScheduleSosTarget | null): target is ScheduleSosTarget {
+  return target?.signal?.source === 'DraftSharks' && target.signal.signalType === 'draftsharks-sos';
+}
+
+function collectScheduleSosTargets(data: ReportData): ScheduleSosTarget[] {
+  const seen = new Set<string>();
+  return [
+    ...asArray(data.scheduleEdgeTargets),
+    ...asArray(data.waiverIntelligence?.weeklyEcrTargets),
+    ...asArray(data.waiverIntelligence?.specialTeamsStreamerTargets),
+    ...asArray(data.waiverIntelligence?.defensePairingTargets),
+  ]
+    .filter(isDraftSharksScheduleTarget)
+    .filter((target) => {
+      const key = target.player.player_id || target.signal.playerId || `${target.signal.position}:${target.signal.team}:${target.signal.name}`;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => (b.score || 0) - (a.score || 0) || (b.signal.confidence || 0) - (a.signal.confidence || 0));
+}
+
+function getScheduleSosTargetWeeks(target: ScheduleSosTarget): string | null {
+  const easyWeeks = asArray(target.signal.weeks)
+    .filter((week) => !week.isBye && ((week.matchupStars || 0) >= 4 || week.matchupTier === 'easy'))
+    .map((week) => week.week);
+  if (easyWeeks.length) return formatWeekList(easyWeeks);
+  if (target.signal.bestWeek) return formatWeekList([target.signal.bestWeek]);
+  return formatWeekList(asArray(target.signal.weeks).slice(0, 3).map((week) => week.week));
+}
+
+function buildScheduleSosTargetRead(target: ScheduleSosTarget): string {
+  const name = target.signal.name || getPlayerName(target.player);
+  const position = normalizeAutopilotPosition(target.signal.position || target.player.pos);
+  const rank = target.signal.bestPositionRank || target.player.currentPositionRank || null;
+  const weekCopy = getScheduleSosTargetWeeks(target);
+  const label = [position, rank].filter(Boolean).join(' ');
+  const targetKind = position === 'DEF' || position === 'K' ? 'streamer window' : 'schedule target';
+  return `${name}${label ? ` (${label})` : ''} has the top Schedule/SOS ${targetKind}${weekCopy ? ` for ${weekCopy}` : ''}.`;
+}
+
 export function buildSleeperResearchTodo(mode: AutopilotMode): string[] {
   return [
-    'Check `GET /v1/state/nfl` first so season and week context stay dynamic.',
-    'Cache `GET /players/nfl/research/<season_type>/<season>[/<week>]` snapshots so rostered % and start % can trend over time.',
-    'Add `GET /v1/players/nfl/{player_id}` for single-player metadata lookups.',
-    'Add `GET /v1/players/nfl/{team}/depth_chart` for Sleeper-native depth chart context.',
+    'Use stored Schedule/SOS as weekly lineup, streamer, and bye-week context.',
     mode === 'redraft'
-      ? 'Then wire projections into start/sit and weekly plan cards.'
-      : 'Then use projections only as short-term contender/rebuilder context beside dynasty market reads.',
+      ? 'Blend projections into start/sit and weekly plan cards when the source is fresh.'
+      : 'Use projections only as short-term contender/rebuilder context beside blended dynasty value.',
+    'Keep schedule strength as a tie-breaker; talent, role, and roster value stay primary.',
   ];
 }
 
@@ -3696,7 +3736,7 @@ function buildPowerRows(data: ReportData, mode: AutopilotMode, fallback: LeagueP
 }
 
 function buildScheduleTodo(data: ReportData, mode: AutopilotMode): string[] {
-  const sleeperResearchTodo = buildSleeperResearchTodo(mode);
+  const fallbackGuidance = buildSleeperResearchTodo(mode);
   const schedulePlanning = data.schedulePlanning;
   const rosterGaps = asArray(schedulePlanning?.rosterGaps).sort((a, b) => {
     const severityRank: Record<'low' | 'medium' | 'high', number> = { low: 0, medium: 1, high: 2 };
@@ -3704,45 +3744,48 @@ function buildScheduleTodo(data: ReportData, mode: AutopilotMode): string[] {
   });
   const streamerCandidate = asArray(schedulePlanning?.streamerCandidates)[0] || null;
   const firstByeWeek = asArray(schedulePlanning?.byeWeekNotes).sort((a, b) => a.week - b.week)[0] || null;
+  const scheduleSosTarget = collectScheduleSosTargets(data)[0] || null;
+  const matchupPreviewCount = data.matchupPreviews?.length || 0;
 
-  if (schedulePlanning?.status === 'ready' || rosterGaps.length || streamerCandidate || firstByeWeek) {
-    return [
-      ...sleeperResearchTodo,
+  if (schedulePlanning?.status === 'ready' || rosterGaps.length || streamerCandidate || firstByeWeek || scheduleSosTarget) {
+    return dedupeStrings([
       schedulePlanning?.status === 'ready'
-        ? `Schedule planning is live${schedulePlanning.source ? ` from ${schedulePlanning.source}` : ''}; use it to drive bye-week coverage.`
-        : 'Schedule planning is partial; keep the bye-week and streamer lanes ready for the next data pass.',
+        ? 'Schedule/SOS context is live for bye coverage, streamer windows, and same-tier lineup calls.'
+        : 'Schedule/SOS context is partially loaded; use it only where roster gaps or streamer windows are backed.',
       rosterGaps[0]
         ? `${rosterGaps[0].manager} has ${rosterGaps[0].position} depth pressure in ${formatWeekList(rosterGaps[0].weeks) || 'key bye weeks'}.`
-        : 'Map roster gaps to the toughest bye-week stretches once the schedule is live.',
+        : null,
       streamerCandidate
-        ? `${streamerCandidate.name} is a schedule-driven streamer target${formatWeekList(streamerCandidate.targetWeeks) ? ` for ${formatWeekList(streamerCandidate.targetWeeks)}` : ''}.${firstByeWeek ? ` Week ${firstByeWeek.week} is the first bye-week checkpoint${firstByeWeek.teams?.length ? ` for ${firstByeWeek.teams.join(', ')}` : ''}.` : ''}`
-        : firstByeWeek
-          ? `Week ${firstByeWeek.week} is the first bye-week checkpoint${firstByeWeek.teams?.length ? ` for ${firstByeWeek.teams.join(', ')}` : ''}.`
-          : mode === 'redraft'
-            ? 'Use SOS to separate streamers and same-tier flex plays.'
-            : 'Use SOS for playoff-window planning without overpowering long-term player value.',
-    ];
+        ? `${streamerCandidate.name} ${normalizeAutopilotPosition(streamerCandidate.position) === 'DEF' ? 'are' : 'is'} a schedule-driven ${streamerCandidate.position} streamer${formatWeekList(streamerCandidate.targetWeeks) ? ` for ${formatWeekList(streamerCandidate.targetWeeks)}` : ''}.`
+        : scheduleSosTarget
+          ? buildScheduleSosTargetRead(scheduleSosTarget)
+          : null,
+      firstByeWeek
+        ? `First bye checkpoint: W${firstByeWeek.week}${firstByeWeek.teams?.length ? ` for ${firstByeWeek.teams.join(', ')}` : ''}.`
+        : mode === 'redraft'
+          ? 'Use SOS to separate streamers and same-tier flex plays.'
+          : 'Use SOS for playoff-window planning without overpowering long-term player value.',
+    ], 4);
   }
 
-  if (data.matchupPreviews?.length) {
-    return [
-      ...sleeperResearchTodo,
-      `${data.matchupPreviews.length} matchup preview${data.matchupPreviews.length === 1 ? '' : 's'} are available for weekly lineup context.`,
-      'Next layer: weight defensive schedule strength by position instead of treating every matchup note equally.',
+  if (matchupPreviewCount) {
+    return dedupeStrings([
+      `${matchupPreviewCount} weekly matchup read${matchupPreviewCount === 1 ? '' : 's'} available for lineup context.`,
+      scheduleSosTarget
+        ? buildScheduleSosTargetRead(scheduleSosTarget)
+        : null,
       mode === 'redraft'
         ? 'Use SOS to separate streamers and same-tier flex plays.'
         : 'Use SOS for playoff-window planning without overpowering long-term player value.',
-    ];
+    ], 4);
   }
 
-  return [
-    ...sleeperResearchTodo,
-    'Add weekly defensive matchup scoring when the league schedule is released.',
-    'Compare playoff-week opponent strength for each starter.',
+  return dedupeStrings([
+    ...fallbackGuidance,
     mode === 'redraft'
-      ? 'Blend matchup difficulty into start/sit, streamer, and waiver confidence.'
+      ? 'Blend matchup difficulty into start/sit, streamer, and waiver confidence when backed.'
       : 'Blend matchup difficulty into start/sit confidence without overpowering talent, role, and dynasty value.',
-  ];
+  ], 4);
 }
 
 export function buildAutopilotData({ reportData, mode, fallback, leagueId }: AutopilotBuildInput): AutopilotData {

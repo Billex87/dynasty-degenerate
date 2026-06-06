@@ -223,9 +223,7 @@ export const AUTOPILOT_MOCK_DATA: Record<AutopilotMode, AutopilotData> = {
     ],
     scheduleTodo: [
       ...buildSleeperResearchTodo('dynasty'),
-      'Add weekly defensive matchup scoring when the league schedule is released.',
-      'Compare playoff-week opponent strength for each starter.',
-      'Blend matchup difficulty into start/sit confidence without overpowering talent and role.',
+      'Compare playoff-week pressure for core starters before changing a long-term roster plan.',
     ],
   },
   redraft: {
@@ -449,9 +447,7 @@ export const AUTOPILOT_MOCK_DATA: Record<AutopilotMode, AutopilotData> = {
     ],
     scheduleTodo: [
       ...buildSleeperResearchTodo('redraft'),
-      'Add opponent defensive strength once weekly schedule data is available.',
-      'Blend matchup strength into QB, streamer, and flex calls.',
-      'Add playoff-week matchup planning for high-seed teams.',
+      'Prioritize D/ST, kicker, QB, and flex streamers when schedule strength creates a clear same-tier edge.',
     ],
   },
 };

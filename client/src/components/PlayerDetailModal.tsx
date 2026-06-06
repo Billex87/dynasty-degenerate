@@ -1713,7 +1713,7 @@ function AvailabilitySeasonLogDialog({
               ) : isFetching ? (
                 <p className="player-availability-log-empty">Loading weekly game log from Sleeper...</p>
               ) : (
-                <p className="player-availability-log-empty">No weekly game log was returned for that season.</p>
+                <p className="player-availability-log-empty">No weekly game log is available for that season.</p>
               )}
             </section>
           </div>
@@ -3633,7 +3633,7 @@ function buildPlayerAiEvidenceRead(input: {
     evidence: [
       input.currentRank && input.currentRank !== '-' ? `${input.currentRank} rank loaded.` : null,
       input.valueFraming.marketPrice ? `Market price ${formatValueLens(input.valueFraming.marketPrice)}.` : null,
-      input.valueProfile?.sources?.length ? `${input.valueProfile.sources.length} blend inputs returned.` : null,
+      input.valueProfile?.sources?.length ? `${input.valueProfile.sources.length} blend inputs loaded.` : null,
       input.details?.playerCohort?.calibration ? `Cohort evidence ${input.details.playerCohort.calibration.evidenceGrade}.` : null,
       input.details?.playerCohort?.anomalyFlags?.length
         ? `Anomaly rules fired: ${input.details.playerCohort.anomalyFlags.map(flag => flag.label).slice(0, 2).join(', ')}.`
@@ -3646,16 +3646,16 @@ function buildPlayerAiEvidenceRead(input: {
     ].filter((value): value is string => Boolean(value)),
     missingEvidence: [
       !sourceCount ? 'No player source trace available.' : null,
-      !hasValueEvidence ? 'No market value evidence returned.' : null,
-      !hasRoleEvidence && !input.isCollegeProspect ? 'No cohort or situation-delta context returned.' : null,
+      !hasValueEvidence ? 'No market value evidence is available.' : null,
+      !hasRoleEvidence && !input.isCollegeProspect ? 'No cohort or situation-delta context is available.' : null,
       sourceCount && hasRoleEvidence && !hasRecentUsageTrend && !input.isCollegeProspect
-        ? 'No recent usage trend returned.'
+        ? 'No recent usage trend is available.'
         : null,
       input.valueMode === 'redraft' && !hasCurrentSeasonEvidence
-        ? 'No current-season redraft evidence returned.'
+        ? 'No current-season redraft evidence is available.'
         : null,
       input.valueMode !== 'redraft' && !hasDynastyEvidence && !input.isCollegeProspect && !isSeasonOnlyLineupAsset
-        ? 'No dynasty market evidence returned.'
+        ? 'No dynasty market evidence is available.'
         : null,
     ].filter((value): value is string => Boolean(value)),
     sourceTrace,
@@ -3822,7 +3822,7 @@ export function buildPlayerAiRead({
     if (!evidenceRead.shouldRender) return null;
     return {
       title: `${playerName} prospect read`,
-      subtitle: 'Prospect traits are context only unless a returned market value exists.',
+      subtitle: 'Prospect traits are context only unless market value exists.',
       readType: 'Player Trend',
       confidence: evidenceRead.finalScore,
       evidenceRead,
@@ -4135,13 +4135,13 @@ function formatCohortEvidenceLabel(grade: NonNullable<PlayerDetails['playerCohor
     strong: { label: getVoicedAIConfidenceLabel(82), tone: 'good' },
     usable: { label: getVoicedAIConfidenceLabel(67), tone: 'info' },
     thin: { label: getVoicedAIConfidenceLabel(48), tone: 'warn' },
-    blocked: { label: 'Blocked receipts', tone: 'danger' },
+    blocked: { label: 'Blocked signal', tone: 'danger' },
   };
   return labels[grade] || { label: grade, tone: 'neutral' };
 }
 
 function formatSeasonOutcomeReceiptChip(receipt: NonNullable<PlayerDetails['playerCohort']>['seasonOutcomeReceipt']): AIReadChip {
-  if (!receipt) return { label: 'Receipt n/a', tone: 'neutral' };
+  if (!receipt) return { label: 'Signal n/a', tone: 'neutral' };
   const tone = receipt.stance === 'upside-supported'
     ? 'good'
     : receipt.recommendation === 'fade-risk'
@@ -4150,7 +4150,7 @@ function formatSeasonOutcomeReceiptChip(receipt: NonNullable<PlayerDetails['play
     ? 'warn'
     : 'info';
   return {
-    label: `Receipt ${receipt.sampleSize}x`,
+    label: `Sample ${receipt.sampleSize}x`,
     tone,
   };
 }
@@ -4325,19 +4325,19 @@ function buildSeasonOutcomeReceiptReadCopy(
 
   if (receipt.stance === 'upside-supported') {
     return {
-      readType: 'Historical Receipt',
+      readType: 'Historical Signal',
       severity: 'good',
-      copy: `Historical receipt for ${playerName}: ${receipt.label.toLowerCase()} has ${receipt.sampleSize} samples with ${positiveCopy} and ${medianCopy}. That backs the positive read only if the current role and value signals stay aligned.`,
+      copy: `Historical outcome for ${playerName}: ${receipt.label.toLowerCase()} has ${receipt.sampleSize} samples with ${positiveCopy} and ${medianCopy}. That backs the positive read only if the current role and value signals stay aligned.`,
     };
   }
 
   if (receipt.stance === 'risk-supported') {
     const forceSeverity = receipt.recommendation === 'fade-risk' || (receipt.materialFailureRate || 0) >= 45;
     return {
-      readType: forceSeverity ? 'Receipt Warning' : 'Receipt Check',
+      readType: forceSeverity ? 'Historical Warning' : 'Historical Check',
       severity: forceSeverity ? 'warn' : 'info',
       forceSeverity,
-      copy: `Historical receipt for ${playerName}: ${receipt.label.toLowerCase()} has ${receipt.sampleSize} samples with ${failureCopy}, ${positiveCopy}, and ${medianCopy}.${failureMode} Treat this as a confidence limit, not an automatic sell command.`,
+      copy: `Historical outcome for ${playerName}: ${receipt.label.toLowerCase()} has ${receipt.sampleSize} samples with ${failureCopy}, ${positiveCopy}, and ${medianCopy}.${failureMode} Treat this as a confidence limit, not an automatic sell command.`,
     };
   }
 

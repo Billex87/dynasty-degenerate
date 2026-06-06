@@ -2078,11 +2078,13 @@ test.describe("command center feature surfaces", () => {
     await expect(page.getByText("Take me out")).toHaveCount(0);
     await expect(page.getByText(/Start Replacement Tight End over Sample Tight End/)).toHaveCount(0);
     await expect(page.getByText("AI Edge Review")).toBeVisible();
-    await expect(page.getByText("Weekly AI report card")).toBeVisible();
-    await expect(page.getByText("Schedule and SOS context")).toBeVisible();
-    await expect(page.getByText("Strength of schedule")).toBeVisible();
-    await expect(page.getByText("Bad idea alert")).toBeVisible();
-    await expect(page.getByText("Market anomaly scan").first()).toBeVisible();
+    await expect(page.getByText("Value and schedule watchlist")).toBeVisible();
+    await expect(page.getByText("Fade pressure")).toBeVisible();
+    await expect(page.getByText("Add/swap watch")).toBeVisible();
+    await expect(page.getByText("Schedule edge")).toBeVisible();
+    await expect(page.getByText("Decision guardrails")).toBeVisible();
+    await expect(page.getByText("Schedule/SOS context")).toBeVisible();
+    await expect(page.getByText("Value guardrail")).toBeVisible();
     await expect(page.getByText("Future Pick Market")).toBeVisible();
     await expect(page.getByText("Likely rookie range")).toBeVisible();
     await expect(page.getByText("Trade screenshot view").first()).toBeVisible();

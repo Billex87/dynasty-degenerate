@@ -72,6 +72,7 @@ export function MetricPill({
   const ownerTone = ownerMetricTone(tone);
   return (
     <span
+      data-position={label}
       className={cn(
         'report-pill-shell report-inline-pill report-metric-pill owner-metric-pill',
         `report-metric-pill-${tone}`,

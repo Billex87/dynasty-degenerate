@@ -273,7 +273,7 @@ export function DraftAnalysis({
       {/* Draft Capital Efficiency Leaderboard */}
       <DraftCollapsibleSection
         title={isRedraft ? 'Draft Recap Efficiency' : 'Draft Capital Efficiency'}
-        kicker={isRedraft ? 'Starter hit rate first' : 'Hit rate first'}
+        kicker="Hit rate"
         previewMetrics={buildDraftStatsPreviewMetrics(orderedDraftStats, leagueValueMode, managerAvatars)}
         open={activeDraftSectionId === 'efficiency'}
         onToggle={(open) => setDraftSectionOpen('efficiency', open)}
@@ -330,7 +330,7 @@ export function DraftAnalysis({
       {managerDraftDecisionAudits.length > 0 && (
         <DraftCollapsibleSection
           title={isRedraft ? 'Draft-Day vs Current Value' : 'Draft Decision Audit'}
-          kicker={isRedraft ? 'Decision quality' : 'Decision makers'}
+          kicker="Decision audit"
           previewMetrics={buildDraftDecisionPreviewMetrics(managerDraftDecisionAudits, managerAvatars)}
           open={activeDraftSectionId === 'decision-audit'}
           onToggle={(open) => setDraftSectionOpen('decision-audit', open)}

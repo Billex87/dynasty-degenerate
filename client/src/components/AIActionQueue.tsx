@@ -61,17 +61,60 @@ function getActionQueueEvidenceBand(item: AIActionQueueItem) {
 function getSecondaryQueueDetail(item: AIActionQueueItem): { label: string; detail: string } | null {
   if (item.missingEvidence[0]) {
     return {
-      label: 'Where to verify',
+      label: 'Check first',
       detail: item.missingEvidence[0],
     };
   }
   if (item.changeTriggers[0]) {
     return {
-      label: 'What changes this',
+      label: 'Could change',
       detail: item.changeTriggers[0],
     };
   }
   return null;
+}
+
+function normalizeQueueNote(value: unknown): string {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isManagerFacingQueueNote(value: string): boolean {
+  const lower = value.toLowerCase();
+  if (!lower) return false;
+
+  const internalFragments = [
+    'calibration',
+    'confidence limited',
+    'evidence check',
+    'failed the evidence',
+    'guardrail',
+    'league activity profile',
+    'league format context',
+    'missing proof',
+    'no active nfl team',
+    'outside the trusted',
+    'precondition guard',
+    'rank was not enough',
+    'receipt',
+    'source health',
+    'source trace',
+    'source-limited',
+  ];
+
+  if (internalFragments.some(fragment => lower.includes(fragment))) return false;
+  if (/^(check|verify first|do not act yet|missing proof):/i.test(value)) return false;
+  if (/\b(rows?|source|profile|context|payload)\b/.test(lower) && /\b(loaded|returned)\b/.test(lower)) {
+    return false;
+  }
+
+  return true;
+}
+
+function getQueueNotes(items: unknown[], limit: number): string[] {
+  const visibleItems = items
+    .map(normalizeQueueNote)
+    .filter(isManagerFacingQueueNote);
+  return Array.from(new Set(visibleItems)).slice(0, limit);
 }
 
 function QueueReceipts({
@@ -81,29 +124,24 @@ function QueueReceipts({
   item: AIActionQueueItem;
   compact?: boolean;
 }) {
-  const receipts = compact ? item.receipts.slice(0, 2) : item.receipts.slice(0, 3);
-  const sourceHealth = compact ? item.sourceHealth.slice(0, 2) : item.sourceHealth.slice(0, 3);
-  const changeTriggers = compact ? item.changeTriggers.slice(0, 2) : item.changeTriggers.slice(0, 3);
-  const visibleChangeTriggers = changeTriggers.length
-    ? changeTriggers
-    : ['A roster move, lineup update, injury report, source refresh, or format change can move this read.'];
+  const limit = compact ? 2 : 3;
+  const receipts = getQueueNotes(item.receipts, limit);
+  const visibleChangeTriggers = getQueueNotes(item.changeTriggers, limit);
   const dominoEffects = compact ? (item.dominoEffects || []).slice(0, 2) : (item.dominoEffects || []).slice(0, 3);
-  const riskRows = [
-    ...item.blockers.map(blocker => `Could block this read: ${blocker}`),
-    ...item.missingEvidence.map(missing => `Missing proof: ${missing}`),
-  ].slice(0, compact ? 2 : 3);
-  const visibleRiskRows = riskRows.length
-    ? riskRows
-    : ['Roster, injury, transaction, or source updates can still change this read.'];
-  const verificationRows = sourceHealth.length
-    ? sourceHealth
-    : ['Verify current roster, availability, league format, and source freshness before acting.'];
+  const visibleRiskRows = getQueueNotes([
+    ...item.blockers.map(blocker => `Do not act yet: ${blocker}`),
+    ...item.missingEvidence.map(missing => `Check first: ${missing}`),
+  ], limit);
+
+  if (!receipts.length && !visibleRiskRows.length && !visibleChangeTriggers.length && !dominoEffects.length) {
+    return null;
+  }
 
   return (
     <div className="ai-action-queue-receipts">
       {receipts.length > 0 && (
         <div>
-          <span>What fired</span>
+          <span>What to know</span>
           <ul>
             {receipts.map((receipt) => (
               <li key={receipt}>{receipt}</li>
@@ -113,7 +151,7 @@ function QueueReceipts({
       )}
       {visibleRiskRows.length > 0 && (
         <div>
-          <span>What could be wrong</span>
+          <span>Before acting</span>
           <ul>
             {visibleRiskRows.map((risk) => (
               <li key={risk}>{risk}</li>
@@ -123,7 +161,7 @@ function QueueReceipts({
       )}
       {visibleChangeTriggers.length > 0 && (
         <div className="ai-action-queue-change-mind">
-          <span>What changes this</span>
+          <span>Could change</span>
           <ul>
             {visibleChangeTriggers.map((trigger) => (
               <li key={trigger}>{trigger}</li>
@@ -137,16 +175,6 @@ function QueueReceipts({
           <ul>
             {dominoEffects.map((domino) => (
               <li key={domino}>{domino}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {verificationRows.length > 0 && (
-        <div>
-          <span>Where to verify</span>
-          <ul>
-            {verificationRows.map((source) => (
-              <li key={source}>{source}</li>
             ))}
           </ul>
         </div>

@@ -78,7 +78,7 @@ export function ReportRankingsTab({
       {reportData.managerRosterIntelligence?.length ? (
         <CollapsibleReportSection
           title="Scout Leaguemates"
-          kicker="Manager rank inventory"
+          kicker="Manager ranks"
           openSignal={rosterScannerFocusKey}
           previewAccessory={
             !isRedraftReport ? (
@@ -125,8 +125,8 @@ export function ReportRankingsTab({
         title="Full Roster Rankings"
         kicker={
           isRedraftReport
-            ? "Current-season player values"
-            : "League-matched player values"
+            ? "Season values"
+            : "Player values"
         }
         defaultOpen
       >
@@ -155,7 +155,7 @@ export function ReportRankingsTab({
       {!isRedraftReport && (
         <CollapsibleReportSection
           title="College Rankings"
-          kicker="Future rookie pipeline"
+          kicker="Rookie pipeline"
           previewAccessory={
             <span className="report-pill-shell report-inline-pill rankings-header-context-pill">
               2021-2027 Tracked

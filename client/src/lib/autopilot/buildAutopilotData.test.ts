@@ -32,13 +32,14 @@ describe('buildAutopilotData', () => {
     expect(data.weeklyPlan?.summary).not.toMatch(/\bStart\b.*\bover\b/i);
   });
 
-  it('keeps projection research guidance out of dynasty asset-value language', () => {
+  it('keeps schedule guidance out of implementation TODO language', () => {
     const dynastyTodos = buildSleeperResearchTodo('dynasty').join(' ');
     const redraftTodos = buildSleeperResearchTodo('redraft').join(' ');
 
     expect(redraftTodos).toContain('start/sit and weekly plan cards');
     expect(dynastyTodos).toContain('short-term contender/rebuilder context');
     expect(dynastyTodos).not.toMatch(/dynasty market reads and ranking context/i);
+    expect(`${dynastyTodos} ${redraftTodos}`).not.toMatch(/GET|\/v1|depth_chart|research/i);
   });
 
   it('builds a dynasty cockpit from live report data', () => {
@@ -3050,7 +3051,7 @@ describe('buildAutopilotData', () => {
     expect(data.trades.some((recommendation) => recommendation.summary.includes('weekly starter'))).toBe(true);
   });
 
-  it('promotes schedule planning data into the weekly plan and todo list', () => {
+  it('promotes schedule planning data into the weekly plan and schedule context', () => {
     const reportData = {
       ...createCachedCommandCenterReport().reportData,
       schedulePlanning: {
@@ -3099,14 +3100,93 @@ describe('buildAutopilotData', () => {
       fallback: AUTOPILOT_MOCK_DATA.redraft,
     });
 
-    expect(data.scheduleTodo[0]).toContain('state/nfl');
-    expect(data.scheduleTodo[1]).toContain('research');
-    expect(data.scheduleTodo[2]).toContain('player_id');
-    expect(data.scheduleTodo[3]).toContain('depth_chart');
-    expect(data.scheduleTodo.some((todo) => todo.includes('Schedule planning is live'))).toBe(true);
-    expect(data.scheduleTodo.some((todo) => todo.includes('Week 7 is the first bye-week checkpoint'))).toBe(true);
+    const scheduleText = data.scheduleTodo.join(' ');
+    expect(data.scheduleTodo[0]).toContain('Schedule/SOS context is live');
+    expect(scheduleText).toContain('Tester has RB depth pressure in W7 · W9');
+    expect(scheduleText).toContain('Week 7 Streamer is a schedule-driven QB streamer for W7 · W9');
+    expect(scheduleText).toContain('First bye checkpoint: W7 for BUF, MIA');
+    expect(scheduleText).not.toMatch(/GET|\/v1|depth_chart|research/i);
     expect(data.weeklyPlan?.options.some((option) => option.player === 'Week 7 Streamer')).toBe(false);
     expect(data.weeklyPlan?.options.some((option) => option.player === 'Waiver Tight End Streamer')).toBe(false);
+  });
+
+  it('uses Schedule Edge targets for Schedule/SOS context without planning rows', () => {
+    const baseReportData = createCachedCommandCenterReport().reportData;
+    const reportData = {
+      ...baseReportData,
+      schedulePlanning: undefined,
+      matchupPreviews: [],
+      waiverIntelligence: baseReportData.waiverIntelligence
+        ? {
+          ...baseReportData.waiverIntelligence,
+          weeklyEcrTargets: [],
+          specialTeamsStreamerTargets: [],
+          defensePairingTargets: [],
+        }
+        : undefined,
+      scheduleEdgeTargets: [{
+        player: {
+          player_id: 'schedule-edge-defense',
+          name: 'Schedule Edge Defense',
+          pos: 'DEF',
+          team: 'DET',
+          owner: null,
+          count: 120,
+          seasonValue: 350,
+          currentPositionRank: 'DEF12',
+        } as TrendingPlayer,
+        signal: {
+          signalType: 'draftsharks-sos',
+          playerId: 'schedule-edge-defense',
+          fantasyProsId: null,
+          name: 'Schedule Edge Defense',
+          position: 'DEF',
+          team: 'DET',
+          source: 'DraftSharks',
+          updatedAt: '2026-09-08T18:00:00.000Z',
+          weeks: [3, 4, 7].map((week) => ({
+            week,
+            rankEcr: null,
+            positionRank: 'DEF12',
+            bestRank: null,
+            worstRank: null,
+            averageRank: null,
+            rankStdDev: null,
+            lastUpdated: '2026-09-08T18:00:00.000Z',
+            opponent: `T${week}`,
+            homeAway: 'home',
+            opponentRank: 6,
+            matchupStars: week === 7 ? 3 : 5,
+            matchupTier: week === 7 ? 'neutral' : 'easy',
+            isBye: false,
+          })),
+          bestWeek: 3,
+          bestRankEcr: null,
+          bestPositionRank: 'DEF12',
+          averageRankEcr: null,
+          rankDelta: null,
+          bestMatchupStars: 5,
+          bestOpponentRank: 6,
+          matchupWindows: buildMatchupWindowSet([], { currentWeek: 1 }),
+          confidence: 88,
+          note: 'Schedule Edge Defense has a strong early streaming window.',
+          sourceTrace: [],
+          traceSummary: 'DraftSharks SOS fixture.',
+        },
+        score: 91,
+      }],
+    } as unknown as ReportData;
+
+    const data = buildAutopilotData({
+      reportData,
+      mode: 'redraft',
+      fallback: AUTOPILOT_MOCK_DATA.redraft,
+    });
+
+    const scheduleText = data.scheduleTodo.join(' ');
+    expect(data.scheduleTodo[0]).toContain('Schedule/SOS context is partially loaded');
+    expect(scheduleText).toContain('Schedule Edge Defense (DEF DEF12) has the top Schedule/SOS streamer window for W3 · W4');
+    expect(scheduleText).not.toMatch(/FantasyPros|GET|\/v1|depth_chart|research/i);
   });
 
   it('preserves redraft league mode as a current-season read', () => {

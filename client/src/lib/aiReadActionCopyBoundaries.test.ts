@@ -51,25 +51,30 @@ function readSpecificSources(files: string[]): string {
 }
 
 describe("AI read action copy boundaries", () => {
-  it("keeps secondary action queue rows labeled with verification or change framing", () => {
+  it("keeps secondary action queue rows labeled with manager-facing next-step framing", () => {
     const source = fs.readFileSync(path.join(SOURCE_ROOT, "components/AIActionQueue.tsx"), "utf8");
 
     expect(source).toContain("function getSecondaryQueueDetail");
-    expect(source).toContain("label: 'Where to verify'");
-    expect(source).toContain("label: 'What changes this'");
+    expect(source).toContain("label: 'Check first'");
+    expect(source).toContain("label: 'Could change'");
     expect(source).toContain("{secondaryDetail.label}: {secondaryDetail.detail}");
     expect(source).not.toContain("<em>{item.missingEvidence[0] || item.changeTriggers[0]}</em>");
+    expect(source).not.toContain("label: 'Where to verify'");
+    expect(source).not.toContain("label: 'What changes this'");
   });
 
-  it("keeps shared AI verification rows in user-facing language", () => {
+  it("keeps shared AI trace drawers out of receipt/debug framing", () => {
     const source = fs.readFileSync(path.join(SOURCE_ROOT, "components/AIReadPanel.tsx"), "utf8");
 
-    expect(source).toContain("Do not act yet:");
-    expect(source).toContain("Verify first:");
-    expect(source).toContain("Confidence limited to");
+    expect(source).toContain("function isManagerFacingTraceItem");
+    expect(source).toContain("What to know");
     expect(source).toContain("verify current roster and availability before acting");
     expect(source).toContain("confirm roster, format, and source freshness");
     expect(source).toContain("verify missing context before acting");
+    expect(source).not.toContain("What fired");
+    expect(source).not.toContain("What could be wrong");
+    expect(source).not.toContain("Where to verify");
+    expect(source).not.toContain("What changes this");
     expect(source).not.toContain("Blocked:");
     expect(source).not.toContain("Missing:");
     expect(source).not.toContain("Confidence cap:");

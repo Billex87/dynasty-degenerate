@@ -38,8 +38,8 @@ export function ReportMomentumTab({
         title="Waiver Intelligence"
         kicker={
           isRedraftReport
-            ? "Opportunity, usage, and roster need"
-            : "Available value"
+            ? "Waiver fits"
+            : "Waiver value"
         }
         previewMetrics={buildMomentumPreviewMetrics(reportData)}
       >
@@ -62,11 +62,7 @@ export function ReportMomentumTab({
       </CollapsibleReportSection>
       <CollapsibleReportSection
         title="Recent Transactions"
-        kicker={
-          isRedraftReport
-            ? "Claims, drops, and weekly churn"
-            : "Claims, drops, and churn"
-        }
+        kicker="Claims and drops"
         previewMetrics={buildRecentTransactionPreviewMetrics(
           reportData.recentTransactions,
           leagueValueMode
@@ -83,7 +79,7 @@ export function ReportMomentumTab({
       </CollapsibleReportSection>
       <CollapsibleReportSection
         title="Market Movers"
-        kicker="Biggest weekly value swings"
+        kicker="Value swings"
         previewMetrics={buildMomentumPreviewMetrics(reportData)}
       >
         <WeeklyMomentumTable
@@ -111,8 +107,8 @@ export function ReportMomentumTab({
         title="Trending"
         kicker={
           isRedraftReport
-            ? "Sleeper add and drop activity"
-            : "Sleeper market heat"
+            ? "Add/drop heat"
+            : "Market heat"
         }
         previewMetrics={buildCombinedTrendingPreviewMetrics(reportData)}
       >

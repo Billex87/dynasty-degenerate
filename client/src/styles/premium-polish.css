@@ -96,7 +96,7 @@
    badges, and chips so they read as clean text/marks. Player availability
    status (Active / Taxi / Questionable / Available / Injured / Out …) KEEPS its
    pill — those are excluded via the :not() guards below. */
-:is([class*="-pill"], [class*="-badge"], [class*="-chip"], [class*="-lozenge"]):not([class*="status"]):not([class*="availability"]):not([class*="injury"]):not([class*="avail"]):not([class*="preview-chip"]):not([class*="sort-button"]):not([class*="-controls"]) {
+:is([class*="-pill"], [class*="-badge"], [class*="-chip"], [class*="-lozenge"]):not([class*="status"]):not([class*="availability"]):not([class*="injury"]):not([class*="avail"]):not([class*="preview-chip"]):not([class*="sort-button"]):not([class*="-controls"]):not([class*="metric-pill"]) {
   background: transparent !important;
   background-image: none !important;
   border-color: transparent !important;
@@ -109,8 +109,438 @@
 @media (min-width: 768px) {
   .player-team-tile.starter-player-tile,
   .starter-grid > .player-team-tile,
-  .starter-grid > .starter-player-tile {
+  .starter-grid > .starter-player-tile,
+  .command-depth-grid .command-depth-tile {
     flex-basis: calc(25% - 0.95rem) !important;
     max-width: calc(25% - 0.95rem) !important;
+  }
+}
+
+/* ── More tiles per row as the container widens (not the viewport) ─────────
+   Container queries key off the grid's own width, so a wide board fits 5–6 per
+   row while the narrower (sidebar-constrained) layout stays 4-up — and the
+   tiles never shrink below a comfortable size. */
+.report-disclosure-body-inner,
+.starter-grid {
+  container-type: inline-size;
+}
+@container (min-width: 1500px) {
+  .command-depth-grid .command-depth-tile,
+  .player-team-tile.starter-player-tile,
+  .starter-grid > .starter-player-tile {
+    flex-basis: calc(20% - 0.85rem) !important;
+    max-width: calc(20% - 0.85rem) !important;
+  }
+}
+@container (min-width: 1900px) {
+  .command-depth-grid .command-depth-tile,
+  .player-team-tile.starter-player-tile,
+  .starter-grid > .starter-player-tile {
+    flex-basis: calc(16.666% - 0.85rem) !important;
+    max-width: calc(16.666% - 0.85rem) !important;
+  }
+}
+
+/* ── Manager-tile sections don't need a panel background ───────────────────
+   When a disclosure section is just displaying manager/roster tiles (which
+   carry their own surface), the section's panel bg + border is redundant —
+   strip it so the tiles read directly on the page. */
+.report-disclosure:has(.command-depth-grid),
+.report-section:has(.command-depth-grid) {
+  background: none !important;
+  background-image: none !important;
+  border-color: transparent !important;
+}
+
+/* ── AI readouts: compact decision receipt, not a poster ──────────────────
+   The shared AIReadPanel had grown into a tall circuit-board hero on every
+   surface. Keep the premium AI identity, but make the readout behave like a
+   dense product receipt: headline, evidence, compact verdict, body, trace. */
+.report-shell .ai-read-panel-r3f,
+.ai-read-panel-r3f {
+  min-height: 0 !important;
+  border-radius: 0.78rem !important;
+  border-color: color-mix(in srgb, var(--ai-read-accent, #67e8f9) 30%, rgba(148, 163, 184, 0.18)) !important;
+  background:
+    linear-gradient(135deg, rgba(8, 16, 30, 0.94), rgba(3, 10, 23, 0.96) 64%, rgba(2, 6, 16, 0.98)) !important;
+  padding: clamp(0.72rem, 1.1vw, 0.95rem) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+    0 12px 28px rgba(0, 0, 0, 0.26) !important;
+}
+
+.report-shell .ai-read-panel-r3f::before,
+.ai-read-panel-r3f::before {
+  opacity: 0.12 !important;
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.18)) !important;
+}
+
+.report-shell .ai-read-panel-r3f::after,
+.ai-read-panel-r3f::after {
+  opacity: 0.08 !important;
+}
+
+.report-shell .ai-read-panel-r3f > .ai-tron-surface,
+.report-shell .ai-read-panel-r3f > .ai-panel-svg-chrome,
+.ai-read-panel-r3f > .ai-tron-surface,
+.ai-read-panel-r3f > .ai-panel-svg-chrome {
+  opacity: 0.18 !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-tron-particle-field,
+.ai-read-panel-r3f .ai-tron-particle-field {
+  opacity: 0.14 !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-panel-head,
+.ai-read-panel-r3f .ai-read-panel-head {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: start !important;
+  gap: 0.55rem !important;
+  margin: 0 !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-panel-head::after,
+.ai-read-panel-r3f .ai-read-panel-head::after {
+  display: none !important;
+}
+
+.report-shell .ai-read-title-row,
+.ai-read-title-row {
+  gap: 0.46rem !important;
+}
+
+.report-shell .ai-read-title-icon,
+.ai-read-title-icon {
+  width: 1.42rem !important;
+  height: 1.42rem !important;
+  color: color-mix(in srgb, var(--ai-read-accent, #67e8f9) 78%, #e0f2fe) !important;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--ai-read-accent, #67e8f9) 26%, transparent)) !important;
+}
+
+.report-shell .ai-read-title-icon svg,
+.ai-read-title-icon svg {
+  width: 1.03rem !important;
+  height: 1.03rem !important;
+  stroke-width: 2 !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-panel-head h4,
+.report-shell .ai-read-title-row h4,
+.ai-read-panel-r3f .ai-read-panel-head h4,
+.ai-read-title-row h4 {
+  color: #e0f2fe !important;
+  font-size: clamp(0.88rem, 0.98vw, 1.04rem) !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.018em !important;
+  line-height: 1.08 !important;
+  text-shadow: none !important;
+}
+
+.report-shell .ai-read-label-row-under-title,
+.ai-read-label-row-under-title {
+  margin-top: 0.28rem !important;
+  gap: 0.34rem !important;
+  padding-left: 1.88rem !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-type,
+.report-shell .ai-read-panel-r3f .ai-read-subtitle-inline,
+.ai-read-panel-r3f .ai-read-type,
+.ai-read-panel-r3f .ai-read-subtitle-inline {
+  display: inline-flex !important;
+  min-height: 0 !important;
+  border-color: color-mix(in srgb, var(--ai-read-accent, #67e8f9) 28%, transparent) !important;
+  border-radius: 999px !important;
+  background: rgba(2, 6, 23, 0.38) !important;
+  padding: 0.16rem 0.42rem !important;
+  color: rgba(226, 232, 240, 0.82) !important;
+  font-size: 0.54rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.07em !important;
+  line-height: 1.05 !important;
+  text-transform: uppercase !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-subtitle-inline,
+.ai-read-panel-r3f .ai-read-subtitle-inline {
+  display: inline-block !important;
+  max-width: min(100%, 36rem) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-confidence,
+.ai-read-panel-r3f .ai-read-confidence {
+  display: grid !important;
+  grid-template-columns: auto auto !important;
+  align-items: center !important;
+  justify-items: end !important;
+  width: auto !important;
+  min-width: min(8rem, 30vw) !important;
+  max-width: 11rem !important;
+  gap: 0.12rem 0.34rem !important;
+  border: 1px solid color-mix(in srgb, var(--ai-read-accent, #67e8f9) 24%, rgba(148, 163, 184, 0.14)) !important;
+  border-radius: 0.56rem !important;
+  background: rgba(2, 6, 23, 0.45) !important;
+  padding: 0.28rem 0.36rem !important;
+  text-align: right !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-confidence span,
+.ai-read-panel-r3f .ai-read-confidence span {
+  color: rgba(165, 243, 252, 0.78) !important;
+  font-size: 0.48rem !important;
+  letter-spacing: 0.08em !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-confidence strong,
+.ai-read-panel-r3f .ai-read-confidence strong {
+  max-width: 6.4rem !important;
+  overflow: hidden !important;
+  color: color-mix(in srgb, var(--ai-read-accent, #67e8f9) 76%, #f8fafc) !important;
+  font-size: 0.72rem !important;
+  line-height: 1 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-confidence small,
+.ai-read-panel-r3f .ai-read-confidence small {
+  display: none !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-confidence em,
+.ai-read-panel-r3f .ai-read-confidence em {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  min-width: 4.5rem !important;
+  height: 0.16rem !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-decision,
+.ai-read-panel-r3f .ai-read-decision {
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  gap: 0.34rem !important;
+  margin-top: 0.44rem !important;
+  border-radius: 0.52rem !important;
+  padding: 0.34rem 0.44rem !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-decision span,
+.ai-read-panel-r3f .ai-read-decision span {
+  max-width: 7rem !important;
+  overflow: hidden !important;
+  color: rgba(203, 213, 225, 0.7) !important;
+  font-size: 0.5rem !important;
+  letter-spacing: 0.08em !important;
+  text-overflow: ellipsis !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-decision strong,
+.ai-read-panel-r3f .ai-read-decision strong {
+  color: #f8fafc !important;
+  font-size: 0.68rem !important;
+  letter-spacing: 0.01em !important;
+  line-height: 1.08 !important;
+  text-transform: none !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-decision em,
+.ai-read-panel-r3f .ai-read-decision em {
+  display: none !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-chip-row,
+.ai-read-panel-r3f .ai-read-chip-row {
+  gap: 0.26rem !important;
+  margin-top: 0.34rem !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-chip,
+.ai-read-panel-r3f .ai-read-chip {
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  border-radius: 999px !important;
+  background: rgba(2, 6, 23, 0.36) !important;
+  padding: 0.16rem 0.36rem !important;
+  color: rgba(203, 213, 225, 0.82) !important;
+  font-size: 0.55rem !important;
+  letter-spacing: 0.02em !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-body,
+.ai-read-panel-r3f .ai-read-body {
+  max-width: 100% !important;
+  margin-top: 0.42rem !important;
+  padding-left: 1.88rem !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-body > p,
+.ai-read-panel-r3f .ai-read-body > p {
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  color: rgba(226, 232, 240, 0.82) !important;
+  font-size: clamp(0.76rem, 0.82vw, 0.86rem) !important;
+  font-weight: 620 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.38 !important;
+  text-overflow: clip !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  line-clamp: 2 !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-trace,
+.ai-read-panel-r3f .ai-read-trace {
+  margin-top: 0.44rem !important;
+  border-color: rgba(34, 211, 238, 0.11) !important;
+  border-radius: 0.48rem !important;
+  background: rgba(2, 6, 23, 0.26) !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-trace-kicker,
+.ai-read-panel-r3f .ai-read-trace-kicker {
+  min-height: 1.38rem !important;
+  padding: 0.24rem 0.44rem !important;
+  color: rgba(191, 219, 254, 0.72) !important;
+  font-size: 0.54rem !important;
+  letter-spacing: 0.08em !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-actions,
+.ai-read-panel-r3f .ai-read-actions {
+  margin-top: 0.34rem !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-actions button,
+.ai-read-panel-r3f .ai-read-actions button {
+  border-radius: 0.52rem !important;
+  padding: 0.38rem 0.56rem !important;
+  font-size: 0.7rem !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-body .ai-action-queue-summary.ai-action-queue-compact,
+.ai-read-panel-r3f .ai-read-body .ai-action-queue-summary.ai-action-queue-compact {
+  min-height: 0 !important;
+  margin: 0.42rem 0 0 !important;
+  border-color: color-mix(in srgb, var(--tone, var(--ai-read-accent, #67e8f9)) 22%, rgba(148, 163, 184, 0.12)) !important;
+  border-radius: 0.52rem !important;
+  background: rgba(2, 6, 23, 0.32) !important;
+  padding: 0.4rem 0.48rem !important;
+  box-shadow: none !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-body .ai-action-queue-summary > .ai-tron-surface,
+.ai-read-panel-r3f .ai-read-body .ai-action-queue-summary > .ai-tron-surface {
+  opacity: 0.08 !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-body .ai-action-summary-row,
+.ai-read-panel-r3f .ai-read-body .ai-action-summary-row {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0.5rem !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-body .ai-action-summary-main,
+.ai-read-panel-r3f .ai-read-body .ai-action-summary-main {
+  display: grid !important;
+  grid-template-columns: auto minmax(8rem, 0.44fr) minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 0.26rem 0.38rem !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-body .ai-action-summary-main span,
+.ai-read-panel-r3f .ai-read-body .ai-action-summary-main span {
+  color: color-mix(in srgb, var(--tone, var(--ai-read-accent, #67e8f9)) 72%, #e0f2fe) !important;
+  font-size: 0.5rem !important;
+  letter-spacing: 0.08em !important;
+  white-space: nowrap !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-body .ai-action-summary-main svg,
+.ai-read-panel-r3f .ai-read-body .ai-action-summary-main svg {
+  width: 0.78rem !important;
+  height: 0.78rem !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-body .ai-action-summary-main strong,
+.ai-read-panel-r3f .ai-read-body .ai-action-summary-main strong {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  color: #f8fafc !important;
+  font-size: 0.74rem !important;
+  line-height: 1.08 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-body .ai-action-summary-main p,
+.ai-read-panel-r3f .ai-read-body .ai-action-summary-main p {
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  color: rgba(203, 213, 225, 0.74) !important;
+  font-size: 0.62rem !important;
+  font-weight: 680 !important;
+  line-height: 1.22 !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 1 !important;
+  line-clamp: 1 !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-body .ai-action-summary-score,
+.ai-read-panel-r3f .ai-read-body .ai-action-summary-score {
+  display: none !important;
+}
+
+.report-shell .ai-read-panel-r3f .ai-read-body .ai-action-summary-risk,
+.ai-read-panel-r3f .ai-read-body .ai-action-summary-risk {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  .report-shell .ai-read-panel-r3f,
+  .ai-read-panel-r3f {
+    padding: 0.68rem !important;
+  }
+
+  .report-shell .ai-read-panel-r3f .ai-read-panel-head,
+  .ai-read-panel-r3f .ai-read-panel-head {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .report-shell .ai-read-label-row-under-title,
+  .report-shell .ai-read-panel-r3f .ai-read-body,
+  .ai-read-label-row-under-title,
+  .ai-read-panel-r3f .ai-read-body {
+    padding-left: 0 !important;
+  }
+
+  .report-shell .ai-read-panel-r3f .ai-read-confidence,
+  .ai-read-panel-r3f .ai-read-confidence {
+    justify-self: start !important;
+    min-width: min(100%, 10rem) !important;
+  }
+
+  .report-shell .ai-read-panel-r3f .ai-read-decision,
+  .ai-read-panel-r3f .ai-read-decision {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .report-shell .ai-read-panel-r3f .ai-read-body .ai-action-summary-row,
+  .report-shell .ai-read-panel-r3f .ai-read-body .ai-action-summary-main,
+  .ai-read-panel-r3f .ai-read-body .ai-action-summary-row,
+  .ai-read-panel-r3f .ai-read-body .ai-action-summary-main {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .report-shell .ai-read-panel-r3f .ai-read-body .ai-action-summary-score,
+  .ai-read-panel-r3f .ai-read-body .ai-action-summary-score {
+    justify-items: start !important;
   }
 }

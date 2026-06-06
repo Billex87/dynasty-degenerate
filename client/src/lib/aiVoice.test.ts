@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getVoicedAIActionDecisionCopy,
   getVoicedAIActionLabel,
+  getVoicedAIActionQueueSubtitle,
   getVoicedAIReadDecision,
   getVoicedSuppressedAIActionsCopy,
 } from "./aiVoice";
@@ -36,9 +37,9 @@ describe("aiVoice", () => {
       "degen"
     );
 
-    expect(decision.label).toBe("Don't get cute yet");
-    expect(decision.status).toBe("Wait for it · 63%");
-    expect(decision.detail).toContain("Hands off until the receipts improve.");
+    expect(decision.label).toBe("Do not force it");
+    expect(decision.status).toBe("Watch · 63%");
+    expect(decision.detail).toContain("Wait for a cleaner signal.");
   });
 
   it("keeps blocked reads strict even when roast mode is louder", () => {
@@ -55,15 +56,21 @@ describe("aiVoice", () => {
     expect(decision.label).toBe("Absolutely not");
     expect(decision.status).toBe("Blocked · 34%");
     expect(decision.detail).toContain(
-      "Buddy, is this your first day playing fantasy football?"
+      "This move does not clear the bar."
     );
   });
 
   it("voices action queues as one-call surfaces", () => {
     expect(getVoicedAIActionDecisionCopy("do", "degen")).toBe("Green light");
     expect(getVoicedAIActionLabel("Don't force it", "watch", "degen")).toBe(
-      "Don't get cute yet"
+      "Watch only"
     );
+    expect(
+      getVoicedAIActionQueueSubtitle(
+        "Next move engine: act, watch, hold, or block.",
+        "degen"
+      )
+    ).toContain("next move call");
     expect(getVoicedSuppressedAIActionsCopy(2, "degen")).toMatchObject({
       label: "Bench reads held back",
       countLabel: "2 bench reads",
@@ -101,8 +108,8 @@ describe("aiVoice", () => {
       "roast"
     );
 
-    expect(decision.label).toBe("Do this. Don't overthink it.");
+    expect(decision.label).toBe("Do this. Keep it simple.");
     expect(decision.status).toBe("Green light · 86%");
-    expect(decision.detail).toContain("Try not to galaxy-brain");
+    expect(decision.detail).toContain("Keep the move simple.");
   });
 });

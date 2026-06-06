@@ -355,81 +355,201 @@ function WeeklyRecapCard({ recap }: { recap?: WeeklyRecapRead }) {
   );
 }
 
-function AIReportCardPanel({ reportCard }: { reportCard?: AIReportCardRead }) {
-  if (!reportCard) return null;
+type AIEdgeWatchRow = {
+  id: string;
+  label: string;
+  title: string;
+  detail: string;
+  action: string;
+  confidence: number;
+  tone: AutopilotTone;
+  signals: string[];
+};
 
-  return (
-    <article className={cn('autopilot-edge-card autopilot-report-card', `autopilot-tone-${reportCard.tone}`)}>
-      <div className="autopilot-edge-card-head">
-        <span>Weekly AI report card</span>
-        <strong>{reportCard.grade}</strong>
-      </div>
-      <p>{reportCard.summary}</p>
-      <ConfidenceMeter value={reportCard.confidence} label="League confidence" tone={reportCard.tone} compact />
-      <div className="autopilot-report-card-rows">
-        {reportCard.rows.slice(0, 6).map((row) => (
-          <div key={row.label} className={cn('autopilot-report-card-row', `autopilot-tone-${row.tone}`)}>
-            <span>{row.label}</span>
-            <strong>{row.status}</strong>
-            <p>{row.detail}</p>
-          </div>
-        ))}
-      </div>
-    </article>
-  );
+function isNegativeMovement(summary: string) {
+  return /-\d|fall|fade|leak|sell|declin|drop/i.test(summary);
 }
 
-function BadIdeaPanel({ rejections }: { rejections: AIRejectionRead[] }) {
-  return (
-    <article className="autopilot-edge-card autopilot-bad-idea-card">
-      <div className="autopilot-edge-card-head">
-        <span>Bad idea alert</span>
-        <strong>{rejections.length ? `${rejections.length} blocked` : 'Clean'}</strong>
-      </div>
-      <p>
-        {rejections.length
-          ? 'The AI is doing the annoying but useful thing: refusing moves that do not clear the evidence bar.'
-          : 'No bad idea is loud enough to block from this read.'}
-      </p>
-      <div className="autopilot-edge-list">
-        {rejections.slice(0, 4).map((row) => (
-          <article key={row.id} className={cn('autopilot-edge-row', `autopilot-tone-${row.tone}`)}>
-            <div>
-              <span>{row.action}</span>
-              <strong>{row.target}</strong>
-            </div>
-            <p>{row.reason}</p>
-            <em>{row.alternative}</em>
-            <SignalPills signals={row.receipts} />
-          </article>
-        ))}
-      </div>
-    </article>
-  );
+function projectionToWatchRow(
+  projection: PlayerProjection,
+  index: number,
+  label: string,
+  action: string,
+): AIEdgeWatchRow {
+  return {
+    id: `projection-${label}-${projection.player}-${index}`,
+    label,
+    title: projection.player,
+    detail: `${projection.position} ${projection.direction.toLowerCase()} profile: ${projection.projectedMove}; current ${projection.currentValue}.`,
+    action,
+    confidence: projection.confidence,
+    tone: projection.direction === 'Falling' ? 'warn' : projection.direction === 'Rising' ? 'good' : 'info',
+    signals: projection.signals.slice(0, 3),
+  };
 }
 
-function MarketAnomalyPanel({ anomalies }: { anomalies: AIMarketAnomalyRead[] }) {
+function recommendationToWatchRow(
+  recommendation: AutopilotRecommendation,
+  index: number,
+  label: string,
+): AIEdgeWatchRow {
+  return {
+    id: `recommendation-${label}-${recommendation.id || index}`,
+    label,
+    title: recommendation.player,
+    detail: recommendation.summary,
+    action: recommendation.action,
+    confidence: recommendation.confidence,
+    tone: recommendation.tone,
+    signals: recommendation.signals.slice(0, 3),
+  };
+}
+
+function anomalyToWatchRow(row: AIMarketAnomalyRead): AIEdgeWatchRow {
+  return {
+    id: row.id,
+    label: row.label,
+    title: row.player,
+    detail: row.summary,
+    action: row.suggestedAction,
+    confidence: row.confidence,
+    tone: row.tone,
+    signals: row.receipts.slice(0, 3),
+  };
+}
+
+function dedupeWatchRows(rows: AIEdgeWatchRow[], limit: number): AIEdgeWatchRow[] {
+  const seen = new Set<string>();
+  const deduped: AIEdgeWatchRow[] = [];
+  rows.forEach((row) => {
+    const key = row.title.trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    deduped.push(row);
+  });
+  return deduped.slice(0, limit);
+}
+
+function isUsefulLineupWatch(recommendation: AutopilotRecommendation): boolean {
+  const text = `${recommendation.action} ${recommendation.summary} ${recommendation.secondary || ''}`;
+  if (/already|keep started|confirmation|not a lineup move/i.test(text)) return false;
+  return recommendation.confidence >= 50 || /review|swap|pressure|close call|upgrade/i.test(text);
+}
+
+function buildFadeRows(data: AutopilotData): AIEdgeWatchRow[] {
+  const rows = [
+    ...data.marketAnomalies
+      .filter((row) => row.tone === 'danger' || row.tone === 'warn' || isNegativeMovement(row.summary))
+      .map(anomalyToWatchRow),
+    ...data.projections
+      .filter((projection) => projection.direction === 'Falling')
+      .map((projection, index) =>
+        projectionToWatchRow(projection, index, 'Value fade risk', 'Re-check before buying or starting over a similar tier.')
+      ),
+  ];
+  return dedupeWatchRows(rows, 3);
+}
+
+function buildAddSwapRows(data: AutopilotData): AIEdgeWatchRow[] {
+  const rows = [
+    ...data.waivers.slice(0, 2).map((recommendation, index) =>
+      recommendationToWatchRow(recommendation, index, /monitor/i.test(recommendation.action) ? 'Waiver monitor' : 'Add candidate')
+    ),
+    ...data.lineup.filter(isUsefulLineupWatch).slice(0, 2).map((recommendation, index) =>
+      recommendationToWatchRow(recommendation, index, 'Lineup pressure test')
+    ),
+    ...data.projections
+      .filter((projection) => projection.direction === 'Rising')
+      .slice(0, 1)
+      .map((projection, index) =>
+        projectionToWatchRow(projection, index, 'Value riser', 'Use as a same-tier bump, not an automatic move.')
+      ),
+  ];
+  return dedupeWatchRows(rows, 4);
+}
+
+function buildScheduleRows(data: AutopilotData): AIEdgeWatchRow[] {
+  const scheduleRows = data.scheduleTodo.slice(0, 3).map((read, index) => ({
+    id: `schedule-read-${index}`,
+    label: index === 0 ? 'Schedule signal' : 'Next 4 weeks',
+    title: index === 0 ? 'Schedule/SOS context' : 'Matchup tiebreaker',
+    detail: read,
+    action: index === 0
+      ? 'Use schedule as a short-term tiebreaker beside value.'
+      : 'Bump same-tier players only when schedule and role both clear.',
+    confidence: Math.max(60, Math.min(86, 82 - index * 4)),
+    tone: 'info' as AutopilotTone,
+    signals: ['DraftSharks SOS', 'Bye window', 'Same-tier tiebreaker'],
+  }));
+  return scheduleRows.length
+    ? scheduleRows
+    : [{
+        id: 'schedule-read-empty',
+        label: 'Schedule signal',
+        title: 'Schedule/SOS pending',
+        detail: 'No player-specific schedule edge is attached yet.',
+        action: 'Do not use schedule to override value until matchup evidence lands.',
+        confidence: 55,
+        tone: 'neutral',
+        signals: ['Value remains primary'],
+      }];
+}
+
+function getGuardrailSummary(reportCard?: AIReportCardRead, rejections: AIRejectionRead[] = []) {
+  const actionableRejections = rejections.filter((row) =>
+    !/no active nfl team|outside the trusted|rank was not enough|failed the evidence check/i.test(
+      `${row.reason} ${row.receipts.join(' ')}`
+    )
+  );
+  const confidence = reportCard?.confidence ?? 60;
+  return {
+    confidence,
+    grade: reportCard?.grade || 'Watch',
+    count: rejections.length,
+    actionableCount: actionableRejections.length,
+    tone: reportCard?.tone || 'info' as AutopilotTone,
+    summary: actionableRejections.length
+      ? `${actionableRejections.length} real roster/trade guardrail${actionableRejections.length === 1 ? '' : 's'} stayed below the action line.`
+      : rejections.length
+        ? 'No add, swap, or trade cleared enough value, roster-fit, and schedule proof to outrank holding.'
+        : 'No competing read is strong enough to change the top verdict.',
+  };
+}
+
+function AIEdgeWatchCard({
+  title,
+  eyebrow,
+  summary,
+  rows,
+  tone = 'info',
+  className,
+}: {
+  title: string;
+  eyebrow: string;
+  summary: string;
+  rows: AIEdgeWatchRow[];
+  tone?: AutopilotTone;
+  className?: string;
+}) {
   return (
-    <article className="autopilot-edge-card autopilot-market-anomaly-card">
+    <article className={cn('autopilot-edge-card autopilot-watch-card', `autopilot-tone-${tone}`, className)}>
       <div className="autopilot-edge-card-head">
-        <span>Market anomaly scan</span>
-        <strong>{anomalies.length ? `${anomalies.length} flagged` : 'Quiet'}</strong>
+        <span>{eyebrow}</span>
+        <strong>{rows.length || 'Clear'}</strong>
       </div>
-      <p>
-        {anomalies.length
-          ? 'These are the players where market movement, roster status, and evidence do not fully agree.'
-          : 'No market mismatch is strong enough to interrupt the verdict.'}
-      </p>
+      <h4>{title}</h4>
+      <p>{summary}</p>
       <div className="autopilot-edge-list">
-        {anomalies.slice(0, 4).map((row) => (
+        {rows.slice(0, 4).map((row) => (
           <article key={row.id} className={cn('autopilot-edge-row', `autopilot-tone-${row.tone}`)}>
             <div>
               <span>{row.label}</span>
-              <strong>{row.player}</strong>
+              <strong>{row.title}</strong>
             </div>
-            <p>{row.summary}</p>
-            <em>{row.suggestedAction}</em>
-            <ConfidenceMeter value={row.confidence} label={row.position} tone={row.tone} compact />
+            <p>{row.detail}</p>
+            <em>{row.action}</em>
+            <ConfidenceMeter value={row.confidence} label="Confidence" tone={row.tone} compact />
+            <SignalPills signals={row.signals} />
           </article>
         ))}
       </div>
@@ -437,22 +557,68 @@ function MarketAnomalyPanel({ anomalies }: { anomalies: AIMarketAnomalyRead[] })
   );
 }
 
-function AIEdgeReview({
+function AIEdgeGuardrailCard({
   reportCard,
   rejections,
-  marketAnomalies,
 }: {
   reportCard?: AIReportCardRead;
   rejections: AIRejectionRead[];
-  marketAnomalies: AIMarketAnomalyRead[];
 }) {
-  if (!reportCard && !rejections.length && !marketAnomalies.length) return null;
+  const summary = getGuardrailSummary(reportCard, rejections);
+  return (
+    <article className={cn('autopilot-edge-card autopilot-guardrail-card', `autopilot-tone-${summary.tone}`)}>
+      <div className="autopilot-edge-card-head">
+        <span>Decision guardrails</span>
+        <strong>{summary.grade}</strong>
+      </div>
+      <h4>Why the top call stayed disciplined</h4>
+      <p>{summary.summary}</p>
+      <ConfidenceMeter value={summary.confidence} label="League confidence" tone={summary.tone} compact />
+      <div className="autopilot-guardrail-metrics">
+        <span>
+          <strong>{summary.count}</strong>
+          below line
+        </span>
+        <span>
+          <strong>{summary.actionableCount}</strong>
+          roster-level
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function AIEdgeReview({ data }: { data: AutopilotData }) {
+  const fadeRows = buildFadeRows(data);
+  const addSwapRows = buildAddSwapRows(data);
+  const scheduleRows = buildScheduleRows(data);
+  if (!data.reportCard && !fadeRows.length && !addSwapRows.length && !scheduleRows.length) return null;
 
   return (
     <div className="autopilot-edge-review">
-      <AIReportCardPanel reportCard={reportCard} />
-      <BadIdeaPanel rejections={rejections} />
-      <MarketAnomalyPanel anomalies={marketAnomalies} />
+      <AIEdgeWatchCard
+        eyebrow="Fade pressure"
+        title="Do not overpay"
+        summary="Value, role, or short-window signals that say re-check the price before buying or starting a same-tier player."
+        rows={fadeRows}
+        tone={fadeRows[0]?.tone || 'warn'}
+      />
+      <AIEdgeWatchCard
+        eyebrow="Add/swap watch"
+        title="Upgrade watch"
+        summary="Waiver, lineup, and rising-value names that could become an action when schedule and value both clear."
+        rows={addSwapRows}
+        tone={addSwapRows[0]?.tone || 'good'}
+        className="autopilot-edge-card-featured"
+      />
+      <AIEdgeWatchCard
+        eyebrow="Schedule edge"
+        title="Four-week tiebreakers"
+        summary="Schedule/SOS should bump close calls, not override dynasty value or starter quality by itself."
+        rows={scheduleRows}
+        tone="info"
+      />
+      <AIEdgeGuardrailCard reportCard={data.reportCard} rejections={data.rejections} />
     </div>
   );
 }
@@ -627,6 +793,9 @@ export default function AITeamAutopilot({
       return fallback;
     }
   }, [mode, reportData]);
+  const scheduleReads = data.scheduleTodo.length ? data.scheduleTodo : AUTOPILOT_MOCK_DATA[mode].scheduleTodo;
+  const schedulePrimaryRead = scheduleReads[0] || 'Schedule/SOS context is pending for this league.';
+  const scheduleSupportingReads = scheduleReads.slice(1, 4);
 
   return (
     <section className="autopilot-dashboard" data-mode={mode}>
@@ -637,7 +806,7 @@ export default function AITeamAutopilot({
             AI Team Autopilot
           </span>
           <h2>{renderAutopilotHeadline(data.headline, data.focusManager)}</h2>
-          <p>{data.focusManager ? `${data.focusManager} read` : leagueName || 'Selected league'}{leagueFormat ? ` · ${leagueFormat}` : ''}</p>
+          <p>{data.focusManager ? `${data.focusManager} next move` : `${leagueName || 'Selected league'} next move`}{leagueFormat ? ` · ${leagueFormat}` : ''}</p>
         </div>
         {!isRedraftLocked && (
           <div className="autopilot-mode-toggle" aria-label="Autopilot league mode">
@@ -656,17 +825,13 @@ export default function AITeamAutopilot({
       <AIActionQueue
         items={data.actionQueue}
         title="Daily AI Verdict"
-        subtitle="The one place where Autopilot decides: act, watch, hold, or block."
+        subtitle="Next move engine: act, watch, hold, or block."
         memoryKey={`autopilot:${mode}:${data.focusManager || leagueName || 'league'}`}
         memoryContext={`AI Autopilot · ${data.focusManager || leagueName || 'League'}`}
       />
 
-      <SectionShell eyebrow="AI Edge Review" title="Rejections, anomalies, and calibration" icon={ShieldAlert} className="autopilot-section-wide">
-        <AIEdgeReview
-          reportCard={data.reportCard}
-          rejections={data.rejections}
-          marketAnomalies={data.marketAnomalies}
-        />
+      <SectionShell eyebrow="AI Edge Review" title="Value and schedule watchlist" icon={ShieldAlert} className="autopilot-section-wide">
+        <AIEdgeReview data={data} />
       </SectionShell>
 
       <section className="autopilot-direction-panel">
@@ -786,25 +951,31 @@ export default function AITeamAutopilot({
           </SectionShell>
         )}
 
-        <SectionShell eyebrow="Matchup Planning" title="Schedule and SOS context" icon={CalendarClock}>
+        <SectionShell eyebrow="Matchup Planning" title="Schedule/SOS context" icon={CalendarClock} className="autopilot-section-wide">
           <div className="autopilot-schedule-panel">
-            <div className="autopilot-schedule-icon" aria-hidden="true">
-              <Target className="h-7 w-7" />
+            <div className="autopilot-schedule-verdict">
+              <span>
+                <Target className="h-4 w-4" aria-hidden="true" />
+                Schedule signal
+              </span>
+              <strong>{schedulePrimaryRead}</strong>
             </div>
-            <ul>
-              {data.scheduleTodo.map((todo) => (
-                <li key={todo}>
-                  <Crosshair className="h-4 w-4" aria-hidden="true" />
-                  {todo}
-                </li>
-              ))}
-            </ul>
+            {scheduleSupportingReads.length ? (
+              <ul>
+                {scheduleSupportingReads.map((todo) => (
+                  <li key={todo}>
+                    <Crosshair className="h-4 w-4" aria-hidden="true" />
+                    {todo}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <div className="autopilot-future-stack">
               <span>
                 <Sparkles className="h-4 w-4" aria-hidden="true" />
-                Schedule signal
+                Value guardrail
               </span>
-              <strong>Strength of schedule</strong>
+              <strong>{mode === 'redraft' ? 'Weekly tie-breaker' : 'Dynasty value stays primary'}</strong>
             </div>
           </div>
         </SectionShell>

@@ -153,109 +153,66 @@ function renderChip(chip: AIReadChip, index: number) {
   );
 }
 
-function getVisibleTraceItems(traceItems?: string[]) {
-  return (traceItems || [])
-    .map(item => item.replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-    .slice(0, 4);
+function normalizeTraceItem(item: unknown): string {
+  return String(item || '').replace(/\s+/g, ' ').trim();
 }
 
-function getFiredTraceItems({
-  evidenceRead,
-  traceItems,
-}: {
-  evidenceRead?: AIEvidenceResult | null;
-  traceItems?: string[];
-}) {
-  const explicitItems = getVisibleTraceItems(traceItems);
-  const evidenceItems = [
-    evidenceRead?.whyThisFired,
-    ...(evidenceRead?.evidence || []),
+function isManagerFacingTraceItem(item: string): boolean {
+  const lower = item.toLowerCase();
+  if (!lower) return false;
+
+  const internalFragments = [
+    'calibration memory',
+    'confidence cap',
+    'confidence is limited',
+    'confidence limited',
+    'guardrail',
+    'league activity profile',
+    'league format context',
+    'league overview row',
+    'limited source',
+    'missing proof',
+    'missing source',
+    'payload',
+    'receipt',
+    'roster-intelligence',
+    'soft penalty',
+    'source freshness',
+    'source health',
+    'source trace',
+    'source-limited',
+    'stale source',
+    'visible managers',
+    `why ${'this fired'}`,
   ];
-  const items = [...explicitItems, ...evidenceItems]
-    .map(item => String(item || '').replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
+
+  if (internalFragments.some(fragment => lower.includes(fragment))) return false;
+  if (/^(check|clear guardrail|could block this read|do not act yet|resolve missing proof|verify first):/i.test(item)) {
+    return false;
+  }
+  if (/\b(rows?|source|profile|context|payload)\b/.test(lower) && /\b(loaded|returned)\b/.test(lower)) {
+    return false;
+  }
+  if (/\breturned\b/.test(lower) && /\b(no|not|missing|available|unavailable)\b/.test(lower)) {
+    return false;
+  }
+
+  return true;
+}
+
+function getVisibleTraceItems(traceItems?: string[]) {
+  const items = (traceItems || [])
+    .map(normalizeTraceItem)
+    .filter(isManagerFacingTraceItem);
   return Array.from(new Set(items)).slice(0, 4);
 }
 
-function getRiskTraceItems(evidenceRead?: AIEvidenceResult | null) {
-  if (!evidenceRead) {
-    return ['AI reads can miss late roster, injury, lineup, waiver, or source changes.'];
+function getTraceGroupLabel(traceLabel?: string) {
+  const normalized = normalizeTraceItem(traceLabel || '');
+  if (!normalized || /^(why|signals?|receipts?|evidence)$/i.test(normalized)) {
+    return 'What to know';
   }
-  const sourceRisks = evidenceRead.sourceTrace
-    .filter(trace =>
-      trace.status === 'missing' ||
-      trace.status === 'stale' ||
-      trace.status === 'error' ||
-      trace.status === 'limited' ||
-      trace.status === 'unavailable' ||
-      trace.status === 'unverified'
-    )
-    .map(trace =>
-      [
-        trace.label,
-        trace.status ? `is ${trace.status}` : 'needs review',
-        trace.detail,
-      ]
-        .filter(Boolean)
-        .join(' ')
-    );
-  const capItem = evidenceRead.confidenceCapReason
-    ? `Confidence is limited because ${evidenceRead.confidenceCapReason}.`
-    : null;
-  const items = [
-    ...evidenceRead.hardBlockers.map(item => `Could block this read: ${item}`),
-    ...evidenceRead.missingEvidence.map(item => `Missing proof: ${item}`),
-    ...sourceRisks,
-    capItem,
-  ]
-    .map(item => String(item || '').replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
-  const uniqueItems = Array.from(new Set(items));
-  if (uniqueItems.length) return uniqueItems.slice(0, 4);
-  return ['Roster, injury, transaction, or source updates can change this read.'];
-}
-
-function getVerificationTraceItems(evidenceRead?: AIEvidenceResult | null) {
-  if (!evidenceRead) return [];
-  const sourceItems = evidenceRead.sourceTrace.map(trace =>
-    [
-      trace.label,
-      trace.status ? `(${trace.status})` : null,
-      trace.detail,
-    ]
-      .filter(Boolean)
-      .join(' ')
-  );
-  const blockerItems = evidenceRead.hardBlockers.map(item => `Do not act yet: ${item}`);
-  const missingItems = evidenceRead.missingEvidence.map(item => `Verify first: ${item}`);
-  const capItem = evidenceRead.confidenceCapReason
-    ? `Confidence limited to ${evidenceRead.confidenceCap}% because ${evidenceRead.confidenceCapReason}`
-    : null;
-  const items = [...sourceItems, ...blockerItems, ...missingItems, capItem]
-    .map(item => String(item || '').replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
-  const uniqueItems = Array.from(new Set(items));
-  if (uniqueItems.length) return uniqueItems.slice(0, 4);
-  return ['Verify current roster, availability, league format, and source freshness before acting.'];
-}
-
-function getChangeTraceItems(evidenceRead?: AIEvidenceResult | null) {
-  const items = [
-    ...(evidenceRead?.missingEvidence || []).map(item => `Resolve missing proof: ${item}`),
-    ...(evidenceRead?.hardBlockers || []).map(item => `Clear guardrail: ${item}`),
-    evidenceRead?.confidenceCapReason
-      ? `Refresh or improve the limited source: ${evidenceRead.confidenceCapReason}.`
-      : null,
-    hasUnhealthySourceTrace(evidenceRead)
-      ? 'Refresh stale, missing, limited, or errored source rows.'
-      : null,
-  ]
-    .map(item => String(item || '').replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
-  const uniqueItems = Array.from(new Set(items));
-  if (uniqueItems.length) return uniqueItems.slice(0, 4);
-  return ['A roster move, lineup update, injury report, source refresh, or format change can move this read.'];
+  return normalized;
 }
 
 function getVisibleDecisionForPanel({
@@ -513,10 +470,7 @@ function AIReadPanelContent({
   const normalizedConfidence = normalizeConfidence(confidence);
   const displayedConfidenceNote =
     normalizedConfidence === null ? null : confidenceNote || getDefaultConfidenceNote(normalizedConfidence);
-  const firedTraceItems = getFiredTraceItems({ evidenceRead, traceItems });
-  const riskTraceItems = getRiskTraceItems(evidenceRead);
-  const verificationTraceItems = getVerificationTraceItems(evidenceRead);
-  const changeTraceItems = getChangeTraceItems(evidenceRead);
+  const visibleTraceItems = getVisibleTraceItems(traceItems);
   const visibleDecision = getVisibleDecisionForPanel({
     props: {
       title,
@@ -536,7 +490,7 @@ function AIReadPanelContent({
       backgroundVariant,
     },
     severity,
-    visibleTraceItems: firedTraceItems,
+    visibleTraceItems,
   });
   const voicedDecision = visibleDecision
     ? getVoicedAIReadDecision(visibleDecision)
@@ -605,10 +559,7 @@ function AIReadPanelContent({
 
       <AIReadTrace
         groups={[
-          { label: traceLabel === 'Why' ? 'What fired' : traceLabel, items: firedTraceItems },
-          { label: 'What could be wrong', items: riskTraceItems },
-          { label: 'Where to verify', items: verificationTraceItems },
-          { label: 'What changes this', items: changeTraceItems },
+          { label: getTraceGroupLabel(traceLabel), items: visibleTraceItems },
         ]}
       />
 
@@ -649,7 +600,7 @@ function AIReadTrace({ groups }: { groups: AIReadTraceGroup[] }) {
       onToggle={event => setIsOpen(event.currentTarget.open)}
     >
       <summary className="ai-read-trace-kicker">
-        Why / Signals <span>{totalSignals} signal{totalSignals === 1 ? '' : 's'}</span>
+        What to know <span>{totalSignals} note{totalSignals === 1 ? '' : 's'}</span>
       </summary>
       {isOpen && (
         <div className="ai-read-trace-body">

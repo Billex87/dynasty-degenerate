@@ -2180,7 +2180,7 @@ export function LeagueCommandCenter({
           <FeatureCard
             number={1}
             title="Projected Roster Board"
-            kicker="Season starter room"
+            kicker="Starter room"
             className="command-feature-card-wide"
             hideNumber
             hideHeader={section !== "all"}
@@ -2247,7 +2247,7 @@ export function LeagueCommandCenter({
           <FeatureCard
             number={2}
             title="Taxi Squad Triage"
-            kicker="Taxi-only activation checks"
+            kicker="Taxi checks"
             className="command-feature-card-wide"
             hideNumber
             hideHeader={section !== "all"}

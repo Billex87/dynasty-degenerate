@@ -25,7 +25,6 @@ import type { DraftPick, LeagueValueMode, ManagerIntelPlayer, ManagerStarterPlay
 import {
   evaluateAIEvidence,
   getAIEvidenceLeagueContextFromDiagnostics,
-  getAIEvidenceReceiptItems,
   type AIEvidenceMode,
   type AIEvidenceResult,
 } from '@shared/aiEvidenceEngine';
@@ -362,12 +361,12 @@ function buildOwnerIntelEvidenceRead(
     signalModes: getReportEvidenceModes(data),
     baseScore,
     evidence: [
-      intel ? `${manager} roster intelligence returned.` : null,
-      overview ? `${manager} league overview row returned.` : null,
-      power ? `${manager} power ranking returned.` : null,
-      counts ? `${manager} roster position counts returned.` : null,
-      pickPortfolio && !isRedraft ? `${manager} pick portfolio returned.` : null,
-      tradeTendency ? `${manager} trade tendency row returned.` : null,
+      intel ? `${manager} roster intelligence is loaded.` : null,
+      overview ? `${manager} league overview is loaded.` : null,
+      power ? `${manager} power ranking is loaded.` : null,
+      counts ? `${manager} roster position counts are loaded.` : null,
+      pickPortfolio && !isRedraft ? `${manager} pick portfolio is loaded.` : null,
+      tradeTendency ? `${manager} trade tendency is loaded.` : null,
     ].filter((value): value is string => Boolean(value)),
     missingEvidence: [
       !intel ? 'Manager roster intelligence missing.' : null,
@@ -432,7 +431,7 @@ function buildRankingsEvidenceRead(
     baseScore,
     evidence: [
       rowCount ? `${rowCount} ranking assets indexed.` : null,
-      valueRows.length ? `${valueRows.length} player value rows returned.` : null,
+      valueRows.length ? `${valueRows.length} player values are loaded.` : null,
       sourceCount ? `${sourceCount} ranking sources loaded.` : null,
       ownedCount ? `${ownedCount} rows include live roster ownership.` : null,
       data.rankings?.defaultProfileKey ? `Default profile ${data.rankings.defaultProfileKey}.` : null,
@@ -496,10 +495,10 @@ function buildTradeBrowserEvidenceRead(
     signalModes: getReportEvidenceModes(data),
     baseScore,
     evidence: [
-      tradeCount ? `${tradeCount} completed trades returned.` : null,
-      tendencyCount ? `${tendencyCount} manager trade tendency rows returned.` : null,
-      profitCount ? `${profitCount} trade-profit rows returned.` : null,
-      managerIntelCount ? `${managerIntelCount} manager roster rows returned for fit checks.` : null,
+      tradeCount ? `${tradeCount} completed trades are loaded.` : null,
+      tendencyCount ? `${tendencyCount} manager trade tendencies are loaded.` : null,
+      profitCount ? `${profitCount} trade-profit rows are loaded.` : null,
+      managerIntelCount ? `${managerIntelCount} manager rosters are loaded for fit checks.` : null,
     ].filter((value): value is string => Boolean(value)),
     missingEvidence: [
       !tradeCount ? 'Completed trade ledger missing.' : null,
@@ -821,7 +820,7 @@ function buildBlueprintActions(intel: ManagerIntelRow): Record<BlueprintSignal, 
   };
 }
 
-function renderPlayerList(players: ManagerIntelPlayer[] | undefined, empty = 'No player data returned', limit = 6) {
+function renderPlayerList(players: ManagerIntelPlayer[] | undefined, empty = 'No player data available', limit = 6) {
   if (!players?.length) return <p className="command-module-empty-copy">{empty}</p>;
   return (
     <div className="command-mini-player-list">
@@ -922,15 +921,15 @@ function buildOverviewEvidenceRead(data: ReportData, baseScore: number): AIEvide
     signalModes: getReportEvidenceModes(data),
     baseScore,
     evidence: [
-      managerCount ? `${managerCount} visible managers returned.` : null,
-      rosterCount ? `${rosterCount} roster-intelligence rows returned.` : null,
-      overviewCount ? `${overviewCount} league overview rows returned.` : null,
-      powerCount ? `${powerCount} power-ranking rows returned.` : null,
-      tradeSignalCount ? `${tradeSignalCount} trade signals returned.` : null,
-      marketSignalCount ? `${marketSignalCount} market movement signals returned.` : null,
+      managerCount ? `${managerCount} visible managers are loaded.` : null,
+      rosterCount ? `${rosterCount} roster-intelligence rows are loaded.` : null,
+      overviewCount ? `${overviewCount} league overview rows are loaded.` : null,
+      powerCount ? `${powerCount} power-ranking rows are loaded.` : null,
+      tradeSignalCount ? `${tradeSignalCount} trade signals are loaded.` : null,
+      marketSignalCount ? `${marketSignalCount} market movement signals are loaded.` : null,
     ].filter((value): value is string => Boolean(value)),
     missingEvidence: [
-      !managerCount ? 'No visible manager rows returned.' : null,
+      !managerCount ? 'No visible manager rows are available.' : null,
       !rosterCount ? 'Roster intelligence missing.' : null,
       !overviewCount ? 'League overview rows missing.' : null,
       !powerCount ? 'Power rankings missing.' : null,
@@ -1061,9 +1060,9 @@ function buildTradePartners(data: ReportData, sourceManager: string) {
       ? `two-way roster fit: you can address their ${need} need while asking about ${theyOffer?.name}`
       : canMatchNeed
         ? `you can shop ${youOffer?.name} into their ${need} need`
-        : canHelpYou
-          ? `they have ${theyOffer?.name}, which fits your ${sourceNeed} need`
-          : `value conversation only; no clean positional fit was returned`;
+      : canHelpYou
+        ? `they have ${theyOffer?.name}, which fits your ${sourceNeed} need`
+        : `value conversation only; no clean positional fit is available`;
     return {
       manager,
       label,
@@ -1256,7 +1255,7 @@ export function MonthlyTeamBlueprint({
       position,
       grade: getPositionGrade(data, intel, overview, position),
       rank,
-      note: intel.positionGrades?.[position]?.note || `${position} room ranks ${rank ? `#${rank}` : 'outside the returned rank set'}.`,
+      note: intel.positionGrades?.[position]?.note || `${position} room ranks ${rank ? `#${rank}` : 'outside the ranked set'}.`,
     };
   });
   const overallGrade = power?.score
@@ -1270,7 +1269,7 @@ export function MonthlyTeamBlueprint({
   const needPosition = getNeedPosition(data, manager);
   const surplusPosition = getSurplusPosition(data, manager);
 
-  // Enhanced blueprint analytics: three-factor player grades + roster rollups,
+  // Enhanced blueprint analytics: blended player grades + roster rollups,
   // all derived client-side from the roster pool already assembled above.
   // (blueprintValueMode + leagueRollups are memoized above the early returns.)
   const gradedRoster = gradeRoster(rosterPool, blueprintValueMode);
@@ -1297,13 +1296,12 @@ export function MonthlyTeamBlueprint({
       composite: avg((entry) => entry.composite),
     };
   });
-  const leaguePowerRanks = [...(data.powerRankings || [])].sort((a, b) => a.rank - b.rank).slice(0, 12);
   const trueRankRows = gradedRoster.slice(0, 20);
 
   // League-relative standing from the memoized rollup above.
   const leagueComparatives = buildLeagueComparatives(leagueRollups, manager);
 
-  // 2-year outlook arrow framing from the returned dynasty timeline.
+  // 2-year outlook arrow framing from the dynasty timeline.
   const outlookFrom = timeline?.label || intel.timeline || intel.identity || 'Current';
   const outlookContending = (timeline?.contenderScore ?? 0) >= (timeline?.rebuildScore ?? 0);
   const outlookTo = isRedraft
@@ -1314,7 +1312,7 @@ export function MonthlyTeamBlueprint({
         ? 'Contend'
         : 'Reload';
 
-  // Draft strategy posture from the returned pick portfolio.
+  // Draft strategy posture from the pick portfolio.
   const draftPosture = draftCapitalScore >= 6.5 ? 'Loaded' : draftCapitalScore >= 4 ? 'Adequate' : 'Thin';
   const draftStrategyNote = draftPosture === 'Loaded'
     ? 'Pick bank is deep. Use surplus capital to buy proven value or consolidate into a starter.'
@@ -1322,7 +1320,7 @@ export function MonthlyTeamBlueprint({
       ? 'Hold current picks and target more at a discount while you can.'
       : 'Capital is light. Protect remaining picks and avoid trading future value for marginal upgrades.';
 
-  const priorityText = topPriorities[0] || intel.tradePlan?.summary || 'No urgent roster action was returned.';
+  const priorityText = topPriorities[0] || intel.tradePlan?.summary || 'No urgent roster action is available.';
   const pressureTitle = needPosition ? `${needPosition} depth` : 'Roster construction';
   const ageRows = POSITIONS.map((position) => {
     const age = intel.avgAgeByPosition?.[position] ?? null;
@@ -1345,7 +1343,7 @@ export function MonthlyTeamBlueprint({
   })));
   const overallGradeTrendPoints = buildTrendPoints(managerHistory.map((snapshot) => ({
     month: snapshot.snapshotMonth,
-    // Prefer the stored three-factor grade; fall back to the legacy power-derived
+    // Prefer the stored blended grade; fall back to the legacy power-derived
     // grade for snapshots captured before the engine started persisting it.
     value: toFiniteNumber(snapshot.overallGrade) !== null
       ? toFiniteNumber(snapshot.overallGrade)
@@ -1388,7 +1386,7 @@ export function MonthlyTeamBlueprint({
     {
       label: 'Direction',
       title: timeline?.label || intel.timeline || intel.identity,
-      body: `${monthLabel} plan tier ${valueTier} with ${topPriorities.length || 1} returned priority lane${topPriorities.length === 1 ? '' : 's'} for this roster window.`,
+      body: `${monthLabel} plan tier ${valueTier} with ${topPriorities.length || 1} priority lane${topPriorities.length === 1 ? '' : 's'} for this roster window.`,
     },
     {
       label: 'Construction',
@@ -1400,16 +1398,100 @@ export function MonthlyTeamBlueprint({
     {
       label: 'This month',
       title: marketPosture,
-      body: `${buyPct}% buy, ${holdPct}% hold, and ${sellPct}% sell from returned roster signals. Trade partner specifics live in the trade finder.`,
+      body: `${buyPct}% buy, ${holdPct}% hold, and ${sellPct}% sell from current roster signals. Trade partner specifics live in the trade finder.`,
     },
     {
-      label: 'Roster grade',
+      label: 'Roster strength',
       title: `Overall ${overallEnhancedGrade.toFixed(1)} · ${topMakeupArchetype}`,
       body: leagueComparatives.percentile !== null
-        ? `The three-factor engine grades this roster ${overallEnhancedGrade.toFixed(1)}/10 — ${leagueComparatives.percentile}th percentile in the league${leagueComparatives.valueShareRank ? `, #${leagueComparatives.valueShareRank} in value share` : ''}. Make-up leans ${topMakeupArchetype.toLowerCase()}.`
-        : `The three-factor engine grades this roster ${overallEnhancedGrade.toFixed(1)}/10. Make-up leans ${topMakeupArchetype.toLowerCase()}.`,
+        ? `The roster grades ${overallEnhancedGrade.toFixed(1)}/10 across value safety, production, and schedule/role context. That is ${leagueComparatives.percentile}th percentile in the league${leagueComparatives.valueShareRank ? `, #${leagueComparatives.valueShareRank} in value share` : ''}.`
+        : `The roster grades ${overallEnhancedGrade.toFixed(1)}/10 across value safety, production, and schedule/role context.`,
     },
   ];
+  const strongestScheduleRoom = factorByPosition
+    .filter((row) => row.situational !== null)
+    .sort((a, b) => (b.situational || 0) - (a.situational || 0))[0] || null;
+  const primaryHold = actionRows.hold[0] || null;
+  const primarySell = actionRows.sell[0] || null;
+  const primaryBuy = actionRows.buy[0] || null;
+  const decisionMapCards = [
+    {
+      key: 'protect',
+      label: 'Protect',
+      tone: 'hold' as BlueprintSignal,
+      player: primaryHold?.player || intel.youngCorePlayer || intel.untouchablePlayers?.[0] || null,
+      fallbackTitle: 'Core value',
+      body: primaryHold
+        ? `${primaryHold.reason}. Keep unless the offer clearly buys a tier jump.`
+        : 'Do not move the insulated core unless the offer clearly buys a tier jump.',
+    },
+    {
+      key: 'shop',
+      label: 'Shop',
+      tone: 'sell' as BlueprintSignal,
+      player: primarySell?.player || intel.sellCandidate || intel.tradeChip || null,
+      fallbackTitle: surplusPosition ? `${surplusPosition} surplus` : 'Flexible depth',
+      body: primarySell
+        ? `${primarySell.reason}. Use this as the first trade chip for ${needPosition ? `${needPosition} help` : 'a cleaner starter'}; do not dump below blended value.`
+        : (surplusPosition
+          ? `Use ${surplusPosition} depth to solve the clearest roster gap before touching core starters.`
+          : 'Only shop depth if it creates a cleaner starter or future value tier.'),
+    },
+    {
+      key: 'target',
+      label: 'Target',
+      tone: 'buy' as BlueprintSignal,
+      player: primaryBuy?.player || intel.buyTarget || intel.breakoutCandidate || null,
+      fallbackTitle: needPosition ? `${needPosition} help` : 'Starter upgrade',
+      body: primaryBuy
+        ? `${primaryBuy.reason}. Add only if the price stays inside the current value tier.`
+        : (needPosition
+          ? `${needPosition} is the clearest need. Look for a same-budget add before forcing a big overpay.`
+          : 'Target only clear starter upgrades or insulated future value.'),
+    },
+    {
+      key: 'schedule',
+      label: 'Tiebreaker',
+      tone: 'hold' as BlueprintSignal,
+      player: null,
+      fallbackTitle: strongestScheduleRoom?.position
+        ? `${strongestScheduleRoom.position} short-window edge`
+        : 'Schedule/SOS context',
+      body: strongestScheduleRoom?.position
+        ? `${strongestScheduleRoom.position} has the best schedule/role score here (${strongestScheduleRoom.situational}/10). Use it only to separate equal-value players.`
+        : 'No position-specific schedule edge is attached yet. Keep blended value primary.',
+    },
+  ];
+  const roomPressureRows = factorByPosition.map((row) => {
+    const composite = row.composite || 0;
+    const production = row.production || 0;
+    const situational = row.situational || 0;
+    const status = row.composite === null
+      ? 'No read'
+      : composite >= 7
+        ? 'Strength'
+        : composite >= 5
+          ? 'Playable'
+          : 'Upgrade watch';
+    const note = row.composite === null
+      ? 'No players available for this room.'
+      : production + 1.2 < composite
+        ? 'Value is better than recent output. Do not overpay for weekly production.'
+        : situational >= 7.5
+          ? 'Short-window context helps. Use as a same-tier tiebreaker.'
+          : composite < 5
+            ? 'Room needs a cleaner starter or stronger depth.'
+            : 'Keep stable unless a clear tier-up appears.';
+    return { ...row, status, note };
+  });
+  const topValueSlices = [...valueProportion]
+    .sort((a, b) => b.share - a.share)
+    .slice(0, 4)
+    .map((slice) => ({
+      ...slice,
+      label: slice.key === 'DC' ? 'Picks' : slice.key,
+    }));
+  const topRosterMix = rosterMakeup.slice(0, 4);
   const handlePrintBlueprint = () => {
     if (typeof window === 'undefined') return;
     setShareStatus('Opening print dialog');
@@ -1480,7 +1562,7 @@ export function MonthlyTeamBlueprint({
           confidenceNote={getAiConfidenceDisplayNote(data, manager)}
           decision={{
             label: "Do this",
-            detail: `Generate ${manager}'s ${monthLabel} blueprint from returned roster, ranking, draft, trade, and movement evidence.`,
+            detail: `Generate ${manager}'s ${monthLabel} blueprint from current roster, ranking, draft, trade, and movement data.`,
             tone: "go",
             status: `Ready · ${monthlyConfidence}%`,
           }}
@@ -1494,7 +1576,7 @@ export function MonthlyTeamBlueprint({
             hasPartialHistory ? { label: 'Partial history available', tone: 'warn' } : { label: 'History loaded', tone: 'good' },
             `${managerOptions.length} teams`,
           ]}
-          body={`Generate ${manager}'s ${monthLabel} roster blueprint. The report will show only returned data; missing history is flagged instead of filled in with fake trend lines.`}
+          body={`Generate ${manager}'s ${monthLabel} roster blueprint. The report uses available data only; missing history is flagged instead of filled in with fake trend lines.`}
           actions={[{ label: 'View Monthly Blueprint', onClick: () => setGenerated(true) }]}
           backgroundVariant="monthly"
         />
@@ -1535,7 +1617,7 @@ export function MonthlyTeamBlueprint({
             <div className="team-blueprint-warning">
               <AlertTriangle className="h-4 w-4" aria-hidden="true" />
               {hasPartialHistory
-                ? 'Partial history available. This blueprint uses the current roster snapshot plus returned weekly movement, trades, picks, and standings only.'
+                ? 'Partial history available. This blueprint uses the current roster snapshot plus available weekly movement, trades, picks, and standings only.'
                 : snapshotStatus?.warning}
             </div>
           )}
@@ -1614,7 +1696,7 @@ export function MonthlyTeamBlueprint({
                           </span>
                         );
                       })}
-                      {!room.players.length && <p>No {room.position} players returned.</p>}
+                      {!room.players.length && <p>No {room.position} players available.</p>}
                     </div>
                   </div>
                 ))}
@@ -1649,12 +1731,12 @@ export function MonthlyTeamBlueprint({
               <div className="team-blueprint-overall-grade">
                 <span>Overall Grade</span>
                 <strong>{overallEnhancedGrade.toFixed(1)}</strong>
-                <small>Composite of returned three-factor player grades</small>
+                <small>Value safety, production, and schedule/role blend</small>
               </div>
               <div className="team-blueprint-grade-strip-meta">
                 <span>
                   <em>Value Archetype</em>
-                  <strong>{intel.identity || 'Returned identity'}</strong>
+                  <strong>{intel.identity || 'Roster identity'}</strong>
                 </span>
                 <span className="team-blueprint-outlook">
                   <em>2-Year Outlook</em>
@@ -1687,7 +1769,7 @@ export function MonthlyTeamBlueprint({
                 <span>
                   <em>Production Share</em>
                   <strong>{leagueComparatives.productionShare !== null ? `${leagueComparatives.productionShare}%` : '-'}</strong>
-                  <small>{leagueComparatives.productionShareRank ? `League rank #${leagueComparatives.productionShareRank}` : 'No returned production'}</small>
+                  <small>{leagueComparatives.productionShareRank ? `League rank #${leagueComparatives.productionShareRank}` : 'No production share'}</small>
                 </span>
                 <span>
                   <em>Blueprint Percentile</em>
@@ -1702,90 +1784,92 @@ export function MonthlyTeamBlueprint({
               </div>
             </section>
 
-            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-factor-panel">
-              <h4>3-Factor Analysis</h4>
-              <div className="team-blueprint-factor-table" role="table">
-                <div className="team-blueprint-factor-row team-blueprint-factor-head" role="row">
-                  <span role="columnheader">Pos</span>
-                  <span role="columnheader" title="Asset security: age curve, durability, role lock, and positional value floor.">Insulation</span>
-                  <span role="columnheader" title="Recent on-field output vs a positional starter baseline (PPG, availability, rank, started share).">Production</span>
-                  <span role="columnheader" title="Environment and trajectory: strength of schedule, value trend, and depth-chart competition.">Situational</span>
-                  <span role="columnheader" title="Weighted blend of the three factors (dynasty leans Insulation, redraft leans Production).">Composite</span>
-                </div>
-                {factorByPosition.map((row) => (
-                  <div className="team-blueprint-factor-row" role="row" key={row.position}>
-                    <span role="cell" className={`team-blueprint-position-${row.position.toLowerCase()}`}>{row.position}</span>
-                    <span role="cell">{row.insulation ?? '-'}</span>
-                    <span role="cell">{row.production ?? '-'}</span>
-                    <span role="cell">{row.situational ?? '-'}</span>
-                    <span role="cell"><strong>{row.composite ?? '-'}</strong></span>
-                  </div>
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-decision-map">
+              <h4>Monthly Decision Map</h4>
+              <div className="team-blueprint-decision-grid">
+                {decisionMapCards.map((card) => (
+                  <article key={card.key} className={`team-blueprint-decision-card team-blueprint-decision-${card.tone}`}>
+                    <span>{card.label}</span>
+                    {card.player ? (
+                      <PlayerIdentityRow
+                        playerId={card.player.player_id}
+                        playerName={card.player.name}
+                        team={card.player.playerDetails?.team}
+                        position={card.player.pos}
+                        hideMeta
+                      />
+                    ) : (
+                      <strong>{card.fallbackTitle}</strong>
+                    )}
+                    <p>{card.body}</p>
+                  </article>
                 ))}
               </div>
-              <p className="team-blueprint-panel-note">Insulation = asset security · Production = recent output vs starter baseline · Situational = schedule, trajectory, and depth competition. Averaged across returned players per position.</p>
             </section>
 
-            <section className="team-blueprint-panel team-blueprint-makeup-panel">
-              <h4>Roster Make-Up</h4>
-              {rosterMakeup.length ? (
-                <div className="team-blueprint-makeup-list">
-                  {rosterMakeup.map((row) => (
-                    <span key={row.archetype} className={`team-blueprint-makeup-row team-blueprint-archetype-${row.archetype.toLowerCase().replace(/[^a-z]+/g, '-')}`}>
-                      <em>{row.archetype}</em>
-                      <i aria-hidden="true"><b style={{ width: `${row.share}%` }} /></i>
-                      <strong>{row.share}%</strong>
-                    </span>
-                  ))}
+            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-proof-panel">
+              <h4>Value & Schedule Proof</h4>
+              <div className="team-blueprint-proof-grid">
+                <div className="team-blueprint-proof-card">
+                  <span>Room pressure</span>
+                  <div className="team-blueprint-room-pressure-list">
+                    {roomPressureRows.map((row) => (
+                      <div key={row.position} className={`team-blueprint-room-pressure-row team-blueprint-position-${row.position.toLowerCase()}`}>
+                        <em>{row.position}</em>
+                        <strong>{row.status}</strong>
+                        <b>{row.composite ?? '-'}</b>
+                        <p>{row.note}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ) : (
-                <p className="command-module-empty-copy">No gradeable players returned.</p>
-              )}
-            </section>
-
-            <section className="team-blueprint-panel team-blueprint-proportion-panel">
-              <h4>Value Proportion</h4>
-              {valueProportion.length ? (
-                <div className="team-blueprint-proportion-list">
-                  {valueProportion.map((slice) => (
-                    <span key={slice.key} className={`team-blueprint-proportion-row team-blueprint-position-${slice.key.toLowerCase()}`}>
-                      <em>{slice.key}</em>
-                      <i aria-hidden="true"><b style={{ width: `${slice.share}%` }} /></i>
-                      <strong>{slice.share}%</strong>
-                    </span>
-                  ))}
+                <div className="team-blueprint-proof-card">
+                  <span>Roster mix</span>
+                  {topRosterMix.length ? (
+                    <div className="team-blueprint-makeup-list">
+                      {topRosterMix.map((row) => (
+                        <span key={row.archetype} className={`team-blueprint-makeup-row team-blueprint-archetype-${row.archetype.toLowerCase().replace(/[^a-z]+/g, '-')}`}>
+                          <em>{row.archetype}</em>
+                          <i aria-hidden="true"><b style={{ width: `${row.share}%` }} /></i>
+                          <strong>{row.share}%</strong>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="command-module-empty-copy">No gradeable players available.</p>
+                  )}
+                  <p>Shows how much of the roster is core value versus replaceable depth.</p>
                 </div>
-              ) : (
-                <p className="command-module-empty-copy">No roster value returned.</p>
-              )}
-            </section>
-
-            <section className="team-blueprint-panel team-blueprint-power-panel">
-              <h4>League Power Ranks</h4>
-              {leaguePowerRanks.length ? (
-                <div className="team-blueprint-power-list">
-                  {leaguePowerRanks.map((row) => (
-                    <span key={row.manager} className={row.manager === manager ? 'team-blueprint-power-active' : undefined}>
-                      <i>{row.rank}</i>
-                      <strong>{row.manager}</strong>
-                      <em>{row.tier}</em>
-                    </span>
-                  ))}
+                <div className="team-blueprint-proof-card">
+                  <span>Value concentration</span>
+                  {topValueSlices.length ? (
+                    <div className="team-blueprint-proportion-list">
+                      {topValueSlices.map((slice) => (
+                        <span key={slice.key} className={`team-blueprint-proportion-row team-blueprint-position-${slice.key.toLowerCase()}`}>
+                          <em>{slice.label}</em>
+                          <i aria-hidden="true"><b style={{ width: `${slice.share}%` }} /></i>
+                          <strong>{slice.share}%</strong>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="command-module-empty-copy">No roster value available.</p>
+                  )}
+                  <p>Use this to see whether the monthly plan depends too heavily on one room.</p>
                 </div>
-              ) : (
-                <p className="command-module-empty-copy">League power rankings were not returned.</p>
-              )}
+              </div>
             </section>
 
             <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-true-ranks">
-              <h4>Domain True Ranks</h4>
+              <h4>Player Priority Board</h4>
               {trueRankRows.length ? (
                 <div className="team-blueprint-true-table" role="table">
                   <div className="team-blueprint-true-row team-blueprint-true-head" role="row">
                     <span role="columnheader">Player</span>
-                    <span role="columnheader" title="Insulation — asset security: age curve, durability, role lock, and positional value floor.">Ins</span>
+                    <span role="columnheader" title="Long-term safety: age curve, role lock, durability, and positional value floor.">Safe</span>
                     <span role="columnheader" title="Production — recent on-field output vs a positional starter baseline (PPG, availability, rank, started share).">Prod</span>
-                    <span role="columnheader" title="Situational — environment and trajectory: strength of schedule, value trend, and depth-chart competition.">Sit</span>
-                    <span role="columnheader">Archetype</span>
+                    <span role="columnheader" title="Short-window role, schedule, value trend, and depth-chart pressure.">Role</span>
+                    <span role="columnheader">Tier</span>
                     <span role="columnheader" title="Composite position rank within this roster (best composite first).">Pos</span>
                   </div>
                   {trueRankRows.map((entry) => (
@@ -1810,7 +1894,7 @@ export function MonthlyTeamBlueprint({
                   ))}
                 </div>
               ) : (
-                <p className="command-module-empty-copy">No gradeable players returned for true ranks.</p>
+                <p className="command-module-empty-copy">No gradeable players available for the priority board.</p>
               )}
             </section>
 
@@ -1836,7 +1920,7 @@ export function MonthlyTeamBlueprint({
                   })}
                 </div>
               ) : (
-                <p className="command-module-empty-copy">Starter players were not returned.</p>
+                <p className="command-module-empty-copy">No starter group is available.</p>
               )}
             </section>
 
@@ -1851,7 +1935,7 @@ export function MonthlyTeamBlueprint({
                   ))}
                 </div>
               ) : (
-                <p className="command-module-empty-copy">Bench/depth player data was not returned.</p>
+                <p className="command-module-empty-copy">No bench/depth player data is available.</p>
               )}
             </section>
 
@@ -1866,7 +1950,7 @@ export function MonthlyTeamBlueprint({
                       <em>+{player.pct_change.toFixed(1)}%</em>
                     </p>
                   ))}
-                  {!risers.length && <p>No roster risers returned.</p>}
+                  {!risers.length && <p>No roster risers.</p>}
                 </div>
                 <div className="team-blueprint-move-column team-blueprint-move-fallers">
                   <span>Fallers</span>
@@ -1876,7 +1960,7 @@ export function MonthlyTeamBlueprint({
                       <em>{player.pct_change.toFixed(1)}%</em>
                     </p>
                   ))}
-                  {!fallers.length && <p>No roster fallers returned.</p>}
+                  {!fallers.length && <p>No roster fallers.</p>}
                 </div>
               </div>
             </section>
@@ -1893,11 +1977,11 @@ export function MonthlyTeamBlueprint({
                   <span className="team-blueprint-signal-hold">Holds: {holdPct}%</span>
                   <span className="team-blueprint-signal-sell">Sells: {sellPct}%</span>
                 </div>
-                <p>Derived from returned buy/sell candidates, untouchables, and weekly roster movement.</p>
+                <p>Derived from buy/sell candidates, untouchables, and weekly roster movement.</p>
               </div>
             </section>
 
-            <section className="team-blueprint-panel">
+            <section className="team-blueprint-panel team-blueprint-panel-wide">
               <h4>Positional Age Tracker</h4>
               <div className="team-blueprint-age-chart">
                 {ageRows.map((row) => (
@@ -1981,7 +2065,7 @@ export function MonthlyTeamBlueprint({
                         <small>{row.reason}</small>
                       </div>
                     ))}
-                    {!actionRows[signal].length && <p>No {signal} actions returned.</p>}
+                    {!actionRows[signal].length && <p>No {signal} actions.</p>}
                   </div>
                 ))}
               </div>
@@ -2016,7 +2100,7 @@ export function MonthlyTeamBlueprint({
                   </div>
                 </div>
               ) : (
-                <p className="command-module-empty-copy">Draft-pick portfolio was not returned.</p>
+                <p className="command-module-empty-copy">Draft-pick portfolio is not available.</p>
               )}
             </section>
 
@@ -2032,7 +2116,7 @@ export function MonthlyTeamBlueprint({
                   ))}
                 </div>
               ) : (
-                <p className="command-module-empty-copy">No priority flags returned.</p>
+                <p className="command-module-empty-copy">No priority flags.</p>
               )}
             </section>
 
@@ -2055,7 +2139,7 @@ export function MonthlyTeamBlueprint({
                           hideMeta
                         />
                       ) : (
-                        <p>No offer piece returned.</p>
+                        <p>No offer piece.</p>
                       )}
                     </div>
                     <div>
@@ -2069,17 +2153,17 @@ export function MonthlyTeamBlueprint({
                           hideMeta
                         />
                       ) : (
-                        <p>No target piece returned.</p>
+                        <p>No target piece.</p>
                       )}
                     </div>
                     <em>{card.partner.confidence}% fit</em>
                   </div>
                 ))}
-                {!tradePlayCards.length && <p>No trade play cards could be built from returned roster data.</p>}
+                {!tradePlayCards.length && <p>No trade play cards could be built from this roster.</p>}
               </div>
             </section>
 
-            <section className="team-blueprint-panel">
+            <section className="team-blueprint-panel team-blueprint-panel-wide">
               <h4>Ideal Trade Partners</h4>
               <div className="team-blueprint-partner-list">
                 {tradePartners.map((partner) => (
@@ -2089,16 +2173,16 @@ export function MonthlyTeamBlueprint({
                     <small>{partner.youOffer ? `Offer ${partner.youOffer.name}` : 'Offer value'} / {partner.theyOffer ? `Ask ${partner.theyOffer.name}` : 'Ask fit'}</small>
                   </span>
                 ))}
-                {!tradePartners.length && <p>No clean trade partners found from returned roster data.</p>}
+                {!tradePartners.length && <p>No clean trade partners found for this roster.</p>}
               </div>
             </section>
 
             <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-legend">
               <h4>Legend / Data Rules</h4>
               <div>
-                <span><strong className="team-blueprint-signal-buy">Buy</strong> Returned buy target, breakout/stash, or strong weekly riser.</span>
-                <span><strong className="team-blueprint-signal-hold">Hold</strong> Core player or no forced action from returned data.</span>
-                <span><strong className="team-blueprint-signal-sell">Sell</strong> Returned sell candidate, weak starter, age/value window, or sharp faller.</span>
+                <span><strong className="team-blueprint-signal-buy">Buy</strong> Buy target, breakout/stash, or strong weekly riser.</span>
+                <span><strong className="team-blueprint-signal-hold">Hold</strong> Core player or no forced action from the current roster read.</span>
+                <span><strong className="team-blueprint-signal-sell">Sell</strong> Sell candidate, weak starter, age/value window, or sharp faller.</span>
               </div>
             </section>
 
@@ -2122,17 +2206,17 @@ export function MonthlyTeamBlueprint({
                 topMakeupArchetype,
                 hasPartialHistory ? { label: 'Partial history', tone: 'warn' } : { label: 'History loaded', tone: 'good' },
               ]}
-              body={`${manager} profiles as ${intel.identity}, graded ${overallEnhancedGrade.toFixed(1)}/10 by the three-factor engine${leagueComparatives.percentile !== null ? ` (${leagueComparatives.percentile}th percentile)` : ''} and leaning ${topMakeupArchetype.toLowerCase()}. The ${monthLabel} priority is ${topPriorities[0] || intel.tradePlan?.summary || 'to keep value insulated until a clear roster-fit deal appears'}.`}
-              traceItems={[
-                `Overall grade ${overallEnhancedGrade.toFixed(1)}/10 from returned three-factor player grades.`,
+              body={`${manager} profiles as ${intel.identity}, graded ${overallEnhancedGrade.toFixed(1)}/10 across value safety, production, and schedule/role context${leagueComparatives.percentile !== null ? ` (${leagueComparatives.percentile}th percentile)` : ''} and leaning ${topMakeupArchetype.toLowerCase()}. The ${monthLabel} priority is ${topPriorities[0] || intel.tradePlan?.summary || 'to keep value insulated until a clear roster-fit deal appears'}.`}
+              traceItems={([
+                `Roster grade: ${overallEnhancedGrade.toFixed(1)}/10 across value safety, production, and schedule/role context.`,
                 leagueComparatives.valueShare !== null
                   ? `Value share ${leagueComparatives.valueShare}%${leagueComparatives.valueShareRank ? ` (league #${leagueComparatives.valueShareRank})` : ''}.`
-                  : 'League value share not available from returned data.',
+                  : null,
                 trueRankRows[0]
                   ? `Top graded asset: ${trueRankRows[0].player.name} (${trueRankRows[0].compositePositionRank}, composite ${trueRankRows[0].composite}).`
-                  : 'No graded assets returned.',
+                  : null,
                 `Make-up leans ${topMakeupArchetype.toLowerCase()} across ${gradedRoster.length} graded players.`,
-              ]}
+              ].filter(Boolean) as string[])}
               backgroundVariant="monthly"
               className="team-blueprint-ai"
             />
@@ -2163,7 +2247,7 @@ export function LeaguePowerRankings({
         className="command-module-empty"
         title={placeholderRows.length ? 'Assigned rosters are not available yet' : 'Power rankings are not available'}
         description={placeholderRows.length
-          ? 'This pre-draft redraft league only returned open roster slots, so the table is waiting for assigned managers.'
+          ? 'This pre-draft redraft league only has open roster slots, so the table is waiting for assigned managers.'
           : 'This report did not include power rankings. Re-run the league analysis after roster intelligence finishes.'}
       />
     );
@@ -2213,7 +2297,7 @@ export function LeaguePowerRankings({
                 </div>
                 <details className="ai-read-trace league-power-receipts">
                   <summary className="ai-read-trace-kicker">
-                    Power receipts <span>{readiness} readiness</span>
+                    Power notes <span>{readiness} readiness</span>
                   </summary>
                   <ul className="ai-read-trace-list">
                     <li>
@@ -2273,7 +2357,7 @@ export function TeamBreakdownRecon({
       <EmptyState
         className="command-module-empty"
         title="Team breakdown needs manager roster data"
-        description="No manager roster intelligence was returned, so this module is intentionally empty."
+        description="Manager roster intelligence is not available, so this module is intentionally empty."
       />
     );
   }
@@ -2292,8 +2376,8 @@ export function TeamBreakdownRecon({
     ? `current-season value #${overview.rank_value}`
     : 'current-season roster read';
   const rosterHealthRead = isRedraft
-    ? `${manager} shows ${strengths.slice(0, 2).join(' and ') || redraftProfile} as the weekly scoring base, with ${weaknesses.slice(0, 2).join(' and ') || 'no major returned leak'} as the roster-health watch. This read stays current-season only; use Trade Finder for specific partners, packages, and trade targets.`
-    : `${manager} shows ${strengths.slice(0, 2).join(' and ') || intel.identity || 'a returned roster identity'} as the stable base, with ${weaknesses.slice(0, 2).join(' and ') || 'no major returned leak'} as the roster-health watch. This read stops at roster causes; use Trade Finder for specific partners, packages, and trade targets.`;
+    ? `${manager} shows ${strengths.slice(0, 2).join(' and ') || redraftProfile} as the weekly scoring base, with ${weaknesses.slice(0, 2).join(' and ') || 'no major roster leak'} as the roster-health watch. This read stays current-season only; use Trade Finder for specific partners, packages, and trade targets.`
+    : `${manager} shows ${strengths.slice(0, 2).join(' and ') || intel.identity || 'a clear roster identity'} as the stable base, with ${weaknesses.slice(0, 2).join(' and ') || 'no major roster leak'} as the roster-health watch. This read stops at roster causes; use Trade Finder for specific partners, packages, and trade targets.`;
 
   return (
     <div className="team-breakdown-recon">
@@ -2370,11 +2454,11 @@ export function TeamBreakdownRecon({
         </section>
         <section>
           <h4>Best Assets</h4>
-          {renderPlayerList(insulatedAssets, 'No insulated asset list returned.', 4)}
+          {renderPlayerList(insulatedAssets, 'No insulated asset list available.', 4)}
         </section>
         <section>
           <h4>Fragility Watch</h4>
-          {renderPlayerList(fragileAssets, 'No fragile assets returned.', 4)}
+          {renderPlayerList(fragileAssets, 'No fragile assets available.', 4)}
         </section>
         <section>
           <h4>Roster Recon</h4>
@@ -2403,11 +2487,10 @@ export function TeamBreakdownRecon({
             ]}
             body={rosterHealthRead}
             traceItems={[
-              `Stable base: ${strengths.slice(0, 2).join(' and ') || (isRedraft ? redraftProfile : intel.identity) || 'returned roster identity'}.`,
-              `Roster watch: ${weaknesses.slice(0, 2).join(' and ') || 'no major returned leak'}.`,
+              `Stable base: ${strengths.slice(0, 2).join(' and ') || (isRedraft ? redraftProfile : intel.identity) || 'current roster identity'}.`,
+              `Roster watch: ${weaknesses.slice(0, 2).join(' and ') || 'no major roster leak'}.`,
               `Need/surplus lens: ${getNeedPosition(data, manager) || '-'} need, ${getSurplusPosition(data, manager) || '-'} surplus.`,
-              `Health evidence: ${intel.starterAvailability.riskLevel} availability risk and ${fragileAssets.length} fragile asset flag${fragileAssets.length === 1 ? '' : 's'}.`,
-              ...getAIEvidenceReceiptItems(ownerEvidenceRead),
+              `Availability: ${intel.starterAvailability.riskLevel} risk and ${fragileAssets.length} fragile asset flag${fragileAssets.length === 1 ? '' : 's'}.`,
             ]}
             backgroundVariant="roster"
             className="team-breakdown-ai"
@@ -2457,24 +2540,24 @@ export function TradePartnerFinder({
             </div>
             <details className="ai-read-trace trade-partner-receipts">
               <summary className="ai-read-trace-kicker">
-                Partner receipts <span>{recommendation.confidence}% fit</span>
+                Partner notes <span>{recommendation.confidence}% fit</span>
               </summary>
               <ul className="ai-read-trace-list">
                 <li>{recommendation.aiRead}</li>
                 <li>
                   {recommendation.need
-                    ? `${recommendation.manager} returned a ${recommendation.need} need.`
-                    : `${recommendation.manager} did not return a clean positional need.`}
+                    ? `${recommendation.manager} needs ${recommendation.need}.`
+                    : `${recommendation.manager} does not show a clean positional need.`}
                 </li>
                 <li>
                   {recommendation.surplus
                     ? `${recommendation.manager} has ${recommendation.surplus} surplus to ask about.`
-                    : "No surplus position was returned for the target manager."}
+                    : "No clear surplus position is attached to this manager."}
                 </li>
                 <li>
                   {recommendation.youOffer
                     ? `Your matching offer lane starts with ${recommendation.youOffer.name}.`
-                    : "No clean outgoing fit was returned."}
+                    : "No clean outgoing fit is available from this roster."}
                 </li>
                 <li>
                   Resistance note:{" "}
@@ -2483,7 +2566,7 @@ export function TradePartnerFinder({
                       ? typeof recommendation.resistanceRead.chip === "string"
                         ? recommendation.resistanceRead.chip
                         : recommendation.resistanceRead.chip.label
-                      : "No resistance chip returned")}
+                      : "No resistance note")}
                   .
                 </li>
               </ul>
@@ -2622,13 +2705,13 @@ export function TradeFinderGenerator({
           ? `Do not move ${selectedAway?.name} in this Superflex build unless another QB is coming back. The roster does not have enough QB depth for raw value math to be useful.`
           : packages.length
             ? `The cleanest starting point is ${packages[0].label.toLowerCase()} with a value gap of ${gap >= 0 ? '+' : ''}${formatCompactValue(gap)} from your side. Roster fit still matters more than calculator symmetry.${targetResistance.note ? ` ${targetResistance.note}` : ''}`
-            : 'Returned roster data does not contain enough tradeable player detail to generate a responsible package.'}
-        traceItems={[
-          selectedAway ? `Outgoing asset: ${selectedAway.name} at ${formatCompactValue(awayValue)} value.` : 'No outgoing asset was returned.',
-          selectedTarget ? `Target asset: ${selectedTarget.name} at ${formatCompactValue(targetValue)} value.` : 'No target asset was returned.',
+            : 'This roster does not contain enough tradeable player detail to generate a responsible package.'}
+        traceItems={([
+          selectedAway ? `Outgoing asset: ${selectedAway.name} at ${formatCompactValue(awayValue)} value.` : null,
+          selectedTarget ? `Target asset: ${selectedTarget.name} at ${formatCompactValue(targetValue)} value.` : null,
           `Raw value gap: ${gap >= 0 ? '+' : ''}${formatCompactValue(gap)} from your side.`,
           `Target resistance: ${targetResistance.note || targetResistance.chip}.`,
-        ]}
+        ].filter(Boolean) as string[])}
         backgroundVariant="trade"
       />
 
@@ -2755,8 +2838,8 @@ export function LeagueExploits({
     return (
       <EmptyState
         className="command-module-empty"
-        title="No clean league exploits returned"
-        description="The report did not return enough position, pick, or roster-window outliers to produce a useful exploit list."
+        title="No clean league exploits"
+        description="The current roster, pick, and window data does not produce a useful exploit list."
       />
     );
   }
@@ -2776,7 +2859,7 @@ export function LeagueExploits({
           </div>
           <details className="ai-read-trace league-exploit-receipts">
             <summary className="ai-read-trace-kicker">
-              Exploit receipts{" "}
+              Exploit notes{" "}
               <span>{getManagerReadConfidence(data, exploit.manager)}%</span>
             </summary>
             <ul className="ai-read-trace-list">
@@ -2814,7 +2897,7 @@ export function RankingsMarketRead({
   return (
     <AIReadPanel
       title="Ranking board market signal"
-      subtitle="This board uses league-matched values and source metadata when returned by the rankings endpoint."
+      subtitle="League-matched values with rostered-player context."
       readType="Market Signal"
       confidence={evidenceRead.finalScore}
       confidenceNote={evidenceRead.confidenceCapReason ? `Confidence limited by ${evidenceRead.confidenceCapReason}.` : evidenceRead.whyThisFired}
@@ -2826,11 +2909,15 @@ export function RankingsMarketRead({
         topRiser ? `Top riser: ${topRiser.name}` : { label: 'No riser data', tone: 'warn' },
       ]}
       body={rows.length
-        ? `${topRiser ? `${topRiser.name} is the cleanest watchlist riser on the board.` : 'No ranking riser is available from this payload.'} ${topFaller ? `${topFaller.name} is the biggest discount-window check, but roster context still matters before buying.` : ''}`
+        ? `${topRiser ? `${topRiser.name} is the cleanest watchlist riser on the board.` : 'No ranking riser is strong enough yet.'} ${topFaller ? `${topFaller.name} is the biggest discount-window check, but roster context still matters before buying.` : ''}`
         : availableRowCount
           ? `${availableRowCount.toLocaleString()} league-matched assets are indexed. Open a board row for player-specific detail.`
-          : 'Rankings were not returned yet, so the market read is intentionally limited.'}
-      traceItems={getAIEvidenceReceiptItems(evidenceRead)}
+          : 'Rankings are not available yet, so the market read is intentionally limited.'}
+      traceItems={([
+        topRiser ? `Watchlist riser: ${topRiser.name} has the strongest positive movement on this board.` : null,
+        topFaller ? `Discount check: ${topFaller.name} has the sharpest negative movement; verify roster fit before buying.` : null,
+        rows.length ? `${ownedCount} rostered assets appear in the league-matched ranking set.` : null,
+      ].filter(Boolean) as string[])}
       backgroundVariant="market"
       className="rankings-ai-read"
     />
@@ -2866,9 +2953,13 @@ export function TradeBrowserRead({
         biggestGap ? `Largest gap ${formatCompactValue(Math.abs(biggestGap.point_gap || 0))}` : 'No gaps',
       ]}
       body={trades.length
-        ? `${bestProfit ? `${bestProfit.manager} has the strongest trade-profit signal.` : 'No trade-profit leader was returned.'} ${biggestGap ? `The largest gap is ${biggestGap.team_a} / ${biggestGap.team_b} on ${biggestGap.date}; open the ledger row for side-by-side context.` : ''}`
-        : 'No completed trades were returned. The browser shows an empty state instead of manufacturing trade history.'}
-      traceItems={getAIEvidenceReceiptItems(evidenceRead)}
+        ? `${bestProfit ? `${bestProfit.manager} has the strongest trade-profit signal.` : 'No trade-profit leader is available.'} ${biggestGap ? `The largest gap is ${biggestGap.team_a} / ${biggestGap.team_b} on ${biggestGap.date}; open the ledger row for side-by-side context.` : ''}`
+        : 'No completed trades are available. The browser shows an empty state instead of manufacturing trade history.'}
+      traceItems={([
+        bestProfit ? `${bestProfit.manager} has the strongest trade-profit trend.` : null,
+        mostActive ? `${mostActive.manager} is the most active trade partner in this league.` : null,
+        biggestGap ? `Largest completed-trade value gap: ${formatCompactValue(Math.abs(biggestGap.point_gap || 0))}.` : null,
+      ].filter(Boolean) as string[])}
       backgroundVariant="trade"
       className="trade-browser-ai-read"
     />
@@ -3089,7 +3180,7 @@ function buildOwnerActionQueue({
         id: `lineup-${benchPressure[0].player_id}`,
         lane: 'Lineup',
         action: `Review ${benchPressure[0].name}`,
-        detail: `${benchPressure[0].name} is the highest returned bench-pressure player against the submitted/projected starter map.`,
+        detail: `${benchPressure[0].name} is the highest bench-pressure player against the submitted/projected starter map.`,
         priority: 90,
         tone: 'warn',
       }
@@ -3100,8 +3191,8 @@ function buildOwnerActionQueue({
         lane: 'Waiver',
         action: `Check ${bestWaiver.name}`,
         detail: dropCandidate
-          ? `${bestWaiver.name} is the best available signal here; ${dropCandidate.name} is the first returned low-friction drop candidate.`
-          : `${bestWaiver.name} is the best available signal here; no automatic drop candidate was returned.`,
+          ? `${bestWaiver.name} is the best available signal here; ${dropCandidate.name} is the first low-friction drop candidate.`
+          : `${bestWaiver.name} is the best available signal here; no automatic drop candidate is attached.`,
         priority: 84,
         tone: 'good',
       }
@@ -3306,22 +3397,22 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
       label: 'Watch Alerts',
       status: (data.weeklyRisers?.length || data.weeklyFallers?.length) ? 'Backed' : 'Missing',
       note: options?.hasWatchPreferences
-        ? 'Uses returned weekly movement plus browser-saved alert thresholds and watchlist players.'
-        : 'Uses returned weekly riser/faller movement. Save thresholds to turn this into a local alert board.',
+        ? 'Uses weekly movement plus browser-saved alert thresholds and watchlist players.'
+        : 'Uses weekly riser/faller movement. Save thresholds to turn this into a local alert board.',
       tone: (data.weeklyRisers?.length || data.weeklyFallers?.length) ? 'good' : 'warn',
     },
     {
       label: 'Lineup Optimizer',
       status: hasSleeperStarterMap ? 'Backed' : data.managerPositionCounts?.length ? 'Partial' : 'Missing',
       note: hasSleeperStarterMap
-        ? 'Uses submitted Sleeper starters first, then falls back to projected starters only when no starters array is returned.'
-        : 'Uses slot-aware projected starters because no submitted Sleeper starters were returned in this report.',
+        ? 'Uses submitted Sleeper starters first, then falls back to projected starters only when submitted starter slots are unavailable.'
+        : 'Uses slot-aware projected starters when submitted Sleeper starters are unavailable.',
       tone: hasSleeperStarterMap ? 'good' : data.managerPositionCounts?.length ? 'info' : 'warn',
     },
     {
       label: 'Waiver Assistant',
       status: data.waiverIntelligence ? 'Backed' : 'Missing',
-      note: 'Uses Sleeper trending, free-agent ownership checks, and returned roster need context.',
+      note: 'Uses Sleeper trending, free-agent ownership checks, and roster need context.',
       tone: data.waiverIntelligence ? 'good' : 'warn',
     },
     {
@@ -3335,7 +3426,7 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
     {
       label: 'Rookie Signal',
       status: (data.draftPicks?.length || prospectCount) ? 'Backed' : 'Missing',
-      note: 'Uses draft slots, current value, value movement, and returned prospect ranks only.',
+      note: 'Uses draft slots, current value, value movement, and prospect ranks only.',
       tone: (data.draftPicks?.length || prospectCount) ? 'good' : 'warn',
     },
     {
@@ -3347,7 +3438,7 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
         : 'Missing',
       note: tradeCalibrationCoverage.timelinePlayers
         ? `${tradeCalibrationCoverage.timelinePlayers}/${tradeCalibrationCoverage.totalPlayers} players have stored value timelines for trade readouts${tradeCalibrationSignalCopy ? `; ${tradeCalibrationSignalCopy}.` : '; no strong riser/faller label fired.'}`
-        : 'Trade readouts can still use value and fit, but no stored value timelines were returned for calibration labels.',
+        : 'Trade readouts can still use value and fit, but stored value timelines are not available for calibration labels.',
       tone: tradeCalibrationCoverage.signalPlayers ? 'good' : tradeCalibrationCoverage.timelinePlayers ? 'info' : 'warn',
     },
     {
@@ -3359,7 +3450,7 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
         : 'Missing',
       note: situationDeltas.length
         ? `${situationDeltas.length}/${Object.keys(data.playerDetailsById || {}).length} players have opportunity delta reads${situationSignalCopy ? `; ${situationSignalCopy}.` : '; all reads are source-limited or neutral.'}`
-        : 'Player detail reads can still use value and cohort context, but no situation-delta scorer output was returned.',
+        : 'Player detail reads can still use value and cohort context, but situation-delta scoring is not available.',
       tone: strongSituationReads.length || freshSituationReads.length ? 'good' : situationDeltas.length ? 'info' : 'warn',
     },
     {
@@ -3372,7 +3463,7 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
       label: 'Matchup Preview',
       status: hasMatchupPreview ? 'Backed' : 'Pending',
       note: hasMatchupPreview
-        ? 'Uses returned weekly matchup projection rows and submitted lineup context.'
+        ? 'Uses weekly matchup projection rows and submitted lineup context.'
         : 'Ready for schedule-week payloads. Until the NFL schedule and Sleeper matchups exist, it stays projection-free.',
       tone: hasMatchupPreview ? 'good' : 'warn',
     },
@@ -3389,7 +3480,7 @@ function renderAssistantPlayerRows(players: Array<{
   value?: string | number;
   tone?: AssistantTone;
 }>) {
-  if (!players.length) return <p className="command-module-empty-copy">No returned player data for this module.</p>;
+  if (!players.length) return <p className="command-module-empty-copy">No player data for this module.</p>;
   return (
     <div className="assistant-feature-list">
       {players.map((player) => (
@@ -3567,11 +3658,11 @@ export function AssistantFeatureShells({
             ))}
           </div>
         ) : (
-          <p className="command-module-empty-copy">No returned lineup, waiver, trade, market, draft, or exposure signal is strong enough to queue.</p>
+          <p className="command-module-empty-copy">No lineup, waiver, trade, market, draft, or exposure signal is strong enough to queue.</p>
         )}
         <p className="assistant-action-queue-policy">
           This is the only action read in this section. The modules below are
-          receipts and controls, not separate recommendations.
+          supporting controls, not separate recommendations.
         </p>
       </section>
 
@@ -3627,7 +3718,7 @@ export function AssistantFeatureShells({
               })}
             </div>
           ) : (
-            <p className="command-module-empty-copy">No returned player data for this module.</p>
+            <p className="command-module-empty-copy">No player data for this module.</p>
           )}
         </section>
 
@@ -3781,7 +3872,7 @@ export function AssistantFeatureShells({
               <CalendarDays className="h-5 w-5" aria-hidden="true" />
               <div>
                 <strong>NFL schedule dependent</strong>
-                <p>Once schedule-week matchup projections are returned, this panel will add opponent edge, boom/bust, starter review, and how-you-win analysis on top of the submitted Sleeper lineup when available.</p>
+                <p>Once schedule-week matchup projections are available, this panel will add opponent edge, boom/bust, starter review, and how-you-win analysis on top of the submitted Sleeper lineup when available.</p>
               </div>
             </div>
           )}
