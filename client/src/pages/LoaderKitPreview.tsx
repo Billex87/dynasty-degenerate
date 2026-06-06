@@ -2,7 +2,7 @@ import { LoadingAnimation } from "@/features/report/components/LoadingAnimation"
 import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
 import "@/styles/loader-kit-preview.css";
 
-const previewLeagueLogo =
+export const previewLeagueLogo =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3CradialGradient id='g' cx='35%25' cy='24%25' r='78%25'%3E%3Cstop stop-color='%2324f5ff'/%3E%3Cstop offset='0.46' stop-color='%230a3148'/%3E%3Cstop offset='1' stop-color='%23ff9f43'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='48' cy='48' r='43' fill='url(%23g)'/%3E%3Ccircle cx='48' cy='48' r='36' fill='%23020712' opacity='0.84'/%3E%3Cpath d='M22 50c11-14 41-14 52 0-10 18-42 18-52 0Z' fill='%23ff9f43' opacity='0.9'/%3E%3Ctext x='48' y='43' text-anchor='middle' font-family='Arial Black,Arial,sans-serif' font-size='18' fill='%2324f5ff'%3ESGB%3C/text%3E%3Ctext x='48' y='61' text-anchor='middle' font-family='Arial, sans-serif' font-size='8' fill='%23f7fbff'%3ELEAGUE%3C/text%3E%3C/svg%3E";
 
 function makePreviewManagerIcon(primary: string, secondary: string, accent: string, shape: string) {
@@ -22,7 +22,7 @@ function makePreviewManagerIcon(primary: string, secondary: string, accent: stri
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
-const previewManagerAnchors: LoaderManagerAnchor[] = [
+export const previewManagerAnchors: LoaderManagerAnchor[] = [
   {
     id: "preview-manager-1",
     avatarUrl: makePreviewManagerIcon(

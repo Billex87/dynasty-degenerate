@@ -126,7 +126,7 @@ export function getCommandPlayerProjectionRead(player: CommandPlayer): {
 
   return {
     projectedPoints,
-    sourceLabel: projectedPoints !== null ? "stored weekly projection" : null,
+    sourceLabel: projectedPoints !== null ? "weekly projection" : null,
   };
 }
 
@@ -409,7 +409,7 @@ export function buildLineupSwapRecommendations({
             reasonBullets: [
               `Lineup strength edge: ${alternative.note}`,
               projectedPointCopy
-                ? `Stored weekly projection edge: ${alternative.alternative.name} is ${projectedPointCopy} ahead of ${starter.name}.`
+                ? `Weekly projection edge: ${alternative.alternative.name} is ${projectedPointCopy} ahead of ${starter.name}.`
                 : `No ready projection edge is attached for this specific swap.`,
               `Value delta: ${formatCompactValue(alternative.valueDelta)}.`,
             ],
@@ -472,7 +472,7 @@ export function buildLineupSwapRecommendations({
           const projectedPointCopy = formatProjectedPointEdge(projectedPointEdge);
           const reasonBullets = [
             projectedPointCopy
-              ? `Stored weekly projection edge: ${candidate.name} is ${projectedPointCopy} ahead of ${starter.name}.`
+              ? `Weekly projection edge: ${candidate.name} is ${projectedPointCopy} ahead of ${starter.name}.`
               : `No ready projection edge is attached for this matchup; using current-season value, rank, and availability.`,
             scoreEdge > 0
               ? `Starter-score edge: ${formatCompactValue(scoreEdge)} in the current-season model.`
@@ -486,7 +486,7 @@ export function buildLineupSwapRecommendations({
               ? `${starter.name} appears in the vulnerable starter set for this manager.`
               : null,
             candidateProjection.sourceLabel
-              ? `Stored weekly projection context is attached.`
+              ? `Weekly projection context is attached.`
               : null,
           ].filter(Boolean) as string[];
           const reason =

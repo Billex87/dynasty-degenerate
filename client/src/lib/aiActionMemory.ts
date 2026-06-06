@@ -285,7 +285,7 @@ export function detectAIActionConflicts(item: AIActionQueueItem): AIActionConfli
   unhealthySources.slice(0, 2).forEach((source, index) => {
     conflicts.push({
       id: `source-${index}`,
-      label: "Source health",
+      label: "Input health",
       detail: source,
       tone: "warn",
     });

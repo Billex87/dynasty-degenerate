@@ -214,16 +214,13 @@ function getAiConfidenceDisplayNote(data: ReportData, manager?: string | null): 
 
   const delta = Number(confidence.scoreDelta);
   const trend = Number.isFinite(delta) && delta !== 0
-    ? `${delta > 0 ? '+' : ''}${delta} since last snapshot`
+    ? `Read changed ${delta > 0 ? '+' : ''}${delta} since the last report`
     : Number.isFinite(delta)
-      ? 'flat since last snapshot'
-      : 'evidence building';
-  const weakestSignal = [...(confidence.signals || [])].sort((a, b) => a.score - b.score)[0]?.label.toLowerCase();
+      ? 'No material read change since the last report'
+      : 'Read is still building';
   const scope = managerConfidence ? 'Team' : 'League';
 
-  return weakestSignal
-    ? `${scope} ${trend}; weakest ${weakestSignal}.`
-    : `${scope} ${trend}.`;
+  return `${scope}: ${trend}.`;
 }
 
 function getMonthlyConfidence(data: ReportData, manager: string, hasPartialHistory: boolean): number {
@@ -239,6 +236,24 @@ function getMonthlyConfidence(data: ReportData, manager: string, hasPartialHisto
     [data.monthlyBlueprintSnapshot?.status === 'stored', 4],
   ]);
   return capByAiConfidence(data, rawConfidence, manager, 14);
+}
+
+function getMonthlyBlueprintStatusWarning(warning?: string | null): string | null {
+  const clean = String(warning || '').replace(/\s+/g, ' ').trim();
+  if (!clean) return null;
+
+  if (/generation limit/i.test(clean)) {
+    return clean.replace(/fresh monthly blueprint/gi, 'new monthly blueprint');
+  }
+
+  if (/database|persistence|persist|stored|snapshot|local file cache/i.test(clean)) {
+    return 'Plan context is limited right now. This blueprint still uses the current returned roster, standings, picks, trades, and movement data.';
+  }
+
+  return clean
+    .replace(/monthly blueprint snapshot/gi, 'monthly blueprint')
+    .replace(/\bsnapshot\b/gi, 'plan context')
+    .replace(/\bstored\b/gi, 'saved');
 }
 
 function getFocusedManager(data: ReportData, managerOptions = getManagerOptions(data)): string {
@@ -309,8 +324,17 @@ function getTradeHistoryConfidence(data: ReportData): number {
 }
 
 function getEvidenceChip(read: AIEvidenceResult): AIReadChip {
+  const label = read.hardBlockers.length
+    ? 'Blocked'
+    : read.confidenceCapReason || read.missingEvidence.length
+      ? 'Verify first'
+      : read.finalScore >= 78
+        ? 'Strong read'
+        : read.finalScore >= 46
+          ? 'Watch only'
+          : 'Not enough signal';
   return {
-    label: `${read.label} ${read.finalScore}%`,
+    label,
     tone:
       read.label === 'blocked'
         ? 'danger'
@@ -320,6 +344,13 @@ function getEvidenceChip(read: AIEvidenceResult): AIReadChip {
             ? 'good'
             : 'info',
   };
+}
+
+function getActionStrengthLabel(value: number): string {
+  if (value >= 78) return 'Strong read';
+  if (value >= 62) return 'Useful read';
+  if (value >= 46) return 'Watch only';
+  return 'Verify first';
 }
 
 function getReportEvidenceModes(data: ReportData): AIEvidenceMode[] {
@@ -593,7 +624,7 @@ function getTradeResistanceRead(
     : { label: `${targetManager} trade friction`, tone: 'warn' as const };
   const note = playerSpecific
     ? `${targetManager} has ${countCopy} involving ${targetPlayer?.name} (${statusLabel}).${latestCopy} Lower the first ask or include a cleaner fit.`
-    : `${targetManager} has ${countCopy} (${statusLabel}), so confidence is discounted until the offer fit is cleaner.${latestCopy}`;
+    : `${targetManager} has ${countCopy} (${statusLabel}), so start with a cleaner fit before pushing the offer.${latestCopy}`;
 
   return { penalty, chip, note, playerSpecific };
 }
@@ -991,7 +1022,7 @@ export function OverviewAIPulse({
       subtitle="Compact direction only; exact metrics stay in the sections below."
       readType="League Exploit"
       confidence={evidenceRead.finalScore}
-      confidenceNote={evidenceRead.confidenceCapReason ? `Confidence limited by ${evidenceRead.confidenceCapReason}.` : getAiConfidenceDisplayNote(data) || evidenceRead.whyThisFired}
+      confidenceNote={getAiConfidenceDisplayNote(data)}
       evidenceRead={evidenceRead}
       hideDecision
       severity={evidenceRead.label === 'thin' ? 'warn' : evidenceRead.finalScore >= 76 ? 'info' : 'warn'}
@@ -1141,6 +1172,16 @@ export function MonthlyTeamBlueprint({
   const tradePartners = buildTradePartners(data, manager).slice(0, 3);
   const hasPartialHistory = !data.standingsHistory?.length || !data.tradeHistory?.length || !data.weeklyRisers?.length;
   const snapshotStatus = data.monthlyBlueprintSnapshot;
+  const snapshotStatusLabel = snapshotStatus?.status === 'stored'
+    ? 'Saved'
+    : snapshotStatus?.status === 'local'
+      ? 'Current'
+      : snapshotStatus?.status === 'unavailable'
+        ? 'Pending'
+        : 'Current';
+  const planInputLabel = hasPartialHistory ? 'Partial' : 'Ready';
+  const planContextLabel = snapshotStatus?.month ? `${snapshotStatus.month} plan context` : `${monthLabel} plan context`;
+  const blueprintStatusWarning = getMonthlyBlueprintStatusWarning(snapshotStatus?.warning);
   const formatBadges = getFormatBadges(data);
   const monthlyConfidence = getMonthlyConfidence(data, manager, hasPartialHistory);
   const isRedraft = isRedraftReportData(data);
@@ -1555,28 +1596,24 @@ export function MonthlyTeamBlueprint({
 
       {!generated ? (
         <AIReadPanel
-          title="Monthly blueprint ready"
-          subtitle="Uses current roster, league rankings, draft picks, trade history, and 7-day value movement where available."
+          title="Generate monthly blueprint"
+          subtitle="Monthly direction, roster window, and next moves."
           readType="Monthly Blueprint"
           confidence={monthlyConfidence}
           confidenceNote={getAiConfidenceDisplayNote(data, manager)}
           decision={{
             label: "Do this",
-            detail: `Generate ${manager}'s ${monthLabel} blueprint from current roster, ranking, draft, trade, and movement data.`,
+            detail: `Generate ${manager}'s ${monthLabel} roster plan.`,
             tone: "go",
-            status: `Ready · ${monthlyConfidence}%`,
+            status: monthlyConfidence >= 70 ? 'Ready' : 'Verify first',
           }}
           severity={monthlyConfidence >= 78 && !hasPartialHistory ? 'good' : hasPartialHistory ? 'warn' : 'info'}
           chips={[
-            snapshotStatus?.status === 'stored'
-              ? `Stored ${snapshotStatus.month}`
-              : snapshotStatus?.status === 'local'
-                ? `Local ${snapshotStatus.month}`
-                : { label: 'Snapshot not stored', tone: 'warn' },
-            hasPartialHistory ? { label: 'Partial history available', tone: 'warn' } : { label: 'History loaded', tone: 'good' },
+            hasPartialHistory ? { label: 'Verify first', tone: 'warn' } : { label: 'Strong read', tone: 'good' },
             `${managerOptions.length} teams`,
+            snapshotStatus?.month ? getShortMonthLabel(snapshotStatus.month) : monthLabel,
           ]}
-          body={`Generate ${manager}'s ${monthLabel} roster blueprint. The report uses available data only; missing history is flagged instead of filled in with fake trend lines.`}
+          body={`Generate ${manager}'s ${monthLabel} roster blueprint: direction, trade posture, player windows, and next move priorities.`}
           actions={[{ label: 'View Monthly Blueprint', onClick: () => setGenerated(true) }]}
           backgroundVariant="monthly"
         />
@@ -1604,21 +1641,21 @@ export function MonthlyTeamBlueprint({
               {snapshotStatus && (
                 <span className={`team-blueprint-snapshot-badge team-blueprint-snapshot-badge-${snapshotStatus.status}`}>
                   {snapshotStatus.status === 'stored'
-                    ? `Stored ${snapshotStatus.month}`
+                    ? `Saved ${snapshotStatus.month}`
                     : snapshotStatus.status === 'local'
-                      ? `Local snapshot ${snapshotStatus.month}`
-                      : `Snapshot pending ${snapshotStatus.month}`}
+                      ? `Current context ${snapshotStatus.month}`
+                      : `Plan pending ${snapshotStatus.month}`}
                 </span>
               )}
             </div>
           </div>
 
-          {(hasPartialHistory || snapshotStatus?.warning) && (
+          {(hasPartialHistory || blueprintStatusWarning) && (
             <div className="team-blueprint-warning">
               <AlertTriangle className="h-4 w-4" aria-hidden="true" />
               {hasPartialHistory
-                ? 'Partial history available. This blueprint uses the current roster snapshot plus available weekly movement, trades, picks, and standings only.'
-                : snapshotStatus?.warning}
+                ? 'Partial history available. This blueprint uses the current roster view plus available weekly movement, trades, picks, and standings only.'
+                : blueprintStatusWarning}
             </div>
           )}
 
@@ -1632,8 +1669,8 @@ export function MonthlyTeamBlueprint({
                   <MetricPill label="Plan tier" value={valueTier} tone="good" />
                   <MetricPill label="Plan grade" value={overallGrade} tone={overallGrade >= 7 ? 'good' : overallGrade <= 4 ? 'danger' : 'warn'} />
                   <MetricPill label="Priority count" value={topPriorities.length || 1} tone="info" />
-                  <MetricPill label="History" value={hasPartialHistory ? 'Partial' : 'Loaded'} tone={hasPartialHistory ? 'warn' : 'good'} />
-                  <MetricPill label="Snapshot" value={snapshotStatus?.status || 'live'} tone={snapshotStatus?.status === 'unavailable' ? 'warn' : 'neutral'} />
+                  <MetricPill label="History" value={planInputLabel} tone={hasPartialHistory ? 'warn' : 'good'} />
+                  <MetricPill label="Plan context" value={snapshotStatusLabel} tone={snapshotStatus?.status === 'unavailable' ? 'warn' : 'neutral'} />
                 </div>
               </div>
               <div className="team-blueprint-tier-ladder" aria-label={`Monthly plan tier ${valueTier}`}>
@@ -1652,8 +1689,8 @@ export function MonthlyTeamBlueprint({
                 </span>
                 <span>
                   <em>Plan Inputs</em>
-                  <strong>{hasPartialHistory ? 'Partial' : 'Loaded'}</strong>
-                  <small>{snapshotStatus?.month || monthLabel} snapshot context</small>
+                  <strong>{planInputLabel}</strong>
+                  <small>{planContextLabel}</small>
                 </span>
               </div>
             </section>
@@ -1898,88 +1935,94 @@ export function MonthlyTeamBlueprint({
               )}
             </section>
 
-            <section className="team-blueprint-panel">
-              <h4>Starting Lineup Signals</h4>
-              {starterPlayers.length ? (
-                <div className="team-blueprint-lineup-list">
-                  {starterPlayers.slice(0, 9).map((player) => {
-                    const signal = getBlueprintSignal(player, intel, risers, fallers);
-                    return (
-                      <span key={getPlayerKey(player)} className={`team-blueprint-lineup-row team-blueprint-lineup-${signal.signal}`}>
-                        <PlayerIdentityRow
-                          playerId={player.player_id}
-                          playerName={player.name}
-                          team={player.playerDetails?.team}
-                          position={player.pos}
-                          hideMeta
-                        />
-                        <em>{player.pos}</em>
-                        <strong>{signal.weeklyChange !== null ? `${signal.weeklyChange > 0 ? '+' : ''}${signal.weeklyChange.toFixed(1)}%` : signal.label}</strong>
-                      </span>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="command-module-empty-copy">No starter group is available.</p>
-              )}
-            </section>
+            <div className="team-blueprint-stack-grid team-blueprint-panel-wide">
+              <div className="team-blueprint-stack-column">
+                <section className="team-blueprint-panel">
+                  <h4>Starting Lineup Signals</h4>
+                  {starterPlayers.length ? (
+                    <div className="team-blueprint-lineup-list">
+                      {starterPlayers.slice(0, 9).map((player) => {
+                        const signal = getBlueprintSignal(player, intel, risers, fallers);
+                        return (
+                          <span key={getPlayerKey(player)} className={`team-blueprint-lineup-row team-blueprint-lineup-${signal.signal}`}>
+                            <PlayerIdentityRow
+                              playerId={player.player_id}
+                              playerName={player.name}
+                              team={player.playerDetails?.team}
+                              position={player.pos}
+                              hideMeta
+                            />
+                            <em>{player.pos}</em>
+                            <strong>{signal.weeklyChange !== null ? `${signal.weeklyChange > 0 ? '+' : ''}${signal.weeklyChange.toFixed(1)}%` : signal.label}</strong>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="command-module-empty-copy">No starter group is available.</p>
+                  )}
+                </section>
 
-            <section className="team-blueprint-panel">
-              <h4>Team Depth</h4>
-              {depthPlayers.length ? (
-                <div className="team-blueprint-depth-cloud">
-                  {depthPlayers.map((player) => (
-                    <span key={getPlayerKey(player)} className={`team-blueprint-position-${player.pos.toLowerCase()}`}>
-                      {player.name} <em>{player.pos}</em>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="command-module-empty-copy">No bench/depth player data is available.</p>
-              )}
-            </section>
-
-            <section className="team-blueprint-panel">
-              <h4>Risers / Fallers</h4>
-              <div className="team-blueprint-move-board">
-                <div className="team-blueprint-move-column team-blueprint-move-risers">
-                  <span>Risers</span>
-                  {risers.map((player, index) => (
-                    <p key={`${player.player_id || player.name}-riser-${index}`}>
-                      <strong>{player.name}</strong>
-                      <em>+{player.pct_change.toFixed(1)}%</em>
-                    </p>
-                  ))}
-                  {!risers.length && <p>No roster risers.</p>}
-                </div>
-                <div className="team-blueprint-move-column team-blueprint-move-fallers">
-                  <span>Fallers</span>
-                  {fallers.map((player, index) => (
-                    <p key={`${player.player_id || player.name}-faller-${index}`}>
-                      <strong>{player.name}</strong>
-                      <em>{player.pct_change.toFixed(1)}%</em>
-                    </p>
-                  ))}
-                  {!fallers.length && <p>No roster fallers.</p>}
-                </div>
+                <section className="team-blueprint-panel">
+                  <h4>Risers / Fallers</h4>
+                  <div className="team-blueprint-move-board">
+                    <div className="team-blueprint-move-column team-blueprint-move-risers">
+                      <span>Risers</span>
+                      {risers.map((player, index) => (
+                        <p key={`${player.player_id || player.name}-riser-${index}`}>
+                          <strong>{player.name}</strong>
+                          <em>+{player.pct_change.toFixed(1)}%</em>
+                        </p>
+                      ))}
+                      {!risers.length && <p>No roster risers.</p>}
+                    </div>
+                    <div className="team-blueprint-move-column team-blueprint-move-fallers">
+                      <span>Fallers</span>
+                      {fallers.map((player, index) => (
+                        <p key={`${player.player_id || player.name}-faller-${index}`}>
+                          <strong>{player.name}</strong>
+                          <em>{player.pct_change.toFixed(1)}%</em>
+                        </p>
+                      ))}
+                      {!fallers.length && <p>No roster fallers.</p>}
+                    </div>
+                  </div>
+                </section>
               </div>
-            </section>
 
-            <section className="team-blueprint-panel">
-              <h4>Market Value Analysis</h4>
-              <div className="team-blueprint-market-gauge" style={marketGaugeStyle}>
-                <div className="team-blueprint-gauge-arc" aria-hidden="true">
-                  <span className="team-blueprint-gauge-needle" />
-                </div>
-                <strong>{marketPosture}</strong>
-                <div className="team-blueprint-market-pills">
-                  <span className="team-blueprint-signal-buy">Buys: {buyPct}%</span>
-                  <span className="team-blueprint-signal-hold">Holds: {holdPct}%</span>
-                  <span className="team-blueprint-signal-sell">Sells: {sellPct}%</span>
-                </div>
-                <p>Derived from buy/sell candidates, untouchables, and weekly roster movement.</p>
+              <div className="team-blueprint-stack-column">
+                <section className="team-blueprint-panel">
+                  <h4>Team Depth</h4>
+                  {depthPlayers.length ? (
+                    <div className="team-blueprint-depth-cloud">
+                      {depthPlayers.map((player) => (
+                        <span key={getPlayerKey(player)} className={`team-blueprint-position-${player.pos.toLowerCase()}`}>
+                          {player.name} <em>{player.pos}</em>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="command-module-empty-copy">No bench/depth player data is available.</p>
+                  )}
+                </section>
+
+                <section className="team-blueprint-panel">
+                  <h4>Market Value Analysis</h4>
+                  <div className="team-blueprint-market-gauge" style={marketGaugeStyle}>
+                    <div className="team-blueprint-gauge-arc" aria-hidden="true">
+                      <span className="team-blueprint-gauge-needle" />
+                    </div>
+                    <strong>{marketPosture}</strong>
+                    <div className="team-blueprint-market-pills">
+                      <span className="team-blueprint-signal-buy">Buys: {buyPct}%</span>
+                      <span className="team-blueprint-signal-hold">Holds: {holdPct}%</span>
+                      <span className="team-blueprint-signal-sell">Sells: {sellPct}%</span>
+                    </div>
+                    <p>Derived from buy/sell candidates, untouchables, and weekly roster movement.</p>
+                  </div>
+                </section>
               </div>
-            </section>
+            </div>
 
             <section className="team-blueprint-panel team-blueprint-panel-wide">
               <h4>Positional Age Tracker</h4>
@@ -1999,14 +2042,14 @@ export function MonthlyTeamBlueprint({
                         : row.age !== null && <b style={{ left: `${row.left}%` }} />}
                     </i>
                     <strong>{row.age !== null ? row.age.toFixed(1) : '-'}</strong>
-                    <small>{row.delta === null ? 'Snapshot' : `${row.delta >= 0 ? '+' : ''}${row.delta.toFixed(1)} age`}</small>
+                    <small>{row.delta === null ? 'Current' : `${row.delta >= 0 ? '+' : ''}${row.delta.toFixed(1)} age`}</small>
                   </span>
                 ))}
               </div>
               <p className="team-blueprint-panel-note">
                 {hasStoredTrendHistory
-                  ? `${managerHistory.length} stored monthly snapshots loaded. Dots are real saved blueprint history.`
-                  : 'Current roster snapshot only; monthly trends appear after this manager has at least two stored snapshots.'}
+                  ? `${managerHistory.length} saved monthly plans. Dots are real blueprint history.`
+                  : 'Current roster view only; monthly trends appear after this manager has at least two saved plans.'}
               </p>
             </section>
 
@@ -2032,7 +2075,7 @@ export function MonthlyTeamBlueprint({
                       </i>
                       <small>
                         {card.delta === null
-                          ? 'Needs 2 stored months'
+                          ? 'Needs 2 saved months'
                           : `${card.delta > 0 ? '+' : ''}${card.delta.toFixed(card.label === 'Production Share' ? 1 : 0)}${card.suffix}`}
                       </small>
                     </span>
@@ -2042,7 +2085,7 @@ export function MonthlyTeamBlueprint({
               <p className="team-blueprint-panel-note">
                 {hasStoredTrendHistory
                   ? `History window: ${managerHistory.map((snapshot) => getShortMonthLabel(snapshot.snapshotMonth)).join(' -> ')}.`
-                  : 'This stays empty until stored monthly blueprints exist for this manager.'}
+                  : 'This stays empty until saved monthly blueprints exist for this manager.'}
               </p>
             </section>
 
@@ -2071,54 +2114,56 @@ export function MonthlyTeamBlueprint({
               </div>
             </section>
 
-            <section className="team-blueprint-panel">
-              <h4>Draft Capital</h4>
-              {pickPortfolio ? (
-                <div className="team-blueprint-draft-box">
-                  <span>
-                    <strong>2026</strong>
-                    <em>{pickPortfolio.count2026} picks</em>
-                    <small>{formatCompactValue(pickPortfolio.value2026)}</small>
-                  </span>
-                  <span>
-                    <strong>2027</strong>
-                    <em>{pickPortfolio.count2027} picks</em>
-                    <small>{formatCompactValue(pickPortfolio.value2027)}</small>
-                  </span>
-                  {pickPortfolio.count2028 || pickPortfolio.value2028 ? (
+            <div className="team-blueprint-stack-grid team-blueprint-panel-wide">
+              <section className="team-blueprint-panel">
+                <h4>Draft Capital</h4>
+                {pickPortfolio ? (
+                  <div className="team-blueprint-draft-box">
                     <span>
-                      <strong>2028</strong>
-                      <em>{pickPortfolio.count2028 || 0} picks</em>
-                      <small>{formatCompactValue(pickPortfolio.value2028 || 0)}</small>
+                      <strong>2026</strong>
+                      <em>{pickPortfolio.count2026} picks</em>
+                      <small>{formatCompactValue(pickPortfolio.value2026)}</small>
                     </span>
-                  ) : null}
-                  <p>Total capital: {formatCompactValue(pickPortfolio.totalValue)}{pickPortfolio.projectedSlots?.length ? ` · ${pickPortfolio.projectedSlots.slice(0, 3).join(', ')}` : ''}</p>
-                  <div className={`team-blueprint-draft-strategy team-blueprint-draft-strategy-${draftPosture.toLowerCase()}`}>
-                    <span>Draft Strategy</span>
-                    <strong>{draftPosture}</strong>
-                    <small>{draftStrategyNote}</small>
+                    <span>
+                      <strong>2027</strong>
+                      <em>{pickPortfolio.count2027} picks</em>
+                      <small>{formatCompactValue(pickPortfolio.value2027)}</small>
+                    </span>
+                    {pickPortfolio.count2028 || pickPortfolio.value2028 ? (
+                      <span>
+                        <strong>2028</strong>
+                        <em>{pickPortfolio.count2028 || 0} picks</em>
+                        <small>{formatCompactValue(pickPortfolio.value2028 || 0)}</small>
+                      </span>
+                    ) : null}
+                    <p>Total capital: {formatCompactValue(pickPortfolio.totalValue)}{pickPortfolio.projectedSlots?.length ? ` · ${pickPortfolio.projectedSlots.slice(0, 3).join(', ')}` : ''}</p>
+                    <div className={`team-blueprint-draft-strategy team-blueprint-draft-strategy-${draftPosture.toLowerCase()}`}>
+                      <span>Draft Strategy</span>
+                      <strong>{draftPosture}</strong>
+                      <small>{draftStrategyNote}</small>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <p className="command-module-empty-copy">Draft-pick portfolio is not available.</p>
-              )}
-            </section>
+                ) : (
+                  <p className="command-module-empty-copy">Draft-pick portfolio is not available.</p>
+                )}
+              </section>
 
-            <section className="team-blueprint-panel">
-              <h4>Top Priorities</h4>
-              {topPriorities.length ? (
-                <div className="team-blueprint-priority-stack">
-                  {topPriorities.slice(0, 4).map((priority, index) => (
-                    <span key={priority}>
-                      {index === 0 ? <Target className="h-4 w-4" aria-hidden="true" /> : index === 1 ? <ShieldCheck className="h-4 w-4" aria-hidden="true" /> : <Gauge className="h-4 w-4" aria-hidden="true" />}
-                      <strong>{priority}</strong>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="command-module-empty-copy">No priority flags.</p>
-              )}
-            </section>
+              <section className="team-blueprint-panel">
+                <h4>Top Priorities</h4>
+                {topPriorities.length ? (
+                  <div className="team-blueprint-priority-stack">
+                    {topPriorities.slice(0, 4).map((priority, index) => (
+                      <span key={priority}>
+                        {index === 0 ? <Target className="h-4 w-4" aria-hidden="true" /> : index === 1 ? <ShieldCheck className="h-4 w-4" aria-hidden="true" /> : <Gauge className="h-4 w-4" aria-hidden="true" />}
+                        <strong>{priority}</strong>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="command-module-empty-copy">No priority flags.</p>
+                )}
+              </section>
+            </div>
 
             <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-trade-playbook">
               <h4>Trade Strategy Enhanced</h4>
@@ -2156,7 +2201,7 @@ export function MonthlyTeamBlueprint({
                         <p>No target piece.</p>
                       )}
                     </div>
-                    <em>{card.partner.confidence}% fit</em>
+                    <em>{getActionStrengthLabel(card.partner.confidence)}</em>
                   </div>
                 ))}
                 {!tradePlayCards.length && <p>No trade play cards could be built from this roster.</p>}
@@ -2169,7 +2214,7 @@ export function MonthlyTeamBlueprint({
                 {tradePartners.map((partner) => (
                   <span key={partner.manager}>
                     <strong>{partner.manager}</strong>
-                    <em>{partner.label} · {partner.confidence}%</em>
+                    <em>{partner.label} · {getActionStrengthLabel(partner.confidence)}</em>
                     <small>{partner.youOffer ? `Offer ${partner.youOffer.name}` : 'Offer value'} / {partner.theyOffer ? `Ask ${partner.theyOffer.name}` : 'Ask fit'}</small>
                   </span>
                 ))}
@@ -2177,49 +2222,6 @@ export function MonthlyTeamBlueprint({
               </div>
             </section>
 
-            <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-legend">
-              <h4>Legend / Data Rules</h4>
-              <div>
-                <span><strong className="team-blueprint-signal-buy">Buy</strong> Buy target, breakout/stash, or strong weekly riser.</span>
-                <span><strong className="team-blueprint-signal-hold">Hold</strong> Core player or no forced action from the current roster read.</span>
-                <span><strong className="team-blueprint-signal-sell">Sell</strong> Sell candidate, weak starter, age/value window, or sharp faller.</span>
-              </div>
-            </section>
-
-            <AIReadPanel
-              title="Blueprint AI Summary"
-              readType="Monthly Blueprint"
-              confidence={monthlyConfidence}
-              confidenceNote={getAiConfidenceDisplayNote(data, manager)}
-              decision={{
-                label: "Don't force it",
-                detail: topPriorities[0]
-                  ? `Review priority: ${topPriorities[0]}`
-                  : "No single priority is strong enough to force from this blueprint.",
-                tone: "watch",
-                status: topPriorities[0] ? `Blueprint priority · ${monthlyConfidence}%` : `Blueprint · ${monthlyConfidence}%`,
-              }}
-              severity={monthlyConfidence >= 78 && !hasPartialHistory ? 'good' : hasPartialHistory ? 'warn' : 'info'}
-              chips={[
-                monthLabel,
-                { label: `Grade ${overallEnhancedGrade.toFixed(1)}`, tone: overallEnhancedGrade >= 7 ? 'good' : overallEnhancedGrade <= 4 ? 'warn' : undefined },
-                topMakeupArchetype,
-                hasPartialHistory ? { label: 'Partial history', tone: 'warn' } : { label: 'History loaded', tone: 'good' },
-              ]}
-              body={`${manager} profiles as ${intel.identity}, graded ${overallEnhancedGrade.toFixed(1)}/10 across value safety, production, and schedule/role context${leagueComparatives.percentile !== null ? ` (${leagueComparatives.percentile}th percentile)` : ''} and leaning ${topMakeupArchetype.toLowerCase()}. The ${monthLabel} priority is ${topPriorities[0] || intel.tradePlan?.summary || 'to keep value insulated until a clear roster-fit deal appears'}.`}
-              traceItems={([
-                `Roster grade: ${overallEnhancedGrade.toFixed(1)}/10 across value safety, production, and schedule/role context.`,
-                leagueComparatives.valueShare !== null
-                  ? `Value share ${leagueComparatives.valueShare}%${leagueComparatives.valueShareRank ? ` (league #${leagueComparatives.valueShareRank})` : ''}.`
-                  : null,
-                trueRankRows[0]
-                  ? `Top graded asset: ${trueRankRows[0].player.name} (${trueRankRows[0].compositePositionRank}, composite ${trueRankRows[0].composite}).`
-                  : null,
-                `Make-up leans ${topMakeupArchetype.toLowerCase()} across ${gradedRoster.length} graded players.`,
-              ].filter(Boolean) as string[])}
-              backgroundVariant="monthly"
-              className="team-blueprint-ai"
-            />
           </div>
         </article>
       )}
@@ -2295,37 +2297,6 @@ export function LeaguePowerRankings({
                   {!isRedraft && <MetricPill label="Youth curve" value={row.youthScore} tone="info" />}
                   <MetricPill label="Readiness score" value={readiness} tone={readiness >= 70 ? 'good' : readiness <= 45 ? 'danger' : 'warn'} />
                 </div>
-                <details className="ai-read-trace league-power-receipts">
-                  <summary className="ai-read-trace-kicker">
-                    Power notes <span>{readiness} readiness</span>
-                  </summary>
-                  <ul className="ai-read-trace-list">
-                    <li>
-                      {row.manager} owns league power slot #{row.rank} with a{" "}
-                      {row.score} composite score. Use Team Breakdown for the
-                      roster cause and Trade Finder for deal paths.
-                    </li>
-                    <li>
-                      Power rank #{row.rank} from composite score {row.score}.
-                    </li>
-                    <li>
-                      Value slot{" "}
-                      {overview
-                        ? `#${overview.rank_value}`
-                        : formatCompactValue(row.rosterValue)}{" "}
-                      sets the market-order signal.
-                    </li>
-                    <li>
-                      Readiness score {readiness} blends starter strength,
-                      roster value, and positional balance.
-                    </li>
-                    <li>
-                      {isRedraft
-                        ? `Season tier: ${redraftPowerLabel}.`
-                        : `Window source: ${windowLabel}.`}
-                    </li>
-                  </ul>
-                </details>
               </div>
             </details>
           );
@@ -2475,8 +2446,8 @@ export function TeamBreakdownRecon({
           <AIReadPanel
             title={`${manager} suggested next move`}
             readType={isRedraft ? 'Season Roster Read' : intel.timeline?.toLowerCase().includes('rebuild') ? 'Rebuild Path' : 'Contender Path'}
-            confidence={ownerEvidenceRead.finalScore}
-            confidenceNote={ownerEvidenceRead.confidenceCapReason ? `Confidence limited by ${ownerEvidenceRead.confidenceCapReason}.` : ownerEvidenceRead.whyThisFired}
+          confidence={ownerEvidenceRead.finalScore}
+            confidenceNote={getAiConfidenceDisplayNote(data, manager)}
             evidenceRead={ownerEvidenceRead}
             severity={ownerEvidenceRead.label === 'thin' ? 'warn' : weaknesses.length > 2 ? 'warn' : 'info'}
             chips={[
@@ -2538,39 +2509,6 @@ export function TradePartnerFinder({
               <MetricPill label="You offer" value={getPlayerLabel(recommendation.youOffer)} tone={recommendation.youOffer ? 'good' : 'neutral'} />
               <MetricPill label="Ask about" value={getPlayerLabel(recommendation.theyOffer)} tone={recommendation.theyOffer ? 'warn' : 'neutral'} />
             </div>
-            <details className="ai-read-trace trade-partner-receipts">
-              <summary className="ai-read-trace-kicker">
-                Partner notes <span>{recommendation.confidence}% fit</span>
-              </summary>
-              <ul className="ai-read-trace-list">
-                <li>{recommendation.aiRead}</li>
-                <li>
-                  {recommendation.need
-                    ? `${recommendation.manager} needs ${recommendation.need}.`
-                    : `${recommendation.manager} does not show a clean positional need.`}
-                </li>
-                <li>
-                  {recommendation.surplus
-                    ? `${recommendation.manager} has ${recommendation.surplus} surplus to ask about.`
-                    : "No clear surplus position is attached to this manager."}
-                </li>
-                <li>
-                  {recommendation.youOffer
-                    ? `Your matching offer lane starts with ${recommendation.youOffer.name}.`
-                    : "No clean outgoing fit is available from this roster."}
-                </li>
-                <li>
-                  Resistance note:{" "}
-                  {recommendation.resistanceRead.note ||
-                    (recommendation.resistanceRead.chip
-                      ? typeof recommendation.resistanceRead.chip === "string"
-                        ? recommendation.resistanceRead.chip
-                        : recommendation.resistanceRead.chip.label
-                      : "No resistance note")}
-                  .
-                </li>
-              </ul>
-            </details>
           </article>
         ))}
       </div>
@@ -2727,7 +2665,7 @@ export function TradeFinderGenerator({
                 <p><strong>Give</strong>{tradePackage.give.map((player) => `${player.name} (${player.pos})`).join(' + ')}</p>
                 <p><strong>Get</strong>{tradePackage.receive.map((player) => `${player.name} (${player.pos})`).join(' + ')}</p>
               </div>
-              <MetricPill label="Confidence" value={`${tradePackage.confidence}%`} tone={tradePackage.confidence >= 70 ? 'good' : tradePackage.confidence <= 50 ? 'warn' : 'info'} />
+              <MetricPill label="Read strength" value={getActionStrengthLabel(tradePackage.confidence)} tone={tradePackage.confidence >= 70 ? 'good' : tradePackage.confidence <= 50 ? 'warn' : 'info'} />
               <p>{tradePackage.note}</p>
             </article>
           ))}
@@ -2857,19 +2795,6 @@ export function LeagueExploits({
             <span><strong>Why it works</strong>{exploit.why}</span>
             <span><strong>Risk</strong>{exploit.risk}</span>
           </div>
-          <details className="ai-read-trace league-exploit-receipts">
-            <summary className="ai-read-trace-kicker">
-              Exploit notes{" "}
-              <span>{getManagerReadConfidence(data, exploit.manager)}%</span>
-            </summary>
-            <ul className="ai-read-trace-list">
-              <li>{exploit.suggestedMove}.</li>
-              <li>Exploit owner: {exploit.exploit}.</li>
-              <li>Manager signal: {exploit.manager}.</li>
-              <li>Why: {exploit.why}</li>
-              <li>Risk check: {exploit.risk}</li>
-            </ul>
-          </details>
         </article>
       ))}
     </div>
@@ -2888,11 +2813,13 @@ export function RankingsMarketRead({
   const availableRowCount = getRankingProfileRowCount(data, defaultProfileKey);
   const topRiser = [...rows].filter((row) => !row.isPick && !row.isDevy).sort((a, b) => (b.movement || 0) - (a.movement || 0))[0];
   const topFaller = [...rows].filter((row) => !row.isPick && !row.isDevy).sort((a, b) => (a.movement || 0) - (b.movement || 0))[0];
+  const meaningfulRiser = topRiser && (topRiser.movement || 0) > 0 ? topRiser : null;
+  const meaningfulFaller = topFaller && (topFaller.movement || 0) < 0 ? topFaller : null;
   const ownedCount = rows.filter((row) => row.owner).length;
   const confidence = getRankingsConfidence(data, availableRowCount);
   const evidenceRead = buildRankingsEvidenceRead(data, rows, confidence, availableRowCount);
 
-  if (!evidenceRead.shouldRender) return null;
+  if (!evidenceRead.shouldRender || (!meaningfulRiser && !meaningfulFaller)) return null;
 
   return (
     <AIReadPanel
@@ -2900,22 +2827,22 @@ export function RankingsMarketRead({
       subtitle="League-matched values with rostered-player context."
       readType="Market Signal"
       confidence={evidenceRead.finalScore}
-      confidenceNote={evidenceRead.confidenceCapReason ? `Confidence limited by ${evidenceRead.confidenceCapReason}.` : evidenceRead.whyThisFired}
+      confidenceNote={getAiConfidenceDisplayNote(data)}
       severity={evidenceRead.label === 'thin' ? 'warn' : evidenceRead.finalScore >= 70 ? 'info' : 'warn'}
       chips={[
         getEvidenceChip(evidenceRead),
-        `${availableRowCount} assets`,
-        rows.length ? `${ownedCount} rostered` : { label: 'On-demand rows', tone: 'info' },
-        topRiser ? `Top riser: ${topRiser.name}` : { label: 'No riser data', tone: 'warn' },
-      ]}
+        rows.length ? `${ownedCount} rostered` : { label: 'Open board row', tone: 'info' },
+        meaningfulRiser ? `Riser: ${meaningfulRiser.name}` : null,
+        meaningfulFaller ? `Faller: ${meaningfulFaller.name}` : null,
+      ].filter(Boolean) as AIReadChip[]}
       body={rows.length
-        ? `${topRiser ? `${topRiser.name} is the cleanest watchlist riser on the board.` : 'No ranking riser is strong enough yet.'} ${topFaller ? `${topFaller.name} is the biggest discount-window check, but roster context still matters before buying.` : ''}`
+        ? `${meaningfulRiser ? `${meaningfulRiser.name} is the cleanest watchlist riser on the board.` : ''} ${meaningfulFaller ? `${meaningfulFaller.name} is the biggest discount-window check, but roster context still matters before buying.` : ''}`.trim()
         : availableRowCount
           ? `${availableRowCount.toLocaleString()} league-matched assets are indexed. Open a board row for player-specific detail.`
           : 'Rankings are not available yet, so the market read is intentionally limited.'}
       traceItems={([
-        topRiser ? `Watchlist riser: ${topRiser.name} has the strongest positive movement on this board.` : null,
-        topFaller ? `Discount check: ${topFaller.name} has the sharpest negative movement; verify roster fit before buying.` : null,
+        meaningfulRiser ? `Watchlist riser: ${meaningfulRiser.name} has the strongest positive movement on this board.` : null,
+        meaningfulFaller ? `Discount check: ${meaningfulFaller.name} has the sharpest negative movement; verify roster fit before buying.` : null,
         rows.length ? `${ownedCount} rostered assets appear in the league-matched ranking set.` : null,
       ].filter(Boolean) as string[])}
       backgroundVariant="market"
@@ -2936,7 +2863,7 @@ export function TradeBrowserRead({
   const confidence = getTradeHistoryConfidence(data);
   const evidenceRead = buildTradeBrowserEvidenceRead(data, confidence);
 
-  if (!evidenceRead.shouldRender) return null;
+  if (!evidenceRead.shouldRender || !trades.length) return null;
 
   return (
     <AIReadPanel
@@ -2944,7 +2871,7 @@ export function TradeBrowserRead({
       subtitle="Searchable trade ledger foundation with value-gap context, manager tendency signals, and roster-window reads."
       readType="Trade Window"
       confidence={evidenceRead.finalScore}
-      confidenceNote={evidenceRead.confidenceCapReason ? `Confidence limited by ${evidenceRead.confidenceCapReason}.` : evidenceRead.whyThisFired}
+      confidenceNote={getAiConfidenceDisplayNote(data)}
       severity={evidenceRead.label === 'thin' ? 'warn' : evidenceRead.finalScore >= 68 ? 'info' : 'warn'}
       chips={[
         getEvidenceChip(evidenceRead),
@@ -3124,7 +3051,7 @@ function buildNewsRows(data: ReportData, selectedManager: string) {
       position: player.pos,
       team: player.playerDetails?.team || null,
       title: player.playerDetails?.latestNews?.title || player.playerDetails?.injuryStatus || 'Roster status flag',
-      source: player.playerDetails?.latestNews?.source || player.playerDetails?.displayStatus || player.playerDetails?.status || 'Sleeper',
+      source: player.playerDetails?.latestNews ? 'Player update' : player.playerDetails?.displayStatus || player.playerDetails?.status || 'Roster status',
       publishedAt: player.playerDetails?.latestNews?.publishedAt || null,
       isRostered: true,
     }));
@@ -3137,7 +3064,7 @@ function buildNewsRows(data: ReportData, selectedManager: string) {
       position: details.position || '-',
       team: details.team || null,
       title: details.latestNews?.title || 'News flag',
-      source: 'Stored news',
+      source: 'Player update',
       publishedAt: details.latestNews?.publishedAt || null,
       isRostered: false,
     }));
@@ -3430,33 +3357,33 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
       tone: (data.draftPicks?.length || prospectCount) ? 'good' : 'warn',
     },
     {
-      label: 'Trade Calibration',
+      label: 'Trade Windows',
       status: tradeCalibrationCoverage.timelinePlayers
         ? tradeCalibrationCoverage.signalPlayers
           ? 'Backed'
           : 'Timeline only'
         : 'Missing',
       note: tradeCalibrationCoverage.timelinePlayers
-        ? `${tradeCalibrationCoverage.timelinePlayers}/${tradeCalibrationCoverage.totalPlayers} players have stored value timelines for trade readouts${tradeCalibrationSignalCopy ? `; ${tradeCalibrationSignalCopy}.` : '; no strong riser/faller label fired.'}`
-        : 'Trade readouts can still use value and fit, but stored value timelines are not available for calibration labels.',
+        ? `${tradeCalibrationCoverage.timelinePlayers}/${tradeCalibrationCoverage.totalPlayers} players have value-window reads${tradeCalibrationSignalCopy ? `; ${tradeCalibrationSignalCopy}.` : '; no strong riser/faller window yet.'}`
+        : 'Trade reads can still use value and fit, but player value-window history is not available yet.',
       tone: tradeCalibrationCoverage.signalPlayers ? 'good' : tradeCalibrationCoverage.timelinePlayers ? 'info' : 'warn',
     },
     {
-      label: 'Situation Delta',
+      label: 'Role Changes',
       status: situationDeltas.length
         ? strongSituationReads.length
           ? 'Backed'
           : 'Partial'
         : 'Missing',
       note: situationDeltas.length
-        ? `${situationDeltas.length}/${Object.keys(data.playerDetailsById || {}).length} players have opportunity delta reads${situationSignalCopy ? `; ${situationSignalCopy}.` : '; all reads are source-limited or neutral.'}`
-        : 'Player detail reads can still use value and cohort context, but situation-delta scoring is not available.',
+        ? `${situationDeltas.length}/${Object.keys(data.playerDetailsById || {}).length} players have role-change reads${situationSignalCopy ? `; ${situationSignalCopy}.` : '; no strong role swing yet.'}`
+        : 'Player detail reads can still use value and cohort context, but role-change reads are not available yet.',
       tone: strongSituationReads.length || freshSituationReads.length ? 'good' : situationDeltas.length ? 'info' : 'warn',
     },
     {
       label: 'Research Assistant',
       status: newsCount ? 'Backed' : 'Missing',
-      note: 'Uses stored news and status flags when available.',
+      note: 'Uses player updates and status flags when available.',
       tone: newsCount ? 'good' : 'warn',
     },
     {
@@ -3626,8 +3553,8 @@ export function AssistantFeatureShells({
 
       <section className="assistant-feature-coverage">
         <div className="assistant-feature-card-head">
-          <span><ShieldCheck className="h-4 w-4" aria-hidden="true" /> Feature Coverage</span>
-          <strong>No fake data</strong>
+          <span><ShieldCheck className="h-4 w-4" aria-hidden="true" /> Assistant Tools</span>
+          <strong>{coverageRows.filter((row) => row.status === 'Backed').length} ready</strong>
         </div>
         <div className="assistant-feature-coverage-grid">
           {coverageRows.map((row) => (
@@ -3653,7 +3580,7 @@ export function AssistantFeatureShells({
                 <em>{row.lane}</em>
                 <strong>{row.action}</strong>
                 <small>{row.detail}</small>
-                <i>{row.priority}%</i>
+                <i>{getActionStrengthLabel(row.priority)}</i>
               </span>
             ))}
           </div>
@@ -3752,7 +3679,7 @@ export function AssistantFeatureShells({
           <div className="assistant-feature-metrics">
             <MetricPill label="Best add" value={bestWaiver?.name || '-'} tone={bestWaiver ? 'good' : 'neutral'} />
             <MetricPill label="Drop candidates" value={intel?.droppablePlayers?.length || 0} tone={intel?.droppablePlayers?.length ? 'warn' : 'neutral'} />
-            <MetricPill label="Matchup trace" value={data.waiverIntelligence?.weeklyEcrTargets?.length || 0} tone={data.waiverIntelligence?.weeklyEcrTargets?.length ? 'good' : 'neutral'} />
+            <MetricPill label="Schedule reads" value={data.waiverIntelligence?.weeklyEcrTargets?.length || 0} tone={data.waiverIntelligence?.weeklyEcrTargets?.length ? 'good' : 'neutral'} />
             <MetricPill label="Projection" value={data.weeklyProjectionDiagnostics?.attachedPlayerCount || 0} tone={data.weeklyProjectionDiagnostics?.status === 'ready' ? 'good' : 'neutral'} />
           </div>
           {renderAssistantPlayerRows(waiverAdds.slice(0, 4).map((player) => {
@@ -3764,7 +3691,7 @@ export function AssistantFeatureShells({
               position: player.pos,
               team: player.team || player.playerDetails?.team || null,
               playerId: player.player_id,
-              meta: projection?.status === 'ready' ? `${projection.projectedFantasyPoints.toFixed(1)} stored projection pts` : ecrRank ? `Next-3 ${ecrRank}` : `${player.count.toLocaleString()} adds`,
+              meta: projection?.status === 'ready' ? `${projection.projectedFantasyPoints.toFixed(1)} projected pts` : ecrRank ? `Next-3 ${ecrRank}` : `${player.count.toLocaleString()} adds`,
               value: formatCompactValue(player.ktcValue || getPlayerDetailsValue(player.playerDetails)),
               tone: 'good',
             };

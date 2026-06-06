@@ -14,7 +14,6 @@ import { getShortTermMatchupOutlook } from "@shared/matchupWindows";
 import {
   evaluateAIEvidence,
   getAIEvidenceLeagueContextFromDiagnostics,
-  getAIEvidenceReceiptItems,
   type AIEvidenceLeagueActivityContext,
   type AIEvidenceMode,
   type AIEvidenceResult,
@@ -52,7 +51,7 @@ import { WeeklyProjectionReceipt } from "../WeeklyProjectionReceipt";
 type OwnerIntelRow = NonNullable<ReportData["managerRosterIntelligence"]>[number];
 type CountPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 const COUNT_POSITIONS: CountPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
-const AI_RECOMMENDATION_BANNER_LABEL = "AI PICKUP RECEIPTS";
+const AI_RECOMMENDATION_BANNER_LABEL = "WAIVER NEXT MOVE";
 
 type WaiverPosition = "QB" | "RB" | "WR" | "TE" | "K" | "DEF";
 
@@ -100,6 +99,20 @@ const WAIVER_POSITIONS: WaiverPosition[] = ["QB", "RB", "WR", "TE", "K", "DEF"];
 const WAIVER_SPECIAL_TEAMS_POSITIONS = ["K", "DEF"] as const;
 const WAIVER_RECOMMENDATION_LIMIT = 2;
 const WAIVER_RECOMMENDATION_MINIMUM = 1;
+
+function getWaiverReadStrengthLabel(score?: number | null): string {
+  const value = clampPercentValue(Number(score || 0));
+  if (value >= 78) return "Strong read";
+  if (value >= 64) return "Useful read";
+  if (value >= 48) return "Watch only";
+  return "Verify first";
+}
+
+function getWaiverEvidenceLabel(read: AIEvidenceResult): string {
+  if (read.label === "blocked") return "Verify first";
+  if (read.canAct) return getWaiverReadStrengthLabel(read.finalScore);
+  return "Watch only";
+}
 
 export function buildWaiverValueCards({
   data,
@@ -1448,7 +1461,7 @@ function buildWaiverCompetitionRead({
         bidHint,
         reason: reasonParts.length
           ? `${intel.manager}: ${reasonParts.join(", ")}.`
-          : `${intel.manager}: no strong competing claim pattern returned.`,
+          : `${intel.manager}: no strong competing claim pattern yet.`,
       };
     })
     .filter(read => read.confidencePct >= 42)
@@ -1698,7 +1711,7 @@ function getWaiverDropRead({
     best.upgrade > 0
       ? ` The model sees about ${formatCompactValue(best.upgrade)} more ${leagueValueMode === "redraft" ? "season" : "dynasty"} value coming in than going out.`
       : best.upgrade < -150
-        ? ` This is not a clean value-upgrade cut, so only use it if the roster role matters more than stored value.`
+        ? ` This is not a clean value-upgrade cut, so only use it if the roster role matters more than current market value.`
         : " The value exchange is close, so roster construction is the deciding factor.";
   return {
     dropCandidate,
@@ -1931,9 +1944,9 @@ function buildWaiverEvidenceRead({
       rank ? null : "No trusted positional rank is attached.",
       sourceCount ? null : "No blend evidence count is attached.",
       position === "K" || position === "DEF"
-        ? isWaiverScheduleWindowSignal(weeklyEcrSignal)
-          ? null
-          : "No short-window schedule source is attached."
+          ? isWaiverScheduleWindowSignal(weeklyEcrSignal)
+            ? null
+            : "No short-window schedule read is attached."
         : null,
     ].filter((item): item is string => Boolean(item)),
     sourceTrace: getWaiverEvidenceSourceTrace({
@@ -1965,7 +1978,7 @@ function buildWaiverEvidenceRead({
       hasScheduleData: isWaiverScheduleWindowSignal(weeklyEcrSignal),
       isRoughStart: Boolean(matchupOutlook?.isRoughStart),
       isStrongStart: Boolean(matchupOutlook?.isStrongStart),
-      missingReason: "No stored matchup window is attached to this streamer read.",
+      missingReason: "No matchup window is attached to this streamer read.",
     },
     confidenceCap: 94,
     confidenceCapReason: null,
@@ -2294,15 +2307,15 @@ export function buildWaiverRecommendationContext({
         : recommendation.bidRangeLabel;
       const competitionCopy = recommendation.competitionRead
         ? `${recommendation.competitionRead.manager} is the top competing-claim risk`
-        : "no strong competing-claim risk returned";
+        : "no strong competing-claim risk";
       const decisionLabel = recommendation.evidenceRead.canAct
         ? "Review this"
         : getVoicedAIActionLabel("Don't force it", "watch");
-      return `${recommendation.player.name}: ${decisionLabel} - ${recommendation.reason} (${recommendation.evidenceRead.label}; ${bidCopy}; ${competitionCopy})`;
+      return `${recommendation.player.name}: ${decisionLabel} - ${recommendation.reason} (${getWaiverEvidenceLabel(recommendation.evidenceRead)}; ${bidCopy}; ${competitionCopy})`;
     })
     .join(" Next: ");
   const summary = recommendations.length
-    ? `${openSpotCopy}${irSpotCopy} Pickup receipts: ${featuredRecommendationCopy}. ${targetCopy}`
+    ? `${openSpotCopy}${irSpotCopy} Next move: ${featuredRecommendationCopy}. ${targetCopy}`
     : null;
 
   return {
@@ -2394,7 +2407,7 @@ export default function WaiverIntelligencePanel({
             <span>D/ST pairing read</span>
             <strong>{recommendationContext.defensePairingPlan.title}</strong>
             <em>
-              {recommendationContext.defensePairingPlan.confidencePct}% confidence
+              {getWaiverReadStrengthLabel(recommendationContext.defensePairingPlan.confidencePct)}
             </em>
           </div>
           <p>{recommendationContext.defensePairingPlan.summary}</p>
@@ -2437,32 +2450,6 @@ export default function WaiverIntelligencePanel({
           </div>
         </div>
       )}
-      {data.omittedCandidates?.length ? (
-        <details className="waiver-intel-source-review">
-          <summary>
-            <span>Admin source review</span>
-            <strong>{data.omittedCandidates.length} waiver ideas omitted</strong>
-          </summary>
-          <div className="waiver-intel-source-review-list">
-            {data.omittedCandidates.slice(0, 8).map(candidate => (
-              <div
-                key={candidate.player_id}
-                className="waiver-intel-source-review-row"
-              >
-                <span>
-                  {candidate.name} · {candidate.pos}
-                  {candidate.team ? ` · ${candidate.team}` : ""}
-                </span>
-                <em>
-                  {candidate.rank || "No rank"} · {candidate.sourceCount} source
-                  {candidate.sourceCount === 1 ? "" : "s"}
-                </em>
-                <p>{candidate.reason}</p>
-              </div>
-            ))}
-          </div>
-        </details>
-      ) : null}
       {aiTargetCards.length > 0 && (
         <div className="waiver-ai-target-strip">
           <div className="waiver-ai-target-strip-head">
@@ -2488,9 +2475,6 @@ export default function WaiverIntelligencePanel({
               const weeklyEcrRank = getWaiverWeeklyEcrBestRank(weeklyEcrSignal);
               const weeklyEcrWindow = formatWaiverWeeklyEcrWindow(weeklyEcrSignal);
               const weeklyProjection = player.weeklyProjection || details?.weeklyProjection || null;
-              const receiptItems = getAIEvidenceReceiptItems(
-                recommendation.evidenceRead
-              );
               const openPlayerDetail = () =>
                 setSelectedPlayer(
                   buildPlayerModalData({
@@ -2534,7 +2518,7 @@ export default function WaiverIntelligencePanel({
                   <div className="waiver-ai-target-read">
                     <div className="waiver-ai-target-verdict">
                       <span className={`waiver-ai-evidence-label waiver-ai-evidence-label-${recommendation.evidenceRead.label.replace(/\s+/g, "-")}`}>
-                        {recommendation.evidenceRead.label}
+                        {getWaiverEvidenceLabel(recommendation.evidenceRead)}
                       </span>
                       <strong>
                         {recommendation.evidenceRead.canAct
@@ -2574,7 +2558,7 @@ export default function WaiverIntelligencePanel({
                         className={`waiver-intel-threat waiver-intel-threat-${recommendation.competitionRead?.level.toLowerCase() || "low"}`}
                         title={
                           recommendation.competitionRead?.reason ||
-                          "No strong competing manager signal returned."
+                          "No strong competing manager signal yet."
                         }
                       >
                         <em>
@@ -2589,7 +2573,7 @@ export default function WaiverIntelligencePanel({
                         </strong>
                         <small>
                           {recommendation.competitionRead?.reason ||
-                            "No strong competing-claim signal returned."}
+                            "No strong competing-claim signal yet."}
                         </small>
                       </span>
                       {weeklyEcrSignal && (
@@ -2607,16 +2591,6 @@ export default function WaiverIntelligencePanel({
                         onOpenPlayerDetail={openPlayerDetail}
                       />
                     </div>
-                    {receiptItems.length > 0 && (
-                      <details className="waiver-ai-evidence-receipts">
-                        <summary>Receipts</summary>
-                        <ul>
-                          {receiptItems.slice(0, 6).map(item => (
-                            <li key={item}>{item}</li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
                   </div>
                 </article>
               );

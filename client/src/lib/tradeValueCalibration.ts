@@ -178,31 +178,31 @@ export function buildTradeValueCalibrationNote({
   calibration: TradeValueCalibration;
   side: "incoming" | "outgoing" | "neutral";
 }): string {
-  const move = `${formatSigned(calibration.diff)} since the first stored value snapshot`;
+  const move = `${formatSigned(calibration.diff)} since the earliest value check`;
   if (calibration.outcome === "low-denominator-watch") {
     return `${name} has a low-baseline value move (${move}), so this should stay watch-list language instead of becoming a hard trade demand.`;
   }
   if (calibration.outcome === "confirmed-riser") {
     return side === "outgoing"
-      ? `Selling ${name} means moving a validated riser (${move}); make the return pay for that momentum.`
-      : `Buying ${name} adds a validated riser (${move}), so the price can be justified when roster fit also checks out.`;
+      ? `Selling ${name} means moving a confirmed riser (${move}); make the return pay for that momentum.`
+      : `Buying ${name} adds a confirmed riser (${move}), so the price can be justified when roster fit also checks out.`;
   }
   if (calibration.outcome === "confirmed-faller") {
     return side === "incoming"
-      ? `Buying ${name} carries a validated faller tag (${move}); require situation evidence before treating it as a discount.`
-      : `Moving ${name} off the roster trims a validated faller profile (${move}), which can protect the rest of the package.`;
+      ? `Buying ${name} carries a confirmed faller tag (${move}); require role and schedule context before treating it as a discount.`
+      : `Moving ${name} off the roster trims a confirmed faller profile (${move}), which can protect the rest of the package.`;
   }
   if (calibration.outcome === "watch-riser") {
     return side === "outgoing"
       ? `${name} has a soft riser signal (${move}); avoid tossing that momentum into a deal as a casual throw-in.`
-      : `${name} has a soft riser signal (${move}); use it as supporting evidence, not the whole case.`;
+      : `${name} has a soft riser signal (${move}); use it as supporting context, not the whole case.`;
   }
   if (calibration.outcome === "watch-faller") {
     return side === "incoming"
       ? `${name} has a soft faller signal (${move}); keep the offer protected unless the role evidence offsets it.`
       : `${name} has a soft faller signal (${move}); moving that risk can be reasonable if the value gap is close.`;
   }
-  return `${name}'s stored value movement is stable, so trade copy should stay focused on fit and price.`;
+  return `${name}'s value movement is stable, so trade copy should stay focused on fit and price.`;
 }
 
 function getOutcomeDisplay(outcome: TradeValueCalibrationOutcome): Pick<
@@ -210,10 +210,10 @@ function getOutcomeDisplay(outcome: TradeValueCalibrationOutcome): Pick<
   "label" | "chip" | "tone"
 > {
   if (outcome === "confirmed-riser") {
-    return { label: "Validated Riser", chip: "Riser +", tone: "good" };
+    return { label: "Confirmed Riser", chip: "Riser +", tone: "good" };
   }
   if (outcome === "confirmed-faller") {
-    return { label: "Validated Faller", chip: "Faller -", tone: "danger" };
+    return { label: "Confirmed Faller", chip: "Faller -", tone: "danger" };
   }
   if (outcome === "watch-riser") {
     return { label: "Soft Riser", chip: "Watch +", tone: "good" };

@@ -104,7 +104,7 @@ function getConfidenceBand({
   if (evidenceRead?.hardBlockers?.length) {
     return {
       label: 'Blocked',
-      detail: 'A hard guardrail is still active.',
+      detail: 'A hard risk flag is active.',
     };
   }
   if (
@@ -113,38 +113,80 @@ function getConfidenceBand({
     hasUnhealthySourceTrace(evidenceRead)
   ) {
     return {
-      label: 'Source-limited',
-      detail: 'Verify missing or stale context before acting.',
+      label: 'Verify first',
+      detail: 'Check roster, role, timing, and availability before acting.',
     };
   }
   if (value >= 78) {
     return {
-      label: 'Strong',
-      detail: 'Evidence is strong enough to trust, then verify.',
+      label: 'Strong read',
+      detail: 'Useful enough to act after a final roster check.',
     };
   }
   if (value >= 46) {
     return {
-      label: 'Watch',
-      detail: 'Directional read; wait for stronger proof before forcing it.',
+      label: 'Watch only',
+      detail: 'Directional only; wait for a cleaner move.',
     };
   }
   return {
-    label: 'Thin',
-    detail: 'Too little evidence for an action.',
+    label: 'Not enough signal',
+    detail: 'Hide or hold until a manager-useful signal appears.',
   };
 }
 
 function getDefaultConfidenceNote(value: number): string {
-  if (value >= 78) return 'Strong evidence; verify current roster and availability before acting.';
-  if (value >= 62) return 'Usable evidence; confirm roster, format, and source freshness.';
-  if (value >= 46) return 'Directional read; verify missing context before acting.';
-  return 'Low evidence; do not act until roster, availability, and sources check out.';
+  if (value >= 78) return 'Strong read; verify current roster and availability before acting.';
+  if (value >= 62) return 'Useful read; confirm roster, format, and timing.';
+  if (value >= 46) return 'Directional read; verify role and availability before acting.';
+  return 'Not enough manager-useful signal for an action.';
+}
+
+function sanitizeReadChip(chip: AIReadChip): { label: string; tone: AIReadSeverity } | null {
+  const rawLabel = typeof chip === 'string' ? chip : chip.label;
+  const tone = typeof chip === 'string' ? 'neutral' : chip.tone || 'neutral';
+  const label = normalizeTraceItem(rawLabel);
+  const lower = label.toLowerCase();
+
+  if (!label) return null;
+
+  if (lower.includes('source-limited') || lower.includes('limited source')) {
+    return { label: 'Verify first', tone: 'warn' };
+  }
+  if (lower.includes('blocked')) {
+    return { label: 'Blocked', tone: 'danger' };
+  }
+  if ((lower.includes('strong') || lower.includes('usable')) && /read|signal|evidence|\d/.test(lower)) {
+    return { label: 'Strong read', tone: 'good' };
+  }
+  if ((lower.includes('watch') || lower.includes('thin') || lower.includes('limited')) && /read|signal|evidence|\d/.test(lower)) {
+    return { label: lower.includes('thin') ? 'Not enough signal' : 'Watch only', tone: lower.includes('thin') ? 'warn' : 'neutral' };
+  }
+  if (/%/.test(label) && /\b(confidence|score|read|signal|evidence|priority)\b/.test(lower)) {
+    return { label: 'Read strength', tone };
+  }
+
+  const internalFragments = [
+    'calibration',
+    'confidence cap',
+    'evidence',
+    'payload',
+    'receipt',
+    'row count',
+    'source health',
+    'source trace',
+    'source:',
+    'trace',
+  ];
+  if (internalFragments.some(fragment => lower.includes(fragment))) return null;
+
+  return { label, tone };
 }
 
 function renderChip(chip: AIReadChip, index: number) {
-  const label = typeof chip === 'string' ? chip : chip.label;
-  const tone = typeof chip === 'string' ? 'neutral' : chip.tone || 'neutral';
+  const normalizedChip = sanitizeReadChip(chip);
+  if (!normalizedChip) return null;
+  const { label, tone } = normalizedChip;
 
   return (
     <span key={`${label}-${tone}-${index}`} className={cn('ai-read-chip', `ai-read-chip-${tone}`)}>
@@ -163,9 +205,12 @@ function isManagerFacingTraceItem(item: string): boolean {
 
   const internalFragments = [
     'calibration memory',
+    'confidence',
     'confidence cap',
     'confidence is limited',
     'confidence limited',
+    'evidence',
+    'evidence check',
     'guardrail',
     'league activity profile',
     'league format context',
@@ -174,9 +219,12 @@ function isManagerFacingTraceItem(item: string): boolean {
     'missing proof',
     'missing source',
     'payload',
+    'precondition',
     'receipt',
+    'row count',
     'roster-intelligence',
     'soft penalty',
+    'source proof',
     'source freshness',
     'source health',
     'source trace',
@@ -210,7 +258,7 @@ function getVisibleTraceItems(traceItems?: string[]) {
 function getTraceGroupLabel(traceLabel?: string) {
   const normalized = normalizeTraceItem(traceLabel || '');
   if (!normalized || /^(why|signals?|receipts?|evidence)$/i.test(normalized)) {
-    return 'What to know';
+    return 'Why this matters';
   }
   return normalized;
 }
@@ -524,10 +572,10 @@ function AIReadPanelContent({
         {normalizedConfidence !== null && (
           <div
             className="ai-read-confidence"
-            aria-label={`AI evidence band ${confidenceBand?.label || getConfidenceLabel(normalizedConfidence)}`}
-            title={[displayedConfidenceNote, `Score: ${normalizedConfidence}%`].filter(Boolean).join(' ')}
+            aria-label={`AI read strength ${confidenceBand?.label || getConfidenceLabel(normalizedConfidence)}`}
+            title={displayedConfidenceNote || undefined}
           >
-            <span>Evidence band</span>
+            <span>Read strength</span>
             <strong>{confidenceBand?.label || getConfidenceLabel(normalizedConfidence)}</strong>
             {confidenceBand?.detail && <small>{confidenceBand.detail}</small>}
             <em>
@@ -600,7 +648,7 @@ function AIReadTrace({ groups }: { groups: AIReadTraceGroup[] }) {
       onToggle={event => setIsOpen(event.currentTarget.open)}
     >
       <summary className="ai-read-trace-kicker">
-        What to know <span>{totalSignals} note{totalSignals === 1 ? '' : 's'}</span>
+        Why this matters <span>{totalSignals} note{totalSignals === 1 ? '' : 's'}</span>
       </summary>
       {isOpen && (
         <div className="ai-read-trace-body">

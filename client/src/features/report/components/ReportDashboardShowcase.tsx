@@ -430,7 +430,7 @@ const TAB_HERO_COPY = {
   hacks: {
     headline: "ADMIN HACKS.\nEYES ONLY.",
     subline: "The stuff normal league mates should not see.",
-    body: "Diagnostics, hidden snapshots, source health, and operational receipts live here so the main report can stay clean.",
+    body: "Diagnostics and hidden operational snapshots live here so the main report can stay clean.",
   },
 } satisfies Record<
   "overview" | "momentum" | "rankings" | "trades" | "draft" | "hacks",
@@ -466,7 +466,7 @@ const REDRAFT_TAB_HERO_COPY = {
   hacks: {
     headline: "ADMIN HACKS.\nEYES ONLY.",
     subline: "Diagnostics stay out of the public report.",
-    body: "Hidden snapshots, source health, and operational receipts live here so the standard redraft report remains focused.",
+    body: "Hidden operational snapshots live here so the standard redraft report remains focused.",
   },
 } satisfies Record<
   "overview" | "momentum" | "rankings" | "trades" | "draft" | "hacks",

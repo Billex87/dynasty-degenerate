@@ -1,0 +1,984 @@
+.flp,
+.flp * {
+  box-sizing: border-box;
+}
+
+.flp {
+  position: fixed;
+  inset: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background:
+    radial-gradient(circle at 12% 14%, rgba(255, 138, 42, 0.22), transparent 32%),
+    radial-gradient(circle at 84% 12%, rgba(36, 245, 255, 0.2), transparent 34%),
+    radial-gradient(circle at 50% 115%, rgba(23, 128, 92, 0.28), transparent 42%),
+    linear-gradient(145deg, #030711, #041323 48%, #02050c);
+  color: #f8fbff;
+  font-family: Oswald, Inter, system-ui, sans-serif;
+}
+
+.flp-stadium {
+  position: absolute;
+  inset: -14% -10%;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(125, 247, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 247, 255, 0.06) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 0%, rgba(255, 180, 106, 0.24), transparent 36%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 5.8rem);
+  background-size: 2.6rem 2.6rem, 2.6rem 2.6rem, auto, auto;
+  opacity: 0.72;
+  transform: perspective(1000px) rotateX(58deg) translateY(10%) scale(1.38);
+  transform-origin: center bottom;
+}
+
+.flp-board {
+  position: relative;
+  z-index: 1;
+  width: min(76rem, calc(100vw - 2rem));
+  min-height: min(42rem, calc(100vh - 2.5rem));
+  overflow: hidden;
+  border: 1px solid rgba(125, 247, 255, 0.22);
+  border-radius: 1.15rem;
+  background:
+    linear-gradient(rgba(125, 247, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 247, 255, 0.04) 1px, transparent 1px),
+    radial-gradient(circle at 8% 0%, rgba(255, 138, 42, 0.2), transparent 30%),
+    radial-gradient(circle at 92% 6%, rgba(36, 245, 255, 0.18), transparent 34%),
+    linear-gradient(145deg, rgba(3, 10, 22, 0.96), rgba(2, 6, 23, 0.9));
+  background-size: 1.45rem 1.45rem, 1.45rem 1.45rem, auto, auto, auto;
+  box-shadow:
+    0 34px 120px rgba(0, 0, 0, 0.64),
+    0 0 70px rgba(36, 245, 255, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    inset 0 0 5rem rgba(0, 0, 0, 0.42);
+}
+
+.flp-header {
+  position: absolute;
+  left: 1.15rem;
+  top: 1.15rem;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 0.8rem;
+  max-width: min(31rem, calc(100% - 2rem));
+  pointer-events: none;
+}
+
+.flp-header img {
+  width: 4.1rem;
+  height: 4.1rem;
+  border: 1px solid rgba(125, 247, 255, 0.38);
+  border-radius: 999px;
+  background: #020617;
+  box-shadow:
+    0 0 1.4rem rgba(36, 245, 255, 0.28),
+    0 0 1.1rem rgba(255, 138, 42, 0.18);
+}
+
+.flp-prototype-label,
+.flp-state span,
+.flp-header p,
+.flp-state dt {
+  margin: 0;
+  color: #67e8f9;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.flp-prototype-label {
+  border: 1px solid rgba(103, 232, 249, 0.36);
+  border-radius: 999px;
+  padding: 0.34rem 0.58rem;
+  background: rgba(2, 8, 18, 0.76);
+}
+
+.flp-header h1 {
+  margin: 0.12rem 0 0;
+  color: #ffb46a;
+  font-size: 2.15rem;
+  line-height: 0.92;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 1.2rem rgba(255, 138, 42, 0.28),
+    0 2px 18px rgba(0, 0, 0, 0.72);
+}
+
+.flp-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.flp-field {
+  position: absolute;
+  inset: 6.25rem 1.2rem 7rem;
+  overflow: hidden;
+  border: 1px solid rgba(125, 247, 255, 0.18);
+  border-radius: 1rem;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    repeating-linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0 7%, rgba(15, 118, 110, 0.1) 7% 14%),
+    radial-gradient(circle at 50% 20%, rgba(36, 245, 255, 0.12), transparent 34%),
+    linear-gradient(145deg, rgba(4, 24, 30, 0.82), rgba(3, 12, 24, 0.94));
+  background-size: 8% 100%, auto, auto, auto;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+    inset 0 0 5rem rgba(0, 0, 0, 0.42),
+    0 0 2rem rgba(36, 245, 255, 0.09);
+}
+
+.flp-field::before,
+.flp-field::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+}
+
+.flp-field::before {
+  background:
+    linear-gradient(90deg, transparent 0 8%, rgba(255, 255, 255, 0.22) 8% 8.25%, transparent 8.25% 16%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 18%, transparent 82%, rgba(255, 255, 255, 0.08));
+  opacity: 0.34;
+  mix-blend-mode: screen;
+}
+
+.flp-field::after {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 30%, rgba(2, 6, 23, 0.44) 76%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.18), transparent 22%, transparent 74%, rgba(2, 6, 23, 0.28));
+}
+
+.flp-state {
+  position: absolute;
+  right: 1.15rem;
+  bottom: 1.15rem;
+  z-index: 12;
+  width: min(23rem, calc(100% - 2.3rem));
+  border: 1px solid rgba(125, 247, 255, 0.22);
+  border-radius: 0.85rem;
+  background: rgba(2, 8, 18, 0.76);
+  padding: 0.95rem;
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+  backdrop-filter: blur(10px);
+}
+
+.flp-state strong {
+  display: block;
+  margin-top: 0.28rem;
+  color: #f8fbff;
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+
+.flp-state p {
+  margin: 0.46rem 0 0;
+  color: rgba(226, 232, 240, 0.76);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.flp-state dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0.78rem 0 0;
+}
+
+.flp-state div {
+  min-width: 0;
+  border: 1px solid rgba(125, 247, 255, 0.13);
+  border-radius: 0.68rem;
+  background: rgba(15, 23, 42, 0.48);
+  padding: 0.52rem 0.6rem;
+}
+
+.flp-state dd {
+  margin: 0.12rem 0 0;
+  color: #ffb46a;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.flp-manager {
+  position: absolute;
+  z-index: 4;
+  display: grid;
+  width: 4.35rem;
+  height: 4.35rem;
+  place-items: center;
+  border-radius: 999px;
+  filter:
+    drop-shadow(0 0 0.9rem rgba(36, 245, 255, 0.44))
+    drop-shadow(0 0 1.1rem rgba(255, 138, 42, 0.2));
+  will-change: transform, opacity;
+}
+
+.flp-manager::before {
+  position: absolute;
+  inset: -0.28rem;
+  border: 1px solid rgba(125, 247, 255, 0.32);
+  border-top-color: rgba(255, 180, 106, 0.68);
+  border-radius: inherit;
+  content: "";
+  animation: flp-icon-ring 0.92s linear infinite;
+}
+
+.flp-manager img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 1px solid rgba(125, 247, 255, 0.42);
+  border-radius: inherit;
+  background: #020617;
+  object-fit: cover;
+  box-shadow:
+    inset 0 0 0 2px rgba(2, 6, 23, 0.88),
+    0 0 0 1px rgba(2, 6, 23, 0.74),
+    0 0 1rem rgba(34, 211, 238, 0.24);
+}
+
+.flp-manager em {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.32rem);
+  width: max-content;
+  max-width: 7rem;
+  overflow: hidden;
+  border: 1px solid rgba(125, 247, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(2, 8, 18, 0.74);
+  color: rgba(226, 232, 240, 0.8);
+  font-size: 0.64rem;
+  font-style: normal;
+  font-weight: 800;
+  padding: 0.16rem 0.42rem;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.flp-football {
+  position: absolute;
+  z-index: 6;
+  width: 4.9rem;
+  aspect-ratio: 1.85 / 1;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent 45%, rgba(255, 255, 255, 0.82) 47% 53%, transparent 55%),
+    radial-gradient(ellipse at 50% 50%, rgba(255, 236, 198, 0.28), transparent 35%),
+    linear-gradient(145deg, #6d2a12, #fb923c 44%, #7c2d12);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 -0.4rem 0.8rem rgba(39, 12, 4, 0.36),
+    0 0 1.8rem rgba(251, 146, 60, 0.3),
+    0 0 2.2rem rgba(34, 211, 238, 0.14);
+  will-change: transform;
+}
+
+.flp-football__lace {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.3rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background:
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0 0.14rem, transparent 0.14rem 0.31rem);
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.flp-line {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.flp-line-scrimmage {
+  left: 0;
+  right: 0;
+  bottom: 21%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 180, 106, 0.82), transparent);
+  box-shadow: 0 0 1.2rem rgba(255, 138, 42, 0.36);
+}
+
+.flp-line-endzone {
+  inset: 8% 3% auto;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.72), transparent);
+}
+
+.flp-route {
+  position: absolute;
+  z-index: 2;
+  border: 2px solid rgba(125, 247, 255, 0.42);
+  border-bottom: 0;
+  border-left: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 0 0.8rem rgba(36, 245, 255, 0.2));
+}
+
+.flp-route-post {
+  left: 20%;
+  top: 16%;
+  width: 18%;
+  height: 42%;
+  border-radius: 0 1.6rem 0 0;
+  transform: skewX(-22deg);
+}
+
+.flp-route-wheel {
+  left: 52%;
+  bottom: 22%;
+  width: 22%;
+  height: 38%;
+  border-color: rgba(255, 180, 106, 0.46);
+  border-radius: 0 2rem 0 0;
+}
+
+.flp-route-dig {
+  left: 34%;
+  top: 36%;
+  width: 28%;
+  height: 20%;
+  border-top-color: rgba(255, 255, 255, 0.42);
+  border-radius: 0.8rem 0 0 0;
+}
+
+.flp-route-ball {
+  left: 49%;
+  bottom: 20%;
+  animation: flp-route-ball 4.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.flp-route-runner {
+  left: var(--sx);
+  top: var(--sy);
+  animation: flp-route-run 5.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  animation-delay: var(--delay);
+}
+
+.flp-field-hail {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 236, 198, 0.28), transparent 22%),
+    radial-gradient(circle at 88% 0%, rgba(125, 247, 255, 0.28), transparent 24%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    repeating-linear-gradient(90deg, rgba(19, 78, 74, 0.12) 0 8%, rgba(22, 101, 52, 0.11) 8% 16%),
+    linear-gradient(145deg, rgba(3, 13, 26, 0.95), rgba(4, 25, 28, 0.86));
+  background-size: auto, auto, 9% 100%, auto, auto;
+}
+
+.flp-light {
+  position: absolute;
+  top: -7%;
+  z-index: 1;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 236, 198, 0.32), rgba(255, 180, 106, 0.11) 36%, transparent 68%);
+  filter: blur(8px);
+}
+
+.flp-light-left {
+  left: -8%;
+}
+
+.flp-light-right {
+  right: -8%;
+  background: radial-gradient(circle, rgba(125, 247, 255, 0.32), rgba(36, 245, 255, 0.1) 36%, transparent 68%);
+}
+
+.flp-hail-arc {
+  position: absolute;
+  z-index: 2;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 999px 0 0 0;
+  pointer-events: none;
+  transform: rotate(12deg);
+}
+
+.flp-hail-arc-a {
+  left: 12%;
+  top: 18%;
+  width: 66%;
+  height: 54%;
+  border-color: rgba(255, 180, 106, 0.34);
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+}
+
+.flp-hail-arc-b {
+  left: 22%;
+  top: 9%;
+  width: 52%;
+  height: 44%;
+  border-color: rgba(125, 247, 255, 0.3);
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+}
+
+.flp-hail-arc-c {
+  left: 6%;
+  top: 32%;
+  width: 78%;
+  height: 42%;
+}
+
+.flp-hail-ball {
+  left: 12%;
+  bottom: 18%;
+  animation: flp-hail-ball 4.3s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.flp-hail-manager {
+  left: var(--x0);
+  top: var(--y0);
+  animation: flp-hail-manager 5.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  animation-delay: var(--delay);
+}
+
+.flp-field-goal {
+  background:
+    linear-gradient(90deg, transparent 49.6%, rgba(255, 180, 106, 0.42) 49.6% 50.4%, transparent 50.4%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    repeating-linear-gradient(90deg, rgba(22, 101, 52, 0.1) 0 10%, rgba(20, 83, 45, 0.14) 10% 20%),
+    linear-gradient(145deg, rgba(3, 12, 24, 0.94), rgba(4, 24, 30, 0.9));
+  background-size: auto, 10% 100%, auto, auto;
+}
+
+.flp-goal-post {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  z-index: 2;
+  width: 13rem;
+  height: 6rem;
+  border: 0.35rem solid rgba(255, 180, 106, 0.82);
+  border-bottom: 0;
+  border-radius: 0.24rem;
+  box-shadow: 0 0 1.8rem rgba(255, 138, 42, 0.28);
+  transform: translateX(-50%);
+}
+
+.flp-goal-post::after {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 0.35rem;
+  height: 9rem;
+  background: rgba(255, 180, 106, 0.82);
+  box-shadow: 0 0 1.8rem rgba(255, 138, 42, 0.26);
+  content: "";
+  transform: translateX(-50%);
+}
+
+.flp-collision-core {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  z-index: 5;
+  width: 9rem;
+  height: 9rem;
+  border: 1px solid rgba(125, 247, 255, 0.38);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(255, 236, 198, 0.28), rgba(255, 138, 42, 0.22) 28%, rgba(36, 245, 255, 0.08) 52%, transparent 70%);
+  filter: blur(1px);
+  opacity: 0.76;
+  transform: translate(-50%, -50%);
+  animation: flp-collision-pulse 1.7s ease-in-out infinite;
+}
+
+.flp-goal-ball {
+  left: 48%;
+  top: 55%;
+  animation: flp-goal-ball 3.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.flp-trench-manager {
+  top: var(--top);
+  animation-duration: 3.8s;
+  animation-iteration-count: infinite;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-delay: var(--delay);
+}
+
+.flp-trench-offense {
+  left: var(--start);
+  animation-name: flp-trench-offense;
+}
+
+.flp-trench-defense {
+  left: var(--start);
+  animation-name: flp-trench-defense;
+}
+
+.flp-field-sling {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(36, 245, 255, 0.14), transparent 32%),
+    radial-gradient(circle at 50% 50%, rgba(255, 138, 42, 0.14), transparent 46%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    repeating-linear-gradient(90deg, rgba(5, 46, 36, 0.18) 0 8%, rgba(3, 30, 42, 0.22) 8% 16%),
+    linear-gradient(145deg, rgba(2, 10, 22, 0.96), rgba(3, 18, 28, 0.94));
+  background-size: auto, auto, 8% 100%, auto, auto;
+}
+
+.flp-portal {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+}
+
+.flp-portal-outer {
+  width: min(42rem, 74%);
+  aspect-ratio: 1;
+  border: 1px solid rgba(125, 247, 255, 0.32);
+  box-shadow:
+    0 0 4rem rgba(36, 245, 255, 0.16),
+    inset 0 0 4rem rgba(255, 138, 42, 0.1);
+  animation: flp-portal-spin 9s linear infinite;
+}
+
+.flp-portal-inner {
+  width: min(22rem, 42%);
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 180, 106, 0.42);
+  box-shadow:
+    0 0 3rem rgba(255, 138, 42, 0.14),
+    inset 0 0 2.4rem rgba(36, 245, 255, 0.1);
+  animation: flp-portal-spin 6.4s linear infinite reverse;
+}
+
+.flp-sling-lane {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 90%;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(125, 247, 255, 0.64), rgba(255, 180, 106, 0.68), transparent);
+  box-shadow:
+    0 0 1.4rem rgba(36, 245, 255, 0.26),
+    0 0 2rem rgba(255, 138, 42, 0.14);
+  transform: translate(-50%, -50%) rotate(-11deg);
+}
+
+.flp-sling-ball {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(-11deg);
+  animation: flp-sling-ball 4.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.flp-sling-manager {
+  left: 50%;
+  top: 50%;
+  animation: flp-sling-manager 5.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  animation-delay: var(--delay);
+}
+
+.flp-switcher {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 0.52rem;
+  border: 1px solid rgba(125, 247, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.9);
+  padding: 0.46rem 0.55rem;
+  box-shadow:
+    0 18px 56px rgba(0, 0, 0, 0.5),
+    0 0 2rem rgba(36, 245, 255, 0.14);
+  transform: translateX(-50%);
+  backdrop-filter: blur(14px);
+}
+
+.flp-switcher button {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border: 1px solid rgba(125, 247, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.86);
+  color: #f8fbff;
+  cursor: pointer;
+}
+
+.flp-switcher button:hover {
+  border-color: rgba(255, 180, 106, 0.58);
+  color: #ffb46a;
+}
+
+.flp-switcher svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.flp-switcher span {
+  min-width: 10.5rem;
+  color: #f8fbff;
+  font-size: 0.86rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@keyframes flp-icon-ring {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes flp-route-run {
+  0% {
+    left: var(--sx);
+    top: var(--sy);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.78) rotate(-7deg);
+  }
+  12% {
+    opacity: 1;
+  }
+  44% {
+    left: var(--mx);
+    top: var(--my);
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08) rotate(8deg);
+  }
+  72% {
+    left: var(--ex);
+    top: var(--ey);
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.94) rotate(-13deg);
+  }
+  100% {
+    left: var(--ex);
+    top: var(--ey);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.72) rotate(-21deg);
+  }
+}
+
+@keyframes flp-route-ball {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) rotate(-12deg) scale(0.72);
+  }
+  16% {
+    opacity: 1;
+  }
+  44% {
+    transform: translate(-8rem, -12rem) rotate(210deg) scale(1);
+  }
+  74% {
+    opacity: 1;
+    transform: translate(11rem, -21rem) rotate(430deg) scale(0.86);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(15rem, -24rem) rotate(540deg) scale(0.68);
+  }
+}
+
+@keyframes flp-hail-manager {
+  0% {
+    left: var(--x0);
+    top: var(--y0);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(var(--scale-start)) rotate(-18deg);
+  }
+  13% {
+    opacity: 1;
+  }
+  48% {
+    left: var(--x1);
+    top: var(--y1);
+    transform: translate(-50%, -50%) scale(var(--scale)) rotate(24deg);
+  }
+  78% {
+    left: var(--x2);
+    top: var(--y2);
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(var(--scale-end)) rotate(58deg);
+  }
+  100% {
+    left: var(--x2);
+    top: calc(var(--y2) + 10%);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.56) rotate(72deg);
+  }
+}
+
+@keyframes flp-hail-ball {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-22deg) scale(0.72);
+  }
+  12% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(28vw, -32vh) rotate(320deg) scale(1.02);
+  }
+  86% {
+    opacity: 1;
+    transform: translate(55vw, -6vh) rotate(610deg) scale(0.84);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(62vw, 4vh) rotate(700deg) scale(0.65);
+  }
+}
+
+@keyframes flp-collision-pulse {
+  0%, 100% {
+    opacity: 0.42;
+    transform: translate(-50%, -50%) scale(0.72);
+  }
+  48% {
+    opacity: 0.92;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  64% {
+    opacity: 0.52;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+}
+
+@keyframes flp-trench-offense {
+  0% {
+    opacity: 0.42;
+    transform: translate(-135%, -50%) scale(0.76);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(9vw, -50%) scale(0.95);
+  }
+  52% {
+    transform: translate(24vw, -50%) scale(1.08);
+  }
+  66% {
+    transform: translate(21vw, -50%) scale(0.96);
+  }
+  100% {
+    opacity: 0.42;
+    transform: translate(-135%, -50%) scale(0.76);
+  }
+}
+
+@keyframes flp-trench-defense {
+  0% {
+    opacity: 0.42;
+    transform: translate(135%, -50%) scale(0.76);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-9vw, -50%) scale(0.95);
+  }
+  52% {
+    transform: translate(-24vw, -50%) scale(1.08);
+  }
+  66% {
+    transform: translate(-21vw, -50%) scale(0.96);
+  }
+  100% {
+    opacity: 0.42;
+    transform: translate(135%, -50%) scale(0.76);
+  }
+}
+
+@keyframes flp-goal-ball {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 4rem) rotate(-14deg) scale(0.72);
+  }
+  28% {
+    opacity: 1;
+  }
+  54% {
+    transform: translate(-50%, -1rem) rotate(210deg) scale(1.06);
+  }
+  84% {
+    opacity: 1;
+    transform: translate(-50%, -15rem) rotate(520deg) scale(0.82);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -20rem) rotate(660deg) scale(0.62);
+  }
+}
+
+@keyframes flp-portal-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(1turn);
+  }
+}
+
+@keyframes flp-sling-manager {
+  0% {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      rotate(var(--angle))
+      translateX(var(--radius))
+      rotate(var(--counter-angle))
+      scale(var(--scale-start));
+  }
+  16% {
+    opacity: 1;
+  }
+  52% {
+    transform:
+      translate(-50%, -50%)
+      rotate(calc(var(--angle) + 180deg))
+      translateX(var(--radius))
+      rotate(calc(var(--counter-angle) - 180deg))
+      scale(var(--scale));
+  }
+  74% {
+    opacity: 1;
+    transform: translate(22rem, -6rem) rotate(21deg) scale(var(--scale-end));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(31rem, -9rem) rotate(34deg) scale(0.52);
+  }
+}
+
+@keyframes flp-sling-ball {
+  0%, 24% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) rotate(-11deg) scale(0.82);
+  }
+  48% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(160deg) scale(1.08);
+  }
+  78% {
+    opacity: 1;
+    transform: translate(22rem, -5rem) rotate(500deg) scale(0.86);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(31rem, -7rem) rotate(650deg) scale(0.62);
+  }
+}
+
+@media (max-width: 760px) {
+  .flp {
+    padding: 0.75rem;
+  }
+
+  .flp-board {
+    width: min(100%, 26rem);
+    min-height: calc(100vh - 1.5rem);
+    border-radius: 0.95rem;
+  }
+
+  .flp-header {
+    left: 0.85rem;
+    top: 0.85rem;
+    grid-template-columns: auto 1fr;
+    gap: 0.58rem;
+  }
+
+  .flp-prototype-label {
+    display: none;
+  }
+
+  .flp-header img {
+    width: 3.35rem;
+    height: 3.35rem;
+  }
+
+  .flp-header h1 {
+    font-size: 1.35rem;
+  }
+
+  .flp-header p {
+    font-size: 0.62rem;
+  }
+
+  .flp-field {
+    inset: 5rem 0.65rem 10.4rem;
+  }
+
+  .flp-manager {
+    width: 3.05rem;
+    height: 3.05rem;
+  }
+
+  .flp-manager em {
+    display: none;
+  }
+
+  .flp-football {
+    width: 3.6rem;
+  }
+
+  .flp-state {
+    right: 0.75rem;
+    bottom: 4.65rem;
+    left: 0.75rem;
+    width: auto;
+    padding: 0.72rem;
+  }
+
+  .flp-state strong {
+    font-size: 0.92rem;
+  }
+
+  .flp-state p {
+    display: none;
+  }
+
+  .flp-state dl {
+    margin-top: 0.56rem;
+  }
+
+  .flp-switcher {
+    bottom: 0.72rem;
+  }
+
+  .flp-switcher span {
+    min-width: 8.6rem;
+    font-size: 0.78rem;
+  }
+
+  .flp-goal-post {
+    width: 8rem;
+    height: 4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flp *,
+  .flp *::before,
+  .flp *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

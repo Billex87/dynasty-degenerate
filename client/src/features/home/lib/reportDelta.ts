@@ -404,7 +404,7 @@ export function buildReportDeltaChanges(
       id: "schedule",
       label: "Schedule read updated",
       summary: `${current.scheduleSignalCount} schedule signal${current.scheduleSignalCount === 1 ? "" : "s"}`,
-      detail: "Bye-week, streamer, or schedule-planning evidence changed.",
+      detail: "Bye-week, streamer, or schedule-planning context changed.",
       tone: current.scheduleStatus === "ready" ? "good" : "warn",
       receipts: [
         `Previous: ${previous.scheduleStatus || "missing"}`,
@@ -422,12 +422,12 @@ export function buildReportDeltaChanges(
     const delta = current.aiConfidence - previous.aiConfidence;
     changes.push({
       id: "confidence",
-      label: "Confidence moved",
-      summary: `${delta > 0 ? "+" : ""}${delta} AI confidence`,
+      label: "Read strength moved",
+      summary: `${delta > 0 ? "+" : ""}${delta} read strength`,
       detail:
         delta > 0
-          ? "More source evidence is supporting the current read."
-          : "The current read is limited more strongly than the previous baseline.",
+          ? "The current read has firmer roster, value, or schedule support."
+          : "The current read needs a firmer roster, value, or schedule signal than the baseline.",
       tone: delta > 0 ? "good" : "warn",
       receipts: [
         `Previous: ${previous.aiConfidence}`,

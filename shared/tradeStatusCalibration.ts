@@ -85,10 +85,10 @@ function buildTradeStatusRow(manager: string, buckets: TradeStatusBucket[]): Tra
   }
 
   const noteParts = [
-    `${signalCount} visible proposal signal${signalCount === 1 ? "" : "s"}`,
+    `${signalCount} proposal pattern${signalCount === 1 ? "" : "s"}`,
     acceptedCount ? `${acceptedCount} accepted` : null,
     counterCount ? `${counterCount} countered` : null,
-    blockedCount ? `${blockedCount} blocked` : null,
+    blockedCount ? `${blockedCount} declined` : null,
     pendingCount ? `${pendingCount} pending` : null,
   ].filter(Boolean);
 

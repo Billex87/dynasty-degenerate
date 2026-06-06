@@ -160,7 +160,7 @@ function renderTradeFitRead(
 
 export function getTradeGapVerdict(gap: number) {
   return getSharedTradeGapVerdict(gap, {
-    largeFireLabel: "Receipts Needed",
+    largeFireLabel: "Verify First",
   });
 }
 

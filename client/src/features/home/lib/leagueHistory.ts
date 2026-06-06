@@ -388,12 +388,44 @@ export function buildLoadingManagerAnchors(
   }));
 }
 
+const PREVIEW_MANAGER_PALETTE = [
+  ["#063a52", "#ff8a2a", "#24f5ff"],
+  ["#431707", "#0d7288", "#ffb45a"],
+  ["#052237", "#7a3b16", "#24f5ff"],
+  ["#092f3f", "#ff8a2a", "#8cf8ff"],
+  ["#331207", "#084d61", "#ff8a2a"],
+  ["#062b43", "#8a4217", "#24f5ff"],
+  ["#041826", "#ff8a2a", "#24f5ff"],
+  ["#4b1e0d", "#053549", "#ffb45a"],
+] as const;
+
+function buildPreviewManagerAvatar(index: number) {
+  const [primary, secondary, accent] =
+    PREVIEW_MANAGER_PALETTE[index % PREVIEW_MANAGER_PALETTE.length];
+  const label = String.fromCharCode(65 + (index % 26));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+    <defs>
+      <radialGradient id="g" cx="32%" cy="24%" r="78%">
+        <stop stop-color="${accent}"/>
+        <stop offset=".46" stop-color="${primary}"/>
+        <stop offset="1" stop-color="${secondary}"/>
+      </radialGradient>
+    </defs>
+    <rect width="80" height="80" rx="24" fill="url(#g)"/>
+    <circle cx="40" cy="40" r="28" fill="#020712" opacity=".82"/>
+    <path d="M18 47c9-18 35-24 47-8-7 20-32 25-47 8Z" fill="${index % 2 ? "#24f5ff" : "#ff8a2a"}" opacity=".9"/>
+    <text x="40" y="47" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-size="22" fill="#fff8e7">${label}</text>
+  </svg>`;
+
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 export function buildPreviewLoadingManagerAnchors(
   count = 12
 ): LoaderManagerAnchor[] {
   return Array.from({ length: count }, (_, index) => ({
     id: `preview-manager-${index + 1}`,
-    avatarUrl: null,
+    avatarUrl: buildPreviewManagerAvatar(index),
   }));
 }
 

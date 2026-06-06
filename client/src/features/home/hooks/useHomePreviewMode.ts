@@ -44,7 +44,7 @@ export function useHomePreviewMode({
       if (previewMode === "success") {
         setLoadingTransitionPhase("success");
         setAnalysisCompleteMessage(PREVIEW_LEAGUE);
-        setLoadingManagerAnchors([]);
+        setLoadingManagerAnchors(buildPreviewLoadingManagerAnchors());
       } else {
         setLoadingTransitionPhase("loading");
         setPendingAnalysisLeague(PREVIEW_LEAGUE);

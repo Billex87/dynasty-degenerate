@@ -1,6 +1,6 @@
 import { getPlayerRankForMode, getPlayerValueForMode } from '@/lib/leagueValueMode';
 import { getShortTermMatchupOutlook } from '@shared/matchupWindows';
-import { evaluateAIEvidence, getAIEvidenceLeagueContextFromDiagnostics, getAIEvidenceReceiptItems } from '@shared/aiEvidenceEngine';
+import { evaluateAIEvidence, getAIEvidenceLeagueContextFromDiagnostics } from '@shared/aiEvidenceEngine';
 import type { AIEvidenceAction, AIEvidenceMode, AIEvidenceSurface, AIConfidenceLabel, AISourceTrace } from '@shared/aiEvidenceEngine';
 import { buildAIEvidenceLeagueActivityContext } from '@shared/leagueActivityContext';
 import { buildLeagueSharpnessProfile } from '@shared/leagueSharpness';
@@ -274,6 +274,41 @@ function shortenText(value?: string | null, maxLength = 180): string | null {
   return `${sentence || clean.slice(0, maxLength)}...`;
 }
 
+function sanitizeAutopilotCopy(value?: string | null): string | null {
+  const clean = shortenText(value, 210);
+  if (!clean) return null;
+  const lower = clean.toLowerCase();
+
+  if (/source|trace|evidence|calibration|confidence cap|proof|payload|row count|returned|receipt/.test(lower)) {
+    if (/schedule|sos|matchup|bye/.test(lower)) {
+      return 'Use the schedule window as a short-term tiebreaker only after checking the current week.';
+    }
+    if (/role|usage|lineup|starter/.test(lower)) {
+      return 'Role and lineup context need one more check before this becomes actionable.';
+    }
+    if (/availability|injury|roster|active|team|status/.test(lower)) {
+      return 'Availability and roster status need a final check before acting.';
+    }
+    if (/trade|partner|offer/.test(lower)) {
+      return 'Trade fit needs a cleaner partner and return path before forcing it.';
+    }
+    if (/rank|value|market/.test(lower)) {
+      return 'Market value is useful context, but not enough by itself to force the move.';
+    }
+    return null;
+  }
+
+  if (/\b(rows?|payload|source|profile|context)\b/.test(lower) && /\b(loaded|returned|attached)\b/.test(lower)) {
+    return null;
+  }
+
+  return clean;
+}
+
+function sanitizeAutopilotNotes(values: Array<string | null | undefined>, limit = 4): string[] {
+  return dedupeStrings(values.map(sanitizeAutopilotCopy), limit);
+}
+
 function dedupeStrings(values: Array<string | null | undefined>, limit = 4): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
@@ -459,7 +494,7 @@ function formatWeeklyProjectionRead(player?: AutopilotPlayerLike | null): string
       ? ` at ${projection.opponent}`
       : ` vs ${projection.opponent}`
     : '';
-  return `Stored weekly projection: ${projection.projectedFantasyPoints.toFixed(1)} points in Week ${projection.week}${opponent}.`;
+  return `Weekly projection: ${projection.projectedFantasyPoints.toFixed(1)} points in Week ${projection.week}${opponent}.`;
 }
 
 function findBestProjectionSwap(
@@ -646,7 +681,7 @@ function getRedraftValuationSignal(data: ReportData, row?: RedraftValuationRead 
   return isProjectionBackedRedraftValuation(data, row)
     ? 'Blended redraft value'
     : row
-      ? 'Stored redraft value'
+      ? 'Redraft value'
       : null;
 }
 
@@ -654,7 +689,7 @@ function getRedraftValuationEvidenceLabel(data: ReportData, row?: RedraftValuati
   return isProjectionBackedRedraftValuation(data, row)
     ? 'blended redraft valuation'
     : row
-      ? 'stored redraft valuation'
+      ? 'redraft valuation'
       : null;
 }
 
@@ -663,7 +698,7 @@ function getRedraftValuationStartSitReasons(
   playerName: string,
 ): string[] {
   if (!row) return [];
-  return [
+  return sanitizeAutopilotNotes([
     safeNumber(row.restOfSeasonValue) !== null && safeNumber(row.restOfSeasonProjectionPoints) !== null
       ? `${playerName} carries ${formatCompactValue(row.restOfSeasonValue)} derived rest-of-season value from ${safeNumber(row.restOfSeasonProjectionPoints)?.toFixed(1)} projected points over ${row.restOfSeasonWeeks || '?'} week${row.restOfSeasonWeeks === 1 ? '' : 's'}.`
       : null,
@@ -683,8 +718,7 @@ function getRedraftValuationStartSitReasons(
       ? `${playerName} replacement-level adjustment: ${formatSignedCompactValue(row.replacementAdjustment)}.`
       : null,
     ...(row.confidenceReasons || []).slice(0, 2),
-    row.confidenceCapReason ? `Confidence limit: ${row.confidenceCapReason}` : null,
-  ].filter((reason): reason is string => Boolean(reason));
+  ], 6);
 }
 
 function getRedraftValuationStartSitSignals(row?: RedraftValuationRead | null): string[] {
@@ -695,7 +729,6 @@ function getRedraftValuationStartSitSignals(row?: RedraftValuationRead | null): 
     safeNumber(row.replacementAdjustment) ? 'Replacement pressure' : null,
     safeNumber(row.roleAdjustment) ? 'Role trend' : null,
     safeNumber(row.scheduleAdjustment) ? 'Schedule edge' : null,
-    row.confidenceCapReason ? 'Confidence cap' : null,
   ].filter((signal): signal is string => Boolean(signal));
 }
 
@@ -741,7 +774,7 @@ function getPlayerSituationSignal(player?: AutopilotPlayerLike | null): string |
   if (!delta) return null;
   const signal = formatSituationLabel(delta.primaryLabel);
   const freshness = delta.freshness?.grade ? `${delta.freshness.grade} context` : 'situation context';
-  return `${signal} (${delta.confidence}% confidence, ${freshness})`;
+  return `${signal} (${freshness})`;
 }
 
 function getManagerSituationCopy(intel?: ManagerRosterIntelligence | null): string | null {
@@ -904,7 +937,7 @@ function buildManagerTendencyProfile(data: ReportData, manager: string): Manager
           ? 'Thin history'
           : 'Balanced manager';
   const summary = historyDepthScore < 45
-    ? `${manager} has limited observed history in this report, so Autopilot keeps confidence tighter until more manager behavior is available.`
+    ? `${manager} has limited observed history in this report, so trade and waiver reads should stay conservative until more manager behavior is available.`
     : `${manager} shows ${label.toLowerCase()} tendencies across ${seasonsTracked || 'current'} observed season${seasonsTracked === 1 ? '' : 's'}, ${tradeRows.length || tendency?.tradeCount || 0} trade signal${(tradeRows.length || tendency?.tradeCount || 0) === 1 ? '' : 's'}, and ${transactionRows.length} recent transaction${transactionRows.length === 1 ? '' : 's'}.`;
 
   return {
@@ -1136,7 +1169,7 @@ function buildSystemRead(data: ReportData): AutopilotScore[] {
   ].filter(Boolean).length;
 
   const rows: AutopilotScore[] = leagueConfidence ? [{
-    label: 'League AI confidence',
+    label: 'Read strength',
     value: clampPercent(leagueConfidence.score),
     tone: scoreTone(leagueConfidence.score),
   }] : [];
@@ -1144,7 +1177,7 @@ function buildSystemRead(data: ReportData): AutopilotScore[] {
   return [
     ...rows,
     {
-      label: 'Roster data',
+      label: 'Roster map',
       value: clampPercent(42 + Math.min(46, (rosterRows / leagueSize) * 46) + (data.managerPositionCounts?.length ? 10 : 0)),
       tone: rosterRows ? 'good' : 'warn',
     },
@@ -1154,12 +1187,12 @@ function buildSystemRead(data: ReportData): AutopilotScore[] {
       tone: marketSignals >= 3 ? 'good' : marketSignals >= 2 ? 'info' : 'warn',
     },
     {
-      label: 'History depth',
+      label: 'Manager pattern',
       value: clampPercent(20 + Math.min(42, (data.tradeHistory?.length || 0) * 2) + Math.min(28, historySeasons * 7)),
       tone: historySeasons >= 3 ? 'good' : historySeasons >= 1 || data.tradeHistory?.length ? 'info' : 'warn',
     },
     {
-      label: 'Schedule data',
+      label: 'Schedule edge',
       value: data.matchupPreviews?.length ? clampPercent(54 + Math.min(34, data.matchupPreviews.length * 8)) : 0,
       tone: data.matchupPreviews?.length ? 'info' : 'neutral',
     },
@@ -1238,7 +1271,7 @@ function buildDirection(
     mode === 'redraft' && intel?.weakestStarter ? `Pressure-test ${intel.weakestStarter.name} as the first lineup spot to upgrade.` : null,
     situationCopy,
     topWaiver ? `Check waivers for ${topWaiver.name}; it is the strongest available fit in the current report data.` : null,
-    tendencyProfile.historyDepthScore >= 62 ? `Use ${tendencyProfile.label.toLowerCase()} behavior in confidence weighting; this read has enough history to matter.` : null,
+    tendencyProfile.historyDepthScore >= 62 ? `${tendencyProfile.label} manager pattern can shape trade timing and offer patience.` : null,
     portfolio && mode === 'dynasty' ? `Use ${portfolio.futurePicks?.length || portfolio.count2026 + portfolio.count2027 + (portfolio.count2028 || 0)} tracked future picks as leverage, not throw-ins.` : null,
     ...fallback.actionPlan,
   ], 3);
@@ -1395,8 +1428,8 @@ function applyReportCalibrationToRecommendation(
     return {
       ...card,
       risk: card.confidence < 58 ? 'High' : card.risk,
-      reasons: dedupeStrings([...card.reasons, `Calibration: ${adjustment.reason}`], 5),
-      signals: dedupeStrings([...card.signals, 'Outcome-calibrated'], 5),
+      reasons: sanitizeAutopilotNotes([...card.reasons, adjustment.reason], 5),
+      signals: dedupeStrings(card.signals, 5),
       calibration: {
         baseConfidence: adjustment.baseFinalScore,
         adjustedConfidence: card.confidence,
@@ -1433,8 +1466,8 @@ function applyReportCalibrationToRecommendation(
     ...card,
     confidence: adjustedConfidence,
     risk: adjustedConfidence < 58 ? 'High' : card.risk,
-    reasons: dedupeStrings([...card.reasons, `Calibration: ${adjustment.reason}`], 5),
-    signals: dedupeStrings([...card.signals, 'Outcome-calibrated'], 5),
+    reasons: sanitizeAutopilotNotes([...card.reasons, adjustment.reason], 5),
+    signals: dedupeStrings(card.signals, 5),
     calibration: {
       baseConfidence,
       adjustedConfidence,
@@ -1459,7 +1492,7 @@ function capRecommendationCards(
       confidence: cappedConfidence,
       risk: wasCapped && cappedConfidence < 58 ? 'High' : card.risk,
       signals: wasCapped
-        ? dedupeStrings([...card.signals, 'Confidence limited by league evidence'], 5)
+        ? dedupeStrings([...card.signals, 'Watch-only strength'], 5)
         : card.signals,
     };
     return applyReportCalibrationToRecommendation(data, manager, source, cappedCard);
@@ -1491,7 +1524,7 @@ function capPlayerProjections(data: ReportData, manager: string, projections: Pl
       ...projection,
       confidence: cappedConfidence,
       signals: wasCapped
-        ? dedupeStrings([...projection.signals, 'Confidence limited by league evidence'], 5)
+        ? dedupeStrings([...projection.signals, 'Watch-only strength'], 5)
         : projection.signals,
     };
   });
@@ -1525,7 +1558,7 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
       confidence: recommendationConfidence(76 + Math.min(10, projectionSwap.edge * 2), [projectionSwap.candidate, projectionSwap.starter, candidateRead, starterRead]),
       risk: projectionSwap.edge >= 5 ? 'Low' : 'Medium',
       upside: projectionSwap.edge >= 5 ? 'High' : 'Medium',
-      summary: `${getPlayerName(projectionSwap.candidate)} has a ${projectionSwap.edge.toFixed(1)} point stored weekly projection edge over ${getPlayerName(projectionSwap.starter)}.`,
+      summary: `${getPlayerName(projectionSwap.candidate)} has a ${projectionSwap.edge.toFixed(1)} point weekly projection edge over ${getPlayerName(projectionSwap.starter)}.`,
       reasons: dedupeStrings([
         candidateRead,
         starterRead,
@@ -1534,7 +1567,7 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
           ? 'This is a weekly lineup edge only; it does not change the long-term dynasty value read.'
           : 'Redraft mode can act directly on the weekly points edge.',
       ], 4),
-      signals: dedupeStrings(['Stored weekly projection', `+${projectionSwap.edge.toFixed(1)} point edge`, getPlayerLineupPosition(projectionSwap.candidate), mode === 'dynasty' ? 'Short-term only' : 'Season lens'], 4),
+      signals: dedupeStrings(['Weekly projection', `+${projectionSwap.edge.toFixed(1)} point edge`, getPlayerLineupPosition(projectionSwap.candidate), mode === 'dynasty' ? 'Short-term only' : 'Season lens'], 4),
       expectedAction: {
         type: 'swap_starter',
         playerIn: toRecommendationPlayerRef(projectionSwap.candidate),
@@ -1542,7 +1575,7 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
         playersInvolved: [toRecommendationPlayerRef(projectionSwap.candidate), toRecommendationPlayerRef(projectionSwap.starter)].filter(Boolean) as RecommendationPlayerRef[],
         expectedLineupChange: `${getPlayerName(projectionSwap.candidate)} should start over ${getPlayerName(projectionSwap.starter)}.`,
         source: 'autopilot',
-        reason: `Stored weekly projection edge is ${projectionSwap.edge.toFixed(1)} points.`,
+        reason: `Weekly projection edge is ${projectionSwap.edge.toFixed(1)} points.`,
       },
       tone: 'good',
     });
@@ -1574,7 +1607,7 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
       summary: isDirectUpgrade
         ? `${alternativeName} clears ${starterName} by ${strengthAlternative.scoreDelta} lineup-strength points.`
         : `${alternativeName} versus ${starterName} is a lineup-strength close call, not an automatic start.`,
-      reasons: dedupeStrings([
+      reasons: sanitizeAutopilotNotes([
         strengthAlternative.note,
         projectionCopy,
         strengthAlternative.closeCallReason,
@@ -1639,16 +1672,16 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
       ),
       risk: redraftValuationSwap.edge >= 1600 ? 'Low' : 'Medium',
       upside: redraftValuationSwap.edge >= 1600 ? 'High' : 'Medium',
-      summary: `${candidateName} has a ${edgeLabel} stored redraft valuation edge over ${starterName}.`,
+      summary: `${candidateName} has a ${edgeLabel} redraft-value edge over ${starterName}.`,
       reasons: dedupeStrings([
         `${candidateName} is eligible for ${starterName}'s current starter slot.`,
-        `${formatCompactValue(redraftValuationSwap.candidateRead.finalValue)} projection-backed redraft valuation is loaded for ${candidateName}.`,
-        `${formatCompactValue(redraftValuationSwap.starterRead.finalValue)} projection-backed redraft valuation is loaded for ${starterName}.`,
+        `${formatCompactValue(redraftValuationSwap.candidateRead.finalValue)} projection-backed redraft valuation is available for ${candidateName}.`,
+        `${formatCompactValue(redraftValuationSwap.starterRead.finalValue)} projection-backed redraft valuation is available for ${starterName}.`,
         ...getRedraftValuationStartSitReasons(redraftValuationSwap.candidateRead, candidateName),
         ...getRedraftValuationStartSitReasons(redraftValuationSwap.starterRead, starterName),
         getDraftCapitalPatienceReason(redraftValuationSwap.candidate),
         getDraftCapitalPatienceReason(redraftValuationSwap.starter),
-        'No stronger stored weekly projection swap was available, so this stays on the valuation-backed redraft path.',
+        'No stronger weekly projection swap was available, so this stays on the valuation-backed redraft path.',
       ], 8),
       signals: dedupeStrings([
         'Blended redraft value',
@@ -1665,7 +1698,7 @@ function buildLineupRecommendations(data: ReportData, mode: AutopilotMode, manag
         playersInvolved: [toRecommendationPlayerRef(redraftValuationSwap.candidate), toRecommendationPlayerRef(redraftValuationSwap.starter)].filter(Boolean) as RecommendationPlayerRef[],
         expectedLineupChange: `${candidateName} should start over ${starterName}.`,
         source: 'autopilot',
-        reason: `Stored redraft valuation edge is ${edgeLabel}.`,
+        reason: `Redraft-value edge is ${edgeLabel}.`,
       },
       tone: 'good',
     });
@@ -1823,7 +1856,7 @@ function buildWeeklyActionPlan(
       player: getPlayerName(projectionSwap.starter),
       position: getPlayerPosition(projectionSwap.starter),
       confidence: recommendationConfidence(76 + Math.min(10, projectionSwap.edge * 2), [projectionSwap.starter, projectionSwap.candidate]),
-      note: `${getPlayerName(projectionSwap.candidate)} has a ${projectionSwap.edge.toFixed(1)} point stored weekly projection edge.`,
+      note: `${getPlayerName(projectionSwap.candidate)} has a ${projectionSwap.edge.toFixed(1)} point weekly projection edge.`,
       tone: 'warn' as AutopilotTone,
     }
     : vulnerable
@@ -1883,7 +1916,7 @@ function buildWeeklyActionPlan(
     pushOption(
       projectionSwap.candidate,
       recommendationConfidence(78 + Math.min(10, projectionSwap.edge * 2), [projectionSwap.candidate, projectionSwap.starter]),
-      `Stored weekly projection edge: +${projectionSwap.edge.toFixed(1)} points over ${getPlayerName(projectionSwap.starter)}.`,
+      `Weekly projection edge: +${projectionSwap.edge.toFixed(1)} points over ${getPlayerName(projectionSwap.starter)}.`,
       'good'
     );
   }
@@ -1959,7 +1992,7 @@ function buildWeeklyActionPlan(
     starterToReview,
     options: trimmedOptions,
     summary: starterToReview && topOption
-      ? `${starterToReview.player} is the lineup spot to pressure-test. ${topOption.player} is the preferred review option at ${topOption.confidence}% confidence.`
+      ? `${starterToReview.player} is the lineup spot to pressure-test. ${topOption.player} is the preferred review option if role and lock-time news still hold.`
       : fallback?.summary || 'The weekly action plan will get sharper once matchup and usage data are available.',
   };
 }
@@ -2209,7 +2242,7 @@ function getActionPreconditionGap(
   const sourceLabel = getQueueSourceLabel(source);
   const action = recommendation.expectedAction;
   if (!action || action.type === 'unknown') {
-    return `${sourceLabel} read has no concrete expected action attached, so it cannot enter the primary action queue.`;
+    return `${sourceLabel} read does not have a concrete move attached yet.`;
   }
 
   const identityGap = getExpectedActionIdentityGap(action);
@@ -2228,12 +2261,12 @@ function getActionPreconditionGap(
   }
 
   if (!recommendation.evidenceRead?.canAct) {
-    return `${sourceLabel} read has not cleared current roster, lineup, transaction, source-health, and league-format preconditions.`;
+    return `${sourceLabel} read still needs cleaner roster, lineup, transaction, or league-format context.`;
   }
 
   const missingEvidence = recommendation.evidenceRead?.missingEvidence?.find((reason) => String(reason || '').trim());
   if (missingEvidence) {
-    return `${sourceLabel} read still has missing evidence: ${missingEvidence}`;
+    return sanitizeAutopilotCopy(missingEvidence) || `${sourceLabel} read still needs cleaner role, value, or schedule context.`;
   }
 
   const sourceHealthGap = getActionSourceHealthGap(recommendation, sourceLabel);
@@ -2245,7 +2278,7 @@ function getActionPreconditionGap(
 function getActionSourceHealthGap(recommendation: AutopilotRecommendation, sourceLabel: string): string | null {
   const traces = recommendation.evidenceRead?.sourceTrace || [];
   if (!traces.length) {
-    return `${sourceLabel} read is missing source-health proof.`;
+    return `${sourceLabel} read needs a final current-context check before acting.`;
   }
 
   const unhealthyTrace = traces.find((trace) => {
@@ -2254,7 +2287,7 @@ function getActionSourceHealthGap(recommendation: AutopilotRecommendation, sourc
   });
 
   if (unhealthyTrace) {
-    return `${sourceLabel} read has unhealthy source proof: ${unhealthyTrace.label}.`;
+    return `${sourceLabel} read needs a final current-context check before acting.`;
   }
 
   return null;
@@ -2313,9 +2346,9 @@ function getQueueRisk(
   if (blocker) return blocker;
 
   if (decision === 'watch' || decision === 'hold') {
-    return preconditionGap ||
-      evidence?.confidenceCapReason ||
-      evidence?.missingEvidence?.[0] ||
+    return sanitizeAutopilotCopy(preconditionGap) ||
+      sanitizeAutopilotCopy(evidence?.confidenceCapReason) ||
+      sanitizeAutopilotCopy(evidence?.missingEvidence?.[0]) ||
       `Risk ${recommendation.risk}; verify news, usage, and roster changes before acting.`;
   }
 
@@ -2359,13 +2392,6 @@ function buildQueueChangeTriggers(
   sharpness?: LeagueSharpnessProfile | null,
   preconditionGap?: string | null,
 ): string[] {
-  const evidence = recommendation.evidenceRead;
-  const unhealthyTrace = evidence?.sourceTrace?.find((trace) =>
-    trace.status === 'missing' ||
-    trace.status === 'stale' ||
-    trace.status === 'error' ||
-    trace.status === 'limited'
-  );
   const sourceTrigger =
     source === 'waiver'
       ? 'Live ownership, roster status, or recent transaction changes would block the pickup.'
@@ -2379,20 +2405,15 @@ function buildQueueChangeTriggers(
     : null;
   const decisionTrigger =
     decision === 'do'
-      ? 'A hard blocker or confidence limit below the action threshold would remove this as the top move.'
+      ? 'A new injury, role loss, roster change, or worse schedule window would remove this as the top move.'
       : decision === 'blocked'
-        ? 'Clear the blocker and reload live data before this can become actionable.'
+        ? 'Do not act until the roster, role, or availability blocker clears.'
         : decision === 'hold'
-          ? 'A new recommendation must clear the action threshold before the queue should move.'
-          : 'More evidence must clear the action threshold before this becomes the top action.';
+          ? 'A new add, swap, or trade needs to beat the hold path before the queue should move.'
+          : 'More role, value, or schedule signal must line up before this becomes the top action.';
 
   return dedupeStrings([
-    preconditionGap ? `Verify preconditions: ${preconditionGap}` : null,
-    evidence?.hardBlockers?.[0] ? `Review blocker: ${evidence.hardBlockers[0]}` : null,
-    evidence?.confidenceCapReason ? `Review confidence limit: ${evidence.confidenceCapReason}.` : null,
-    evidence?.missingEvidence?.[0] ? `Verify evidence gap: ${evidence.missingEvidence[0]}` : null,
-    unhealthyTrace ? `Check source freshness: ${unhealthyTrace.label}.` : null,
-    sharpness?.confidence === 'thin' ? 'Add more league behavior before letting sharpness change the recommendation.' : null,
+    sanitizeAutopilotCopy(preconditionGap),
     sharpness?.tier === 'sleepy' ? 'A spike in league activity would raise urgency.' : null,
     sharpness?.tier === 'sharp' || sharpness?.tier === 'shark-tank' ? 'A quieter league market would lower urgency.' : null,
     sourceTrigger,
@@ -2451,8 +2472,8 @@ function buildRosterDominoEffects(
   }
 
   return dedupeStrings([
-    'No roster domino is worth pulling until a higher-confidence action clears.',
-    'The current roster shape is the baseline until fresh evidence changes the verdict.',
+    'No roster domino is worth pulling until a cleaner action beats standing pat.',
+    'The current roster shape is the baseline until fresh role, value, or schedule signal changes the verdict.',
   ], 3);
 }
 
@@ -2483,9 +2504,10 @@ function buildRecommendationQueueItem(
     blocked: -18,
   };
   const evidence = recommendation.evidenceRead;
-  const receipts = evidence
-    ? getAIEvidenceReceiptItems(evidence)
-    : recommendation.reasons;
+  const managerNotes = sanitizeAutopilotNotes([
+    ...recommendation.reasons,
+    getLeagueSharpnessQueueCopy(sharpness, source),
+  ], 4);
   const sharpnessScoreAdjustment =
     mode === 'redraft' && source === 'trade' && sharpness?.actionBias === 'wait'
       ? -14
@@ -2504,25 +2526,18 @@ function buildRecommendationQueueItem(
     action: recommendation.action,
     target: recommendation.player,
     detail: recommendation.secondary || recommendation.type,
-    why: evidence?.whyThisFired || recommendation.summary,
+    why: sanitizeAutopilotCopy(recommendation.summary) || recommendation.summary,
     risk: getQueueRisk(recommendation, decision, preconditionGap),
     confidence,
     tone: getQueueTone(decision, recommendation),
     blockers: evidence?.hardBlockers || [],
     missingEvidence: dedupeStrings([...(evidence?.missingEvidence || []), preconditionGap], 5),
     sourceHealth: formatQueueSourceTrace(recommendation),
-    receipts: dedupeStrings([
-      preconditionGap ? `Precondition guard: ${preconditionGap}` : null,
-      getLeagueSharpnessQueueCopy(sharpness, source),
-      ...receipts,
-      recommendation.calibration?.reason ? `Calibration: ${recommendation.calibration.reason}` : null,
-    ], 4),
+    receipts: managerNotes,
     changeTriggers: buildQueueChangeTriggers(recommendation, source, decision, sharpness, preconditionGap),
     dominoEffects: buildRosterDominoEffects(recommendation, source, decision),
     signals: dedupeStrings([
-      sharpness ? `${sharpness.label} ${sharpness.score}%` : null,
       ...recommendation.signals,
-      recommendation.calibration ? 'Outcome-calibrated' : null,
     ], 4),
     expectedAction: recommendation.expectedAction || null,
     observedOutcome: recommendation.observedOutcome || null,
@@ -2567,9 +2582,9 @@ function buildNoForcedMoveQueueItem({
 }): Omit<AIActionQueueItem, 'rank'> & { score: number } {
   const bestCandidate = candidates[0] || null;
   const missingEvidence = dedupeStrings([
-    bestCandidate?.missingEvidence?.[0],
-    !weeklyPlan?.options?.length ? 'No lineup review option cleared the action threshold.' : null,
-    'More live schedule, usage, injury, and transaction evidence would tighten the call.',
+    sanitizeAutopilotCopy(bestCandidate?.missingEvidence?.[0]),
+    !weeklyPlan?.options?.length ? 'No lineup review option is better than holding right now.' : null,
+    'Fresh schedule, usage, injury, or transaction context could create a cleaner action later.',
   ], 3);
 
   return {
@@ -2579,7 +2594,7 @@ function buildNoForcedMoveQueueItem({
     label: 'No move is best',
     action: 'Hold current setup',
     target: direction.label,
-    detail: 'No action cleared enough evidence to force a move.',
+    detail: 'No add, lineup swap, or trade is better than standing pat right now.',
     why: direction.summary,
     risk: bestCandidate?.risk || 'The biggest risk is acting on a thin edge before newer information arrives.',
     confidence: clampPercent(Math.min(direction.confidence, bestCandidate?.confidence ?? direction.confidence)),
@@ -2589,9 +2604,9 @@ function buildNoForcedMoveQueueItem({
     sourceHealth: direction.scores.map((score) => `${score.label}: ${clampPercent(score.value)}%`),
     receipts: dedupeStrings(direction.actionPlan, 4),
     changeTriggers: dedupeStrings([
-      'A waiver, lineup, or trade recommendation must clear the action threshold before this hold changes.',
-      missingEvidence[0] ? `Verify evidence gap: ${missingEvidence[0]}` : null,
-      'Fresh schedule, usage, injury, and transaction data could raise confidence enough to act.',
+      'A waiver, lineup, or trade idea must clearly improve the roster before this hold changes.',
+      missingEvidence[0] || null,
+      'Fresh schedule, usage, injury, or transaction context could create a cleaner action later.',
     ], 4),
     dominoEffects: dedupeStrings([
       'No drop, trade, or lineup swap should fire from this read.',
@@ -2650,10 +2665,8 @@ function buildAIActionQueue({
 }
 
 function buildAIRejections({
-  data,
   actionQueue,
 }: {
-  data: ReportData;
   actionQueue: AIActionQueueItem[];
 }): AIRejectionRead[] {
   const rows: AIRejectionRead[] = [];
@@ -2666,55 +2679,22 @@ function buildAIRejections({
         source: item.source,
         action: item.decision === 'blocked' ? `Do not ${item.action.toLowerCase()}` : `Do not force ${item.action.toLowerCase()}`,
         target: item.target,
-        reason: item.blockers[0] || item.missingEvidence[0] || item.risk,
+        reason: sanitizeAutopilotCopy(item.blockers[0]) ||
+          sanitizeAutopilotCopy(item.missingEvidence[0]) ||
+          sanitizeAutopilotCopy(item.risk) ||
+          'This move needs cleaner role, value, schedule, or roster-fit signal before acting.',
         alternative: item.decision === 'blocked'
-          ? 'Reload live data and clear the blocker before this can move.'
-          : 'Keep it on watch until the evidence clears the action threshold.',
+          ? 'Keep the current roster setup until the blocker clears.'
+          : 'Keep it on watch until value, role, schedule, and roster fit line up.',
         confidence: item.confidence,
         tone: item.decision === 'blocked' ? 'danger' : 'warn',
-        receipts: dedupeStrings([
+        receipts: sanitizeAutopilotNotes([
           item.why,
           item.receipts[0],
           item.changeTriggers[0],
         ], 3),
       });
     });
-
-  (data.waiverIntelligence?.omittedCandidates || [])
-    .filter((candidate) => candidate.action === 'omit')
-    .slice(0, 3)
-    .forEach((candidate) => {
-      rows.push({
-        id: `reject-waiver-${candidate.player_id || normalizeManagerName(candidate.name)}`,
-        source: 'waiver',
-        action: 'Do not add',
-        target: candidate.name,
-        reason: candidate.reason || 'Waiver evidence layer omitted this player.',
-        alternative: 'Use the ranked queue or leave the bench spot alone.',
-        confidence: clampPercent(62 + Math.min(16, candidate.sourceCount * 4)),
-        tone: 'danger',
-        receipts: dedupeStrings([
-          candidate.rank ? `${candidate.rank} rank was not enough to clear guardrails.` : null,
-          candidate.value ? `${formatCompactValue(candidate.value)} value still failed the evidence check.` : null,
-          `${candidate.sourceCount} source${candidate.sourceCount === 1 ? '' : 's'} attached.`,
-        ], 3),
-      });
-    });
-
-  if (!rows.length && actionQueue[0]?.decision === 'hold') {
-    const hold = actionQueue[0];
-    rows.push({
-      id: 'reject-no-forced-action',
-      source: hold.source,
-      action: 'Do not manufacture a move',
-      target: hold.target,
-      reason: hold.risk,
-      alternative: 'Hold the current roster baseline.',
-      confidence: hold.confidence,
-      tone: 'neutral',
-      receipts: dedupeStrings([hold.why, hold.missingEvidence[0], hold.changeTriggers[0]], 3),
-    });
-  }
 
   const seen = new Set<string>();
   return rows
@@ -2780,7 +2760,7 @@ function buildMarketAnomalyReads(data: ReportData, mode: AutopilotMode, manager:
           ? 'Do not ignore the sell-window leak.'
           : direction === 'falling'
             ? 'Avoid paying full market price.'
-            : 'Keep as a watchlist receipt, not an automatic move.';
+            : 'Keep as a watchlist note, not an automatic move.';
 
     seen.add(key);
     rows.push({
@@ -2820,14 +2800,6 @@ function buildMarketAnomalyReads(data: ReportData, mode: AutopilotMode, manager:
     .slice(0, 4);
 }
 
-function calibrationPriorityTone(priority?: ReportAICalibrationAdjustment['priority']): AutopilotTone {
-  if (priority === 'danger') return 'danger';
-  if (priority === 'warn') return 'warn';
-  if (priority === 'info') return 'info';
-  if (priority === 'good') return 'good';
-  return 'neutral';
-}
-
 function buildAIReportCardRead({
   data,
   direction,
@@ -2843,18 +2815,11 @@ function buildAIReportCardRead({
 }): AIReportCardRead {
   const leagueConfidence = getLeagueAiConfidenceScore(data);
   const confidence = clampPercent(leagueConfidence ?? direction.confidence);
-  const calibration = data.leagueDiagnostics?.aiConfidence?.calibration;
-  const adjustmentProfile = data.aiCalibrationAdjustmentProfile;
-  const topAdjustment = adjustmentProfile?.adjustments?.find((adjustment) =>
-    adjustment.scoreAdjustment !== 0 || adjustment.confidenceCap !== null
-  ) || null;
   const serverDelta = data.serverReportDelta || null;
   const doCount = actionQueue.filter((item) => item.decision === 'do').length;
   const blockedOrWatch = actionQueue.filter((item) => item.decision === 'blocked' || item.decision === 'watch').length;
-  const sourceWarnings = actionQueue.flatMap((item) => item.sourceHealth)
-    .filter((source) => /missing|stale|error|limited|\b(?:0|zero)\s+rows?\b|no source/i.test(source));
   const grade =
-    confidence >= 88 && !sourceWarnings.length
+    confidence >= 88
       ? 'A'
       : confidence >= 76
         ? 'B'
@@ -2862,60 +2827,43 @@ function buildAIReportCardRead({
           ? 'C'
           : 'D';
   const tone = scoreTone(confidence);
-  const calibrationStatus = calibration
-    ? `${calibration.observedSampleSize}/${calibration.targetSampleSize} calibration samples`
-    : 'Calibration samples pending';
   const rows: AIReportCardRead['rows'] = [
     {
-      label: 'One-call discipline',
-      status: doCount <= 1 ? 'Clean' : `${doCount} do-this calls`,
+      label: 'Top verdict',
+      status: doCount ? 'Action ready' : 'Hold is winning',
       detail: doCount <= 1
-        ? 'Only one action can own the top verdict.'
-        : 'Too many actions cleared; confidence should be tightened before users see this.',
+        ? 'Only the clearest move owns the main call.'
+        : 'Multiple actions are close; keep the best one in the queue and treat the rest as watch-only.',
       tone: doCount <= 1 ? 'good' : 'danger',
     },
     {
-      label: 'Daily delta',
+      label: 'Report change',
       status: serverDelta?.changes?.length
-        ? `${serverDelta.changes.length} server change${serverDelta.changes.length === 1 ? '' : 's'}`
+        ? `${serverDelta.changes.length} change${serverDelta.changes.length === 1 ? '' : 's'}`
         : 'No material change',
-      detail: serverDelta?.summary || 'No prior server report has been attached for comparison yet.',
+      detail: serverDelta?.summary || 'No meaningful roster, value, or schedule change is pushing a new move.',
       tone: serverDelta?.changes?.[0]?.tone || 'neutral',
     },
     {
-      label: 'Bad-idea engine',
-      status: rejections.length ? `${rejections.length} blocked/watch reads` : 'No bad ideas flagged',
+      label: 'Avoid list',
+      status: rejections.length ? `${rejections.length} watch/avoid read${rejections.length === 1 ? '' : 's'}` : 'Nothing to avoid',
       detail: rejections.length
-        ? 'No low-evidence moves are being promoted.'
-        : 'No blocked read is attached to this queue right now.',
+        ? 'These stay below the main call until value, role, schedule, or roster fit improves.'
+        : 'No add, swap, or trade is risky enough to call out separately.',
       tone: rejections.length ? 'good' : 'info',
     },
     {
-      label: 'Market anomaly scan',
-      status: marketAnomalies.length ? `${marketAnomalies.length} anomalies` : 'Quiet market',
+      label: 'Market watch',
+      status: marketAnomalies.length ? `${marketAnomalies.length} player${marketAnomalies.length === 1 ? '' : 's'}` : 'Quiet market',
       detail: marketAnomalies[0]?.summary || 'No weekly market mismatch is loud enough to surface.',
       tone: marketAnomalies.length ? marketAnomalies[0].tone : 'neutral',
     },
     {
-      label: 'Calibration memory',
-      status: adjustmentProfile
-        ? `${adjustmentProfile.scoredCount} scored / ${adjustmentProfile.adjustments.length} adjustments`
-        : calibrationStatus,
-      detail: topAdjustment?.reason || calibration?.note || 'Confidence learns from observed prediction outcomes, stored evidence, and admin feedback.',
-      tone: topAdjustment ? calibrationPriorityTone(topAdjustment.priority) : calibration?.status === 'ready' ? 'good' : calibration?.status === 'collecting' ? 'info' : 'warn',
-    },
-    {
-      label: 'Source health',
-      status: sourceWarnings.length ? `${sourceWarnings.length} warning${sourceWarnings.length === 1 ? '' : 's'}` : 'Clean receipts',
-      detail: sourceWarnings[0] || 'Top verdict has no stale/missing/error source warning attached.',
-      tone: sourceWarnings.length ? 'warn' : 'good',
-    },
-    {
-      label: 'Guardrail pressure',
-      status: blockedOrWatch ? `${blockedOrWatch} limited reads` : 'No limits',
+      label: 'Watch pressure',
+      status: blockedOrWatch ? `${blockedOrWatch} limited read${blockedOrWatch === 1 ? '' : 's'}` : 'No pressure',
       detail: blockedOrWatch
-        ? 'Watch/blocked reads stay below the action threshold.'
-        : 'No lower-confidence read is competing with the verdict.',
+        ? 'Watch/avoid reads remain secondary until a real roster action becomes cleaner.'
+        : 'No secondary read is competing with the top verdict.',
       tone: blockedOrWatch ? 'info' : 'good',
     },
   ];
@@ -2924,7 +2872,9 @@ function buildAIReportCardRead({
     grade,
     confidence,
     tone,
-    summary: `The AI is running at ${confidence}% league confidence with ${doCount <= 1 ? 'one-call discipline' : `${doCount} competing actions`} and ${rejections.length} bad-idea guardrail${rejections.length === 1 ? '' : 's'}.`,
+    summary: doCount
+      ? 'One action is ready; supporting reads stay in watch mode.'
+      : 'No action is better than holding the current roster setup right now.',
     rows,
   };
 }
@@ -3105,7 +3055,7 @@ function formatWaiverWeeklyEcrTraceRead(player: TrendingPlayer): string | null {
   const sourceLabel = isScheduleWindowSignal(signal)
     ? 'schedule'
     : 'weekly rank';
-  return `${loadedWeeks || 'Rolling weeks'} backed by stored ${sourceLabel} snapshots.`;
+  return `${loadedWeeks || 'Rolling weeks'} backed by ${sourceLabel} snapshots.`;
 }
 
 function normalizeAutopilotSourceTraceStatus(status?: string | null, rowCount?: number | null): AISourceTrace['status'] {
@@ -3155,7 +3105,7 @@ function getAutopilotValueSourceCount(player: TrendingPlayer): number {
   if (player.weeklyEcr && shouldUseWeeklyRankSignal(player.weeklyEcr)) {
     sources.add(isScheduleWindowSignal(player.weeklyEcr) ? 'Schedule snapshot' : 'Weekly rank snapshot');
   }
-  if (getWeeklyProjection(player)?.status === 'ready') sources.add('stored weekly projection');
+  if (getWeeklyProjection(player)?.status === 'ready') sources.add('weekly projection');
   return sources.size;
 }
 
@@ -3261,13 +3211,13 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         missingEvidence: dedupeStrings([
           rank ? null : 'No trusted positional rank is attached.',
           sourceCount ? null : 'No blend evidence count is attached.',
-          ['K', 'DEF'].includes(getPlayerLineupPosition(player)) && !isScheduleWindowSignal(player.weeklyEcr) ? 'No short-window schedule source is attached.' : null,
+          ['K', 'DEF'].includes(getPlayerLineupPosition(player)) && !isScheduleWindowSignal(player.weeklyEcr) ? 'No short-window schedule read is attached.' : null,
         ], 8),
         sourceTrace: [
           ...dedupeStrings([
-            sourceCount ? `${sourceCount} value/schedule source${sourceCount === 1 ? '' : 's'} attached.` : null,
-            redraftValuationRead ? 'Stored redraft valuation attached.' : null,
-            weeklyProjectionRead ? 'Stored weekly projection attached.' : null,
+            sourceCount ? `${sourceCount} value/schedule input${sourceCount === 1 ? '' : 's'} attached.` : null,
+            redraftValuationRead ? 'Redraft value context attached.' : null,
+            weeklyProjectionRead ? 'Weekly projection attached.' : null,
             weeklyEcrTraceRead,
           ], 8),
           ...getWaiverWeeklyEcrSourceTrace(player.weeklyEcr),
@@ -3296,7 +3246,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
           hasScheduleData: isScheduleWindowSignal(player.weeklyEcr),
           isRoughStart: Boolean(matchupOutlook?.isRoughStart),
           isStrongStart: Boolean(matchupOutlook?.isStrongStart),
-          missingReason: 'No stored matchup window is attached to this streamer read.',
+          missingReason: 'No matchup window is attached to this streamer read.',
         },
         calibrationProfile: data.aiCalibrationAdjustmentProfile,
         calibrationManager: manager,
@@ -3321,7 +3271,6 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
     const clearsWaiverActionThreshold = evidenceRead.canAct && confidence >= 68 && hasRosterMoveProof;
     const age = getPlayerAge(player);
     const matchupGuard = getWaiverMatchupGuard(player);
-    const receiptItems = getAIEvidenceReceiptItems(evidenceRead);
     return {
       id: `waiver-${player.player_id || player.name}`,
       type: 'Waiver',
@@ -3334,10 +3283,9 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
       risk: confidence >= 78 ? 'Low' : 'Medium',
       upside: mode === 'dynasty' && age && age <= 24 ? 'High' : confidence >= 80 ? 'High' : 'Medium',
       summary: mode === 'redraft'
-        ? `${clearsWaiverActionThreshold ? 'Queue-backed' : "Don't add yet"}: ${player.name} has the strongest current-season waiver case the evidence layer allows${weeklyProjectionRead ? ', with stored weekly projection support' : ''}.`
-        : `${clearsWaiverActionThreshold ? 'Queue-backed' : "Don't add yet"}: ${player.name} has the strongest dynasty waiver case the evidence layer allows${weeklyProjectionRead ? ', with short-term projection support' : weeklyEcrRead ? ', with short-window matchup support' : ''}.`,
-      reasons: dedupeStrings([
-        evidenceRead.whyThisFired,
+        ? `${clearsWaiverActionThreshold ? 'Queue-backed' : "Don't add yet"}: ${player.name} has the strongest current-season waiver case in this read${weeklyProjectionRead ? ', with weekly projection support' : ''}.`
+        : `${clearsWaiverActionThreshold ? 'Queue-backed' : "Don't add yet"}: ${player.name} has the strongest dynasty waiver case in this read${weeklyProjectionRead ? ', with short-term projection support' : weeklyEcrRead ? ', with short-window matchup support' : ''}.`,
+      reasons: sanitizeAutopilotNotes([
         rosterMoveGuard,
         player.count ? `${formatCompactValue(player.count)} add/drop trend signal in the feed.` : null,
         rank ? `${rank} rank gives this more than a blind trend-chase case.` : null,
@@ -3349,7 +3297,7 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
         intel?.tradePlan?.needPosition === getPlayerPosition(player) ? `Matches ${manager}'s ${getPlayerPosition(player)} need.` : null,
         dropCandidate ? `${dropCandidate.name} is a usable drop candidate if a roster spot is needed.` : null,
       ], 4),
-      signals: dedupeStrings([evidenceRead.label, 'Available', rank, redraftValuationSignal, weeklyProjectionRead ? 'Stored projection' : null, matchupGuard.signal, weeklyEcrTraceRead ? 'Stored schedule trace' : weeklyEcrRead ? 'Schedule edge' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null, ...receiptItems.slice(0, 1)], 4),
+      signals: dedupeStrings(['Available', rank, redraftValuationSignal, weeklyProjectionRead ? 'Weekly projection' : null, matchupGuard.signal, weeklyEcrTraceRead ? 'Schedule window' : weeklyEcrRead ? 'Schedule edge' : null, player.count ? 'Trend count' : null, mode === 'dynasty' && age && age <= 24 ? 'Young stash' : null], 4),
       evidenceRead,
       expectedAction: clearsWaiverActionThreshold
         ? {
@@ -3361,14 +3309,14 @@ function buildWaiverRecommendations(data: ReportData, mode: AutopilotMode, manag
               ? `${player.name} should be added and ${dropCandidate.name} should leave the roster.`
               : `${player.name} should be added to the roster.`,
             source: 'autopilot',
-            reason: evidenceRead.whyThisFired,
+            reason: `${player.name} is the best available waiver fit after value, role, and roster-fit checks.`,
           }
         : {
             type: 'hold',
             playersInvolved: [toRecommendationPlayerRef(player)].filter(Boolean) as RecommendationPlayerRef[],
             expectedRosterChange: `Do not add ${player.name} unless the limited waiver read clears the action threshold after fresh data.`,
             source: 'autopilot',
-            reason: rosterMoveGuard || evidenceRead.whyThisFired,
+            reason: rosterMoveGuard || `${player.name} stays watch-only until value, role, schedule, and roster fit line up.`,
           },
       tone: index === 0 ? 'good' : 'info',
     };
@@ -3602,9 +3550,9 @@ function buildScheduleSosTargetRead(target: ScheduleSosTarget): string {
 
 export function buildSleeperResearchTodo(mode: AutopilotMode): string[] {
   return [
-    'Use stored Schedule/SOS as weekly lineup, streamer, and bye-week context.',
+    'Use DraftSharks SOS as weekly lineup, streamer, and bye-week context.',
     mode === 'redraft'
-      ? 'Blend projections into start/sit and weekly plan cards when the source is fresh.'
+      ? 'Use projections in start/sit and weekly plan cards when they are current.'
       : 'Use projections only as short-term contender/rebuilder context beside blended dynasty value.',
     'Keep schedule strength as a tie-breaker; talent, role, and roster value stay primary.',
   ];
@@ -3736,7 +3684,6 @@ function buildPowerRows(data: ReportData, mode: AutopilotMode, fallback: LeagueP
 }
 
 function buildScheduleTodo(data: ReportData, mode: AutopilotMode): string[] {
-  const fallbackGuidance = buildSleeperResearchTodo(mode);
   const schedulePlanning = data.schedulePlanning;
   const rosterGaps = asArray(schedulePlanning?.rosterGaps).sort((a, b) => {
     const severityRank: Record<'low' | 'medium' | 'high', number> = { low: 0, medium: 1, high: 2 };
@@ -3748,10 +3695,7 @@ function buildScheduleTodo(data: ReportData, mode: AutopilotMode): string[] {
   const matchupPreviewCount = data.matchupPreviews?.length || 0;
 
   if (schedulePlanning?.status === 'ready' || rosterGaps.length || streamerCandidate || firstByeWeek || scheduleSosTarget) {
-    return dedupeStrings([
-      schedulePlanning?.status === 'ready'
-        ? 'Schedule/SOS context is live for bye coverage, streamer windows, and same-tier lineup calls.'
-        : 'Schedule/SOS context is partially loaded; use it only where roster gaps or streamer windows are backed.',
+    const reads = dedupeStrings([
       rosterGaps[0]
         ? `${rosterGaps[0].manager} has ${rosterGaps[0].position} depth pressure in ${formatWeekList(rosterGaps[0].weeks) || 'key bye weeks'}.`
         : null,
@@ -3762,30 +3706,18 @@ function buildScheduleTodo(data: ReportData, mode: AutopilotMode): string[] {
           : null,
       firstByeWeek
         ? `First bye checkpoint: W${firstByeWeek.week}${firstByeWeek.teams?.length ? ` for ${firstByeWeek.teams.join(', ')}` : ''}.`
-        : mode === 'redraft'
-          ? 'Use SOS to separate streamers and same-tier flex plays.'
-          : 'Use SOS for playoff-window planning without overpowering long-term player value.',
-    ], 4);
-  }
-
-  if (matchupPreviewCount) {
-    return dedupeStrings([
-      `${matchupPreviewCount} weekly matchup read${matchupPreviewCount === 1 ? '' : 's'} available for lineup context.`,
-      scheduleSosTarget
-        ? buildScheduleSosTargetRead(scheduleSosTarget)
         : null,
-      mode === 'redraft'
-        ? 'Use SOS to separate streamers and same-tier flex plays.'
-        : 'Use SOS for playoff-window planning without overpowering long-term player value.',
+    ], 4);
+    return reads;
+  }
+
+  if (matchupPreviewCount && scheduleSosTarget) {
+    return dedupeStrings([
+      buildScheduleSosTargetRead(scheduleSosTarget),
     ], 4);
   }
 
-  return dedupeStrings([
-    ...fallbackGuidance,
-    mode === 'redraft'
-      ? 'Blend matchup difficulty into start/sit, streamer, and waiver confidence when backed.'
-      : 'Blend matchup difficulty into start/sit confidence without overpowering talent, role, and dynasty value.',
-  ], 4);
+  return [];
 }
 
 export function buildAutopilotData({ reportData, mode, fallback, leagueId }: AutopilotBuildInput): AutopilotData {
@@ -3802,7 +3734,7 @@ export function buildAutopilotData({ reportData, mode, fallback, leagueId }: Aut
   const weeklyRecap = buildWeeklyRecapRead(weeklyPlan, waivers, trades, mode, focusManager);
   const sharpness = buildLeagueSharpnessProfile(reportData);
   const actionQueue = buildAIActionQueue({ mode, direction, weeklyPlan, lineup, waivers, trades, sharpness });
-  const rejections = buildAIRejections({ data: reportData, actionQueue });
+  const rejections = buildAIRejections({ actionQueue });
   const marketAnomalies = buildMarketAnomalyReads(reportData, mode, focusManager);
   const reportCard = buildAIReportCardRead({
     data: reportData,

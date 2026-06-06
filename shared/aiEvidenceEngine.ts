@@ -335,7 +335,7 @@ function sanitizeSourceTraceLabel(value?: string | null): string {
   if (!PROVIDER_ATTRIBUTION_PATTERN.test(clean)) return clean;
   if (/schedule|sos|matchup/i.test(clean)) return "Stored schedule snapshot";
   if (/projection/i.test(clean)) return "Stored projection snapshot";
-  if (/news/i.test(clean)) return "Stored news snapshot";
+  if (/news/i.test(clean)) return "Player news snapshot";
   if (/injur|practice|availability/i.test(clean)) return "Stored injury snapshot";
   if (/rank|ecr|adp|ros|ww|waiver/i.test(clean)) return "Stored ranking snapshot";
   if (/value|market|source/i.test(clean)) return "Stored value evidence";

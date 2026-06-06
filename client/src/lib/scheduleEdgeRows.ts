@@ -734,7 +734,7 @@ function getScheduleEdgeSourceFreshness(
 } {
   const trace = signal.sourceTrace || [];
   if (!trace.length) {
-    return { label: "No source trace", tone: "warn" };
+    return { label: "Schedule coverage pending", tone: "warn" };
   }
 
   const hasGap = trace.some(
@@ -745,23 +745,17 @@ function getScheduleEdgeSourceFreshness(
   const ageDays = Number.isFinite(latestTime)
     ? (now - latestTime) / (1000 * 60 * 60 * 24)
     : null;
-  const rowCounts = trace
-    .map(entry => entry.rowCount)
-    .filter((value): value is number => typeof value === "number");
-  const minRows = rowCounts.length ? Math.min(...rowCounts) : null;
   const dateCopy = latestDate ? formatScheduleEdgeDate(latestDate) : "No date";
-  const rowCopy =
-    minRows === null ? "rows n/a" : `${minRows.toLocaleString()}+ rows`;
 
   if (ageDays !== null && ageDays > 8) {
-    return { label: `Stale - ${dateCopy} - ${rowCopy}`, tone: "warn" };
+    return { label: `Schedule stale - ${dateCopy}`, tone: "warn" };
   }
 
   if (hasGap) {
-    return { label: `Partial - ${dateCopy} - ${rowCopy}`, tone: "warn" };
+    return { label: `Schedule partial - ${dateCopy}`, tone: "warn" };
   }
 
-  return { label: `Fresh - ${dateCopy} - ${rowCopy}`, tone: "good" };
+  return { label: `Schedule current - ${dateCopy}`, tone: "good" };
 }
 
 function normalizeScheduleEvidenceTraceStatus(
@@ -796,17 +790,13 @@ function getScheduleEvidenceSourceTrace(
 ): AISourceTrace[] {
   return (signal.sourceTrace || []).map(trace => {
     const status = normalizeScheduleEvidenceTraceStatus(trace);
-    const rowCopy =
-      typeof trace.rowCount === "number"
-        ? `${trace.rowCount.toLocaleString()} rows`
-        : "rows n/a";
     const weekCopy = trace.week ? `W${trace.week}` : null;
-    const detail = [weekCopy, trace.position, rowCopy, trace.evidence]
+    const detail = [weekCopy, trace.position]
       .filter(Boolean)
       .join(" - ");
 
     return {
-      label: trace.endpointLabel || trace.source || "Schedule source",
+      label: "Schedule window",
       status,
       detail,
       ageHours: getScheduleEvidenceTraceAgeHours(trace, now),
@@ -935,11 +925,11 @@ function buildScheduleEvidenceRead(input: {
       ? 60
       : null;
   const confidenceCapReason = !sourceTrace.length
-    ? "No schedule source trace"
+    ? "Schedule coverage pending"
     : input.availability.availabilityTone === "info"
       ? "Unverified roster availability"
     : hasPartialSource
-      ? "Partial schedule source trace"
+      ? "Partial schedule coverage"
       : null;
 
   return evaluateAIEvidence({
@@ -974,7 +964,7 @@ function buildScheduleEvidenceRead(input: {
       input.freshness.tone === "good" ? input.freshness.label : null,
     ].filter((value): value is string => Boolean(value)),
     missingEvidence: [
-      !sourceTrace.length ? "No source trace attached to this schedule row." : null,
+      !sourceTrace.length ? "No schedule coverage is attached to this player yet." : null,
       !window.hasScheduleData
         ? "No opponent or schedule-strength data for the short-term schedule window."
         : null,

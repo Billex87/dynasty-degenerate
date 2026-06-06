@@ -279,7 +279,7 @@ type DynastyAiSuggestion = {
 };
 
 const AI_RECOMMENDATION_BADGE_LABEL = "AI TARGET";
-const AI_RECOMMENDATION_BANNER_LABEL = "AI PICKUP SIGNAL";
+const AI_RECOMMENDATION_BANNER_LABEL = "WAIVER NEXT MOVE";
 
 function getAITronThemeForDynastySurface(
   theme: DynastyAiTheme = "neutral"
@@ -2984,26 +2984,26 @@ export function OwnerIntelMatrix({
     : "";
   const selectedRosterTraceItems = selectedRow
     ? [
-        `${selectedRow.manager} profile: ${selectedRow.identity || 'returned owner identity'} / ${selectedRow.timeline || 'unknown timeline'}.`,
-        selectedOverviewRow ? `League value rank #${selectedOverviewRow.rank_value}; QB/RB/WR/TE ranks stay in the position tiles.` : 'No league overview rank row returned.',
+        `${selectedRow.manager} profile: ${selectedRow.identity || 'owner profile pending'} / ${selectedRow.timeline || 'timeline pending'}.`,
+        selectedOverviewRow ? `League value rank #${selectedOverviewRow.rank_value}; QB/RB/WR/TE ranks stay in the position tiles.` : 'League overview rank is not available yet.',
         `Starter value ${formatCompactValue(selectedRow.starterSeasonValue || selectedRow.starterValue)} and bench value ${formatCompactValue(selectedRow.benchValue)} drive the roster read.`,
-        `${selectedRow.starterAvailability?.riskLevel || 'unknown'} starter availability risk from returned roster data.`,
+        `${selectedRow.starterAvailability?.riskLevel || 'unknown'} starter availability risk is part of the roster read.`,
       ]
     : [];
   const selectedMoveTraceItems = selectedRow
     ? [
-        selectedRow.tradePlan?.needPosition ? `Need signal: ${selectedRow.tradePlan.needPosition}.` : 'No clean need position returned.',
-        selectedRow.tradePlan?.surplusPosition ? `Surplus signal: ${selectedRow.tradePlan.surplusPosition}.` : 'No clean surplus position returned.',
-        selectedRow.buyTarget ? `Buy target evidence: ${selectedRow.buyTarget.name}.` : 'No buy target returned.',
-        selectedRow.sellCandidate ? `Sell/watch evidence: ${selectedRow.sellCandidate.name}.` : 'No sell/watch candidate returned.',
+        selectedRow.tradePlan?.needPosition ? `Need: ${selectedRow.tradePlan.needPosition}.` : 'No clean need position is showing yet.',
+        selectedRow.tradePlan?.surplusPosition ? `Surplus: ${selectedRow.tradePlan.surplusPosition}.` : 'No clean surplus position is showing yet.',
+        selectedRow.buyTarget ? `Buy target: ${selectedRow.buyTarget.name}.` : 'No buy target is strong enough yet.',
+        selectedRow.sellCandidate ? `Sell/watch: ${selectedRow.sellCandidate.name}.` : 'No sell/watch candidate is strong enough yet.',
       ]
     : [];
   const selectedMarketTraceItems = selectedRow
     ? [
-        selectedTradeRow ? `Manager trade tendency: ${selectedTradeRow.tradeCount} trades, ${formatCompactValue(selectedTradeRow.profit)} profit.` : 'No manager trade tendency row returned.',
-        selectedPickRow ? `Pick portfolio: ${selectedPickRow.count2026 + selectedPickRow.count2027} future picks worth ${formatCompactValue(selectedPickRow.totalValue)}.` : 'No pick portfolio row returned.',
-        selectedPowerRow ? `Power context: #${selectedPowerRow.rank} with ${selectedPowerRow.score} score.` : 'No power ranking row returned.',
-        selectedGrowthRow ? `Value growth context: ${formatCompactValue(selectedGrowthRow.growth)} movement.` : 'No value-growth row returned.',
+        selectedTradeRow ? `Manager trade tendency: ${selectedTradeRow.tradeCount} trades, ${formatCompactValue(selectedTradeRow.profit)} profit.` : 'Manager trade tendency is not available yet.',
+        selectedPickRow ? `Pick portfolio: ${selectedPickRow.count2026 + selectedPickRow.count2027} future picks worth ${formatCompactValue(selectedPickRow.totalValue)}.` : 'Pick portfolio is not available yet.',
+        selectedPowerRow ? `Power context: #${selectedPowerRow.rank} with ${selectedPowerRow.score} score.` : 'Power ranking is not available yet.',
+        selectedGrowthRow ? `Value growth context: ${formatCompactValue(selectedGrowthRow.growth)} movement.` : 'Value-growth movement is not available yet.',
       ]
     : [];
   const selectedAiSuggestions =
@@ -3411,10 +3411,10 @@ export function OwnerIntelMatrix({
                           decisionDisplay={card.tone === "danger" ? "verdict" : "context"}
                           traceLabel="Why"
                           traceItems={[
-                            `Owner profile: ${selectedRow.identity || 'returned owner identity'}.`,
+                            `Owner profile: ${selectedRow.identity || 'owner profile pending'}.`,
                             `Timeline: ${selectedRow.timeline || selectedTeamType || 'unknown'}.`,
-                            selectedOverviewRow ? `Value rank #${selectedOverviewRow.rank_value}.` : 'No league value rank returned.',
-                            `Signal source: ${card.title}.`,
+                            selectedOverviewRow ? `Value rank #${selectedOverviewRow.rank_value}.` : 'League value rank is not available yet.',
+                            `Card focus: ${card.title}.`,
                           ]}
                           backgroundVariant={panelVariant}
                           severity={panelSeverity}

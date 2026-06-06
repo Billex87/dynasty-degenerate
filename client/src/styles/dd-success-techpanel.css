@@ -87,21 +87,32 @@
 @media (max-width: 640px) {
   [data-slot="dialog-content"].analysis-loading-dialog-success,
   .analysis-loading-dialog-success {
-    width: min(calc(100vw - 5rem), 20rem) !important;
-    max-width: min(calc(100vw - 5rem), 20rem) !important;
+    width: min(calc(100vw - 2rem), 22.5rem) !important;
+    max-width: min(calc(100vw - 2rem), 22.5rem) !important;
     min-height: 0 !important;
     height: auto !important;
+    scale: 0.88 !important;
   }
 
   .analysis-loading-dialog-success .analysis-loading-panel {
-    background: transparent !important;
-    box-shadow: none !important;
-    min-height: 0 !important;
+    min-height: clamp(19rem, 46vh, 22rem) !important;
   }
 
   .analysis-loading-dialog-success .loading-modal-header {
-    padding: 1rem 0.6rem 0.8rem;
-    gap: 0.6rem;
+    min-height: clamp(19rem, 46vh, 22rem);
+    padding: 1rem 0.85rem;
+    gap: 0.52rem;
+    transform: translateY(-0.72rem);
+  }
+
+  .analysis-loading-dialog-success .loading-success-card-3d {
+    opacity: 0.72;
+  }
+
+  .analysis-loading-dialog-success .loading-subtitle {
+    text-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.96),
+      0 0 14px rgba(125, 247, 255, 0.28);
   }
 }
 

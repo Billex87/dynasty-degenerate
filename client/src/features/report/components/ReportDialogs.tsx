@@ -117,7 +117,11 @@ export function AnalysisLoadingDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="analysis-loading-modal-body">
-          <div className="analysis-loading-status-copy" role="status" aria-live="polite">
+          <div
+            className={`analysis-loading-status-copy${hasTimedOut && !analysisCompleteMessage ? '' : ' sr-only'}`}
+            role="status"
+            aria-live="polite"
+          >
             <p className="analysis-loading-status-title">
               {analysisCompleteMessage
                 ? "League report ready"

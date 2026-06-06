@@ -307,10 +307,10 @@ function baselineForPlayerDetails(
     kind: "market-default",
     label: valueMode === "redraft" ? "current-season market default" : "dynasty market default",
     score,
-    source: rankScore !== null ? "current rank" : valueScore !== null ? "stored player value" : "missing player market",
+    source: rankScore !== null ? "current rank" : valueScore !== null ? "player value" : "missing player market",
     detail: score === null
       ? "No player rank/value baseline was available for this archetype read."
-      : `Baseline score ${formatBaselineLabel(score)} from ${rankScore !== null ? "rank" : "stored value"}.`,
+      : `Baseline score ${formatBaselineLabel(score)} from ${rankScore !== null ? "rank" : "player value"}.`,
   };
 }
 
@@ -1012,7 +1012,7 @@ function eventFromQueueItem(input: {
       snapshotFact({ key: "rank", label: "Queue rank", value: input.item.rank, source: "AI action queue" }),
       snapshotFact({ key: "rawDecision", label: "Raw decision", value: input.item.decision, source: "AI action queue" }),
       snapshotFact({ key: "baseline", label: "Counterfactual baseline", value: formatBaselineLabel(counterfactual.baseline.score), source: counterfactual.baseline.source }),
-      snapshotFact({ key: "sourceHealthCount", label: "Source health rows", value: input.item.sourceHealth.length, source: "AI receipts" }),
+      snapshotFact({ key: "sourceHealthCount", label: "Input health rows", value: input.item.sourceHealth.length, source: "AI decision log" }),
       snapshotFact({ key: "queueSignals", label: "Queue signals", value: input.item.signals.join(" · "), source: "AI action queue" }),
     ],
     counterfactual,
@@ -1211,9 +1211,9 @@ function eventFromWaiverCandidate(input: {
         source: "live roster snapshot",
       }),
       snapshotFact({ key: "trendAdds", label: "Trend adds", value: input.player.count || 0, source: "Sleeper trends" }),
-      snapshotFact({ key: "marketValue", label: "Market value", value: input.player.ktcValue, source: "stored value snapshot" }),
+      snapshotFact({ key: "marketValue", label: "Market value", value: input.player.ktcValue, source: "player value snapshot" }),
       snapshotFact({ key: "currentRank", label: "Current rank", value: input.player.currentPositionRank ?? null, source: "redraft/current rank snapshot" }),
-      snapshotFact({ key: "scheduleScore", label: "Schedule score", value: input.target?.score ?? input.player.weeklyEcr?.confidence ?? null, source: "stored schedule context" }),
+      snapshotFact({ key: "scheduleScore", label: "Schedule score", value: input.target?.score ?? input.player.weeklyEcr?.confidence ?? null, source: "schedule context" }),
       snapshotFact({ key: "baseline", label: "Counterfactual baseline", value: formatBaselineLabel(counterfactual.baseline.score), source: counterfactual.baseline.source }),
     ],
     counterfactual,
@@ -1419,7 +1419,7 @@ function eventFromPlayerDetails(input: {
       snapshotFact({ key: "archetype", label: "Archetype", value: archetype.label, source: "player-detail AI" }),
       snapshotFact({ key: "outcomeBucket", label: "Cohort bucket", value: input.details.playerCohort?.outcomeBucket || null, source: "player cohort" }),
       snapshotFact({ key: "situationAction", label: "Situation action", value: input.details.playerSituationDelta?.action || null, source: "situation delta" }),
-      snapshotFact({ key: "currentRank", label: "Current rank", value: currentPlayerRank(input.details, input.valueMode), source: "stored value snapshot" }),
+      snapshotFact({ key: "currentRank", label: "Current rank", value: currentPlayerRank(input.details, input.valueMode), source: "player value snapshot" }),
       snapshotFact({ key: "baseline", label: "Counterfactual baseline", value: formatBaselineLabel(counterfactual.baseline.score), source: counterfactual.baseline.source }),
     ],
     counterfactual,

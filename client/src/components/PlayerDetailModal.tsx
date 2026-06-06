@@ -10,7 +10,6 @@ import type { DraftPick, PlayerDetails, ReportData } from '@shared/types';
 import {
   evaluateAIEvidence,
   getAIEvidenceLeagueContextFromDiagnostics,
-  getAIEvidenceReceiptItems,
   type AIEvidenceAction,
   type AIEvidenceMode,
   type AIEvidenceResult,
@@ -462,7 +461,7 @@ export function PlayerDetailModal({
     ['Schedule Tier', formatScheduleTierLabel(scheduleProfile.scheduleTier)],
     ['Streamer Weeks', formatScheduleWeekList(scheduleProfile.streamerWeeks)],
     ['Avoid Weeks', formatScheduleWeekList(scheduleProfile.avoidWeeks)],
-    ['Source', scheduleProfile.source],
+    ['SOS Context', scheduleProfile.source],
     ['Updated', scheduleProfile.updatedAt ? formatNewsDate(scheduleProfile.updatedAt) : null],
   ].filter(([, value]) => value !== null && value !== undefined && value !== '') : [];
   const dynastyRank = getValueProfileRank(valueProfile, 'dynasty', currentRank);
@@ -1056,7 +1055,7 @@ export function PlayerDetailModal({
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-[0.62rem] font-black uppercase tracking-[0.18em] text-amber-200/85">
-                          Historical Receipt
+                          Historical Outcome
                         </p>
                         <p className="mt-1 text-sm font-black text-amber-50">
                           {details.playerCohort.seasonOutcomeReceipt.label}
@@ -1079,8 +1078,8 @@ export function PlayerDetailModal({
                     </p>
                     <div className="mt-2 grid gap-2 text-[0.68rem] font-black uppercase tracking-[0.1em] text-amber-100/85 sm:grid-cols-3">
                       <span>Improved {formatNullablePercent(details.playerCohort.seasonOutcomeReceipt.improvedOrSustainedRate)}</span>
-                      <span>Failure {formatNullablePercent(details.playerCohort.seasonOutcomeReceipt.materialFailureRate)}</span>
-                      <span>Median {formatSignedNumber(details.playerCohort.seasonOutcomeReceipt.medianNextProductionDelta)}</span>
+                      <span>Miss risk {formatNullablePercent(details.playerCohort.seasonOutcomeReceipt.materialFailureRate)}</span>
+                      <span>Median move {formatSignedNumber(details.playerCohort.seasonOutcomeReceipt.medianNextProductionDelta)}</span>
                     </div>
                   </div>
                 )}
@@ -1227,7 +1226,7 @@ export function PlayerDetailModal({
                         team={team}
                         teamColors={teamColors}
                         tileAccent={tileAccent}
-                        showSourceAdmin={showAIRead}
+                        showSourceAdmin={isAdminView}
                         leagueValueMode={valueMode}
                         title="Dynasty Market Price Trend"
                         detailTitle="Dynasty Market Price Timeline"
@@ -1244,7 +1243,7 @@ export function PlayerDetailModal({
                         team={team}
                         teamColors={teamColors}
                         tileAccent={tileAccent}
-                        showSourceAdmin={showAIRead}
+                        showSourceAdmin={isAdminView}
                         isLoading={isRedraftTimelineFetching}
                       />
                     )}
@@ -1343,7 +1342,7 @@ export function PlayerDetailModal({
                               {latestNews.title}
                             </p>
                             <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-cyan-200/75">
-                              {latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : 'Stored news update'}
+                              {latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : 'Player update'}
                             </p>
                             {latestNews.summary ? (
                               <p className="mt-3 break-words whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
@@ -1371,7 +1370,7 @@ export function PlayerDetailModal({
                           {latestNews.title}
                         </p>
                         <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-cyan-200/75">
-                          {latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : 'Stored news update'}
+                          {latestNews.publishedAt ? formatNewsDate(latestNews.publishedAt) : 'Player update'}
                         </p>
                         {latestNews.summary ? (
                           <p className="mt-3 break-words whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
@@ -1395,10 +1394,10 @@ export function PlayerDetailModal({
                         {isPlayerNewsFetching ? 'Checking latest player updates' : 'No recent player update attached'}
                       </p>
                       <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-cyan-200/75">
-                        {sleeperNewsDate ? `Player file updated ${sleeperNewsDate}` : 'Awaiting source match'}
+                        {sleeperNewsDate ? `Player file updated ${sleeperNewsDate}` : 'Awaiting player update'}
                       </p>
                       <p className="mt-3 break-words text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
-                        A news card will appear here once the latest source refresh includes a matched update for this player.
+                        A news card will appear here once the latest player update includes a matched note.
                       </p>
                     </div>
                   ) : null}
@@ -2559,7 +2558,7 @@ function PlayerValueTimelineCard({
           <svg
             viewBox="0 0 260 86"
             role="img"
-            aria-label={`Stored value timeline from ${formatValueLens(firstPoint.value)} to ${formatValueLens(lastPoint.value)}`}
+            aria-label={`Value timeline from ${formatValueLens(firstPoint.value)} to ${formatValueLens(lastPoint.value)}`}
             className="h-[86px] w-full overflow-visible"
             preserveAspectRatio="none"
           >
@@ -2586,11 +2585,11 @@ function PlayerValueTimelineCard({
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-slate-300">
           <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2 py-1 text-cyan-100">
-            {lastPoint.sourceCount} sources
+            {lastPoint.sourceCount} blend inputs
           </span>
           {displayTimeline.summary.sourceSetChanged && (
             <span className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2 py-1 text-amber-100">
-              source mix changed
+              blend mix changed
             </span>
           )}
         </div>
@@ -2804,8 +2803,8 @@ function PlayerValueTimelineDetailDialog({
             <div className="player-value-timeline-metric-grid">
               <TimelineMetric label="Start" value={formatValueLens(firstPoint.value)} note={formatTimelineDate(firstPoint.date)} />
               <TimelineMetric label="Current" value={formatValueLens(lastPoint.value)} note={formatTimelineDate(lastPoint.date)} />
-              <TimelineMetric label="Move" value={activeDeltaLabel} note={timeline.summary.sourceSetChanged ? 'Source mix changed' : 'Same source set'} />
-              <TimelineMetric label="Latest Rank" value={formatTimelineRank(lastPoint)} note={`${lastPoint.sourceCount} sources`} />
+              <TimelineMetric label="Move" value={activeDeltaLabel} note={timeline.summary.sourceSetChanged ? 'Blend mix changed' : 'Same blend mix'} />
+              <TimelineMetric label="Latest Rank" value={formatTimelineRank(lastPoint)} note={`${lastPoint.sourceCount} blend inputs`} />
             </div>
 
             <div className="player-value-timeline-chart-panel">
@@ -2998,7 +2997,7 @@ function PlayerValueTimelineDetailDialog({
                   <TimelineMetric
                     label="Coverage"
                     value={`${lastPoint.sourceCount}`}
-                    note={timeline.summary.sourceSetChanged ? 'Source mix changed' : 'Stable source set'}
+                    note={timeline.summary.sourceSetChanged ? 'Blend mix changed' : 'Stable blend mix'}
                   />
                 </div>
                 <div className="player-value-source-audit-grid">
@@ -3040,7 +3039,7 @@ function PlayerValueTimelineDetailDialog({
                           <em>
                             {row.sampleCount
                               ? `${row.sampleCount} pts · avg ${formatTimelineSourceValue(row.averageValue)} · low ${row.lowCount} / high ${row.highCount}`
-                              : 'No stored history'}
+                              : 'No saved history'}
                           </em>
                         </article>
                       ))}
@@ -3353,7 +3352,7 @@ function buildRedraftTimelineReadContext(timeline?: RedraftValueTimelineData | n
 
   return {
     chip: `${scope.label} ${latest.rank || formatValueLens(latest.value)}`,
-    confidenceNote: `Redraft ${scope.label.toLowerCase()} history loaded from local player shards; no provider call was made.`,
+    confidenceNote: `Redraft ${scope.label.toLowerCase()} value has enough movement history to use as short-term context.`,
     copy: `Redraft history: ${scope.label} sits at ${formatValueLens(latest.value)}${latest.rank ? ` / ${latest.rank}` : ''}. ${moveLabel ? `Window move is ${moveLabel}.` : ''} ${highLow ? `Range check: ${highLow}.` : ''}`.replace(/\s+/g, ' ').trim(),
   };
 }
@@ -3421,7 +3420,7 @@ function buildSituationValueEvidence({
       chips: [
         { label: 'Heat check', tone: 'warn' },
         `Gap ${gap}`,
-        movement.sourceSetChanged ? 'Source mix changed' : 'Price ahead',
+        movement.sourceSetChanged ? 'Blend mix changed' : 'Price ahead',
       ],
       copy: `Situation/value check: the market is pricing more than the support stack has proven (${evidenceParts}). Market movement is ${movementLabel}, so the next read needs role confirmation instead of just accepting the value spike.`,
     };
@@ -3450,7 +3449,7 @@ function buildSituationValueEvidence({
     chips: [
       { label: 'Context hold', tone: 'info' },
       `Gap ${gap > 0 ? '+' : ''}${gap}`,
-      movement.sourceSetChanged ? 'Source mix changed' : opportunity.label,
+      movement.sourceSetChanged ? 'Blend mix changed' : opportunity.label,
     ],
     copy: `Situation/value check: support and market are close enough to avoid a forced call (${evidenceParts}). Market movement is ${movementLabel}; use the timeline markers to decide whether the move is earned or just price noise.`,
   };
@@ -3499,7 +3498,7 @@ function buildPlayerAiSourceTrace(
   });
   if (details?.playerCohort?.calibration) {
     sourceRows.push({
-      label: 'Player cohort calibration',
+      label: 'Historical profile',
       status: details.playerCohort.calibration.evidenceGrade === 'blocked' ? 'limited' : 'loaded',
       detail: details.playerCohort.calibration.note,
     });
@@ -3561,9 +3560,26 @@ function getPlayerEvidenceChip(read: AIEvidenceResult): AIReadChip {
           ? 'good'
           : 'info';
   return {
-    label: `${read.label} ${read.finalScore}%`,
+    label: getVoicedAIConfidenceLabel(read.finalScore),
     tone,
   };
+}
+
+function sanitizePlayerAiManagerNote(note?: string | null): string | null {
+  const clean = note?.replace(/\s+/g, ' ').trim();
+  if (!clean) return null;
+  const lower = clean.toLowerCase();
+  if (
+    /why this fired|source trace|receipt|calibration|confidence cap|payload|row count|derivation|outcome bucket/.test(lower) ||
+    (/\brows?\b/.test(lower) && /\bloaded|returned\b/.test(lower))
+  ) {
+    return null;
+  }
+  return clean
+    .replace(/source-limited/gi, 'limited')
+    .replace(/\bevidence\b/gi, 'signal')
+    .replace(/\bconfidence\b/gi, 'read strength')
+    .replace(/\breturned\b/gi, 'available');
 }
 
 function buildPlayerAiEvidenceRead(input: {
@@ -3704,13 +3720,17 @@ function buildPlayerAiEvidenceRead(input: {
 
 function buildPlayerAiTraceItems(read: AIEvidenceResult, trace: string[]): string[] {
   const cleanedTrace = trace
-    .filter(Boolean)
-    .filter((item) => !/^Outcome bucket:/i.test(item));
+    .map(sanitizePlayerAiManagerNote)
+    .filter((item): item is string => Boolean(item));
+  const actionNote = read.label === 'blocked'
+    ? 'Hold until the role, availability, and value setup are clearer.'
+    : read.canAct
+      ? 'Use this read after final roster, news, and lineup checks.'
+      : 'Treat this as a watch note, not a forced move.';
   return [
-    read.whyThisFired,
+    actionNote,
     ...cleanedTrace,
-    ...getAIEvidenceReceiptItems(read),
-  ];
+  ].slice(0, 5);
 }
 
 export function buildPlayerAiRead({
@@ -4099,16 +4119,15 @@ export function buildPlayerAiRead({
     confidence: evidenceRead.finalScore,
     evidenceRead,
     confidenceNote: [
-      `Evidence ${evidenceRead.label}.`,
-      evidenceRead.confidenceCapReason ? `Confidence limited by ${evidenceRead.confidenceCapReason}.` : null,
+      getVoicedAIConfidenceLabel(evidenceRead.finalScore),
+      evidenceRead.label === 'blocked' ? 'Hold until the player setup is clearer.' : null,
       valueFraming.note,
       redraftHistoryContext?.confidenceNote || null,
       actionArchetype ? `Archetype ${actionArchetype.label}: ${actionArchetype.note}` : null,
-      cohort?.calibration?.note || null,
-      cohort?.historicalComps ? `Historical comps confidence ${cohort.historicalComps.confidence}; ${cohort.historicalComps.summary}` : null,
-      cohort?.seasonOutcomeReceipt ? `Season outcome receipt ${cohort.seasonOutcomeReceipt.confidenceGrade}; ${cohort.seasonOutcomeReceipt.note} ${cohort.seasonOutcomeReceipt.summary}` : null,
-      situationDelta ? `Situation delta confidence ${situationDelta.confidence}; ${situationDelta.freshness?.note || 'freshness unavailable'} ${situationDelta.missingSignals.length ? `Missing ${situationDelta.missingSignals.slice(0, 2).join(' and ')}.` : 'First-pass inputs present.'}` : null,
-    ].filter(Boolean).join(' '),
+      cohort?.historicalComps ? `Historical comps: ${cohort.historicalComps.summary}` : null,
+      cohort?.seasonOutcomeReceipt?.displayEligible ? `Historical outcome: ${cohort.seasonOutcomeReceipt.summary}` : null,
+      situationDelta ? `${situationDelta.summary} ${situationDelta.missingSignals.length ? `Watch ${situationDelta.missingSignals.slice(0, 2).join(' and ')} before changing the read.` : ''}` : null,
+    ].map(sanitizePlayerAiManagerNote).filter(Boolean).join(' '),
     severity,
     chips: [getPlayerEvidenceChip(evidenceRead), ...chips],
     body,
@@ -4169,7 +4188,7 @@ function formatSituationDeltaLabel(label: NonNullable<PlayerDetails['playerSitua
     'opportunity-cliff': { label: 'Opp cliff', tone: 'danger' },
     'draft-capital-patience': { label: 'Draft patience', tone: 'good' },
     'late-capital-urgency': { label: 'Urgency', tone: 'warn' },
-    'source-limited-route-read': { label: 'Source-limited', tone: 'warn' },
+    'source-limited-route-read': { label: 'Verify first', tone: 'warn' },
   };
   return labels[label] || { label, tone: 'neutral' };
 }
@@ -4229,7 +4248,7 @@ function buildSituationDeltaReadCopy(
       return {
         readType: 'Scheme Risk',
         severity: 'warn',
-        copy: `${summary} The offense context is a drag, so confidence should stay limited until volume offsets it.`,
+        copy: `${summary} The offense context is a drag, so keep this in watch mode until volume offsets it.`,
       };
     case 'new-team-uncertainty':
       return {
@@ -4245,9 +4264,9 @@ function buildSituationDeltaReadCopy(
       };
     case 'source-limited-route-read':
       return {
-        readType: 'Source-Limited Read',
+        readType: 'Verify First',
         severity: 'warn',
-        copy: `${summary} Route-level evidence is not exact here, so the read stays cautious and should rely on targets, snaps, room, and value movement.`,
+        copy: `${summary} Route-level context is not exact here, so rely on targets, snaps, room, and value movement before acting.`,
       };
     default:
       return null;
@@ -4337,7 +4356,7 @@ function buildSeasonOutcomeReceiptReadCopy(
       readType: forceSeverity ? 'Historical Warning' : 'Historical Check',
       severity: forceSeverity ? 'warn' : 'info',
       forceSeverity,
-      copy: `Historical outcome for ${playerName}: ${receipt.label.toLowerCase()} has ${receipt.sampleSize} samples with ${failureCopy}, ${positiveCopy}, and ${medianCopy}.${failureMode} Treat this as a confidence limit, not an automatic sell command.`,
+      copy: `Historical outcome for ${playerName}: ${receipt.label.toLowerCase()} has ${receipt.sampleSize} samples with ${failureCopy}, ${positiveCopy}, and ${medianCopy}.${failureMode} Treat this as a watch flag, not an automatic sell command.`,
     };
   }
 
@@ -4653,7 +4672,7 @@ function buildPlayerIntelligenceNotes({
       copy: [
         streamerWeeks ? `Streamer windows: ${streamerWeeks}.` : null,
         avoidWeeks ? `Avoid windows: ${avoidWeeks}.` : null,
-        scheduleSource ? `Source: ${scheduleSource}.` : null,
+        scheduleSource ? `SOS context: ${scheduleSource}.` : null,
       ].filter(Boolean).join(' ') || 'Use bye weeks and SOS to plan streamer coverage.',
       tone: details?.schedule?.scheduleTier === 'hard' || details?.schedule?.scheduleTier === 'elite' ? 'market' : 'upside',
       fullWidth: true,

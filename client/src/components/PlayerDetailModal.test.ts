@@ -201,7 +201,8 @@ describe("buildPlayerAiRead", () => {
     expect(read).not.toBeNull();
     expect(read?.evidenceRead.canAct).toBe(false);
     expect(read?.evidenceRead.finalScore).toBeLessThanOrEqual(58);
-    expect(read?.confidenceNote).toContain("No player source trace");
+    expect(read?.evidenceRead.confidenceCapReason).toBe("No player source trace");
+    expect(read?.confidenceNote).not.toMatch(/source trace|confidence/i);
   });
 
   it("caps player-detail reads without current role context", () => {
@@ -236,8 +237,8 @@ describe("buildPlayerAiRead", () => {
     expect(read?.evidenceRead.canAct).toBe(false);
     expect(read?.evidenceRead.finalScore).toBeLessThanOrEqual(57);
     expect(read?.evidenceRead.confidenceCapReason).toBe("Missing current role context");
-    expect(read?.evidenceRead.missingEvidence).toContain("No cohort or situation-delta context returned.");
-    expect(read?.confidenceNote).toContain("Missing current role context");
+    expect(read?.evidenceRead.missingEvidence).toContain("No cohort or situation-delta context is available.");
+    expect(read?.confidenceNote).not.toContain("Missing current role context");
   });
 
   it("caps player-detail reads without recent usage trend", () => {
@@ -275,7 +276,7 @@ describe("buildPlayerAiRead", () => {
     expect(read?.evidenceRead.canAct).toBe(false);
     expect(read?.evidenceRead.finalScore).toBeLessThanOrEqual(56);
     expect(read?.evidenceRead.confidenceCapReason).toBe("Missing recent usage trend");
-    expect(read?.evidenceRead.missingEvidence).toContain("No recent usage trend returned.");
-    expect(read?.confidenceNote).toContain("Missing recent usage trend");
+    expect(read?.evidenceRead.missingEvidence).toContain("No recent usage trend is available.");
+    expect(read?.confidenceNote).not.toContain("Missing recent usage trend");
   });
 });

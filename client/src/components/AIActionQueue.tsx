@@ -51,24 +51,38 @@ function getActionQueueTronTheme(tone: AIActionQueueItem['tone']): AITronTheme {
 function getActionQueueEvidenceBand(item: AIActionQueueItem) {
   if (item.decision === 'blocked' || item.blockers.length) return 'Blocked';
   if (item.missingEvidence.length || item.sourceHealth.some(row => /stale|missing|error|limited|unavailable|unverified/i.test(row))) {
-    return 'Source-limited';
+    return 'Verify first';
   }
-  if (item.confidence >= 78) return 'Strong';
-  if (item.confidence >= 46) return 'Watch';
-  return 'Thin';
+  if (item.confidence >= 78) return 'Strong read';
+  if (item.confidence >= 46) return 'Watch only';
+  return 'Not enough signal';
+}
+
+function getManagerFacingQueueDetail(value?: string | null): string {
+  const clean = normalizeQueueNote(value);
+  const lower = clean.toLowerCase();
+  if (!clean) return 'Check roster, role, availability, and timing before acting.';
+  if (/schedule|sos|matchup|bye/.test(lower)) return 'Schedule window needs a week-level check before acting.';
+  if (/role|usage|lineup|starter/.test(lower)) return 'Role and lineup status need one more check before acting.';
+  if (/availability|injury|roster|active|team|status/.test(lower)) return 'Availability and roster status need a final check before acting.';
+  if (/trade|partner|offer|transaction/.test(lower)) return 'Trade fit needs a cleaner partner or offer path before forcing it.';
+  if (/source|trace|evidence|calibration|confidence|proof|row|payload|returned|missing|guardrail/.test(lower)) {
+    return 'The read needs a cleaner manager-useful signal before acting.';
+  }
+  return clean;
 }
 
 function getSecondaryQueueDetail(item: AIActionQueueItem): { label: string; detail: string } | null {
   if (item.missingEvidence[0]) {
     return {
-      label: 'Check first',
-      detail: item.missingEvidence[0],
+      label: 'Verify first',
+      detail: getManagerFacingQueueDetail(item.missingEvidence[0]),
     };
   }
   if (item.changeTriggers[0]) {
     return {
       label: 'Could change',
-      detail: item.changeTriggers[0],
+      detail: getManagerFacingQueueDetail(item.changeTriggers[0]),
     };
   }
   return null;
@@ -204,7 +218,7 @@ function ActionConfidenceSparkline({
   if (points.length < 2) return null;
 
   return (
-    <div className="ai-action-confidence-sparkline" aria-label="AI confidence history">
+    <div className="ai-action-confidence-sparkline" aria-label="AI read strength history">
       {points.map(point => (
         <span
           key={point.id}
@@ -306,9 +320,10 @@ export function AIActionQueue({
   className,
   memoryKey,
   memoryContext,
-  enableOutcomeObserver = true,
+  enableOutcomeObserver = false,
   maxVisibleItems = 1,
   showSuppressedAlternates = true,
+  showDiagnostics = false,
 }: {
   items?: AIActionQueueItem[];
   title?: string;
@@ -321,6 +336,7 @@ export function AIActionQueue({
   enableOutcomeObserver?: boolean;
   maxVisibleItems?: number;
   showSuppressedAlternates?: boolean;
+  showDiagnostics?: boolean;
 }) {
   const visibleLimit = compact ? 1 : Math.max(1, Math.floor(maxVisibleItems));
   const sourceQueue = (items || []).filter(Boolean);
@@ -405,11 +421,11 @@ export function AIActionQueue({
           </div>
           <div
             className="ai-action-summary-score"
-            aria-label={`AI evidence band ${primaryBand}`}
-            title={`Score: ${primary.confidence}%`}
+            aria-label={`AI read strength ${primaryBand}`}
+            title={primaryBand}
           >
             <strong>{primaryBand}</strong>
-            <span>{primary.source}</span>
+            <span>Read strength</span>
           </div>
         </div>
         <p className="ai-action-summary-risk">{primary.risk}</p>
@@ -448,7 +464,7 @@ export function AIActionQueue({
             <Icon className="h-4 w-4" aria-hidden="true" />
             {getDecisionCopy(primary.decision)}
           </span>
-          <strong title={`Score: ${primary.confidence}%`}>{primaryBand}</strong>
+          <strong>{primaryBand}</strong>
         </div>
         <div className="ai-action-queue-main">
           <span>{getVoicedAIActionLabel(primary.label, primary.decision)}</span>
@@ -468,9 +484,9 @@ export function AIActionQueue({
           </div>
         )}
         <QueueReceipts item={primary} compact={compact} />
-        <ActionConflictPanel item={primary} compact={compact} />
-        <ActionMemoryPanel change={change} points={confidencePoints} compact={compact} />
-        {enableOutcomeObserver && !compact && (
+        {showDiagnostics && <ActionConflictPanel item={primary} compact={compact} />}
+        {showDiagnostics && <ActionMemoryPanel change={change} points={confidencePoints} compact={compact} />}
+        {showDiagnostics && enableOutcomeObserver && !compact && (
           <ActionOutcomeObserver
             item={primary}
             memory={memory}
@@ -500,7 +516,7 @@ export function AIActionQueue({
                 </div>
                 <span className="ai-action-queue-row-score">
                   <Activity className="h-4 w-4" aria-hidden="true" />
-                  {item.confidence}%
+                  {getActionQueueEvidenceBand(item)}
                 </span>
               </article>
             );

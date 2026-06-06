@@ -31,6 +31,7 @@ type ManagerAnchorStyle = CSSProperties & {
   "--anchor-y": string;
   "--anchor-scale": string;
   "--anchor-opacity": string;
+  "--anchor-index": string;
 };
 
 function createManagerAnchorRingSlots({
@@ -149,6 +150,7 @@ function getManagerAnchorFallbackStyle(
     "--anchor-y": `${clampAnchorPosition(50 - y * 17.5)}%`,
     "--anchor-scale": `${densityScale + Math.max(0, z) * 0.08}`,
     "--anchor-opacity": "0.9",
+    "--anchor-index": String(index),
   };
 }
 
@@ -161,7 +163,7 @@ function getManagerAnchorScenePosition(
     return new THREE.Vector3(x, y, z);
   }
 
-  return new THREE.Vector3(x * 0.34, y * 0.92, z * 0.62);
+  return new THREE.Vector3(x * 0.48, y * 0.88, z * 0.72);
 }
 
 function ManagerAnchors({
@@ -433,10 +435,10 @@ function LoaderKitCore({
 
     if (footballSpinRef.current) {
       if (variant === "ambient") {
-        footballSpinRef.current.position.x = 3.16 + Math.sin(time * 0.58) * 0.24;
+        footballSpinRef.current.position.x = 3.08 + Math.sin(time * 0.58) * 0.2;
         footballSpinRef.current.position.y = -0.06 + Math.sin(time * 0.82) * 0.42;
         footballSpinRef.current.position.z = Math.cos(time * 0.58) * 0.28;
-        footballSpinRef.current.scale.setScalar(0.58);
+        footballSpinRef.current.scale.setScalar(0.46);
       } else {
         footballSpinRef.current.position.set(0, 0, 0);
         footballSpinRef.current.scale.setScalar(1);
@@ -450,10 +452,10 @@ function LoaderKitCore({
 
     if (counterFootballSpinRef.current) {
       if (variant === "ambient") {
-        counterFootballSpinRef.current.position.x = -3.16 - Math.sin(time * 0.58) * 0.24;
+        counterFootballSpinRef.current.position.x = -3.08 - Math.sin(time * 0.58) * 0.2;
         counterFootballSpinRef.current.position.y = 0.18 - Math.sin(time * 0.82) * 0.42;
         counterFootballSpinRef.current.position.z = -Math.cos(time * 0.58) * 0.28;
-        counterFootballSpinRef.current.scale.setScalar(0.46);
+        counterFootballSpinRef.current.scale.setScalar(0.36);
       } else {
         counterFootballSpinRef.current.position.set(-1.08, 0.34, -0.22);
         counterFootballSpinRef.current.scale.setScalar(0.58);
@@ -466,9 +468,9 @@ function LoaderKitCore({
     }
 
     if (managerAnchorNodeGroupRef.current) {
-      managerAnchorNodeGroupRef.current.rotation.y = -time * 0.48;
-      managerAnchorNodeGroupRef.current.rotation.x = Math.sin(time * 0.34) * 0.06;
-      managerAnchorNodeGroupRef.current.rotation.z = Math.sin(time * 0.26) * 0.045;
+      managerAnchorNodeGroupRef.current.rotation.y = -time * 1.28;
+      managerAnchorNodeGroupRef.current.rotation.x = Math.sin(time * 0.76) * 0.1;
+      managerAnchorNodeGroupRef.current.rotation.z = Math.sin(time * 0.58) * 0.08;
     }
 
     ringsRef.current.forEach((ring, index) => {
@@ -518,7 +520,7 @@ function LoaderKitCore({
 
         anchorElement.style.setProperty("--anchor-x", `${scaledAnchorX}px`);
         anchorElement.style.setProperty("--anchor-y", `${scaledAnchorY}px`);
-        anchorElement.style.setProperty("--anchor-scale", `${0.84 + (1 - depth) * 0.22}`);
+        anchorElement.style.setProperty("--anchor-scale", `${0.9 + (1 - depth) * 0.28}`);
         anchorElement.style.setProperty("--anchor-opacity", `${Math.max(0.9, opacity)}`);
       }
     }

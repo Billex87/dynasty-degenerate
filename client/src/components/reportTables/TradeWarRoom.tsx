@@ -1441,10 +1441,10 @@ function buildTradeWarNegotiationRead({
       ? `Selling ${outgoingValueSignal.calibration.chip}`
       : null,
     pressure.blockedCount
-      ? `${pressure.blockedCount} blocked signal${pressure.blockedCount === 1 ? "" : "s"}`
+      ? `${pressure.blockedCount} stalled offer${pressure.blockedCount === 1 ? "" : "s"}`
       : null,
     pressure.openCount
-      ? `${pressure.openCount} open signal${pressure.openCount === 1 ? "" : "s"}`
+      ? `${pressure.openCount} open offer${pressure.openCount === 1 ? "" : "s"}`
       : null,
     statusCalibration && statusCalibration.signalCount >= 2
       ? statusCalibration.label
@@ -1459,12 +1459,12 @@ function buildTradeWarNegotiationRead({
     incomingNeed
       ? `The incoming side answers ${need}.`
       : need
-        ? `It does not solve the returned ${need} need yet.`
+        ? `It does not solve the known ${need} need yet.`
         : null,
     outgoingSurplus
       ? `The outgoing side spends from ${surplus} depth.`
       : surplus && outgoing.length
-        ? `It is not clearly using the returned ${surplus} surplus.`
+        ? `It is not clearly using the known ${surplus} surplus.`
         : null,
     outgoingCore
       ? "It includes a protected/core asset, so expect resistance."
@@ -1484,10 +1484,10 @@ function buildTradeWarNegotiationRead({
         })
       : null,
     pressure.blockedCount
-      ? "Recent failed proposal context should lower the opening ask."
+      ? "Recent stalled offers should lower the opening ask."
       : null,
     statusCalibration && statusCalibration.signalCount >= 2
-      ? `Manager calibration: ${statusCalibration.note}.`
+      ? `Manager tendency: ${statusCalibration.note}.`
       : null,
   ].filter(Boolean);
 

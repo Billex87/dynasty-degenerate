@@ -1,6 +1,7 @@
 const SLEEPER_ACTIVITY_SLUGS = ["trades", "players"];
 const CAPTURE_TIMEOUT_MS = 14000;
 const CAPTURE_POLL_MS = 900;
+const inMemoryCaptures = new Map();
 
 function getTransactionKey(transaction, index) {
   const id = String(transaction?.transaction_id || "").trim();
@@ -88,9 +89,25 @@ async function sendSnapshotToAppTab(tabId, snapshot) {
   await chrome.tabs.update(tabId, { active: true });
 }
 
+function getSessionStorageArea() {
+  try {
+    return chrome?.storage?.session || null;
+  } catch {
+    return null;
+  }
+}
+
 async function getStoredCapture(leagueId) {
-  const result = await chrome.storage.session.get(`capture:${leagueId}`);
-  return result?.[`capture:${leagueId}`] || null;
+  const key = `capture:${leagueId}`;
+  const storageArea = getSessionStorageArea();
+  if (!storageArea) return inMemoryCaptures.get(key) || null;
+
+  try {
+    const result = await storageArea.get(key);
+    return result?.[key] || null;
+  } catch {
+    return inMemoryCaptures.get(key) || null;
+  }
 }
 
 async function storeCapture(capture) {
@@ -98,7 +115,18 @@ async function storeCapture(capture) {
   const existing = await getStoredCapture(capture.leagueId);
   const merged = mergeCaptures([existing, capture].filter(Boolean));
   if (!merged) return;
-  await chrome.storage.session.set({ [`capture:${merged.leagueId}`]: merged });
+  const key = `capture:${merged.leagueId}`;
+  const storageArea = getSessionStorageArea();
+  if (!storageArea) {
+    inMemoryCaptures.set(key, merged);
+    return;
+  }
+
+  try {
+    await storageArea.set({ [key]: merged });
+  } catch {
+    inMemoryCaptures.set(key, merged);
+  }
 }
 
 async function ensureSleeperTab(leagueId, slug) {

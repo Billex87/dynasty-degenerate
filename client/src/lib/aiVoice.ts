@@ -22,7 +22,7 @@ const AI_VOICE_MODE_LABELS: Record<AIVoiceMode, string> = {
 };
 
 const AI_VOICE_MODE_DESCRIPTIONS: Record<AIVoiceMode, string> = {
-  straight: "Clean evidence-first readouts.",
+  straight: "Clean manager-first readouts.",
   degen: "Sharper fantasy readouts.",
   roast: "Direct warnings when the signal is weak.",
 };
@@ -183,16 +183,16 @@ export function getVoicedAIConfidenceLabel(
   mode: AIVoiceMode = getAIVoiceMode()
 ): string {
   if (mode === "straight") {
-    if (value >= 78) return "Strong evidence";
-    if (value >= 62) return "Building evidence";
-    if (value >= 46) return "Thin evidence";
-    return "Low evidence";
+    if (value >= 78) return "Strong read";
+    if (value >= 62) return "Useful read";
+    if (value >= 46) return "Watch only";
+    return "Not enough signal";
   }
 
-  if (value >= 78) return "Strong signal";
+  if (value >= 78) return "Strong read";
   if (value >= 62) return "Building signal";
-  if (value >= 46) return "Thin signal";
-  return "Low signal";
+  if (value >= 46) return "Watch only";
+  return "Not enough signal";
 }
 
 export function getVoicedAIActionDecisionCopy(

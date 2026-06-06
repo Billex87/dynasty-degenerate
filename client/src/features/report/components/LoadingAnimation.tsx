@@ -3,37 +3,6 @@ import { createPortal } from 'react-dom';
 import { Check, CheckCircle2, Sparkles, Zap } from 'lucide-react';
 import type { LoaderManagerAnchor } from './LoaderKitBackdrop';
 
-const STEP_DATA_RANGES: Record<string, [number, number]> = {
-  sleeper:  [0,       1_200],
-  league:   [1_200,   8_400],
-  ktc:      [8_400,   34_000],
-  dynasty:  [34_000,  72_000],
-  csv:      [72_000,  118_000],
-  final:    [118_000, 142_000],
-};
-
-function useDataCounter(activeStepId: string, isActive: boolean) {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!isActive) return;
-    const [start, end] = STEP_DATA_RANGES[activeStepId] ?? [0, 1000];
-    setCount(start);
-    let current = start;
-    const target = end * 0.88;
-    const steps = 200;
-    const base = (target - start) / steps;
-    const iv = setInterval(() => {
-      current += base + Math.random() * base * 0.35;
-      if (current >= target) { clearInterval(iv); return; }
-      setCount(Math.round(current));
-    }, 150);
-    return () => clearInterval(iv);
-  }, [activeStepId, isActive]);
-
-  return count;
-}
-
 const LoaderKitBackdrop = lazy(() => import('./LoaderKitBackdrop'));
 const SuccessCard3D = lazy(() => import('@/features/report/components/SuccessCard3D'));
 
@@ -51,16 +20,18 @@ function LoadingLetterbox({ isComplete }: { isComplete: boolean }) {
 
 function LoadingSceneBackdrop({
   isActive,
+  phase,
   managerAnchors,
 }: {
   isActive: boolean;
+  phase: LoadingAnimationPhase;
   managerAnchors?: LoaderManagerAnchor[];
 }) {
   if (typeof document === 'undefined') return null;
 
   return createPortal(
     <div
-      className="dd-loading-scene-backdrop"
+      className={`dd-loading-scene-backdrop dd-loading-scene-backdrop--${phase}`}
       data-state={isActive ? 'enter' : 'exit'}
       aria-hidden="true"
     >
@@ -79,13 +50,22 @@ interface LoadingStep {
 }
 
 const initialLoadingSteps: LoadingStep[] = [
-  { id: 'sleeper', label: 'Connecting to Sleeper...', status: 'loading' },
-  { id: 'league', label: 'Loading league settings and rosters', status: 'pending' },
-  { id: 'ktc', label: 'Matching player values to this format', status: 'pending' },
-  { id: 'dynasty', label: 'Building league context and market reads', status: 'pending' },
-  { id: 'csv', label: 'Preparing report tables and manager insights', status: 'pending' },
-  { id: 'final', label: 'Finalizing', status: 'pending' },
+  { id: 'sleeper', label: 'Connect league', status: 'loading' },
+  { id: 'league', label: 'Load rosters', status: 'pending' },
+  { id: 'ktc', label: 'Match values', status: 'pending' },
+  { id: 'dynasty', label: 'Build market read', status: 'pending' },
+  { id: 'csv', label: 'Prepare manager insights', status: 'pending' },
+  { id: 'final', label: 'Final check', status: 'pending' },
 ];
+
+const loadingStepScanLabels: Record<string, string> = {
+  sleeper: 'League tunnel opening',
+  league: 'Manager map locking',
+  ktc: 'Value board syncing',
+  dynasty: 'Market board scanning',
+  csv: 'Private report staging',
+  final: 'War room finalizing',
+};
 
 function createInitialLoadingSteps() {
   return initialLoadingSteps.map((step) => ({ ...step }));
@@ -112,13 +92,18 @@ export function LoadingAnimation({
   const [isFlashing, setIsFlashing] = useState(false);
   const prevCompletedRef = useRef(0);
   const isLoadingResolved = isComplete || phase !== 'loading';
+  const shouldShowSceneBackdrop = phase === 'loading' || phase === 'success';
   const activeStep = steps.find(step => step.status === 'loading') || steps[steps.length - 1];
   const activeStepLabel = activeStep?.id === 'final'
-    ? 'Finalizing'
-    : activeStep?.label.replace(/\.\.\.$/, '') || '';
+    ? 'Final check'
+    : activeStep?.label || '';
   const isCompactFinalizing = activeStep?.id === 'final';
   const completedCount = steps.filter(s => s.status === 'complete').length;
-  const dataCount = useDataCounter(activeStep?.id ?? 'sleeper', !isLoadingResolved);
+  const managerCount = managerAnchors?.length || 0;
+  const activeScanLabel = loadingStepScanLabels[activeStep?.id || 'sleeper'] || 'League scan live';
+  const managerCountLabel = managerCount > 0
+    ? `${managerCount} manager${managerCount === 1 ? '' : 's'} locked`
+    : 'Manager map live';
 
   useEffect(() => {
     if (completedCount > prevCompletedRef.current && completedCount > 0) {
@@ -157,7 +142,11 @@ export function LoadingAnimation({
   return (
     <div className={`loading-panel analysis-loading-panel${isFlashing ? ' loading-panel-flash' : ''}`}>
       <LoadingLetterbox isComplete={isLoadingResolved} />
-      <LoadingSceneBackdrop isActive={!isLoadingResolved} managerAnchors={managerAnchors} />
+      <LoadingSceneBackdrop
+        isActive={shouldShowSceneBackdrop}
+        phase={phase}
+        managerAnchors={managerAnchors}
+      />
       <div className="loading-tron-backdrop analysis-loading-tron analysis-loading-loader-kit" aria-hidden="true" />
       {isLoadingResolved ? (
         <Suspense fallback={null}>
@@ -170,6 +159,10 @@ export function LoadingAnimation({
 
 
       <div className="loading-modal-header">
+        <div className="loading-premium-kicker">
+          <span>{isLoadingResolved ? 'Private report' : 'League war room'}</span>
+          <span className="loading-premium-kicker-manager-count">{managerCountLabel}</span>
+        </div>
         {isLoadingResolved && (
           <div className="loading-modal-success-stamp">
             <CheckCircle2 aria-hidden="true" />
@@ -198,10 +191,8 @@ export function LoadingAnimation({
           role="status"
           aria-live="polite"
         >
+          <span className="loading-mobile-status-meta">{activeScanLabel}</span>
           <span className="loading-mobile-status-copy">{activeStepLabel}</span>
-          <span className="loading-data-counter" aria-hidden="true">
-            {dataCount.toLocaleString()} data points analyzed
-          </span>
           <span className="loading-mobile-progress-track" aria-hidden="true">
             <span className="loading-finalizing-beam" />
             <span className="loading-finalizing-node loading-finalizing-node-a" />
@@ -213,6 +204,10 @@ export function LoadingAnimation({
 
       {!isLoadingResolved && (
         <div className="loading-step-list">
+          <div className="loading-scan-readout" aria-hidden="true">
+            <span>{activeScanLabel}</span>
+            <span>{managerCountLabel}</span>
+          </div>
           {steps.map((step) => {
             const isFinalizing = step.id === 'final' && step.status === 'loading';
 
@@ -247,7 +242,7 @@ export function LoadingAnimation({
                 </div>
 
                 <div className="flex-1">
-                  <p className={`text-sm font-medium transition-colors ${
+                  <p className={`loading-step-label text-sm font-medium transition-colors ${
                     step.status === 'complete' ? 'text-cyan-300' :
                     step.status === 'loading' ? 'text-orange-300' :
                     'text-slate-500'
@@ -257,7 +252,9 @@ export function LoadingAnimation({
                 </div>
 
                 {step.status === 'complete' && (
-                  <div className="text-cyan-300 text-sm font-medium">Done</div>
+                  <div className="loading-step-status loading-step-status-complete text-cyan-300 text-sm font-medium">
+                    Done
+                  </div>
                 )}
                 {step.status === 'loading' && (
                   <div className="loading-finalizing-track" aria-hidden="true">

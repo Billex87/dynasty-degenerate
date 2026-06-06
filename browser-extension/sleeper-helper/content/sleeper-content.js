@@ -38,6 +38,15 @@
     (document.documentElement || document.head || document.body).appendChild(script);
   }
 
+  function sendRuntimeMessage(message) {
+    try {
+      const maybePromise = chrome.runtime.sendMessage(message);
+      if (maybePromise?.catch) maybePromise.catch(() => {});
+    } catch {
+      // Deliberately ignore bridge failures so Sleeper behavior is unchanged.
+    }
+  }
+
   window.addEventListener("message", (event) => {
     if (event.source !== window || event.origin !== window.location.origin) return;
     const message = event.data;
@@ -46,7 +55,7 @@
     if (!payload || payload.source !== "chrome-extension" || !payload.leagueId || !Array.isArray(payload.transactions)) return;
 
     latestCapture = mergeCapture(latestCapture, payload);
-    chrome.runtime.sendMessage({ type: "SLEEPER_CAPTURE_UPDATED", payload: latestCapture }).catch(() => {});
+    sendRuntimeMessage({ type: "SLEEPER_CAPTURE_UPDATED", payload: latestCapture });
   });
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

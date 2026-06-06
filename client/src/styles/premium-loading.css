@@ -150,6 +150,13 @@
   backdrop-filter: none !important;
 }
 
+.analysis-loading-overlay-loading {
+  background:
+    radial-gradient(circle at 18% 10%, rgba(249, 115, 22, 0.12), transparent 30%),
+    radial-gradient(circle at 82% 14%, rgba(34, 211, 238, 0.1), transparent 32%),
+    rgba(1, 4, 12, 0.86) !important;
+}
+
 .analysis-loading-status-copy {
   position: relative;
   z-index: 2;
@@ -205,11 +212,21 @@
 
 .analysis-loading-dialog-loading,
 .analysis-loading-dialog-success {
-  overflow: hidden;
+  overflow: visible;
+}
+
+.analysis-loading-dialog-loading .analysis-loading-modal-body,
+.analysis-loading-dialog-success .analysis-loading-modal-body {
+  min-height: 0 !important;
+  padding: clamp(0.68rem, 2vw, 0.95rem) !important;
 }
 
 .analysis-loading-panel {
-  min-height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.72rem;
+  min-height: auto;
   border-radius: 1rem;
   overflow: hidden !important;
   padding: 0 !important;
@@ -220,6 +237,19 @@
   box-shadow:
     inset 0 0 0 1px rgba(125, 247, 255, 0.12),
     0 24px 78px rgba(0, 0, 0, 0.44);
+}
+
+.analysis-loading-dialog-loading .analysis-loading-panel {
+  min-height: clamp(27rem, 62vh, 34rem);
+}
+
+.analysis-loading-dialog-success .analysis-loading-panel {
+  min-height: clamp(18.5rem, 42vh, 22.5rem);
+  background:
+    radial-gradient(circle at 48% 24%, rgba(125, 247, 255, 0.14), transparent 18%),
+    radial-gradient(circle at 14% 8%, rgba(255, 106, 0, 0.13), transparent 34%),
+    radial-gradient(circle at 88% 2%, rgba(0, 212, 219, 0.14), transparent 34%),
+    linear-gradient(145deg, rgba(3, 8, 18, 0.98), rgba(2, 6, 23, 0.99));
 }
 
 /* Step completion border flash */
@@ -241,7 +271,7 @@
   z-index: 0 !important;
   border: 0 !important;
   border-radius: inherit !important;
-  opacity: 0.32;
+  opacity: 0.2;
   transform: translateZ(0);
 }
 
@@ -292,12 +322,75 @@
   z-index: 1000;
   overflow: hidden;
   pointer-events: none;
-  opacity: 0.92;
+  opacity: 0.86;
   transition: opacity 420ms ease;
+}
+
+.dd-loading-scene-backdrop::before,
+.dd-loading-scene-backdrop::after {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  content: "";
+}
+
+.dd-loading-scene-backdrop::before {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 8.2vw,
+      rgba(125, 247, 255, 0.22) 8.26vw,
+      rgba(125, 247, 255, 0.22) 8.34vw,
+      transparent 8.42vw
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent 5.8rem,
+      rgba(255, 180, 106, 0.14) 5.84rem,
+      rgba(255, 180, 106, 0.14) 5.9rem,
+      transparent 5.96rem
+    ),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.2), transparent 22%, transparent 78%, rgba(0, 0, 0, 0.22));
+  mask-image: radial-gradient(circle at 50% 50%, #000 0 62%, transparent 86%);
+  opacity: 0.18;
+  mix-blend-mode: screen;
+}
+
+.dd-loading-scene-backdrop::after {
+  background:
+    linear-gradient(
+      104deg,
+      transparent 0 35%,
+      rgba(125, 247, 255, 0.13) 43%,
+      rgba(255, 180, 106, 0.16) 49%,
+      rgba(125, 247, 255, 0.1) 55%,
+      transparent 64% 100%
+    );
+  opacity: 0.26;
+  transform: translateX(-120%);
+  mix-blend-mode: screen;
+  animation: dd-broadcast-sweep 5.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.dd-loading-scene-backdrop--success {
+  opacity: 0.72;
+}
+
+.dd-loading-scene-backdrop--success::after {
+  opacity: 0.16;
+  animation-duration: 7.2s;
 }
 
 .dd-loading-scene-backdrop[data-state="exit"] {
   opacity: 0;
+}
+
+@keyframes dd-broadcast-sweep {
+  0% { transform: translateX(-120%); }
+  46%, 100% { transform: translateX(120%); }
 }
 
 .analysis-loading-tron .ai-tron-surface {
@@ -444,22 +537,68 @@
   display: grid;
   grid-template-columns: 1fr;
   justify-items: center;
-  gap: 0.42rem;
+  gap: 0.34rem;
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 0.5rem 0.65rem 0.5rem;
+  padding: 0.72rem 0.78rem 0.5rem;
   text-align: center;
+}
+
+.loading-premium-kicker {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(125, 247, 255, 0.26);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(7, 20, 42, 0.78), rgba(2, 6, 23, 0.58));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 0 1rem rgba(36, 245, 255, 0.08);
+  color: rgba(103, 232, 249, 0.92);
+  font-size: clamp(0.54rem, 1.7vw, 0.66rem);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.loading-premium-kicker span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.48rem;
+  padding: 0.24rem 0.58rem;
+  white-space: nowrap;
+}
+
+.loading-premium-kicker-manager-count {
+  border-left: 1px solid rgba(125, 247, 255, 0.18);
+  color: rgba(255, 180, 106, 0.94);
+  letter-spacing: 0.08em;
+}
+
+.analysis-loading-dialog-success .loading-modal-header {
+  min-height: clamp(18.5rem, 42vh, 22.5rem);
+  align-content: center;
+  gap: 0.52rem;
+  padding: clamp(1rem, 3vw, 1.3rem);
 }
 
 .loading-modal-bolt {
   position: relative;
-  height: clamp(5rem, 20vw, 6.5rem);
-  width: clamp(5rem, 20vw, 6.5rem);
+  height: clamp(4.35rem, 13vw, 5.65rem);
+  width: clamp(4.35rem, 13vw, 5.65rem);
   border: 0;
   background: transparent;
   box-shadow: none;
   overflow: visible;
+}
+
+.analysis-loading-dialog-success .loading-modal-bolt {
+  height: clamp(5rem, 15vw, 6.2rem);
+  width: clamp(5rem, 15vw, 6.2rem);
 }
 
 .loading-modal-bolt svg {
@@ -547,7 +686,32 @@
 }
 
 .loading-step-list {
-  padding: 0 0.05rem 0.02rem;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.5rem 0.68rem 0.7rem;
+}
+
+.loading-scan-readout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 1.65rem;
+  padding: 0.12rem 0.2rem 0.2rem;
+  color: rgba(148, 163, 184, 0.78);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.loading-scan-readout span:first-child {
+  color: rgba(103, 232, 249, 0.9);
+}
+
+.loading-scan-readout span:last-child {
+  color: rgba(255, 180, 106, 0.86);
 }
 
 .loading-step:not(.loading-step-finalizing) .loading-finalizing-track {
@@ -555,6 +719,10 @@
 }
 
 .loading-step {
+  min-height: 3.05rem;
+  gap: 0.64rem !important;
+  padding: 0.42rem 0.62rem;
+  border-radius: 0.82rem;
   border-color: rgba(125, 247, 255, 0.13);
   background:
     radial-gradient(circle at 0% 0%, rgba(0, 212, 219, 0.1), transparent 34%),
@@ -563,6 +731,40 @@
     inset 0 0 0 1px rgba(255, 255, 255, 0.025),
     0 0 1.2rem rgba(0, 212, 219, 0.05);
   backdrop-filter: none;
+}
+
+.loading-step > .loading-step-dot {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  border-width: 1px !important;
+}
+
+.loading-step > .loading-step-dot .w-10 {
+  width: 1.85rem !important;
+  height: 1.85rem !important;
+}
+
+.loading-step > .loading-step-dot .w-6,
+.loading-step > .loading-step-dot .h-6 {
+  width: 1.1rem !important;
+  height: 1.1rem !important;
+}
+
+.loading-step-label {
+  font-size: 0.78rem !important;
+  font-weight: 850 !important;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+}
+
+.loading-step-status {
+  min-width: 2.15rem;
+  color: rgba(103, 232, 249, 0.82) !important;
+  font-size: 0.68rem !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.05em;
+  text-align: right;
+  text-transform: uppercase;
 }
 
 .analysis-loading-dialog-success .loading-step-list,
@@ -654,11 +856,11 @@
 
 .loading-finalizing-track {
   position: absolute;
-  top: 0.6rem;
-  right: 1.05rem;
-  left: 11.4rem;
+  top: 0.38rem;
+  right: 0.75rem;
+  left: 9.2rem;
   z-index: 2;
-  height: 2.8rem;
+  height: 2.3rem;
   overflow: hidden;
   border-radius: 999px;
   opacity: 0.9;
@@ -769,7 +971,7 @@
   }
 
   .loading-finalizing-track {
-    left: 10.6rem;
+    left: 8rem;
     right: 0.75rem;
   }
 }
@@ -778,11 +980,11 @@
   [data-slot="dialog-content"].analysis-loading-dialog-loading,
   .analysis-loading-dialog-loading,
   .ddlp__current-modal-shell {
-    width: min(calc(100vw - 4.75rem), 19rem) !important;
-    max-width: min(calc(100vw - 4.75rem), 19rem) !important;
+    width: min(calc(100vw - 2rem), 22.5rem) !important;
+    max-width: min(calc(100vw - 2rem), 22.5rem) !important;
     min-height: 0 !important;
     height: auto !important;
-    scale: 0.83 !important;
+    scale: 0.88 !important;
     animation: none !important;
   }
 
@@ -797,6 +999,14 @@
     opacity: 0.92;
   }
 
+  .dd-loading-scene-backdrop::before {
+    opacity: 0.14;
+  }
+
+  .dd-loading-scene-backdrop::after {
+    opacity: 0.18;
+  }
+
   .analysis-loading-dialog-loading .analysis-loading-modal-body,
   .ddlp__current-modal-shell .analysis-loading-modal-body,
   .analysis-loading-modal-body {
@@ -805,11 +1015,16 @@
   }
 
   .analysis-loading-panel {
+    min-height: clamp(19rem, 48vh, 23rem);
     gap: 0.62rem;
     background:
       radial-gradient(circle at 12% 8%, rgba(255, 106, 0, 0.14), transparent 30%),
       radial-gradient(circle at 88% 2%, rgba(0, 212, 219, 0.14), transparent 34%),
       linear-gradient(145deg, rgba(3, 8, 18, 0.82), rgba(2, 6, 23, 0.78)) !important;
+  }
+
+  .analysis-loading-dialog-loading .analysis-loading-panel {
+    min-height: clamp(20rem, 44vh, 22rem);
   }
 
   .analysis-loading-panel > .loading-tron-backdrop,
@@ -820,6 +1035,22 @@
   .loading-modal-header {
     gap: 0.24rem;
     padding: 0.44rem 0.5rem 0.44rem;
+  }
+
+  .loading-premium-kicker {
+    font-size: clamp(0.48rem, 2.35vw, 0.56rem);
+    letter-spacing: 0.1em;
+  }
+
+  .loading-premium-kicker span {
+    min-height: 1.24rem;
+    padding: 0.2rem 0.42rem;
+  }
+
+  .loading-premium-kicker-manager-count {
+    max-width: 8.1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .loading-modal-bolt {
@@ -841,15 +1072,15 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.78rem;
-    min-height: 5.2rem;
+    gap: 0.55rem;
+    min-height: 4.35rem;
     overflow: hidden;
     border: 0;
     border-radius: 0;
     background: transparent;
-    padding: 0.98rem 1.15rem 0;
+    padding: 0.72rem 1.15rem 0;
     box-shadow: none;
-    animation: loading-mobile-status-in 260ms ease-out both;
+    animation: none;
   }
 
   @keyframes loading-mobile-status-in {
@@ -877,7 +1108,26 @@
       0 2px 10px rgba(0, 0, 0, 0.95),
       0 0 18px rgba(34, 211, 238, 0.28),
       0 0 36px rgba(34, 211, 238, 0.12);
-    animation: loading-mobile-copy-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .loading-mobile-status-meta {
+    position: relative;
+    z-index: 3;
+    color: rgba(255, 180, 106, 0.86);
+    font-size: clamp(0.52rem, 2.45vw, 0.62rem);
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    text-align: center;
+    text-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.92),
+      0 0 14px rgba(255, 138, 42, 0.2);
+    text-transform: uppercase;
+    white-space: nowrap;
   }
 
   @keyframes loading-mobile-copy-in {
@@ -902,13 +1152,13 @@
     color: rgba(36, 245, 255, 0.6);
     text-align: center;
     font-variant-numeric: tabular-nums;
-    animation: loading-mobile-copy-in 400ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+    animation: none;
   }
 
   .loading-mobile-progress-track {
     position: relative;
     width: calc(100% + 2.3rem);
-    height: 2.4rem;
+    height: 1.85rem;
     flex-shrink: 0;
     overflow: hidden;
     border-radius: 0 0 0.88rem 0.88rem;
@@ -978,6 +1228,7 @@
   .dd-loading-letterbox::after { transform: translateY(100%); }
   .dd-loading-crown-wrap,
   .dd-loading-crown-wrap[data-complete="true"],
+  .dd-loading-scene-backdrop::after,
   .dd-success-crown-bloom,
   .dd-success-crown-bloom img,
   [data-slot="dialog-content"].analysis-loading-dialog-loading {

@@ -75,7 +75,7 @@ export function WeeklyProjectionReceipt({
 
   const content = (
     <>
-      <em>Stored weekly projection</em>
+      <em>Weekly projection</em>
       <strong>{parts.points}</strong>
       <small>{metaItems.join(" · ")}</small>
       {detailItems.length > 0 && <small>{detailItems.join(" · ")}</small>}
@@ -88,7 +88,7 @@ export function WeeklyProjectionReceipt({
         {...commonProps}
         type="button"
         data-testid="projection-player-detail-trigger"
-        aria-label={`Open stored weekly projection${playerName ? ` for ${playerName}` : ""}`}
+        aria-label={`Open weekly projection${playerName ? ` for ${playerName}` : ""}`}
         onClick={onOpenPlayerDetail}
       >
         {content}

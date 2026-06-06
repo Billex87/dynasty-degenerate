@@ -55,7 +55,7 @@ describe("AI read action copy boundaries", () => {
     const source = fs.readFileSync(path.join(SOURCE_ROOT, "components/AIActionQueue.tsx"), "utf8");
 
     expect(source).toContain("function getSecondaryQueueDetail");
-    expect(source).toContain("label: 'Check first'");
+    expect(source).toContain("label: 'Verify first'");
     expect(source).toContain("label: 'Could change'");
     expect(source).toContain("{secondaryDetail.label}: {secondaryDetail.detail}");
     expect(source).not.toContain("<em>{item.missingEvidence[0] || item.changeTriggers[0]}</em>");
@@ -67,10 +67,11 @@ describe("AI read action copy boundaries", () => {
     const source = fs.readFileSync(path.join(SOURCE_ROOT, "components/AIReadPanel.tsx"), "utf8");
 
     expect(source).toContain("function isManagerFacingTraceItem");
-    expect(source).toContain("What to know");
-    expect(source).toContain("verify current roster and availability before acting");
-    expect(source).toContain("confirm roster, format, and source freshness");
-    expect(source).toContain("verify missing context before acting");
+    expect(source).toContain("Why this matters");
+    expect(source).toContain("Read strength");
+    expect(source).toContain("Check roster, role, timing, and availability before acting");
+    expect(source).toContain("Useful enough to act after a final roster check");
+    expect(source).toContain("Hide or hold until a manager-useful signal appears");
     expect(source).not.toContain("What fired");
     expect(source).not.toContain("What could be wrong");
     expect(source).not.toContain("Where to verify");
@@ -83,31 +84,54 @@ describe("AI read action copy boundaries", () => {
     expect(source).not.toContain("Directional read.");
   });
 
-  it("keeps shared AI confidence-limit copy out of internal cap language", () => {
+  it("keeps normal user-facing AI surfaces out of receipt and source-debug labels", () => {
     const source = readSpecificSources([
+      "components/AIReadPanel.tsx",
+      "components/AIActionQueue.tsx",
+      "components/AITeamAutopilot.tsx",
       "components/CommandCenterExpansion.tsx",
       "components/PlayerDetailModal.tsx",
-      "features/admin/components/AdminCalibrationSections.tsx",
+      "components/ReportTables.tsx",
+      "components/reportTables/WaiverIntelligencePanel.tsx",
+      "components/reportTables/TradeWarRoom.tsx",
+      "components/reportTables/tradeLedgerUtils.tsx",
+      "components/reportTables/CommandCenterLineup.tsx",
+      "features/report/components/ReportOverviewTab.tsx",
+      "features/report/components/ReportDashboardShowcase.tsx",
+      "lib/autopilot/buildAutopilotData.ts",
+      "lib/scheduleEdgeRows.ts",
+    ]);
+
+    expect(source).not.toMatch(/Evidence band|Source-limited Read|source limited|Why it fired/i);
+    expect(source).not.toMatch(/What fired|What could be wrong|Where to verify/i);
+    expect(source).not.toMatch(/Historical Receipt|Pickup receipts|AI PICKUP/i);
+    expect(source).not.toMatch(/Admin source review|Receipts Needed|No fake reads/i);
+    expect(source).not.toMatch(/Stored weekly projection|stored weekly projection|Stored news/i);
+    expect(source).not.toMatch(/Manager calibration|source health rows|AI receipts/i);
+  });
+
+  it("keeps normal AI surfaces out of internal confidence-cap language", () => {
+    const normalSurfaceSource = readSpecificSources([
+      "components/CommandCenterExpansion.tsx",
+      "components/PlayerDetailModal.tsx",
       "features/home/lib/reportDelta.ts",
       "lib/aiReadDecision.ts",
+    ]);
+    const diagnosticSource = readSpecificSources([
+      "features/admin/components/AdminCalibrationSections.tsx",
       "../../shared/aiEvidenceEngine.ts",
     ]);
 
-    expect(source).toContain("Confidence limited by");
-    expect(source).toContain("Limited ·");
-    expect(source).toContain("Confidence limited to");
-    expect(source).toContain("stays confidence-limited");
-    expect(source).toContain("limited more strongly");
-    expect(source).toContain("Do not act yet:");
-    expect(source).toContain("Verify first:");
-    expect(source).not.toContain("Confidence capped by");
-    expect(source).not.toContain("Confidence cap:");
-    expect(source).not.toContain("Blocked:");
-    expect(source).not.toContain("Missing:");
-    expect(source).not.toContain("Guardrail:");
-    expect(source).not.toContain("Capped ·");
-    expect(source).not.toContain("capped harder");
-    expect(source).not.toContain("stays capped");
+    expect(normalSurfaceSource).toContain("Read strength moved");
+    expect(normalSurfaceSource).toContain("read strength");
+    expect(normalSurfaceSource).not.toMatch(/Confidence limited by|Limited ·|Confidence limited to/i);
+    expect(normalSurfaceSource).not.toMatch(/stays confidence-limited|limited more strongly/i);
+    expect(normalSurfaceSource).not.toMatch(/Confidence capped by|Confidence cap:|Capped ·/i);
+    expect(normalSurfaceSource).not.toMatch(/Blocked:|Missing:|Guardrail:/);
+
+    expect(diagnosticSource).toContain("Confidence limited to");
+    expect(diagnosticSource).toContain("Do not act yet:");
+    expect(diagnosticSource).toContain("Verify first:");
   });
 
   it("keeps exact Do this copy limited to reviewed action-owned component panels", () => {
@@ -119,7 +143,7 @@ describe("AI read action copy boundaries", () => {
     ]);
 
     const blueprintGenerate = matches.find((match) => match.file === "components/CommandCenterExpansion.tsx");
-    expect(blueprintGenerate?.context).toContain('title="Monthly blueprint ready"');
+    expect(blueprintGenerate?.context).toContain('title="Generate monthly blueprint"');
     expect(blueprintGenerate?.context).toContain("View Monthly Blueprint");
     expect(blueprintGenerate?.context).toContain("Generate");
 
@@ -136,7 +160,7 @@ describe("AI read action copy boundaries", () => {
     expect(source).not.toMatch(/\bstart-over\b/i);
     expect(source).not.toMatch(/\bTrade away\b/i);
     expect(source).not.toMatch(/render as Do this now/i);
-    expect(source).not.toMatch(/Why this fired/i);
+    expect(source).not.toMatch(/Why this fired/);
     expect(source).not.toMatch(/Why this swap/i);
     expect(source).not.toMatch(/Why Better Cut/i);
     expect(source).not.toMatch(/\bBetter Cut\b/i);

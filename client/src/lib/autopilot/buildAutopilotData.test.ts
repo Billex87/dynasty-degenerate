@@ -87,7 +87,7 @@ describe('buildAutopilotData', () => {
       label: 'Do this now',
     });
     expect(data.actionQueue[0]?.changeTriggers.length).toBeGreaterThan(0);
-    expect(data.actionQueue[0]?.changeTriggers.join(' ')).toMatch(/blocker|confidence|partner|ownership|threshold|trade|pickup|lineup/i);
+    expect(data.actionQueue[0]?.changeTriggers.join(' ')).toMatch(/watch|partner|ownership|threshold|trade|pickup|lineup|roster/i);
     expect(data.actionQueue[0]?.dominoEffects?.length).toBeGreaterThan(0);
     expect(data.actionQueue.filter((item) => item.decision === 'do')).toHaveLength(1);
     expect(data.actionQueue.map((item) => item.source)).toEqual(
@@ -103,7 +103,7 @@ describe('buildAutopilotData', () => {
       expect.arrayContaining(['Depth Receiver', 'Sample Runner']),
     );
     expect(data.reportCard?.rows.map((row) => row.label)).toEqual(
-      expect.arrayContaining(['One-call discipline', 'Bad-idea engine', 'Market anomaly scan', 'Calibration memory']),
+      expect.arrayContaining(['Top verdict', 'Report change', 'Avoid list', 'Market watch', 'Watch pressure']),
     );
     expect(data.weeklyPlan?.starterToReview?.player).toBe('Sample Tight End');
     expect(data.weeklyPlan?.options.map((option) => option.player)).toEqual(['Replacement Tight End']);
@@ -590,7 +590,7 @@ describe('buildAutopilotData', () => {
     expect(data.lineup[0]?.signals).toContain('ROS projection');
     expect(data.lineup[0]?.signals).toContain('Injury/news risk');
     expect(data.lineup[0]?.signals).toContain('Replacement pressure');
-    expect(data.lineup[0]?.summary).toContain('stored redraft valuation edge');
+    expect(data.lineup[0]?.summary).toContain('redraft-value edge');
     expect(data.lineup[0]?.reasons.join(' ')).toContain('derived rest-of-season value');
     expect(data.lineup[0]?.reasons.join(' ')).toContain('injury/news adjustment');
   });
@@ -1054,7 +1054,7 @@ describe('buildAutopilotData', () => {
         type: 'add_player',
       },
     });
-    expect(waiverQueueItem?.missingEvidence.join(' ')).toContain('still has missing evidence');
+    expect(waiverQueueItem?.missingEvidence.join(' ')).toContain('Live availability has not been verified');
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
@@ -1136,7 +1136,7 @@ describe('buildAutopilotData', () => {
         type: 'add_player',
       },
     });
-    expect(waiverQueueItem?.missingEvidence.join(' ')).toContain('missing source-health proof');
+    expect(waiverQueueItem?.missingEvidence.join(' ')).toContain('final current-context check');
     expect(data.actionQueue.some((item) => item.decision === 'do')).toBe(false);
   });
 
@@ -2005,7 +2005,7 @@ describe('buildAutopilotData', () => {
         type: 'hold',
       },
     });
-    expect(data.waivers[0]?.reasons.join(' ')).toContain('No drop candidate or open roster spot proof');
+    expect(data.waivers[0]?.reasons.join(' ')).toContain('Availability and roster status need a final check');
 
     const waiverQueueItem = data.actionQueue.find((item) => item.target === 'Waiver Receiver');
     expect(waiverQueueItem).toBeDefined();
@@ -2127,7 +2127,7 @@ describe('buildAutopilotData', () => {
       },
     });
     expect(data.waivers[0]?.secondary).not.toContain('drop Stale Bench Cut');
-    expect(data.waivers[0]?.reasons.join(' ')).toContain('Drop candidate proof is stale');
+    expect(data.waivers[0]?.reasons.join(' ')).toContain('Availability and roster status need a final check');
 
     const waiverQueueItem = data.actionQueue.find((item) => item.target === 'Waiver Receiver');
     expect(waiverQueueItem).toMatchObject({
@@ -2166,7 +2166,7 @@ describe('buildAutopilotData', () => {
       },
     });
     expect(data.waivers[0]?.secondary).not.toContain('drop Sample Tight End');
-    expect(data.waivers[0]?.reasons.join(' ')).toContain('Drop candidate proof points at a current starter');
+    expect(data.waivers[0]?.reasons.join(' ')).toContain('Role and lineup context need one more check');
 
     const waiverQueueItem = data.actionQueue.find((item) => item.target === 'Waiver Receiver');
     expect(waiverQueueItem).toMatchObject({
@@ -2220,7 +2220,7 @@ describe('buildAutopilotData', () => {
         type: 'swap_starter',
       },
     });
-    expect(startSit?.summary).toContain('stored weekly projection edge');
+    expect(startSit?.summary).toContain('weekly projection edge');
     expect(startSit?.reasons.join(' ')).toContain('weekly lineup edge only');
     expect(data.weeklyPlan?.starterToReview?.player).toBe('Sample Tight End');
     expect(data.weeklyPlan?.options.map((option) => option.player)).toContain('Replacement Tight End');
@@ -2267,7 +2267,7 @@ describe('buildAutopilotData', () => {
 
     expect(data.lineup.some((recommendation) => recommendation.id.includes('lineup-projection-swap'))).toBe(false);
     expect(data.lineup.filter((recommendation) => recommendation.expectedAction?.type === 'swap_starter')).toHaveLength(0);
-    expect(JSON.stringify(data.lineup)).not.toContain('stored weekly projection edge');
+    expect(JSON.stringify(data.lineup)).not.toContain('weekly projection edge');
   });
 
   it('keeps generic must-start lineup reads review-only without a concrete starter swap', () => {
@@ -2418,8 +2418,8 @@ describe('buildAutopilotData', () => {
     });
 
     expect(data.lineup.some((recommendation) => recommendation.id.includes('lineup-projection-swap'))).toBe(false);
-    expect(JSON.stringify(data.lineup)).not.toContain('stored weekly projection edge');
-    expect(JSON.stringify(data.weeklyPlan || {})).not.toContain('Stored weekly projection edge');
+    expect(JSON.stringify(data.lineup)).not.toContain('weekly projection edge');
+    expect(JSON.stringify(data.weeklyPlan || {})).not.toContain('Weekly projection edge');
   });
 
   it('keeps weak-starter reviews as hold reads until a rostered slot-eligible replacement clears', () => {
@@ -2540,7 +2540,7 @@ describe('buildAutopilotData', () => {
       },
     });
     expect(unprovedTrade?.expectedAction?.expectedRosterChange).toContain('only if the return upgrades');
-    expect(unprovedTrade?.missingEvidence.join(' ')).toContain('has not cleared current roster');
+    expect(unprovedTrade?.missingEvidence.join(' ')).toContain('cleaner roster, lineup, transaction, or league-format context');
     expect(unprovedTrade?.missingEvidence.join(' ')).not.toContain('no concrete expected action');
   });
 
@@ -3101,7 +3101,7 @@ describe('buildAutopilotData', () => {
     });
 
     const scheduleText = data.scheduleTodo.join(' ');
-    expect(data.scheduleTodo[0]).toContain('Schedule/SOS context is live');
+    expect(data.scheduleTodo[0]).toContain('RB depth pressure');
     expect(scheduleText).toContain('Tester has RB depth pressure in W7 · W9');
     expect(scheduleText).toContain('Week 7 Streamer is a schedule-driven QB streamer for W7 · W9');
     expect(scheduleText).toContain('First bye checkpoint: W7 for BUF, MIA');
@@ -3184,7 +3184,7 @@ describe('buildAutopilotData', () => {
     });
 
     const scheduleText = data.scheduleTodo.join(' ');
-    expect(data.scheduleTodo[0]).toContain('Schedule/SOS context is partially loaded');
+    expect(data.scheduleTodo[0]).toContain('Schedule Edge Defense');
     expect(scheduleText).toContain('Schedule Edge Defense (DEF DEF12) has the top Schedule/SOS streamer window for W3 · W4');
     expect(scheduleText).not.toMatch(/FantasyPros|GET|\/v1|depth_chart|research/i);
   });
@@ -3201,7 +3201,7 @@ describe('buildAutopilotData', () => {
     expect(data.dataStatus).toBe('Live report data');
     expect(data.focusManager).toBe('Tester');
     expect(data.direction.scores[0]?.label).toBe('Weekly ceiling');
-    expect(data.systemRead.find((score) => score.label === 'Roster data')?.tone).toBe('warn');
+    expect(data.systemRead.find((score) => score.label === 'Roster map')?.tone).toBe('warn');
     expect(data.lineup[0]?.player).toBe(AUTOPILOT_MOCK_DATA.redraft.lineup[0]?.player);
   });
 
@@ -3289,9 +3289,9 @@ describe('buildAutopilotData', () => {
       decision: 'hold',
       label: 'No move is best',
     });
-    expect(data.actionQueue[0]?.changeTriggers.join(' ')).toContain('clear the action threshold');
+    expect(data.actionQueue[0]?.changeTriggers.join(' ')).toContain('clearly improve the roster');
     expect(data.systemRead[0]).toMatchObject({
-      label: 'League AI confidence',
+      label: 'Read strength',
       value: 34,
     });
   });
@@ -3353,10 +3353,10 @@ describe('buildAutopilotData', () => {
 
     expect(data.waivers.length).toBeGreaterThan(0);
     expect(data.waivers.every((recommendation) => recommendation.confidence <= 52)).toBe(true);
-    expect(data.waivers[0]?.signals).toEqual(expect.arrayContaining(['Outcome-calibrated']));
+    expect(data.waivers[0]?.signals.join(' ')).not.toMatch(/calibrat|outcome/i);
     expect(data.waivers[0]?.reasons.join(' ')).toContain('overconfident');
-    expect(data.reportCard?.rows.find((row) => row.label === 'Calibration memory')?.status).toContain('24 scored');
-    expect(data.reportCard?.rows.find((row) => row.label === 'Calibration memory')?.detail).toContain('overconfident');
+    expect(data.waivers[0]?.calibration?.reason).toContain('overconfident');
+    expect(data.reportCard?.rows.map((row) => row.label)).not.toContain('Calibration memory');
   });
 
   it('routes zero-row source traces into split source-agreement calibration', () => {
@@ -3488,8 +3488,9 @@ describe('buildAutopilotData', () => {
 
     const waiverRead = data.waivers.find((recommendation) => recommendation.player === 'Waiver Receiver');
     expect(waiverRead?.confidence).toBeLessThanOrEqual(52);
-    expect(waiverRead?.signals).toEqual(expect.arrayContaining(['Outcome-calibrated']));
-    expect(waiverRead?.reasons.join(' ')).toContain('Split source proof should stay below action confidence');
+    expect(waiverRead?.signals.join(' ')).not.toMatch(/calibrat|outcome/i);
+    expect(waiverRead?.reasons.join(' ')).not.toMatch(/source proof|action confidence/i);
+    expect(waiverRead?.calibration?.reason).toContain('Split source proof should stay below action confidence');
     expect(waiverRead?.evidenceRead?.sourceTrace.map((trace) => `${trace.label}: ${trace.status} ${trace.detail || ''}`).join(' ')).toContain('zero rows');
     expect(data.actionQueue.filter((item) => item.target === 'Waiver Receiver' && item.decision === 'do')).toHaveLength(0);
   });
@@ -3521,8 +3522,8 @@ describe('buildAutopilotData', () => {
       fallback: AUTOPILOT_MOCK_DATA.dynasty,
     });
 
-    const dailyDelta = data.reportCard?.rows.find((row) => row.label === 'Daily delta');
-    expect(dailyDelta?.status).toBe('1 server change');
+    const dailyDelta = data.reportCard?.rows.find((row) => row.label === 'Report change');
+    expect(dailyDelta?.status).toBe('1 change');
     expect(dailyDelta?.detail).toContain('Waiver Receiver');
     expect(dailyDelta?.tone).toBe('info');
   });
