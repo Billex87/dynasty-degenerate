@@ -5,7 +5,7 @@ Chrome extension for importing pending Sleeper trade and waiver activity into Dy
 ## Scope
 
 - Read-only capture only.
-- Runs only on Sleeper league activity pages: Trades, Players/Waivers, and Transactions, plus `http://localhost:3000/*`, `https://dynastydegens.com/*`, and `https://www.dynastydegens.com/*`.
+- Runs only on Sleeper league activity pages: Trades, Players/Waivers, and Transactions, plus `http://localhost/*`, `https://dynastydegens.com/*`, and `https://www.dynastydegens.com/*`.
 - Does not read, display, store, or transmit Sleeper Authorization headers or cookies.
 - Keeps the latest sanitized capture in Chrome session storage and clears it when the browser session ends.
 - Lets Dynasty Degens request a fresh capture from the app button; the popup remains a manual fallback only.
@@ -66,7 +66,7 @@ pnpm package:sleeper-helper
 
 The script regenerates extension icons and writes the review zip to `dist/browser-extension/sleeper-helper/`.
 
-The checked-in unpacked manifest keeps `http://localhost:3000/*` for local QA.
+The checked-in unpacked manifest keeps `http://localhost/*` for local QA.
 The packaged Chrome Web Store zip strips that development-only match and keeps
 only Sleeper plus production Dynasty Degens host permissions.
 

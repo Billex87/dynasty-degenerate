@@ -20,7 +20,7 @@ const sourceLogo = path.join(
 const iconSizes = [16, 32, 48, 128];
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const iconAlphaTrimThreshold = 8;
-const storePackageExcludedMatches = new Set(["http://localhost:3000/*"]);
+const storePackageExcludedMatches = new Set(["http://localhost/*"]);
 
 function paethPredictor(left, up, upLeft) {
   const estimate = left + up - upLeft;

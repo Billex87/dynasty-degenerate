@@ -41,6 +41,13 @@
     }, window.location.origin);
   }
 
+  function postReadyBurst() {
+    postReady();
+    [250, 750, 1500, 3000, 5000].forEach((delay) => {
+      window.setTimeout(postReady, delay);
+    });
+  }
+
   function startSleeperImport(leagueId) {
     const runtime = getRuntime();
     if (!runtime?.sendMessage) {
@@ -78,7 +85,7 @@
   }
 
   window.addEventListener("message", (event) => {
-    if (event.source !== window || event.origin !== window.location.origin) return;
+    if (event.origin !== window.location.origin) return;
     const message = event.data;
     if (!message || message.source !== APP_SOURCE) return;
     if (message.type === "DYNASTY_DEGENS_REQUEST_SLEEPER_HELPER_STATUS") {
@@ -115,5 +122,5 @@
     return false;
   });
 
-  postReady();
+  postReadyBurst();
 })();

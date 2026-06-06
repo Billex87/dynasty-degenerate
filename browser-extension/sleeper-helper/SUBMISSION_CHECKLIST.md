@@ -11,7 +11,7 @@ Published listing:
 - Run `pnpm package:sleeper-helper`.
 - Upload `dist/browser-extension/sleeper-helper/dynasty-degens-transaction-sync-0.2.0.zip`.
 - Confirm the uploaded manifest version is `0.2.0`.
-- Confirm the uploaded package manifest does not include `http://localhost:3000/*`.
+- Confirm the uploaded package manifest does not include `http://localhost/*`.
 - Confirm the package uses Manifest V3.
 
 ## Store Listing tab

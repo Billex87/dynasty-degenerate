@@ -759,7 +759,7 @@ export default function Home() {
 
     if (snapshot.leagueId !== normalizedLeagueId) {
       throw new Error(
-        `Chrome Helper captured league ${snapshot.leagueId}, but this report is ${normalizedLeagueId}.`
+        `Transaction Sync captured league ${snapshot.leagueId}, but this report is ${normalizedLeagueId}.`
       );
     }
 

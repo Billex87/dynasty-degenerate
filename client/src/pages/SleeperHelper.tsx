@@ -1,11 +1,12 @@
-const repoUrl = "https://github.com/Billex87/dynasty-degenerate/tree/main/browser-extension/sleeper-helper";
+const safariSetupUrl =
+  "https://github.com/Billex87/dynasty-degenerate/tree/main/browser-extension/safari-transaction-sync";
 const chromeWebStoreUrl =
   "https://chromewebstore.google.com/detail/dynasty-degens-transactio/hfbmbbcndhdoldlofakfbengicobmgpp";
 
 const steps = [
   {
     label: "Install Transaction Sync",
-    body: "Install the Chrome extension from the Chrome Web Store in desktop Chrome."
+    body: "Install the Chrome extension from the Chrome Web Store, or enable the Safari extension build when testing Safari."
   },
   {
     label: "Open your report",
@@ -27,17 +28,17 @@ const boundaries = [
   "No Sleeper cookies are displayed, stored, or transmitted.",
   "No lineup, waiver, trade, accept, reject, or cancel action is submitted.",
   "Captured data is stripped to transaction IDs, league ID, roster IDs, player IDs, draft picks, statuses, timestamps, and waiver bid fields.",
-  "Temporary captures live in Chrome session storage and clear with the browser session."
+  "Temporary captures live in browser session storage or in-memory fallback storage and clear with the browser session."
 ];
 
 const troubleshooting = [
   {
     issue: "Dynasty Degens says the helper is not detected.",
-    fix: "Install Transaction Sync from the Chrome Web Store, then refresh Dynasty Degens after Chrome finishes installing it."
+    fix: "Install or enable Transaction Sync, then refresh Dynasty Degens after the browser finishes connecting the extension."
   },
   {
     issue: "Sleeper did not return a snapshot.",
-    fix: "Make sure this Chrome profile is signed into Sleeper and retry from the Dynasty Degens Trades tab."
+    fix: "Make sure this browser profile is signed into Sleeper and retry from the Dynasty Degens Trades tab."
   },
   {
     issue: "No pending items import.",
@@ -45,7 +46,7 @@ const troubleshooting = [
   },
   {
     issue: "I am on iPhone, iPad, Android, or the Sleeper app.",
-    fix: "Use desktop Chrome for Transaction Sync. Chrome extensions do not run inside iPhone Chrome, Safari, Android Chrome, or the Sleeper mobile app."
+    fix: "Use a desktop browser with Transaction Sync installed. Mobile browsers and the Sleeper mobile app cannot run this import flow yet."
   },
   {
     issue: "The popup cannot send manually.",
@@ -55,40 +56,46 @@ const troubleshooting = [
 
 const supportNotes = [
   {
-    title: "Use the same Chrome profile",
-    body: "Sign into Sleeper in the same desktop Chrome profile where Transaction Sync is installed. The helper cannot capture pending activity from another browser, profile, or the Sleeper mobile app."
+    title: "Use the same browser profile",
+    body: "Sign into Sleeper in the same desktop browser profile where Transaction Sync is installed. The helper cannot capture pending activity from another browser, profile, or the Sleeper mobile app."
   },
   {
     title: "If import keeps waiting",
-    body: "Open Sleeper in that Chrome profile, confirm you are logged in, then retry from the Dynasty Degens Trades tab. The helper needs Sleeper's logged-in trade and player pages to finish loading."
+    body: "Open Sleeper in that browser profile, confirm you are logged in, then retry from the Dynasty Degens Trades tab. The helper needs Sleeper's logged-in trade and player pages to finish loading."
   },
   {
     title: "Mobile is a fallback for now",
-    body: "On iPhone, iPad, Android Chrome, or Safari, copy the report link and open it on desktop Chrome. A Safari iOS extension would be a separate App Store build."
+    body: "On iPhone, iPad, or Android, copy the report link and open it on a desktop browser with Transaction Sync installed. Safari on iPhone/iPad would be a separate App Store build."
   }
 ];
 
 const browserPaths = [
   {
     label: "Desktop Chrome",
-    status: "Best path",
+    status: "Published path",
     body: "Install Transaction Sync once, open your Dynasty Degens report, and click Import Pending Transactions from the Trades tab.",
     accent: "cyan"
   },
   {
-    label: "iPhone, iPad, Android, or Safari",
+    label: "Desktop Safari",
+    status: "Testing path",
+    body: "Enable the Safari extension build, open the same Dynasty Degens report, and click Import Pending Transactions from the Trades tab.",
+    accent: "cyan"
+  },
+  {
+    label: "iPhone, iPad, or Android",
     status: "Handoff required",
-    body: "Copy your report link, send it to yourself, then open that same report in desktop Chrome. Mobile browsers and the Sleeper app cannot run this Chrome extension.",
+    body: "Copy your report link, send it to yourself, then open that same report in a desktop browser with Transaction Sync installed.",
     accent: "orange"
   }
 ];
 
 const mobileHandoffSteps = [
-  "Open the Dynasty Degens report on your phone or Safari.",
+  "Open the Dynasty Degens report on your phone.",
   "Use Copy report link from the Transaction Sync card.",
-  "Send that link to the computer where you use desktop Chrome.",
-  "Install Transaction Sync from the Chrome Web Store if it is not installed yet.",
-  "Open the copied report link in desktop Chrome and click Import Pending Transactions."
+  "Send that link to the computer where you use Transaction Sync.",
+  "Install or enable Transaction Sync if it is not connected yet.",
+  "Open the copied report link in that desktop browser and click Import Pending Transactions."
 ];
 
 function SleeperHelperPage() {
@@ -115,16 +122,16 @@ function SleeperHelperPage() {
                 Import pending Sleeper trades and waivers without copying tokens.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-                The desktop Chrome extension watches Sleeper pages you are already logged into, captures only pending trade and waiver transaction responses, strips them down to safe roster/player data, and sends that snapshot into Dynasty Degens.
+                The desktop browser extension watches Sleeper pages you are already logged into, captures only pending trade and waiver transaction responses, strips them down to safe roster/player data, and sends that snapshot into Dynasty Degens.
               </p>
             </div>
 
             <div className="rounded-[2rem] border border-cyan-300/20 bg-slate-950/70 p-5 shadow-[0_0_80px_rgba(34,211,238,0.14)]">
               <div className="rounded-[1.45rem] border border-orange-300/25 bg-gradient-to-br from-orange-500/15 via-slate-900 to-cyan-500/15 p-5">
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-orange-200">Transaction Sync status</p>
-                <h2 className="mt-3 text-2xl font-black text-white">Live on the Chrome Web Store.</h2>
+                <h2 className="mt-3 text-2xl font-black text-white">Chrome is live. Safari is in testing.</h2>
                 <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Transaction Sync works in desktop Chrome. iPhone, iPad, Android Chrome, Safari, and the Sleeper mobile app do not run this Chrome extension.
+                  Transaction Sync is published for desktop Chrome and can be tested as a Safari Web Extension. Mobile browsers and the Sleeper mobile app cannot run this import flow yet.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <a
@@ -133,15 +140,15 @@ function SleeperHelperPage() {
                     target="_blank"
                     className="rounded-2xl bg-cyan-300 px-4 py-3 text-center text-sm font-black text-slate-950 transition hover:bg-cyan-200"
                   >
-                    Install Chrome extension
+                    Install Extension
                   </a>
                   <a
-                    href={repoUrl}
+                    href={safariSetupUrl}
                     rel="noreferrer"
                     target="_blank"
                     className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center text-sm font-black text-white transition hover:bg-white/15"
                   >
-                    Review helper files
+                    Safari setup notes
                   </a>
                 </div>
               </div>
@@ -228,7 +235,7 @@ function SleeperHelperPage() {
                 <h2 className="mt-2 text-3xl font-black uppercase tracking-[-0.04em] text-white">If the import does not fire</h2>
               </div>
               <code className="w-fit rounded-full border border-white/10 bg-white/10 px-3 py-2 text-xs font-black text-cyan-100">
-                desktop Chrome required
+                desktop extension required
               </code>
             </div>
             <div className="mt-6 grid gap-3 md:grid-cols-2">
@@ -256,9 +263,9 @@ function SleeperHelperPage() {
 
           <section className="rounded-[2rem] border border-cyan-300/20 bg-cyan-300/10 p-6">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-100">Mobile support</p>
-            <h2 className="mt-3 text-3xl font-black uppercase tracking-[-0.04em] text-white">Use desktop Chrome for sync.</h2>
+            <h2 className="mt-3 text-3xl font-black uppercase tracking-[-0.04em] text-white">Use a desktop browser for sync.</h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-cyan-50/80">
-              Chrome extensions do not run inside iPhone Chrome, iPhone Safari, Android Chrome, or the Sleeper mobile app. A Safari iPhone/iPad version would need to be built and shipped separately as a Safari Web Extension through the App Store.
+              Mobile browsers and the Sleeper mobile app cannot run this import flow yet. A Safari iPhone/iPad version would need to be built and shipped separately as a Safari Web Extension through the App Store.
             </p>
           </section>
         </div>

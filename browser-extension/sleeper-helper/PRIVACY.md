@@ -45,7 +45,7 @@ included in the extension package.
 - `storage`: used for temporary session-only snapshot storage.
 - Sleeper host permissions: used only on supported league trade, player, waiver, and transaction pages.
 - Dynasty Degens host permissions: used only to bridge the sanitized snapshot into the app.
-- The Chrome Web Store package excludes the development-only `http://localhost:3000/*` permission that exists in the unpacked local manifest.
+- The Chrome Web Store package excludes the development-only `http://localhost/*` permission that exists in the unpacked local manifest.
 
 ## Product boundary
 

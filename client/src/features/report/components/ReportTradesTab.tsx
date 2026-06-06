@@ -184,7 +184,13 @@ function classifyTransactionSyncError(detail?: string | null): string {
   if (normalized.includes("could not reach") || normalized.includes("could not start")) {
     return "extension_unreachable";
   }
-  if (normalized.includes("desktop chrome")) return "mobile_unsupported";
+  if (
+    normalized.includes("desktop chrome") ||
+    normalized.includes("desktop browser") ||
+    normalized.includes("not connected in this browser")
+  ) {
+    return "mobile_unsupported";
+  }
   return "unknown";
 }
 
@@ -1980,19 +1986,19 @@ export function ReportTradesTab({
         reason: "mobile_unsupported",
       });
       setHelperError(
-        "Transaction Sync requires desktop Chrome. Chrome extensions do not run on iPhone, iPad, or Android Chrome, so open this report on desktop Chrome to import pending Sleeper trades and waivers."
+        "Transaction Sync requires a desktop browser extension. Mobile browsers cannot run the pending Sleeper import flow yet, so open this report in a desktop browser with Transaction Sync enabled."
       );
       return;
     }
 
-    if (isUnsupportedTransactionSyncBrowser) {
+    if (isUnsupportedTransactionSyncBrowser && !helperDetected) {
       trackTransactionSyncEvent("import_failed", {
         leagueId,
         stage: "browser_support",
-        reason: "desktop_chrome_required",
+        reason: "extension_not_connected",
       });
       setHelperError(
-        "Transaction Sync requires desktop Chrome. Open this report in desktop Chrome, install the Chrome Web Store extension, then click Import Pending Transactions there."
+        "Transaction Sync is not connected in this browser. Install or enable Transaction Sync, then refresh this Dynasty Degens tab and click Import Pending Transactions again."
       );
       return;
     }
@@ -2004,7 +2010,7 @@ export function ReportTradesTab({
         reason: "helper_not_detected",
       });
       setHelperError(
-        "Install the Chrome extension, then refresh this Dynasty Degens tab and click Import Pending Transactions again."
+        "Install or enable Transaction Sync, then refresh this Dynasty Degens tab and click Import Pending Transactions again."
       );
       return;
     }
@@ -2148,10 +2154,10 @@ export function ReportTradesTab({
                       {helperDetected
                         ? "Transaction Sync is ready. Click once to open Sleeper, capture sanitized pending transaction data, and import it back into this report."
                         : isMobileBrowser
-                          ? "Desktop Chrome required. Chrome extensions do not run on iPhone, iPad, or Android Chrome, so send this report to desktop Chrome to import pending Sleeper activity."
+                          ? "Desktop browser extension required. Send this report to a desktop browser with Transaction Sync enabled to import pending Sleeper activity."
                           : isUnsupportedTransactionSyncBrowser
-                            ? "Desktop Chrome required. Open this report in Chrome, install Transaction Sync once, then import pending Sleeper activity from there."
-                            : "Install Transaction Sync once from the Chrome Web Store, then click once to open Sleeper, capture sanitized pending transaction data, and import it back into this report."}
+                            ? "Transaction Sync is not connected in this browser yet. Install or enable Transaction Sync, then refresh this tab."
+                            : "Install Transaction Sync once, then click once to open Sleeper, capture sanitized pending transaction data, and import it back into this report."}
                     </p>
                   </div>
                 </div>
@@ -2167,12 +2173,12 @@ export function ReportTradesTab({
                       ? "Importing pending transactions"
                       : helperSnapshot
                       ? `Captured ${helperTransactionCount} pending item${helperTransactionCount === 1 ? "" : "s"}`
+                      : helperDetected
+                        ? "Transaction Sync detected"
                       : isMobileBrowser
                         ? "Send this report to desktop"
                       : isUnsupportedTransactionSyncBrowser
-                        ? "Desktop Chrome required"
-                      : helperDetected
-                        ? "Transaction Sync detected"
+                        ? "Transaction Sync not connected"
                       : "Waiting for Transaction Sync"}
                   </p>
                   <p className="mt-1 text-xs leading-5 text-slate-400">
@@ -2180,13 +2186,13 @@ export function ReportTradesTab({
                       ? "Sleeper sync in progress. Keep this tab open while the helper captures trades and waivers."
                       : helperSnapshot
                       ? `${helperTradeCount} trades, ${helperWaiverCount} waiver claims captured ${new Date(helperSnapshot.capturedAt).toLocaleString()}.`
-                      : isMobileBrowser
-                        ? "Transaction Sync requires desktop Chrome. Copy this report link, open it on desktop Chrome, install the extension, then import pending Sleeper trades and waivers there."
-                      : isUnsupportedTransactionSyncBrowser
-                        ? "This browser cannot run Transaction Sync. Open this report in desktop Chrome, install the extension once, then import pending trades and waivers there."
                       : helperDetected
                         ? "Ready. The helper will open Sleeper, refresh the right pages, and import the latest pending snapshot."
-                        : "Install Transaction Sync from the Chrome Web Store. If it is already installed, refresh this Dynasty Degens tab so Chrome can connect it here."}
+                      : isMobileBrowser
+                        ? "Transaction Sync requires a desktop browser extension. Copy this report link, open it in a desktop browser with Transaction Sync enabled, then import pending Sleeper trades and waivers there."
+                      : isUnsupportedTransactionSyncBrowser
+                        ? "This browser is not connected to Transaction Sync yet. Install or enable Transaction Sync, then refresh this tab."
+                      : "Install or enable Transaction Sync. If it is already installed, refresh this Dynasty Degens tab so the browser can connect it here."}
                   </p>
                   {isMobileBrowser ? (
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -2217,11 +2223,11 @@ export function ReportTradesTab({
                         }
                         className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black text-slate-200 transition hover:border-white/20 hover:bg-white/10"
                       >
-                        Handoff guide
+                        Setup help
                         <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                       </a>
                     </div>
-                  ) : isUnsupportedTransactionSyncBrowser ? (
+                  ) : isUnsupportedTransactionSyncBrowser && !helperDetected ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Button
                         type="button"
@@ -2236,7 +2242,7 @@ export function ReportTradesTab({
                             : "Copy report link"}
                       </Button>
                       <a
-                        href={TRANSACTION_SYNC_CHROME_WEB_STORE_URL}
+                        href="/sleeper-helper"
                         target="_blank"
                         rel="noreferrer"
                         onClick={() =>
@@ -2247,7 +2253,7 @@ export function ReportTradesTab({
                         }
                         className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black text-slate-200 transition hover:border-white/20 hover:bg-white/10"
                       >
-                        Chrome extension
+                        Setup help
                         <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                       </a>
                     </div>
@@ -2265,7 +2271,7 @@ export function ReportTradesTab({
                         }
                         className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1.5 text-xs font-black text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/20"
                       >
-                        Install Chrome Extension
+                        Install Extension
                         <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                       </a>
                       <a

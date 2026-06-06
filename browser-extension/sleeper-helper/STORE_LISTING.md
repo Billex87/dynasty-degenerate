@@ -49,7 +49,7 @@ Published Chrome Web Store listing:
 - `https://dynastydegens.com/*`: Bridges sanitized snapshots into the Dynasty Degens report tab.
 - `https://www.dynastydegens.com/*`: Same as above for the `www` production host.
 
-Store package note: the review zip excludes the development-only `http://localhost:3000/*` host permission. That match exists only in the unpacked local manifest.
+Store package note: the review zip excludes the development-only `http://localhost/*` host permission. That match exists only in the unpacked local manifest.
 
 ## Privacy disclosure answer
 

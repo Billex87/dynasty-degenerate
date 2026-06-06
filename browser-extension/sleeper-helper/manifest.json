@@ -28,7 +28,7 @@
     "https://sleeper.com/leagues/*/players*",
     "https://sleeper.com/leagues/*/waivers*",
     "https://sleeper.com/leagues/*/transactions*",
-    "http://localhost:3000/*",
+    "http://localhost/*",
     "https://dynastydegens.com/*",
     "https://www.dynastydegens.com/*"
   ],
@@ -45,7 +45,7 @@
     },
     {
       "matches": [
-        "http://localhost:3000/*",
+        "http://localhost/*",
         "https://dynastydegens.com/*",
         "https://www.dynastydegens.com/*"
       ],

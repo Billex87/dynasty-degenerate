@@ -8,7 +8,7 @@ const chromeExtensionRoot = path.join(repoRoot, "browser-extension", "sleeper-he
 const safariDistRoot = path.join(repoRoot, "dist", "browser-extension", "safari-transaction-sync");
 const includeLocalhost = process.argv.includes("--local");
 const outputRoot = path.join(safariDistRoot, includeLocalhost ? "local-extension" : "extension");
-const localhostMatches = new Set(["http://localhost:3000/*"]);
+const localhostMatches = new Set(["http://localhost/*"]);
 
 function filterLocalhostMatches(matches) {
   if (includeLocalhost) return matches || [];

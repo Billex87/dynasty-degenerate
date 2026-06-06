@@ -44,6 +44,80 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getRuntimeLastError() {
+  try {
+    return chrome.runtime.lastError || null;
+  } catch {
+    return null;
+  }
+}
+
+function callChromeApi(invoke) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const settle = (result) => {
+      if (settled) return;
+      settled = true;
+      const lastError = getRuntimeLastError();
+      if (lastError) {
+        reject(new Error(lastError.message || String(lastError)));
+        return;
+      }
+      resolve(result);
+    };
+
+    try {
+      const maybePromise = invoke(settle);
+      if (maybePromise && typeof maybePromise.then === "function") {
+        maybePromise.then(
+          (result) => {
+            if (!settled) {
+              settled = true;
+              resolve(result);
+            }
+          },
+          (error) => {
+            if (!settled) {
+              settled = true;
+              reject(error);
+            }
+          }
+        );
+      }
+    } catch (error) {
+      if (!settled) {
+        settled = true;
+        reject(error);
+      }
+    }
+  });
+}
+
+function queryTabs(queryInfo) {
+  return callChromeApi((done) => chrome.tabs.query(queryInfo, done))
+    .then((tabs) => (Array.isArray(tabs) ? tabs : []));
+}
+
+function updateTab(tabId, updateProperties) {
+  return callChromeApi((done) => chrome.tabs.update(tabId, updateProperties, done));
+}
+
+function createTab(createProperties) {
+  return callChromeApi((done) => chrome.tabs.create(createProperties, done));
+}
+
+function reloadTab(tabId) {
+  return callChromeApi((done) => chrome.tabs.reload(tabId, done));
+}
+
+function storageGet(storageArea, key) {
+  return callChromeApi((done) => storageArea.get(key, done));
+}
+
+function storageSet(storageArea, value) {
+  return callChromeApi((done) => storageArea.set(value, done));
+}
+
 function waitForTabComplete(tabId) {
   return new Promise((resolve) => {
     const listener = (updatedTabId, changeInfo) => {
@@ -86,7 +160,7 @@ async function sendSnapshotToAppTab(tabId, snapshot) {
     type: "DYNASTY_DEGENS_IMPORT_CAPTURED_SLEEPER_SNAPSHOT",
     payload: snapshot
   });
-  await chrome.tabs.update(tabId, { active: true });
+  await updateTab(tabId, { active: true });
 }
 
 function getSessionStorageArea() {
@@ -103,7 +177,7 @@ async function getStoredCapture(leagueId) {
   if (!storageArea) return inMemoryCaptures.get(key) || null;
 
   try {
-    const result = await storageArea.get(key);
+    const result = await storageGet(storageArea, key);
     return result?.[key] || null;
   } catch {
     return inMemoryCaptures.get(key) || null;
@@ -123,7 +197,7 @@ async function storeCapture(capture) {
   }
 
   try {
-    await storageArea.set({ [key]: merged });
+    await storageSet(storageArea, { [key]: merged });
   } catch {
     inMemoryCaptures.set(key, merged);
   }
@@ -131,20 +205,20 @@ async function storeCapture(capture) {
 
 async function ensureSleeperTab(leagueId, slug) {
   const targetUrl = `https://sleeper.com/leagues/${encodeURIComponent(leagueId)}/${slug}`;
-  const matches = await chrome.tabs.query({
+  const matches = await queryTabs({
     url: `https://sleeper.com/leagues/${leagueId}/${slug}*`
   });
   const tab = matches.find((candidate) => candidate.id);
 
   if (tab?.id) {
-    await chrome.tabs.update(tab.id, { url: targetUrl, active: false });
+    await updateTab(tab.id, { url: targetUrl, active: false });
     await waitForTabComplete(tab.id);
-    await chrome.tabs.reload(tab.id);
+    await reloadTab(tab.id);
     await waitForTabComplete(tab.id);
     return tab.id;
   }
 
-  const created = await chrome.tabs.create({ url: targetUrl, active: false });
+  const created = await createTab({ url: targetUrl, active: false });
   if (created.id) await waitForTabComplete(created.id);
   return created.id || null;
 }
@@ -152,7 +226,7 @@ async function ensureSleeperTab(leagueId, slug) {
 async function getCaptureFromSleeperTabs(leagueId) {
   const tabGroups = await Promise.all(
     SLEEPER_ACTIVITY_SLUGS.map((slug) =>
-      chrome.tabs.query({ url: `https://sleeper.com/leagues/${leagueId}/${slug}*` })
+      queryTabs({ url: `https://sleeper.com/leagues/${leagueId}/${slug}*` })
     )
   );
   const captures = [];
