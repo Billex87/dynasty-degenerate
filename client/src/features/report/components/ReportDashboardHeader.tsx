@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Bot, BarChart3, ClipboardList, ListOrdered, Repeat2, TrendingUp } from "lucide-react";
+import { Bot, BarChart3, ClipboardList, ListOrdered, Repeat2, Skull, TrendingUp } from "lucide-react";
 
 import { HeaderCssLights } from "@/components/HeaderCssLights";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,6 +7,7 @@ import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface ReportDashboardHeaderProps {
   resolvedActiveTab: string;
   hasAdminPermissions: boolean;
+  canViewAdminDiagnostics: boolean;
   canViewAutopilotTab: boolean;
   shouldShowDraftHistoryTab: boolean;
   reportTabsClassName: string;
@@ -24,6 +25,7 @@ interface ReportDashboardHeaderProps {
 export function ReportDashboardHeader({
   onAnalyzeAnotherLeague,
   hasAdminPermissions,
+  canViewAdminDiagnostics,
   canViewAutopilotTab,
   shouldShowDraftHistoryTab,
   reportTabsClassName,
@@ -158,6 +160,22 @@ export function ReportDashboardHeader({
                 </span>
                 <span className="report-tab-label-short" aria-hidden="true">
                   Drafts
+                </span>
+              </TabsTrigger>
+            )}
+
+            {canViewAdminDiagnostics && (
+              <TabsTrigger
+                value="hacks"
+                className="report-tab"
+                aria-label="Admin Hacks"
+              >
+                <Skull className="h-4 w-4" aria-hidden="true" />
+                <span className="report-tab-label-full" aria-hidden="true">
+                  Hacks
+                </span>
+                <span className="report-tab-label-short" aria-hidden="true">
+                  Hacks
                 </span>
               </TabsTrigger>
             )}

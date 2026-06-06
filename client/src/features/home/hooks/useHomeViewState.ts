@@ -16,6 +16,7 @@ import type { ReportData } from "@shared/types";
 type UseHomeViewStateOptions = {
   activeTab: string;
   analysisCompleteMessage: AnalysisLoadingLeague | null;
+  canViewAdminDiagnostics: boolean;
   canViewAdminFeatureExpansion: boolean;
   isAuthLoading: boolean;
   leagueFormat: string;
@@ -33,6 +34,7 @@ type UseHomeViewStateOptions = {
 export function useHomeViewState({
   activeTab,
   analysisCompleteMessage,
+  canViewAdminDiagnostics,
   canViewAdminFeatureExpansion,
   isAuthLoading,
   leagueFormat,
@@ -69,6 +71,7 @@ export function useHomeViewState({
   } = buildHomeReportTabState({
     activeTab,
     canViewAutopilotTab,
+    canViewHacksTab: canViewAdminDiagnostics,
     shouldShowDraftHistoryTab,
     isAuthLoading,
   });

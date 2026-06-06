@@ -6,7 +6,6 @@ import type { ReportData } from "@shared/types";
 type ReportRankingsTabProps = {
   reportData: ReportData;
   reportDataForView: ReportData;
-  canViewAdminDiagnostics: boolean;
   isRedraftReport: boolean;
   leagueId: string;
   leagueLogo: string | null;
@@ -17,7 +16,6 @@ type ReportRankingsTabProps = {
   rosterScannerFocusKey: number;
   rankingsForReport?: ReportData["rankings"];
   rankingsQueryIsLoading: boolean;
-  onAnalyze: () => void;
   LeagueRosterScannerModeControls: ComponentType<{
     value: OwnerIntelSortMode;
     onChange: (nextValue: OwnerIntelSortMode) => void;
@@ -55,17 +53,11 @@ type ReportRankingsTabProps = {
     showAIReads?: boolean;
   }>;
   RankingsMarketRead: ComponentType<{ data: ReportData }>;
-  AdminScheduleEdgeSection: ComponentType<{ reportData: ReportData }>;
-  AdminDiagnosticsShell: ComponentType<{
-    reportData: ReportData;
-    onLeagueSelect: (leagueId: string) => void | Promise<void>;
-  }>;
 };
 
 export function ReportRankingsTab({
   reportData,
   reportDataForView,
-  canViewAdminDiagnostics,
   isRedraftReport,
   leagueId,
   leagueLogo,
@@ -76,13 +68,10 @@ export function ReportRankingsTab({
   rosterScannerFocusKey,
   rankingsForReport,
   rankingsQueryIsLoading,
-  onAnalyze,
   LeagueRosterScannerModeControls,
   LeagueRosterScanner,
   RankingsBoard,
   RankingsMarketRead,
-  AdminScheduleEdgeSection,
-  AdminDiagnosticsShell,
 }: ReportRankingsTabProps) {
   return (
     <div className="report-command-section-stack space-y-6 sm:space-y-8">
@@ -163,7 +152,6 @@ export function ReportRankingsTab({
           </div>
         )}
       </CollapsibleReportSection>
-      <AdminScheduleEdgeSection reportData={reportDataForView} />
       {!isRedraftReport && (
         <CollapsibleReportSection
           title="College Rankings"
@@ -196,12 +184,6 @@ export function ReportRankingsTab({
           )}
         </CollapsibleReportSection>
       )}
-      {canViewAdminDiagnostics ? (
-        <AdminDiagnosticsShell
-          reportData={reportDataForView}
-          onLeagueSelect={onAnalyze}
-        />
-      ) : null}
     </div>
   );
 }

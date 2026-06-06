@@ -29,6 +29,7 @@ const REPORT_DASHBOARD_TAB_VALUES = [
   "rankings",
   "trades",
   "draft",
+  "hacks",
 ] as const;
 
 function normalizeDashboardTab(value?: string | null): string | null {
@@ -42,6 +43,8 @@ function normalizeDashboardTab(value?: string | null): string | null {
     rank: "rankings",
     trade: "trades",
     drafts: "draft",
+    hack: "hacks",
+    admin: "hacks",
   };
   const canonical = aliases[normalized] || normalized;
   return REPORT_DASHBOARD_TAB_VALUES.includes(
@@ -424,8 +427,13 @@ const TAB_HERO_COPY = {
     subline: "Picks don’t lie. Managers do.",
     body: "We expose wasted picks, rookie value, future leverage, and the managers who turned draft capital into a public safety warning.",
   },
+  hacks: {
+    headline: "ADMIN HACKS.\nEYES ONLY.",
+    subline: "The stuff normal league mates should not see.",
+    body: "Diagnostics, hidden snapshots, source health, and operational receipts live here so the main report can stay clean.",
+  },
 } satisfies Record<
-  "overview" | "momentum" | "rankings" | "trades" | "draft",
+  "overview" | "momentum" | "rankings" | "trades" | "draft" | "hacks",
   ReportDashboardHeroCopy
 >;
 
@@ -455,8 +463,13 @@ const REDRAFT_TAB_HERO_COPY = {
     subline: "Plan the board before the clock starts.",
     body: "We keep draft planning centered on current-season value, lineup scarcity, and roster construction instead of future pick leverage.",
   },
+  hacks: {
+    headline: "ADMIN HACKS.\nEYES ONLY.",
+    subline: "Diagnostics stay out of the public report.",
+    body: "Hidden snapshots, source health, and operational receipts live here so the standard redraft report remains focused.",
+  },
 } satisfies Record<
-  "overview" | "momentum" | "rankings" | "trades" | "draft",
+  "overview" | "momentum" | "rankings" | "trades" | "draft" | "hacks",
   ReportDashboardHeroCopy
 >;
 

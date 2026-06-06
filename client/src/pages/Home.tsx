@@ -669,6 +669,7 @@ export default function Home() {
   } = useHomeViewState({
     activeTab,
     analysisCompleteMessage,
+    canViewAdminDiagnostics,
     canViewAdminFeatureExpansion,
     isAuthLoading: authQuery.isLoading,
     leagueFormat,
@@ -777,6 +778,7 @@ export default function Home() {
       leagueId,
       reportData,
       canViewAutopilotTab,
+      canViewHacksTab: canViewAdminDiagnostics,
       shouldShowDraftHistoryTab,
       isAuthLoading: authQuery.isLoading,
       shouldDeferAutopilotUrlSync,

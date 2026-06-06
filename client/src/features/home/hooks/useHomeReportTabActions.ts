@@ -19,6 +19,7 @@ type UseHomeReportTabActionsOptions = {
   leagueId: string;
   reportData: ReportData | null;
   canViewAutopilotTab: boolean;
+  canViewHacksTab: boolean;
   shouldShowDraftHistoryTab: boolean;
   isAuthLoading: boolean;
   shouldDeferAutopilotUrlSync: boolean;
@@ -32,6 +33,7 @@ export function useHomeReportTabActions({
   leagueId,
   reportData,
   canViewAutopilotTab,
+  canViewHacksTab,
   shouldShowDraftHistoryTab,
   isAuthLoading,
   shouldDeferAutopilotUrlSync,
@@ -52,16 +54,24 @@ export function useHomeReportTabActions({
         nextTab === "autopilot" && !canViewAutopilotTab;
       const isBlockedDraftTab =
         nextTab === "draft" && !shouldShowDraftHistoryTab;
+      const isBlockedHacksTab =
+        nextTab === "hacks" && !canViewHacksTab;
       if (isBlockedAutopilotTab) {
         showAutopilotAccessToast();
       }
+      if (isBlockedHacksTab) {
+        toast.info("Hacks are admin-only.");
+      }
       const allowedNextTab =
-        isBlockedAutopilotTab || isBlockedDraftTab ? "overview" : nextTab;
+        isBlockedAutopilotTab || isBlockedDraftTab || isBlockedHacksTab
+          ? "overview"
+          : nextTab;
       setActiveTab(allowedNextTab);
       updateReportTabUrl(allowedNextTab, leagueId);
     },
     [
       canViewAutopilotTab,
+      canViewHacksTab,
       leagueId,
       setActiveTab,
       shouldShowDraftHistoryTab,
@@ -85,6 +95,13 @@ export function useHomeReportTabActions({
       return;
     }
 
+    if (activeTab === "hacks" && !canViewHacksTab && !isAuthLoading) {
+      toast.info("Hacks are admin-only.");
+      setActiveTab("overview");
+      updateReportTabUrl("overview", leagueId);
+      return;
+    }
+
     if (activeTab === "projections") {
       setActiveTab("rankings");
       updateReportTabUrl("rankings", leagueId);
@@ -92,6 +109,7 @@ export function useHomeReportTabActions({
   }, [
     activeTab,
     canViewAutopilotTab,
+    canViewHacksTab,
     isAuthLoading,
     leagueId,
     setActiveTab,

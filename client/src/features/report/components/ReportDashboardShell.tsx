@@ -15,6 +15,7 @@ import { ReportSectionAccordionProvider } from "@/features/report/components/Rep
 
 type ReportDashboardShellHeaderProps = {
   hasAdminPermissions: boolean;
+  canViewAdminDiagnostics: boolean;
   canViewAutopilotTab: boolean;
   shouldShowDraftHistoryTab: boolean;
   reportTabsClassName: string;
@@ -54,6 +55,8 @@ type ReportDashboardShellProps = {
   reportFxVariant: PremiumFxVariant;
   onReportTabChange: (value: string) => void;
   hasAdminPermissions: ReportDashboardShellHeaderProps["hasAdminPermissions"];
+  canViewAdminDiagnostics:
+    ReportDashboardShellHeaderProps["canViewAdminDiagnostics"];
   canViewAutopilotTab: ReportDashboardShellHeaderProps["canViewAutopilotTab"];
   shouldShowDraftHistoryTab:
     ReportDashboardShellHeaderProps["shouldShowDraftHistoryTab"];
@@ -98,6 +101,7 @@ type ReportDashboardShellProps = {
 export function ReportDashboardShell({
   aiVoiceMode,
   canOpenAdminToolsEntry,
+  canViewAdminDiagnostics,
   canViewAdminFeatureExpansion,
   canViewAutopilotTab,
   children,
@@ -151,6 +155,7 @@ export function ReportDashboardShell({
           <ReportDashboardHeader
             resolvedActiveTab={resolvedActiveTab}
             hasAdminPermissions={hasAdminPermissions}
+            canViewAdminDiagnostics={canViewAdminDiagnostics}
             canViewAutopilotTab={canViewAutopilotTab}
             shouldShowDraftHistoryTab={shouldShowDraftHistoryTab}
             reportTabsClassName={reportTabsClassName}

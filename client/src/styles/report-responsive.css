@@ -21223,3 +21223,26 @@
     letter-spacing: 0.12em !important;
   }
 }
+
+.report-shell .report-tabs.report-tabs-seven {
+  --dd-report-tab-count: 7;
+}
+
+@media (max-width: 760px) {
+  .report-shell .report-tabs.report-tabs-seven .report-tab {
+    min-width: 0 !important;
+    padding-inline: 0.24rem !important;
+  }
+
+  .report-shell .report-tabs.report-tabs-seven .report-tab svg {
+    width: 0.88rem !important;
+    height: 0.88rem !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .report-shell .report-dashboard-spotlight-inline,
+  .report-shell .report-dashboard-spotlight-inline.dashboard-spotlight-inline-glass {
+    display: none !important;
+  }
+}

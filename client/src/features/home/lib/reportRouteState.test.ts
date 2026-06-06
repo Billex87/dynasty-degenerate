@@ -14,6 +14,7 @@ describe("reportRouteState", () => {
     const state = buildHomeReportTabState({
       activeTab: "projections",
       canViewAutopilotTab: false,
+      canViewHacksTab: false,
       shouldShowDraftHistoryTab: true,
       isAuthLoading: false,
     });
@@ -27,6 +28,7 @@ describe("reportRouteState", () => {
     const loadingState = buildHomeReportTabState({
       activeTab: "autopilot",
       canViewAutopilotTab: false,
+      canViewHacksTab: false,
       shouldShowDraftHistoryTab: true,
       isAuthLoading: true,
     });
@@ -36,6 +38,7 @@ describe("reportRouteState", () => {
     const settledState = buildHomeReportTabState({
       activeTab: "autopilot",
       canViewAutopilotTab: false,
+      canViewHacksTab: false,
       shouldShowDraftHistoryTab: true,
       isAuthLoading: false,
     });
@@ -47,6 +50,7 @@ describe("reportRouteState", () => {
     const state = buildHomeReportTabState({
       activeTab: "draft",
       canViewAutopilotTab: true,
+      canViewHacksTab: false,
       shouldShowDraftHistoryTab: false,
       isAuthLoading: false,
     });
@@ -67,6 +71,7 @@ describe("reportRouteState", () => {
     const state = buildHomeReportTabState({
       activeTab: "draft",
       canViewAutopilotTab: true,
+      canViewHacksTab: false,
       shouldShowDraftHistoryTab: true,
       isAuthLoading: false,
     });
@@ -75,5 +80,38 @@ describe("reportRouteState", () => {
     expect(state.reportTabsClassName).toBe("report-tabs report-tabs-six");
     expect(state.resolvedActiveTab).toBe("draft");
     expect(state.resolvedReportTabIndex).toBe(5);
+  });
+
+  it("adds Hacks only when admin diagnostics are available", () => {
+    const blockedState = buildHomeReportTabState({
+      activeTab: "hacks",
+      canViewAutopilotTab: true,
+      canViewHacksTab: false,
+      shouldShowDraftHistoryTab: true,
+      isAuthLoading: false,
+    });
+    expect(blockedState.resolvedActiveTab).toBe("overview");
+    expect(blockedState.visibleReportTabIds).not.toContain("hacks");
+
+    const adminState = buildHomeReportTabState({
+      activeTab: "hacks",
+      canViewAutopilotTab: true,
+      canViewHacksTab: true,
+      shouldShowDraftHistoryTab: true,
+      isAuthLoading: false,
+    });
+    expect(adminState.resolvedActiveTab).toBe("hacks");
+    expect(adminState.visibleReportTabIds).toEqual([
+      "overview",
+      "autopilot",
+      "momentum",
+      "rankings",
+      "trades",
+      "draft",
+      "hacks",
+    ]);
+    expect(adminState.visibleReportTabCount).toBe(7);
+    expect(adminState.reportTabsClassName).toBe("report-tabs report-tabs-seven");
+    expect(adminState.resolvedReportTabIndex).toBe(6);
   });
 });

@@ -1672,6 +1672,18 @@ export function ReportTradesTab({
   const hasImportedSleeperActivity =
     Boolean(reportData.adminSleeperTradeProposalSignals?.length) ||
     Boolean(reportData.adminSleeperWaiverSignals?.length);
+  const storedSleeperSnapshot = reportData.sleeperHiddenLeagueSnapshot || null;
+  const storedSleeperSnapshotSharedAt = useMemo(() => {
+    if (!storedSleeperSnapshot?.sharedAt) return null;
+    const date = new Date(storedSleeperSnapshot.sharedAt);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }, [storedSleeperSnapshot?.sharedAt]);
 
   const showSleeperPendingActivity = showPendingSleeperActivity;
 
@@ -2067,6 +2079,36 @@ export function ReportTradesTab({
           premium
           defaultOpen
         >
+          {showManagerPersonalityIntel && storedSleeperSnapshot ? (
+            <div className="mb-4 rounded-2xl border border-cyan-300/20 bg-cyan-950/20 p-4 shadow-[0_18px_70px_rgba(34,211,238,0.10)]">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="inline-flex items-center gap-2 rounded-full border border-orange-300/25 bg-orange-300/10 px-3 py-1 text-[0.66rem] font-black uppercase tracking-[0.22em] text-orange-100">
+                    <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                    Admin eyes only
+                  </p>
+                  <p className="mt-2 text-sm font-black text-slate-100">
+                    Stored Transaction Sync snapshot
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">
+                    Shared by {storedSleeperSnapshot.sharedBy || "unknown manager"}
+                    {storedSleeperSnapshotSharedAt ? ` · ${storedSleeperSnapshotSharedAt}` : ""}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="report-pill-shell report-inline-pill">
+                    {storedSleeperSnapshot.transactionCount.toLocaleString()} items
+                  </span>
+                  <span className="report-pill-shell report-inline-pill">
+                    {storedSleeperSnapshot.tradeCount.toLocaleString()} trades
+                  </span>
+                  <span className="report-pill-shell report-inline-pill">
+                    {storedSleeperSnapshot.waiverCount.toLocaleString()} waivers
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <div className={`mb-5 space-y-4 rounded-2xl border p-4 shadow-[0_24px_80px_rgba(16,185,129,0.10)] sm:p-5 ${
             showHelperSuccessStrip
               ? "border-emerald-300/15 bg-slate-950/45"

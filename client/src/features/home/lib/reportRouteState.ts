@@ -5,6 +5,7 @@ export const REPORT_TAB_VALUES = [
   "rankings",
   "trades",
   "draft",
+  "hacks",
 ] as const;
 
 export function normalizeReportTab(value?: string | null): string | null {
@@ -18,6 +19,8 @@ export function normalizeReportTab(value?: string | null): string | null {
     rank: "rankings",
     trade: "trades",
     drafts: "draft",
+    hack: "hacks",
+    admin: "hacks",
   };
   const canonical = aliases[normalized] || normalized;
   return REPORT_TAB_VALUES.includes(
@@ -66,6 +69,7 @@ export function updateReportTabUrl(tab: string, leagueId?: string | null) {
 type HomeReportTabStateInput = {
   activeTab: string;
   canViewAutopilotTab: boolean;
+  canViewHacksTab: boolean;
   shouldShowDraftHistoryTab: boolean;
   isAuthLoading: boolean;
 };
@@ -73,6 +77,7 @@ type HomeReportTabStateInput = {
 export function buildHomeReportTabState({
   activeTab,
   canViewAutopilotTab,
+  canViewHacksTab,
   shouldShowDraftHistoryTab,
   isAuthLoading,
 }: HomeReportTabStateInput) {
@@ -84,12 +89,25 @@ export function buildHomeReportTabState({
   const resolvedActiveTab =
     migratedActiveTab === "draft" && !shouldShowDraftHistoryTab
       ? "overview"
+      : migratedActiveTab === "hacks" && !canViewHacksTab
+        ? "overview"
       : migratedActiveTab === "autopilot" && !canViewAutopilotTab
         ? "overview"
         : migratedActiveTab;
   const visibleReportTabCount =
-    4 + (canViewAutopilotTab ? 1 : 0) + (shouldShowDraftHistoryTab ? 1 : 0);
-  const reportTabsClassName = `report-tabs report-tabs-${visibleReportTabCount === 6 ? "six" : visibleReportTabCount === 5 ? "five" : "four"}`;
+    4 +
+    (canViewAutopilotTab ? 1 : 0) +
+    (shouldShowDraftHistoryTab ? 1 : 0) +
+    (canViewHacksTab ? 1 : 0);
+  const tabCountLabel =
+    visibleReportTabCount === 7
+      ? "seven"
+      : visibleReportTabCount === 6
+        ? "six"
+        : visibleReportTabCount === 5
+          ? "five"
+          : "four";
+  const reportTabsClassName = `report-tabs report-tabs-${tabCountLabel}`;
   const visibleReportTabIds = [
     "overview",
     ...(canViewAutopilotTab ? ["autopilot"] : []),
@@ -97,6 +115,7 @@ export function buildHomeReportTabState({
     "rankings",
     "trades",
     ...(shouldShowDraftHistoryTab ? ["draft"] : []),
+    ...(canViewHacksTab ? ["hacks"] : []),
   ];
   const resolvedReportTabIndex = Math.max(
     0,

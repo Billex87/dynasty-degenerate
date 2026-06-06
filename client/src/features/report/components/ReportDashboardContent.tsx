@@ -12,6 +12,7 @@ import {
 import { ReportOverviewTab } from "@/features/report/components/ReportOverviewTab";
 import { ReportMomentumTab } from "@/features/report/components/ReportMomentumTab";
 import { ReportRankingsTab } from "@/features/report/components/ReportRankingsTab";
+import { ReportHacksTab } from "@/features/report/components/ReportHacksTab";
 import { LeagueSettingsSummary } from "@/features/report/components/LeagueSettingsSummary";
 import { ReportTradesTab } from "@/features/report/components/ReportTradesTab";
 import {
@@ -383,7 +384,6 @@ export function ReportDashboardContent({
               <ReportRankingsTab
                 reportData={reportData}
                 reportDataForView={reportDataForView}
-                canViewAdminDiagnostics={canViewAdminDiagnostics}
                 isRedraftReport={isRedraftReport}
                 leagueValueMode={leagueValueMode}
                 leagueId={leagueId}
@@ -394,15 +394,12 @@ export function ReportDashboardContent({
                 rosterScannerFocusKey={rosterScannerFocusKey}
                 rankingsForReport={rankingsForReport}
                 rankingsQueryIsLoading={rankingsQueryIsLoading}
-                onAnalyze={onAnalyze}
                 LeagueRosterScannerModeControls={
                   LeagueRosterScannerModeControls
                 }
                 LeagueRosterScanner={LeagueRosterScanner}
                 RankingsBoard={RankingsBoard}
                 RankingsMarketRead={RankingsMarketRead}
-                AdminScheduleEdgeSection={AdminScheduleEdgeSection}
-                AdminDiagnosticsShell={AdminDiagnosticsShell}
               />
             </TabsContent>
 
@@ -478,6 +475,20 @@ export function ReportDashboardContent({
                     showAIReads={canViewAdminFeatureExpansion}
                   />
                 )}
+              </TabsContent>
+            )}
+
+            {canViewAdminDiagnostics && (
+              <TabsContent
+                value="hacks"
+                className="report-tab-content report-command-tab-body"
+              >
+                <ReportHacksTab
+                  reportDataForView={reportDataForView}
+                  onAnalyze={onAnalyze}
+                  AdminScheduleEdgeSection={AdminScheduleEdgeSection}
+                  AdminDiagnosticsShell={AdminDiagnosticsShell}
+                />
               </TabsContent>
             )}
           </Suspense>

@@ -222,6 +222,7 @@ export function HomeReportExperience({
           reportFxVariant={reportFxVariant}
           onReportTabChange={onReportTabChange}
           hasAdminPermissions={hasAdminPermissions}
+          canViewAdminDiagnostics={canViewAdminDiagnostics}
           canViewAutopilotTab={canViewAutopilotTab}
           shouldShowDraftHistoryTab={shouldShowDraftHistoryTab}
           reportTabsClassName={reportTabsClassName}
