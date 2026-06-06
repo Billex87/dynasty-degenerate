@@ -10999,11 +10999,6 @@
     justify-content: flex-end;
   }
 
-  .analysis-preview-chip-manager-preview .analysis-preview-manager-name,
-  .analysis-preview-chip-starter-room .analysis-preview-manager-name {
-    max-width: min(4.55rem, 18vw);
-  }
-
   .analysis-preview-chip-starter-room > .analysis-preview-chip-label {
     flex: 0 0 auto;
     max-width: none;
@@ -11032,14 +11027,6 @@
     width: 100%;
     min-width: 0;
     max-width: none;
-  }
-
-  .report-disclosure-summary > .analysis-preview-chip-row.report-disclosure-preview:has(.analysis-preview-chip-starter-room) .analysis-preview-manager-name {
-    max-width: none;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    overflow-wrap: normal;
   }
 
   .report-disclosure-preview-row .analysis-preview-chip-row-single .analysis-preview-chip {
@@ -11254,10 +11241,6 @@
     min-width: 1.9rem;
     padding-inline: 0.24rem;
     font-size: 0.5rem;
-  }
-
-  .analysis-preview-manager-name {
-    max-width: 6.7rem;
   }
 }
 
