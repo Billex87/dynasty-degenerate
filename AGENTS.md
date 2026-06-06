@@ -25,6 +25,25 @@ This repository should be maintained like a senior-level production codebase:
 - Styling: Tailwind v4 plus global CSS imported by `client/src/index.css`
 - Tests: Vitest unit tests and Playwright e2e tests
 
+## Default skill routing
+
+- Use `graphify` first for architecture, dependency, file-relationship, report-generation, data-flow, and impact-analysis questions when `graphify-out/graph.json` exists. Run `graphify update` before architecture or dependency-impact answers when the graph may be stale or the user asks for an update.
+- Use `dynasty-report-qa` for report-generation, report-tab, AI-readout, ranking, trade, draft, waiver, provider/source evidence, final readiness, or visual QA work. It should combine Graphify context, focused report commands, rendered UI checks, provider-copy policy, and mobile smoke coverage.
+- Use `build-web-apps:frontend-testing-debugging` for visible frontend changes, UI regressions, route validation, responsive checks, and visual QA. Verify the rendered route with Browser first when available, otherwise Playwright, and check desktop plus one mobile viewport when practical.
+- Use `build-web-apps:frontend-app-builder` for new visual surfaces, dashboards, hero sections, redesigns, modernization, or fidelity-to-concept work. Do not invoke the heavier concept/Image Gen workflow for small fixes inside the existing report design system unless a redesign is requested.
+- Use `review` as a final gate before shipping meaningful branches or when asked for review/final readiness. Compare the diff against this repo's standards and the requested scope/spec, then report findings before summaries. Do not run the heavier branch/spec review for every tiny edit unless the user asks.
+- Use `diagnose` for bugs, flaky behavior, local/preview mismatches, data import failures, and report-generation surprises. Establish a feedback loop and identify the root cause before patching.
+- Use `tdd` for risky business logic, server/report calculations, ranking/value transforms, cache behavior, and provider policy changes. Prefer focused Vitest coverage near `server/**` or `client/src/**` before broad implementation.
+- Use `improve-codebase-architecture` for giant-file splits, feature-boundary cleanup, CSS consolidation, and route thinning. Start with audit and plan, then extract one low-risk slice at a time.
+- Use `prototype` only for uncertain product interactions, complex UI states, or data/state models where a throwaway implementation can answer the question faster than debating it.
+- Use Browser/Playwright for any meaningful frontend completion claim. Screenshots and rendered evidence matter more than code inspection for typography, spacing, wrapping, clipping, overlap, loading states, error states, and mobile polish.
+- Use Vercel/GitHub capabilities when the task is deployment, preview QA, CI, production env inspection, or live-route validation. Keep preview/live/manual verification separate from code completion.
+
+## Agent reference docs
+
+- Issue/spec lookup and review context: `docs/agents/issue-tracker.md`
+- UI smoke matrix and visual evidence standard: `docs/agents/ui-smoke-matrix.md`
+
 ## Refactor rules
 
 - Preserve existing behavior unless the task explicitly says otherwise.
