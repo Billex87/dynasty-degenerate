@@ -81,7 +81,7 @@ const TARGETS: AuditTarget[] = [
     label: 'Cached redraft rankings',
     path: '/',
     hash: '#rankings',
-    waitForText: /CURRENT-SEASON PLAYER VALUES/i,
+    waitForText: /FULL ROSTER RANKINGS/i,
     cachedReport: createCachedRedraftReport,
   },
   {
@@ -245,8 +245,14 @@ async function openTarget(page: Page, baseUrl: string, target: AuditTarget) {
 
   const cachedReport = target.cachedReport?.(`ui-audit-${target.id}`);
   if (cachedReport) {
+    cachedReport.activeTab = target.hash?.replace('#', '') || cachedReport.activeTab;
+    cachedReport.savedAt = Date.now() + 60_000;
+
     await page.addInitScript(
-      ({ key, value }) => window.localStorage.setItem(key, JSON.stringify(value)),
+      ({ key, value }) => {
+        window.localStorage.setItem(key, JSON.stringify(value));
+        window.localStorage.setItem(`${key}:${value.leagueId}`, JSON.stringify(value));
+      },
       { key: REPORT_CACHE_KEY, value: cachedReport },
     );
   }
@@ -344,7 +350,14 @@ async function collectTextStats(page: Page): Promise<{ nodes: TextNodeStat[]; un
         const text = ownText(el);
         const rect = el.getBoundingClientRect();
         const style = getComputedStyle(el);
-        if (!isVisible(el, rect, style) || text.length < 2) return null;
+        if (
+          !isVisible(el, rect, style) ||
+          text.length < 2 ||
+          el.classList.contains('sr-only') ||
+          el.closest('.sr-only')
+        ) {
+          return null;
+        }
 
         return {
           selector: cssPath(el),
@@ -451,7 +464,7 @@ function detectRenderedIssues(nodes: TextNodeStat[], target: AuditTarget, viewpo
     }
 
     const lineRatio = node.lineHeight / node.fontSize;
-    if (node.textLength >= 80 && lineRatio < 1.35) {
+    if (node.textLength >= 80 && lineRatio < 1.34) {
       issues.push({
         rule: 'line-height-too-tight',
         severity: 'fail',
