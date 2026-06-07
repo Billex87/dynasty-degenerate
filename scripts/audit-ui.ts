@@ -198,9 +198,34 @@ const TARGETS: AuditTarget[] = [
 const OUT_DIR = path.join(process.cwd(), 'reports', 'ui-audit', 'latest');
 const SCREENSHOT_DIR = path.join(OUT_DIR, 'screenshots');
 const DEFAULT_PORT = Number(process.env.PLAYWRIGHT_PORT || process.env.PORT || 3100);
-const DEFAULT_BASE_URL = process.env.UI_AUDIT_BASE_URL || process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${DEFAULT_PORT}`;
-const USE_EXTERNAL_SERVER = Boolean(process.env.UI_AUDIT_BASE_URL || process.env.PLAYWRIGHT_BASE_URL);
 const FAIL_ON_ISSUES = process.env.UI_AUDIT_FAIL_ON_ISSUES === 'true';
+const CLI_ARGS = process.argv.slice(2);
+
+function getArg(name: string) {
+  const direct = CLI_ARGS.find((arg) => arg === `--${name}` || arg.startsWith(`--${name}=`));
+  if (!direct) return undefined;
+  if (direct.includes('=')) return direct.slice(direct.indexOf('=') + 1);
+
+  const next = CLI_ARGS[CLI_ARGS.indexOf(direct) + 1];
+  return next && !next.startsWith('--') ? next : undefined;
+}
+
+const CLI_BASE_URL = getArg('base-url') || getArg('baseUrl');
+const CLI_TARGETS = getArg('targets') || getArg('target');
+const CLI_VIEWPORTS = getArg('viewports') || getArg('viewport');
+const ENV_BASE_URL = process.env.UI_AUDIT_BASE_URL || process.env.PLAYWRIGHT_BASE_URL;
+const DEFAULT_BASE_URL = CLI_BASE_URL || ENV_BASE_URL || `http://127.0.0.1:${DEFAULT_PORT}`;
+const USE_EXTERNAL_SERVER = Boolean(ENV_BASE_URL || CLI_BASE_URL);
+
+function resolveConfigList(cliValue: string | undefined, envValue: string | undefined) {
+  const cliList = normalizeList(cliValue);
+  if (cliList.size) return cliList;
+  const envList = normalizeList(envValue);
+  return envList;
+}
+
+const TARGETS_OVERRIDE = resolveConfigList(CLI_TARGETS, process.env.UI_AUDIT_TARGETS);
+const VIEWPORTS_OVERRIDE = resolveConfigList(CLI_VIEWPORTS, process.env.UI_AUDIT_VIEWPORTS);
 
 function printHelp() {
   console.log(`Usage: pnpm run audit:ui
@@ -213,6 +238,9 @@ Environment:
                          Options: ${TARGETS.map((target) => target.id).join(', ')}
   UI_AUDIT_VIEWPORTS     Comma-separated viewport ids. Default: all.
                          Options: ${VIEWPORTS.map((viewport) => viewport.name).join(', ')}
+  --base-url <url>       CLI override for base URL.
+  --targets <ids>        CLI override for comma-separated target ids.
+  --viewports <ids>      CLI override for comma-separated viewport ids.
   UI_AUDIT_FAIL_ON_ISSUES=true
                          Exit non-zero when fail-level issues are found.
 
@@ -233,12 +261,12 @@ function normalizeList(input: string | undefined) {
 }
 
 function selectViewports() {
-  const requested = normalizeList(process.env.UI_AUDIT_VIEWPORTS);
+  const requested = VIEWPORTS_OVERRIDE;
   return requested.size ? VIEWPORTS.filter((viewport) => requested.has(viewport.name)) : VIEWPORTS;
 }
 
 function selectTargets() {
-  const requested = normalizeList(process.env.UI_AUDIT_TARGETS);
+  const requested = TARGETS_OVERRIDE;
   return requested.size ? TARGETS.filter((target) => requested.has(target.id)) : TARGETS;
 }
 
@@ -920,15 +948,37 @@ function issueCounts(results: TargetResult[]) {
   );
 }
 
+function priorityForSeverity(severity: AuditIssue['severity']) {
+  if (severity === 'fail') return 'P0';
+  if (severity === 'warn') return 'P1';
+  return 'P2';
+}
+
 function renderSummary(results: TargetResult[]) {
   const counts = issueCounts(results);
+  const allIssues = results.flatMap((result) => result.issues);
+  const priorityBuckets = {
+    P0: allIssues.filter((issue) => issue.severity === 'fail'),
+    P1: allIssues.filter((issue) => issue.severity === 'warn'),
+    P2: allIssues.filter((issue) => issue.severity === 'info'),
+  };
+
+  const renderPrioritySection = (priority: keyof typeof priorityBuckets, severityName: string) => {
+    const bucket = priorityBuckets[priority];
+    const rows = bucket.slice(0, 25);
+    return rows.length
+      ? rows.map((issue) => `- [${severityName}] ${issue.target}/${issue.viewport} ${issue.rule}: ${issue.message} (${issue.selector})`)
+      : ['- None.'];
+  };
+
   const lines = [
     '# UI Audit Summary',
     '',
     `Generated: ${new Date().toISOString()}`,
     `Targets: ${new Set(results.map((result) => result.target)).size}`,
     `Viewports: ${[...new Set(results.map((result) => result.viewport))].join(', ')}`,
-    `Issues: ${counts.fail} fail, ${counts.warn} warn, ${counts.info} info`,
+    `Priority counts: P0:${counts.fail}, P1:${counts.warn}, P2:${counts.info}`,
+    `Severity counts: ${counts.fail} fail, ${counts.warn} warn, ${counts.info} info`,
     `Console/page errors: ${counts.consoleErrors}`,
     '',
     '## Runs',
@@ -943,13 +993,20 @@ function renderSummary(results: TargetResult[]) {
     );
   }
 
-  const topIssues = results.flatMap((result) => result.issues).filter((issue) => issue.severity !== 'info').slice(0, 30);
-  if (topIssues.length) {
-    lines.push('', '## Top Issues', '');
-    for (const issue of topIssues) {
-      lines.push(
-        `- [${issue.severity}] ${issue.target}/${issue.viewport} ${issue.rule}: ${issue.message} (${issue.selector})`,
-      );
+  lines.push('', '## P0 / P1 / P2 Issues', '');
+  lines.push('', '### P0 (Blocking, no-go)');
+  lines.push(...renderPrioritySection('P0', 'fail'));
+  lines.push('', '### P1 (Important user-facing)');
+  lines.push(...renderPrioritySection('P1', 'warn'));
+  lines.push('', '### P2 (Polish / consistency)');
+  lines.push(...renderPrioritySection('P2', 'info'));
+
+  lines.push('', '## Top issues by blocking order (fail -> warn -> info)');
+  const orderedTopIssues = [...priorityBuckets.P0, ...priorityBuckets.P1, ...priorityBuckets.P2];
+  if (orderedTopIssues.length) {
+    for (const issue of orderedTopIssues.slice(0, 30)) {
+      const priority = priorityForSeverity(issue.severity);
+      lines.push(`- [${priority}] ${issue.target}/${issue.viewport} ${issue.rule}: ${issue.message} (${issue.selector})`);
     }
   }
 
