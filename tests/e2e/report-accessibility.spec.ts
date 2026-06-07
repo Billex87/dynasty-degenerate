@@ -16,7 +16,8 @@ test.describe('report accessibility checks', () => {
 
   test('rankings report has no serious axe violations and no unnamed buttons', async ({ page }) => {
     await loadCachedReport(page, 'axe-rankings-redraft-league', '#rankings');
-    await expect(page.getByText('CURRENT-SEASON PLAYER VALUES').first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Full Roster Rankings/i })).toBeVisible();
+    await expect(page.getByText(/Season values/i)).toBeVisible();
 
     const axeResults = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa'])
