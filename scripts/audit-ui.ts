@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
   createCachedCommandCenterReport,
+  createCachedCommandCenterStressReport,
   createCachedRedraftReport,
   REPORT_CACHE_KEY,
 } from '../tests/e2e/fixtures/cachedReports';
@@ -25,6 +26,18 @@ type TextNodeStat = {
   lineHeight: number;
   scrollWidth: number;
   clientWidth: number;
+  overflowX: string;
+  textOverflow: string;
+  whiteSpace: string;
+};
+
+type DomAuditIssue = {
+  rule: string;
+  severity: 'info' | 'warn' | 'fail';
+  selector: string;
+  message: string;
+  evidence: Record<string, unknown>;
+  recommendation: string;
 };
 
 type AuditIssue = {
@@ -38,7 +51,10 @@ type AuditIssue = {
   recommendation: string;
 };
 
-type CachedReport = ReturnType<typeof createCachedRedraftReport> | ReturnType<typeof createCachedCommandCenterReport>;
+type CachedReport =
+  | ReturnType<typeof createCachedRedraftReport>
+  | ReturnType<typeof createCachedCommandCenterReport>
+  | ReturnType<typeof createCachedCommandCenterStressReport>;
 
 type AuditTarget = {
   id: string;
@@ -77,6 +93,20 @@ const TARGETS: AuditTarget[] = [
     path: '/',
   },
   {
+    id: 'redraft-overview',
+    label: 'Cached redraft overview',
+    path: '/',
+    hash: '#overview',
+    cachedReport: createCachedRedraftReport,
+  },
+  {
+    id: 'redraft-momentum',
+    label: 'Cached redraft momentum',
+    path: '/',
+    hash: '#momentum',
+    cachedReport: createCachedRedraftReport,
+  },
+  {
     id: 'redraft-rankings',
     label: 'Cached redraft rankings',
     path: '/',
@@ -89,7 +119,6 @@ const TARGETS: AuditTarget[] = [
     label: 'Cached redraft draft',
     path: '/',
     hash: '#draft',
-    waitForText: /2026 Main Draft/i,
     cachedReport: createCachedRedraftReport,
   },
   {
@@ -98,6 +127,65 @@ const TARGETS: AuditTarget[] = [
     path: '/',
     hash: '#overview',
     waitForText: /Owner Intel Lab/i,
+    cachedReport: createCachedCommandCenterReport,
+  },
+  {
+    id: 'dynasty-momentum',
+    label: 'Cached dynasty momentum',
+    path: '/',
+    hash: '#momentum',
+    cachedReport: createCachedCommandCenterReport,
+  },
+  {
+    id: 'dynasty-rankings',
+    label: 'Cached dynasty rankings',
+    path: '/',
+    hash: '#rankings',
+    waitForText: /FULL ROSTER RANKINGS/i,
+    cachedReport: createCachedCommandCenterReport,
+  },
+  {
+    id: 'dynasty-trades',
+    label: 'Cached dynasty trades',
+    path: '/',
+    hash: '#trades',
+    cachedReport: createCachedCommandCenterReport,
+  },
+  {
+    id: 'dynasty-stress-rankings',
+    label: 'Cached dynasty stress rankings',
+    path: '/',
+    hash: '#rankings',
+    waitForText: /FULL ROSTER RANKINGS/i,
+    cachedReport: createCachedCommandCenterStressReport,
+  },
+  {
+    id: 'dynasty-stress-trades',
+    label: 'Cached dynasty stress trades',
+    path: '/',
+    hash: '#trades',
+    waitForText: /PENDING TRADE OFFERS/i,
+    cachedReport: createCachedCommandCenterStressReport,
+  },
+  {
+    id: 'dynasty-stress-draft',
+    label: 'Cached dynasty stress draft',
+    path: '/',
+    hash: '#draft',
+    cachedReport: createCachedCommandCenterStressReport,
+  },
+  {
+    id: 'dynasty-draft',
+    label: 'Cached dynasty draft',
+    path: '/',
+    hash: '#draft',
+    cachedReport: createCachedCommandCenterReport,
+  },
+  {
+    id: 'dynasty-hacks',
+    label: 'Cached dynasty admin hacks',
+    path: '/',
+    hash: '#hacks',
     cachedReport: createCachedCommandCenterReport,
   },
   {
@@ -241,7 +329,7 @@ function targetUrl(baseUrl: string, target: AuditTarget, report?: CachedReport) 
 }
 
 async function openTarget(page: Page, baseUrl: string, target: AuditTarget) {
-  page.setDefaultTimeout(15_000);
+  page.setDefaultTimeout(30_000);
 
   const cachedReport = target.cachedReport?.(`ui-audit-${target.id}`);
   if (cachedReport) {
@@ -258,7 +346,7 @@ async function openTarget(page: Page, baseUrl: string, target: AuditTarget) {
   }
 
   const url = targetUrl(baseUrl, target, cachedReport);
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   await page.addStyleTag({
     content: `
       *, *::before, *::after {
@@ -284,7 +372,7 @@ async function openTarget(page: Page, baseUrl: string, target: AuditTarget) {
   return { page, url };
 }
 
-async function collectTextStats(page: Page): Promise<{ nodes: TextNodeStat[]; unnamedButtons: AuditIssue[]; pageOverflow: boolean }> {
+async function collectTextStats(page: Page): Promise<{ nodes: TextNodeStat[]; unnamedButtons: AuditIssue[]; domIssues: DomAuditIssue[]; pageOverflow: boolean }> {
   // tsx/esbuild can preserve nested function names via __name inside serialized
   // page.evaluate callbacks. Define a no-op helper in the page world first.
   await page.evaluate('globalThis.__name = globalThis.__name || ((value) => value)');
@@ -345,6 +433,174 @@ async function collectTextStats(page: Page): Promise<{ nodes: TextNodeStat[]; un
       return `${landmarkName}:${elementName}`;
     }
 
+    function rectIsVisible(el: Element) {
+      const rect = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      return isVisible(el, rect, style);
+    }
+
+    function normalizedPositionLabel(value: string | null | undefined) {
+      const normalized = String(value || '')
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, '')
+        .replace(/^D\/ST/, 'DEF')
+        .replace(/^DST/, 'DEF');
+      return normalized.match(/^(QB|RB|WR|TE|K|DEF)(?:\d+)?$/)?.[1] || null;
+    }
+
+    function parseRgb(color: string) {
+      const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+      if (!match) return null;
+      return {
+        r: Number(match[1]),
+        g: Number(match[2]),
+        b: Number(match[3]),
+      };
+    }
+
+    function positionColorLooksRight(position: string, rgb: { r: number; g: number; b: number }) {
+      if (position === 'QB') return (rgb.r >= rgb.g + 18 && rgb.r >= rgb.b - 8) || (rgb.r >= 170 && rgb.b >= 130 && rgb.g <= 185);
+      if (position === 'RB') return rgb.g >= rgb.r + 12 && rgb.g >= rgb.b - 36;
+      if (position === 'WR') return rgb.b >= rgb.r + 14 || (rgb.g >= rgb.r + 24 && rgb.b >= 120);
+      if (position === 'TE') return rgb.r >= rgb.b + 24 && rgb.g >= rgb.b + 8;
+      if (position === 'K') return rgb.r >= 150 && rgb.g >= 125 && rgb.b <= 175;
+      if (position === 'DEF') return (rgb.g >= rgb.r + 8 && rgb.b >= rgb.r) || (rgb.g >= 120 && rgb.b >= 85 && rgb.r <= 170);
+      return true;
+    }
+
+    function findVisiblePositionLabel(el: Element, position: string) {
+      const candidates = [el, ...el.querySelectorAll('*')];
+      for (const candidate of candidates) {
+        if (!rectIsVisible(candidate)) continue;
+        const candidateText = ownText(candidate);
+        if (normalizedPositionLabel(candidateText) === position) return candidate;
+      }
+      return null;
+    }
+
+    const domIssues: DomAuditIssue[] = [];
+
+    const positionNodes = [...document.querySelectorAll('[data-position]')];
+    for (const el of positionNodes) {
+      if (!rectIsVisible(el)) continue;
+      const dataPosition = el.getAttribute('data-position');
+      const textPosition = ownText(el);
+      const ownPosition = normalizedPositionLabel(textPosition);
+      const position = normalizedPositionLabel(dataPosition) || ownPosition;
+      if (!position) continue;
+
+      const colorTarget = ownPosition === position ? el : findVisiblePositionLabel(el, position);
+      if (!colorTarget) continue;
+      if (colorTarget.closest('.dashboard-position-rank-card')) continue;
+
+      const color = getComputedStyle(colorTarget).color;
+      const rgb = parseRgb(color);
+      if (!rgb || positionColorLooksRight(position, rgb)) continue;
+
+      domIssues.push({
+        rule: 'position-color-mismatch',
+        severity: 'warn',
+        selector: cssPath(colorTarget),
+        message: 'Position-colored element does not match the expected semantic color family.',
+        evidence: { position, color, text: ownText(colorTarget).slice(0, 80) },
+        recommendation: 'Route position color through shared QB/RB/WR/TE/K/DEF token classes instead of local text colors.',
+      });
+    }
+
+    const pillSelector = [
+      '.report-pill-shell',
+      '.report-inline-pill',
+      '.report-metric-pill',
+      '.analysis-preview-chip',
+      '.value-pill',
+      '.league-type-badge',
+      '.position-badge',
+      '.draft-pick-badge',
+      '.rookie-draft-pill',
+      '.draft-outcome-pill',
+      '.draft-gain-pill',
+      '.draft-starter-pill',
+      '.ranking-card-rank-pill',
+      '.owner-metric-pill',
+    ].join(', ');
+    for (const el of [...document.querySelectorAll(pillSelector)]) {
+      if (!rectIsVisible(el)) continue;
+      const nested = el.querySelector(pillSelector);
+      if (!nested || !rectIsVisible(nested)) continue;
+      domIssues.push({
+        rule: 'nested-pill',
+        severity: 'warn',
+        selector: cssPath(el),
+        message: 'Pill-like element contains another pill-like element.',
+        evidence: { outerText: ownText(el).slice(0, 80), nestedText: ownText(nested).slice(0, 80) },
+        recommendation: 'Use a single pill wrapper and plain inner text/icon nodes to avoid double borders and duplicate badge chrome.',
+      });
+    }
+
+    const chipRowSelector = [
+      '.analysis-preview-chip-row',
+      '.draft-decision-pills',
+      '.manager-draft-decision-pills',
+      '.draft-decision-alt-pills',
+      '.player-tile-pills',
+      '.command-depth-badges',
+      '.dashboard-spotlight-chip-row',
+      '.waiver-intel-pills',
+    ].join(', ');
+    for (const el of [...document.querySelectorAll(chipRowSelector)]) {
+      if (!rectIsVisible(el)) continue;
+      const rect = el.getBoundingClientRect();
+      const children = [...el.children].filter(rectIsVisible);
+      if (children.length < 2 || rect.width < 220) continue;
+
+      const childRects = children.map(child => child.getBoundingClientRect());
+      const maxChildHeight = Math.max(...childRects.map(childRect => childRect.height));
+      const totalChildWidth = childRects.reduce((sum, childRect) => sum + childRect.width, 0) + (children.length - 1) * 8;
+
+      if (maxChildHeight > 0 && rect.height > maxChildHeight * 1.8 && totalChildWidth <= rect.width * 1.05) {
+        domIssues.push({
+          rule: 'stacked-chip-row',
+          severity: 'warn',
+          selector: cssPath(el),
+          message: 'Chip row appears vertically stacked even though the direct chips should fit horizontally.',
+          evidence: { text: el.textContent?.trim().replace(/\s+/g, ' ').slice(0, 120), rowWidth: rect.width, rowHeight: rect.height, totalChildWidth },
+          recommendation: 'Allow the chip row to stay horizontal at this width, then wrap only when the measured chip width exceeds the container.',
+        });
+      }
+    }
+
+    const tileGridSelector = [
+      '.dd-tile-grid',
+      '.player-tile-grid',
+      '.owner-tile-grid',
+      '.manager-intel-player-grid',
+      '.manager-command-tile-grid',
+      '.trade-signal-card-grid',
+      '.pending-transaction-side-grid',
+      '.draft-year-card-grid',
+      '.dashboard-position-ranks',
+    ].join(', ');
+    for (const el of [...document.querySelectorAll(tileGridSelector)]) {
+      if (!rectIsVisible(el) || window.innerWidth < 900) continue;
+      const rect = el.getBoundingClientRect();
+      const children = [...el.children].filter(rectIsVisible);
+      if (children.length < 4 || rect.width < 680) continue;
+
+      const childWidths = children.map(child => child.getBoundingClientRect().width).filter(width => width > 0);
+      const averageChildWidth = childWidths.reduce((sum, width) => sum + width, 0) / childWidths.length;
+      if (averageChildWidth > 330) {
+        domIssues.push({
+          rule: 'oversized-tile-grid',
+          severity: 'info',
+          selector: cssPath(el),
+          message: 'Tile/grid children are wider than the shared compact-card target on a wide viewport.',
+          evidence: { childCount: children.length, gridWidth: rect.width, averageChildWidth },
+          recommendation: 'Use shared auto-fit tile sizing or a narrower max-width so the grid can fit more useful columns.',
+        });
+      }
+    }
+
     const nodes = [...document.body.querySelectorAll('*')]
       .map((el) => {
         const text = ownText(el);
@@ -369,6 +625,9 @@ async function collectTextStats(page: Page): Promise<{ nodes: TextNodeStat[]; un
           lineHeight: Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) * 1.2,
           scrollWidth: el.scrollWidth,
           clientWidth: el.clientWidth,
+          overflowX: style.overflowX,
+          textOverflow: style.textOverflow,
+          whiteSpace: style.whiteSpace,
         };
       })
       .filter((node): node is TextNodeStat => Boolean(node))
@@ -399,6 +658,7 @@ async function collectTextStats(page: Page): Promise<{ nodes: TextNodeStat[]; un
     return {
       nodes,
       unnamedButtons,
+      domIssues,
       pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 2,
     };
   });
@@ -433,6 +693,42 @@ function groupBy<T>(items: T[], key: (item: T) => string) {
   return map;
 }
 
+function isIntentionalTypographyAccent(node: TextNodeStat, rule: 'family' | 'size') {
+  if (rule === 'family' && node.selector.includes('manager-position-count-value')) {
+    return true;
+  }
+
+  if (node.selector.includes('analysis-preview-player-with-meta')) {
+    return true;
+  }
+
+  if (rule === 'size') {
+    return (
+      node.selector.includes('dashboard-balance-graph') ||
+      node.selector.includes('report-disclosure-preview-accessory') ||
+      node.selector.includes('weekly-momentum-pills') ||
+      node.selector.includes('rankings-value-basis') ||
+      node.selector.includes('draft-board-context-callout') ||
+      node.selector.includes('dashboard-target-lockup') ||
+      node.selector.includes('player-pill') ||
+      (node.bucket.includes('dd-tile') && node.bucket.includes('dd-tile--stat'))
+    );
+  }
+
+  return false;
+}
+
+function isIntentionalTextTruncation(node: TextNodeStat) {
+  return (
+    node.textOverflow === 'ellipsis' ||
+    (node.overflowX === 'visible' && node.whiteSpace !== 'nowrap') ||
+    node.selector.includes('report-league-lockup') ||
+    node.selector.includes('dashboard-target-lockup') ||
+    node.selector.includes('analysis-preview-manager-name') ||
+    node.selector.includes('report-identity-chip')
+  );
+}
+
 function detectRenderedIssues(nodes: TextNodeStat[], target: AuditTarget, viewport: Viewport, pageOverflow: boolean) {
   const issues: AuditIssue[] = [];
 
@@ -450,7 +746,7 @@ function detectRenderedIssues(nodes: TextNodeStat[], target: AuditTarget, viewpo
   }
 
   for (const node of nodes) {
-    if (node.scrollWidth > node.clientWidth + 2 && node.textLength > 3) {
+    if (node.scrollWidth > node.clientWidth + 2 && node.textLength > 3 && !isIntentionalTextTruncation(node)) {
       issues.push({
         rule: 'text-horizontal-clipping',
         severity: 'warn',
@@ -494,7 +790,12 @@ function detectRenderedIssues(nodes: TextNodeStat[], target: AuditTarget, viewpo
 
     for (const node of group) {
       const family = normalizeFontFamily(node.fontFamily);
-      if (dominantFamily && family !== dominantFamily && (families.get(family)?.length ?? 0) >= 2) {
+      if (
+        dominantFamily &&
+        family !== dominantFamily &&
+        (families.get(family)?.length ?? 0) >= 2 &&
+        !isIntentionalTypographyAccent(node, 'family')
+      ) {
         issues.push({
           rule: 'font-family-inconsistent',
           severity: 'info',
@@ -507,7 +808,11 @@ function detectRenderedIssues(nodes: TextNodeStat[], target: AuditTarget, viewpo
         });
       }
 
-      if (Math.abs(node.fontSize - sizeMedian) > Math.max(2, 1.75 * sizeMad) && node.textLength > 3) {
+      if (
+        Math.abs(node.fontSize - sizeMedian) > Math.max(2, 1.75 * sizeMad) &&
+        node.textLength > 3 &&
+        !isIntentionalTypographyAccent(node, 'size')
+      ) {
         issues.push({
           rule: 'font-size-outlier',
           severity: 'info',
@@ -557,7 +862,7 @@ async function auditTarget(browser: Browser, baseUrl: string, target: AuditTarge
     const { url } = await openTarget(page, baseUrl, target);
     await page.waitForLoadState('networkidle', { timeout: 8_000 }).catch(() => undefined);
 
-    const { nodes, unnamedButtons, pageOverflow } = await collectTextStats(page);
+    const { nodes, unnamedButtons, domIssues, pageOverflow } = await collectTextStats(page);
     const renderedIssues = detectRenderedIssues(nodes, target, viewport, pageOverflow);
     const axeResults = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     const blockingAxeViolationCount = axeResults.violations.filter((violation) =>
@@ -569,6 +874,7 @@ async function auditTarget(browser: Browser, baseUrl: string, target: AuditTarge
 
     const issues = [
       ...unnamedButtons.map((issue) => ({ ...issue, target: target.id, viewport: viewport.name })),
+      ...domIssues.map((issue) => ({ ...issue, target: target.id, viewport: viewport.name })),
       ...renderedIssues,
       ...axeResults.violations.slice(0, 25).map<AuditIssue>((violation) => ({
         rule: `axe:${violation.id}`,

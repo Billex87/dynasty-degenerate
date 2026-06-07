@@ -21345,3 +21345,115 @@
     background-size: auto calc(100% + 8rem) !important;
   }
 }
+
+/* UI audit cleanup: keep shared report preview/readout text readable without
+   widening cards or adding one-off component chrome. */
+.report-shell .ai-read-panel .ai-read-panel-head .ai-read-label-row .ai-read-subtitle-inline,
+.report-shell .ai-read-panel-r3f .ai-read-panel-head .ai-read-label-row .ai-read-subtitle-inline,
+.report-shell .ai-read-subtitle-inline {
+  line-height: 1.45 !important;
+}
+
+.report-shell :is(
+  .report-disclosure-summary,
+  .report-disclosure-preview-row,
+  .report-disclosure-preview-slot
+) .analysis-preview-chip:has(.analysis-preview-player-with-meta) {
+  min-height: 2.15rem !important;
+}
+
+.report-shell :is(
+  .report-disclosure-summary,
+  .report-disclosure-preview-row,
+  .report-disclosure-preview-slot
+) .analysis-preview-chip:has(.analysis-preview-player-with-meta) > strong {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.report-shell :is(
+  .report-disclosure-summary,
+  .report-disclosure-preview-row,
+  .report-disclosure-preview-slot
+) .analysis-preview-player-with-meta .analysis-preview-player,
+.report-shell :is(
+  .report-disclosure-summary,
+  .report-disclosure-preview-row,
+  .report-disclosure-preview-slot
+) .analysis-preview-player .report-identity-chip,
+.report-shell :is(
+  .report-disclosure-summary,
+  .report-disclosure-preview-row,
+  .report-disclosure-preview-slot
+) .analysis-preview-player .interactive-identity {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.report-shell :is(
+  .report-disclosure-summary,
+  .report-disclosure-preview-row,
+  .report-disclosure-preview-slot
+) .analysis-preview-player .interactive-identity-name {
+  max-width: 100% !important;
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+.report-shell .dashboard-spotlight-focus-card em {
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+.report-shell .report-overview-metrics .dashboard-target-lockup {
+  display: grid !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  justify-items: center !important;
+  overflow: visible !important;
+}
+
+.report-shell .dashboard-spotlight-focus-card .dd-tile__value,
+.report-shell .report-overview-metrics .dashboard-target-lockup > strong {
+  display: block !important;
+  width: min(100%, 7.8rem) !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.report-shell .report-overview-metrics .dashboard-target-lockup > .dashboard-target-avatar {
+  justify-self: center !important;
+}
+
+.report-shell .dashboard-spotlight-focus-card .dd-tile__value {
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+}
+
+.report-shell .report-overview-metrics .dashboard-target-lockup > strong {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.report-shell .dashboard-helper-stack,
+.report-shell .dashboard-helper-stack > span {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.report-shell .dashboard-helper-stack > span {
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}

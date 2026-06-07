@@ -5,6 +5,7 @@ import {
   CompactTile,
   StatTile,
 } from "@/components/tiles";
+import type { TileTone } from "@/components/tiles/tileUtils";
 import {
   DashboardManagerAvatar,
   DashboardSpotlightFocusGrid,
@@ -94,6 +95,25 @@ function renderDashboardRankCard({
   );
 }
 
+function getSpotlightChipTone(chip: string): TileTone {
+  const normalized = chip.toLowerCase();
+  const leadingNumber = Number(normalized.match(/^-?\d+/)?.[0] ?? NaN);
+
+  if (normalized.includes("miss") || normalized.includes("loss") || normalized.includes("drop")) {
+    return Number.isFinite(leadingNumber) && leadingNumber <= 0 ? "good" : "danger";
+  }
+
+  if (normalized.includes("hit") || normalized.includes("starter") || normalized.includes("win")) {
+    return "good";
+  }
+
+  if (normalized.includes("watch") || normalized.includes("risk")) {
+    return "warn";
+  }
+
+  return "brand";
+}
+
 export function ReportDashboardSpotlight({
   manager,
   managerAvatarUrl,
@@ -166,7 +186,7 @@ export function ReportDashboardSpotlight({
               key={chip}
               as="span"
               title={chip}
-              tone="brand"
+              tone={getSpotlightChipTone(chip)}
               size="sm"
               className="dashboard-spotlight-chip"
             />

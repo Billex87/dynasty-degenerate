@@ -962,3 +962,660 @@ export function createCachedCommandCenterReport(leagueId = 'command-center-leagu
     },
   };
 }
+
+export function createCachedCommandCenterStressReport(leagueId = 'command-center-stress-league') {
+  const cachedReport = createCachedCommandCenterReport(leagueId);
+  const reportData = cachedReport.reportData as any;
+  const now = Date.now();
+  const managerA = 'MyNameIsBillexTheCommissioner';
+  const managerB = 'AwwQQ Sunday Ticket Shark';
+  const managerC = 'LongName Rebuilder With Too Many Picks';
+
+  const extraPlayerDetailsById = {
+    'qb-long': {
+      playerId: 'qb-long',
+      fullName: 'Quentin Quarterback-Smythe III',
+      position: 'QB',
+      team: 'LV',
+      age: 26,
+      valueProfile: {
+        dynastyValue: 6850,
+        seasonValue: 6100,
+        dynastyPositionRank: 'QB11',
+        seasonPositionRank: 'QB15',
+        weeklyProjection: 17.8,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+    },
+    'wr-long': {
+      playerId: 'wr-long',
+      fullName: 'Marvin Harrison Jr. Experimental Long Label',
+      position: 'WR',
+      team: 'ARI',
+      age: 23,
+      valueProfile: {
+        dynastyValue: 7800,
+        seasonValue: 6400,
+        dynastyPositionRank: 'WR7',
+        seasonPositionRank: 'WR13',
+        weeklyProjection: 15.9,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+    },
+    'rb-long': {
+      playerId: 'rb-long',
+      fullName: 'Bucky Irving-Pacheco Longform Stress',
+      position: 'RB',
+      team: 'TB',
+      age: 24,
+      valueProfile: {
+        dynastyValue: 5150,
+        seasonValue: 5750,
+        dynastyPositionRank: 'RB18',
+        seasonPositionRank: 'RB12',
+        weeklyProjection: 12.7,
+        sources: ['KTC', 'FantasyCalc'],
+      },
+    },
+    'k-long': {
+      playerId: 'k-long',
+      fullName: 'Cameron Little-Waterhouse',
+      position: 'K',
+      team: 'JAX',
+      age: 24,
+      valueProfile: {
+        dynastyValue: 350,
+        seasonValue: 920,
+        dynastyPositionRank: 'K2',
+        seasonPositionRank: 'K2',
+        weeklyProjection: 8.6,
+        sources: ['Kicker value blend'],
+      },
+    },
+    'def-lar': {
+      playerId: 'def-lar',
+      fullName: 'Los Angeles Rams',
+      position: 'DEF',
+      team: 'LAR',
+      age: null,
+      valueProfile: {
+        dynastyValue: 719,
+        seasonValue: 719,
+        dynastyPositionRank: 'DEF5',
+        seasonPositionRank: 'DEF5',
+        weeklyProjection: 7.5,
+        sources: ['Defense value blend'],
+      },
+    },
+    'def-tb': {
+      playerId: 'def-tb',
+      fullName: 'Tampa Bay Buccaneers',
+      position: 'DEF',
+      team: 'TB',
+      age: null,
+      valueProfile: {
+        dynastyValue: 446,
+        seasonValue: 446,
+        dynastyPositionRank: 'DEF12',
+        seasonPositionRank: 'DEF12',
+        weeklyProjection: 5.9,
+        sources: ['Defense value blend'],
+      },
+    },
+  };
+
+  const playerDetailsById = {
+    ...reportData.playerDetailsById,
+    ...extraPlayerDetailsById,
+  };
+
+  const rankingRow = (
+    player_id: string,
+    name: string,
+    pos: string,
+    team: string | null,
+    age: number | null,
+    positionRank: string,
+    value: number,
+    seasonValue: number,
+    owner: string | null,
+    overallRank: number
+  ) => ({
+    id: player_id,
+    player_id,
+    name,
+    pos,
+    team,
+    age,
+    overallRank,
+    positionRank,
+    value,
+    seasonValue,
+    fantasyProsValue: seasonValue,
+    movement: 0,
+    owner,
+    sources: ['KTC', 'FantasyCalc'],
+    sourceCount: 2,
+  });
+
+  const player = (player_id: string, owner = managerA) => {
+    const details = playerDetailsById[player_id];
+    const valueProfile = details?.valueProfile || {};
+    return {
+      player_id,
+      name: details?.fullName || player_id,
+      pos: details?.position || 'WR',
+      team: details?.team || null,
+      owner,
+      value: valueProfile.dynastyValue ?? valueProfile.seasonValue ?? 0,
+      seasonValue: valueProfile.seasonValue ?? valueProfile.dynastyValue ?? 0,
+      weeklyProjection: valueProfile.weeklyProjection,
+      currentPositionRank: valueProfile.dynastyPositionRank || valueProfile.seasonPositionRank || null,
+      playerDetails: details,
+    };
+  };
+
+  const dynastyRows = [
+    rankingRow('qb1', 'Sample Quarterback', 'QB', 'BAL', 27, 'QB4', 7200, 6900, managerA, 18),
+    rankingRow('qb-long', 'Quentin Quarterback-Smythe III', 'QB', 'LV', 26, 'QB11', 6850, 6100, managerB, 32),
+    rankingRow('rb1', 'Sample Runner', 'RB', 'GB', 25, 'RB9', 5400, 5600, managerA, 44),
+    rankingRow('rb-long', 'Bucky Irving-Pacheco Longform Stress', 'RB', 'TB', 24, 'RB18', 5150, 5750, managerC, 59),
+    rankingRow('wr1', 'Sample Receiver', 'WR', 'DAL', 24, 'WR6', 6400, 6100, managerA, 27),
+    rankingRow('wr-long', 'Marvin Harrison Jr. Experimental Long Label', 'WR', 'ARI', 23, 'WR7', 7800, 6400, managerA, 23),
+    rankingRow('wr2', 'Depth Receiver', 'WR', 'HOU', 23, 'WR34', 3000, 2600, managerB, 126),
+    rankingRow('te1', 'Sample Tight End', 'TE', 'ATL', 25, 'TE7', 4100, 3800, managerA, 91),
+    rankingRow('te2', 'Replacement Tight End', 'TE', 'LAC', 24, 'TE5', 4300, 5100, managerB, 84),
+    rankingRow('k-long', 'Cameron Little-Waterhouse', 'K', 'JAX', 24, 'K2', 350, 920, null, 302),
+    rankingRow('def-lar', 'Los Angeles Rams', 'DEF', 'LAR', null, 'DEF5', 719, 719, null, 337),
+    rankingRow('def-tb', 'Tampa Bay Buccaneers', 'DEF', 'TB', null, 'DEF12', 446, 446, managerA, 424),
+  ];
+
+  const availableKicker = {
+    player_id: 'k-long',
+    name: 'Cameron Little-Waterhouse',
+    playerDetails: playerDetailsById['k-long'],
+    currentPositionRank: 'K2',
+    pos: 'K',
+    team: 'JAX',
+    owner: null,
+    count: 220,
+    ktcValue: 350,
+    value: 350,
+  };
+  const availableDefense = {
+    player_id: 'def-lar',
+    name: 'Los Angeles Rams',
+    playerDetails: playerDetailsById['def-lar'],
+    currentPositionRank: 'DEF5',
+    pos: 'DEF',
+    team: 'LAR',
+    owner: null,
+    count: 310,
+    ktcValue: 719,
+    value: 719,
+  };
+  const droppedDefense = {
+    player_id: 'def-tb',
+    name: 'Tampa Bay Buccaneers',
+    playerDetails: playerDetailsById['def-tb'],
+    currentPositionRank: 'DEF12',
+    pos: 'DEF',
+    team: 'TB',
+    owner: managerA,
+    count: 120,
+    ktcValue: 446,
+    value: 446,
+  };
+
+  const draftPicks = [
+    {
+      round: 1,
+      draftYear: '2026',
+      draftKind: 'rookie',
+      draftPickCount: 7,
+      draftType: 'linear',
+      draftValueDate: '2026-05-01',
+      currentValueDate: '2026-06-06',
+      pick: 1,
+      player_id: 'wr-long',
+      playerName: 'Marvin Harrison Jr. Experimental Long Label',
+      playerPos: 'WR',
+      manager: managerA,
+      managerDisplayName: managerA,
+      adp: 3,
+      adpRank: 3,
+      adpPositionRank: 'WR2',
+      ktcValue: 6900,
+      currentKtcValue: 7800,
+      valueGain: 900,
+      positionRankMay2025: 'WR11',
+      currentPositionRank: 'WR7',
+      draftOutcome: 'hit' as const,
+      isStarter: true,
+      playerDetails: playerDetailsById['wr-long'],
+    },
+    {
+      round: 1,
+      draftYear: '2026',
+      draftKind: 'rookie',
+      draftPickCount: 7,
+      draftType: 'linear',
+      draftValueDate: '2026-05-01',
+      currentValueDate: '2026-06-06',
+      pick: 2,
+      player_id: 'qb-long',
+      playerName: 'Quentin Quarterback-Smythe III',
+      playerPos: 'QB',
+      manager: managerB,
+      managerDisplayName: managerB,
+      adp: 5,
+      adpRank: 5,
+      adpPositionRank: 'QB3',
+      ktcValue: 6200,
+      currentKtcValue: 6850,
+      valueGain: 650,
+      positionRankMay2025: 'QB16',
+      currentPositionRank: 'QB11',
+      draftOutcome: 'hit' as const,
+      isStarter: true,
+      playerDetails: playerDetailsById['qb-long'],
+    },
+    {
+      round: 2,
+      draftYear: '2026',
+      draftKind: 'rookie',
+      draftPickCount: 7,
+      draftType: 'linear',
+      draftValueDate: '2026-05-01',
+      currentValueDate: '2026-06-06',
+      pick: 3,
+      player_id: 'rb-long',
+      playerName: 'Bucky Irving-Pacheco Longform Stress',
+      playerPos: 'RB',
+      manager: managerC,
+      managerDisplayName: managerC,
+      adp: 13,
+      adpRank: 13,
+      adpPositionRank: 'RB5',
+      ktcValue: 4800,
+      currentKtcValue: 5150,
+      valueGain: 350,
+      positionRankMay2025: 'RB24',
+      currentPositionRank: 'RB18',
+      draftOutcome: 'neutral' as const,
+      isStarter: false,
+      playerDetails: playerDetailsById['rb-long'],
+    },
+    {
+      round: 3,
+      draftYear: '2026',
+      draftKind: 'rookie',
+      draftPickCount: 7,
+      draftType: 'linear',
+      draftValueDate: '2026-05-01',
+      currentValueDate: '2026-06-06',
+      pick: 4,
+      player_id: 'wr2',
+      playerName: 'Depth Receiver',
+      playerPos: 'WR',
+      manager: managerB,
+      managerDisplayName: managerB,
+      adp: 28,
+      adpRank: 28,
+      adpPositionRank: 'WR12',
+      ktcValue: 3600,
+      currentKtcValue: 3000,
+      valueGain: -600,
+      positionRankMay2025: 'WR27',
+      currentPositionRank: 'WR34',
+      draftOutcome: 'miss' as const,
+      isStarter: false,
+      playerDetails: playerDetailsById.wr2,
+    },
+    {
+      round: 4,
+      draftYear: '2026',
+      draftKind: 'main',
+      draftPickCount: 7,
+      draftType: 'linear',
+      draftValueDate: '2026-05-01',
+      currentValueDate: '2026-06-06',
+      pick: 5,
+      player_id: 'k-long',
+      playerName: 'Cameron Little-Waterhouse',
+      playerPos: 'K',
+      manager: managerA,
+      managerDisplayName: managerA,
+      adp: 52,
+      adpRank: 52,
+      adpPositionRank: 'K3',
+      ktcValue: 250,
+      currentKtcValue: 350,
+      valueGain: 100,
+      positionRankMay2025: 'K5',
+      currentPositionRank: 'K2',
+      draftOutcome: 'neutral' as const,
+      isStarter: true,
+      playerDetails: playerDetailsById['k-long'],
+    },
+    {
+      round: 5,
+      draftYear: '2026',
+      draftKind: 'main',
+      draftPickCount: 7,
+      draftType: 'linear',
+      draftValueDate: '2026-05-01',
+      currentValueDate: '2026-06-06',
+      pick: 6,
+      player_id: 'def-lar',
+      playerName: 'Los Angeles Rams',
+      playerPos: 'DEF',
+      manager: managerA,
+      managerDisplayName: managerA,
+      adp: 61,
+      adpRank: 61,
+      adpPositionRank: 'DEF8',
+      ktcValue: 510,
+      currentKtcValue: 719,
+      valueGain: 209,
+      positionRankMay2025: 'DEF8',
+      currentPositionRank: 'DEF5',
+      draftOutcome: 'hit' as const,
+      isStarter: true,
+      playerDetails: playerDetailsById['def-lar'],
+    },
+  ];
+
+  cachedReport.leagueName = 'Command Center Stress League With Long Names';
+  cachedReport.leagueFormat = '10-Team Dynasty SF PPR K DEF';
+  reportData.viewerManager = managerA;
+  reportData.playerDetailsById = playerDetailsById;
+  reportData.managerAvatars = {
+    ...(reportData.managerAvatars || {}),
+    [managerA]: null,
+    [managerB]: null,
+    [managerC]: null,
+  };
+  reportData.currentPositionRankById = {
+    ...reportData.currentPositionRankById,
+    'qb-long': 'QB11',
+    'wr-long': 'WR7',
+    'rb-long': 'RB18',
+    'k-long': 'K2',
+    'def-lar': 'DEF5',
+    'def-tb': 'DEF12',
+  };
+  reportData.leagueDiagnostics = {
+    ...reportData.leagueDiagnostics,
+    rosterSlots: ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'SUPER_FLEX', 'K', 'DEF', 'BN'],
+    starterSlots: ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'SUPER_FLEX', 'K', 'DEF'],
+    lineupSlotSummary: '1 QB, 2 RB, 2 WR, 1 TE, Flex, Superflex, K, DEF',
+    starterCountSummary: '10 starters',
+  };
+  reportData.rankings = {
+    ...reportData.rankings,
+    profiles: {
+      ...(reportData.rankings?.profiles || {}),
+      'dynasty-sf': dynastyRows,
+    },
+    dynastySf: dynastyRows,
+  };
+  reportData.leagueOverview = [
+    { manager: managerA, total_val: 52750, rank_qb: 1, rank_rb: 5, rank_wr: 1, rank_te: 5, rank_value: 1, rank_2027: 5 },
+    { manager: managerB, total_val: 47300, rank_qb: 2, rank_rb: 8, rank_wr: 7, rank_te: 3, rank_value: 2, rank_2027: 1 },
+    { manager: managerC, total_val: 39200, rank_qb: 7, rank_rb: 4, rank_wr: 9, rank_te: 8, rank_value: 5, rank_2027: 2 },
+  ];
+  reportData.managerPositionCounts = [
+    {
+      manager: managerA,
+      activePlayerCount: 17,
+      reservePlayerCount: 0,
+      taxiPlayerCount: 0,
+      totalRosterPlayerCount: 17,
+      QB: 3,
+      QB_starters: 2,
+      RB: 4,
+      RB_starters: 2,
+      WR: 8,
+      WR_starters: 3,
+      TE: 3,
+      TE_starters: 1,
+      K: 1,
+      K_starters: 1,
+      DEF: 1,
+      DEF_starters: 1,
+      starterPlayers: [player('qb1'), player('rb1'), player('wr-long'), player('wr1'), player('te1'), player('k-long'), player('def-tb')],
+      lineupPlayers: [player('qb1'), player('rb1'), player('wr-long'), player('wr1'), player('te1'), player('te2'), player('k-long'), player('def-tb')],
+      rosterPlayers: [player('qb1'), player('rb1'), player('wr-long'), player('wr1'), player('te1'), player('te2'), player('wr2'), player('drop1'), player('k-long'), player('def-tb')],
+    },
+    {
+      manager: managerB,
+      activePlayerCount: 16,
+      reservePlayerCount: 0,
+      taxiPlayerCount: 0,
+      totalRosterPlayerCount: 16,
+      QB: 4,
+      QB_starters: 2,
+      RB: 5,
+      RB_starters: 2,
+      WR: 4,
+      WR_starters: 2,
+      TE: 2,
+      TE_starters: 1,
+      K: 1,
+      K_starters: 1,
+      DEF: 0,
+      DEF_starters: 0,
+      starterPlayers: [player('qb-long', managerB), player('wr2', managerB), player('te2', managerB)],
+      lineupPlayers: [player('qb-long', managerB), player('wr2', managerB), player('te2', managerB)],
+      rosterPlayers: [player('qb-long', managerB), player('wr2', managerB), player('te2', managerB)],
+    },
+  ];
+  reportData.managerRosterIntelligence = (reportData.managerRosterIntelligence || []).map((intel: any, index: number) => {
+    const manager = index === 0 ? managerA : managerB;
+    return {
+      ...intel,
+      manager,
+      summary:
+        index === 0
+          ? 'Long-name manager has starter value, K/DEF enabled lineup slots, and pending waiver exposure.'
+          : 'Long-name rival has QB depth and a pending trade package that should stress tile wrapping.',
+      positionGrades: {
+        ...(intel.positionGrades || {}),
+        K: { rank: index === 0 ? 2 : 6, grade: index === 0 ? '8' : '4', note: index === 0 ? 'Elite' : 'Playable' },
+        DEF: { rank: index === 0 ? 7 : 12, grade: index === 0 ? '6' : '3', note: index === 0 ? 'Playable' : 'Thin' },
+      },
+      rosterPlayers:
+        index === 0
+          ? [player('qb1'), player('rb1'), player('wr-long'), player('wr1'), player('te1'), player('k-long'), player('def-tb')]
+          : [player('qb-long', managerB), player('wr2', managerB), player('te2', managerB)],
+    };
+  });
+  reportData.tradeProfitLeaderboard = [
+    { rank: 1, manager: managerB, profit: 800, wins: 1, trade_count: 1 },
+    { rank: 2, manager: managerA, profit: -800, wins: 0, trade_count: 1 },
+  ];
+  reportData.tradeHistory = [
+    {
+      date: '2026-05-01',
+      season: '2026',
+      team_a: managerA,
+      team_b: managerB,
+      team_a_items: '2026 2nd',
+      team_b_items: 'PLAYER:wr2|Depth Receiver|3000',
+      team_a_total: 2200,
+      team_b_total: 3000,
+      point_gap: 800,
+      winner: managerB,
+      winners: [managerB],
+    },
+  ];
+  reportData.tradeTendencies = [
+    { manager: managerA, tradeCount: 1, wins: 0, winPct: 0, profit: -800, avgGap: 800, favoritePartner: managerB, overpaysForPicks: false, overpaysForVeterans: false },
+    { manager: managerB, tradeCount: 1, wins: 1, winPct: 100, profit: 800, avgGap: 800, favoritePartner: managerA, overpaysForPicks: false, overpaysForVeterans: false },
+  ];
+  reportData.powerRankings = [
+    { rank: 1, manager: managerA, score: 84, tier: 'Heavyweight', starterStrength: 88, rosterValue: 91, positionalBalance: 74, draftCapital: 58, youthScore: 72, tradeEfficiency: 80 },
+    { rank: 2, manager: managerB, score: 70, tier: 'Meh', starterStrength: 68, rosterValue: 82, positionalBalance: 56, draftCapital: 92, youthScore: 84, tradeEfficiency: 60 },
+  ];
+  reportData.dynastyTimelines = [{ manager: managerA, contenderScore: 88, outlook2027: 78, agingRisk: 28, rebuildScore: 20, label: 'Contend' }];
+  reportData.pickPortfolios = [
+    {
+      manager: managerA,
+      value2026: 1700,
+      value2027: 2500,
+      count2025: 0,
+      count2026: 2,
+      count2027: 3,
+      value2025: 0,
+      totalValue: 4200,
+      ownPicks: 3,
+      acquiredPicks: 2,
+      projectedSlots: ['mid 1st'],
+      futurePicks: [
+        { id: 'stress-a-2026-2', label: '2026 2nd', manager: managerA, originalOwner: managerA, season: '2026', round: 2, value: 900 },
+        { id: 'stress-a-2027-1', label: '2027 1st', manager: managerA, originalOwner: managerA, season: '2027', round: 1, value: 2100 },
+      ],
+    },
+    {
+      manager: managerB,
+      value2026: 5200,
+      value2027: 4900,
+      count2025: 0,
+      count2026: 5,
+      count2027: 5,
+      value2025: 0,
+      totalValue: 10100,
+      ownPicks: 5,
+      acquiredPicks: 5,
+      projectedSlots: ['early 1st'],
+      futurePicks: [
+        { id: 'stress-b-2026-1', label: '2026 1st', manager: managerB, originalOwner: managerB, season: '2026', round: 1, value: 3000 },
+        { id: 'stress-b-2027-1', label: '2027 1st', manager: managerB, originalOwner: managerA, season: '2027', round: 1, value: 2400 },
+      ],
+    },
+  ];
+  reportData.waiverIntelligence = {
+    ...reportData.waiverIntelligence,
+    availableTrendingAdds: [
+      ...(reportData.waiverIntelligence?.availableTrendingAdds || []),
+      availableKicker,
+      availableDefense,
+    ],
+    highestKtcAvailable: availableDefense,
+    bestAvailableByPosition: {
+      ...(reportData.waiverIntelligence?.bestAvailableByPosition || {}),
+      K: availableKicker,
+      DEF: availableDefense,
+    },
+    recentlyDroppedValuable: [
+      ...(reportData.waiverIntelligence?.recentlyDroppedValuable || []),
+      droppedDefense,
+    ],
+  };
+  reportData.recentTransactions = [
+    ...(reportData.recentTransactions || []),
+    {
+      id: 'tx-waiver-kdef',
+      date: new Date(now - 6 * 60 * 60 * 1000).toISOString(),
+      manager: managerA,
+      type: 'Waiver',
+      bidAmount: 12,
+      addedPlayer: availableDefense,
+      droppedPlayer: droppedDefense,
+      alternativeDrop: null,
+      note: 'Winning K/DEF claim fixture.',
+      losingBidsAvailable: true,
+    },
+  ];
+  reportData.adminSleeperTradeProposalSignals = [
+    {
+      id: 'stress-pending-trade-long-names',
+      date: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+      status: 'proposed',
+      managers: [managerA, managerB],
+      playerIds: ['wr-long', 'te2', 'qb-long', 'wr2'],
+      playerNames: ['Marvin Harrison Jr. Experimental Long Label', 'Replacement Tight End', 'Quentin Quarterback-Smythe III', 'Depth Receiver'],
+      pickLabels: ['2027 Round 2'],
+      sourceType: 'trade',
+      tradeSides: [
+        {
+          manager: managerA,
+          playerIds: ['wr-long', 'te2'],
+          playerNames: ['Marvin Harrison Jr. Experimental Long Label', 'Replacement Tight End'],
+          pickLabels: [],
+        },
+        {
+          manager: managerB,
+          playerIds: ['qb-long', 'wr2'],
+          playerNames: ['Quentin Quarterback-Smythe III', 'Depth Receiver'],
+          pickLabels: ['2027 Round 2'],
+        },
+      ],
+      note: 'Stress fixture pending trade with long manager and player labels.',
+    },
+  ];
+  reportData.adminSleeperWaiverSignals = [
+    {
+      id: 'stress-pending-waiver-kdef',
+      date: new Date(now - 60 * 60 * 1000).toISOString(),
+      status: 'pending',
+      managers: [managerA],
+      playerIds: ['def-lar', 'k-long'],
+      playerNames: ['Los Angeles Rams', 'Cameron Little-Waterhouse'],
+      dropPlayerIds: ['def-tb'],
+      dropPlayerNames: ['Tampa Bay Buccaneers'],
+      bidAmount: 12,
+      waiverBudget: 88,
+      note: 'Stress fixture pending waiver with K/DEF league slots.',
+    },
+  ];
+  reportData.sleeperHiddenLeagueSnapshot = {
+    sharedBy: managerA,
+    sharedAt: now,
+    transactionCount: 2,
+    tradeCount: 1,
+    waiverCount: 1,
+  };
+  reportData.draftPicks = draftPicks;
+  reportData.draftStats = [
+    {
+      manager: managerA,
+      managerDisplayName: managerA,
+      totalPicks: 3,
+      avgAdpDiff: 4.7,
+      avgKtcGain: 403,
+      bestPick: draftPicks[0],
+      worstPick: draftPicks[4],
+      hits: 2,
+      misses: 0,
+      starters: 3,
+    },
+    {
+      manager: managerB,
+      managerDisplayName: managerB,
+      totalPicks: 2,
+      avgAdpDiff: -3.5,
+      avgKtcGain: 25,
+      bestPick: draftPicks[1],
+      worstPick: draftPicks[3],
+      hits: 1,
+      misses: 1,
+      starters: 1,
+    },
+    {
+      manager: managerC,
+      managerDisplayName: managerC,
+      totalPicks: 1,
+      avgAdpDiff: 0,
+      avgKtcGain: 350,
+      bestPick: draftPicks[2],
+      worstPick: draftPicks[2],
+      hits: 0,
+      misses: 0,
+      starters: 0,
+    },
+  ];
+
+  return cachedReport as ReturnType<typeof createCachedCommandCenterReport>;
+}
