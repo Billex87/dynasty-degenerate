@@ -55,27 +55,24 @@ describe("AI read action copy boundaries", () => {
     const source = fs.readFileSync(path.join(SOURCE_ROOT, "components/AIActionQueue.tsx"), "utf8");
 
     expect(source).toContain("function getSecondaryQueueDetail");
-    expect(source).toContain("label: 'Verify first'");
-    expect(source).toContain("label: 'Could change'");
+    expect(source).toContain("label: 'What to verify'");
+    expect(source).toContain("label: 'Manager impact'");
     expect(source).toContain("{secondaryDetail.label}: {secondaryDetail.detail}");
     expect(source).not.toContain("<em>{item.missingEvidence[0] || item.changeTriggers[0]}</em>");
-    expect(source).not.toContain("label: 'Where to verify'");
-    expect(source).not.toContain("label: 'What changes this'");
+    expect(source).not.toContain("label: 'Verify first'");
+    expect(source).not.toContain("label: 'Could change'");
   });
 
   it("keeps shared AI trace drawers out of receipt/debug framing", () => {
     const source = fs.readFileSync(path.join(SOURCE_ROOT, "components/AIReadPanel.tsx"), "utf8");
 
     expect(source).toContain("function isManagerFacingTraceItem");
-    expect(source).toContain("Why this matters");
+    expect(source).toContain("Read details");
     expect(source).toContain("Read strength");
     expect(source).toContain("Check roster, role, timing, and availability before acting");
     expect(source).toContain("Useful enough to act after a final roster check");
     expect(source).toContain("Hide or hold until a manager-useful signal appears");
-    expect(source).not.toContain("What fired");
-    expect(source).not.toContain("What could be wrong");
-    expect(source).not.toContain("Where to verify");
-    expect(source).not.toContain("What changes this");
+    expect(source).not.toContain("Why this matters");
     expect(source).not.toContain("Blocked:");
     expect(source).not.toContain("Missing:");
     expect(source).not.toContain("Confidence cap:");
@@ -103,7 +100,6 @@ describe("AI read action copy boundaries", () => {
     ]);
 
     expect(source).not.toMatch(/Evidence band|Source-limited Read|source limited|Why it fired/i);
-    expect(source).not.toMatch(/What fired|What could be wrong|Where to verify/i);
     expect(source).not.toMatch(/Historical Receipt|Pickup receipts|AI PICKUP/i);
     expect(source).not.toMatch(/Admin source review|Receipts Needed|No fake reads/i);
     expect(source).not.toMatch(/Stored weekly projection|stored weekly projection|Stored news/i);

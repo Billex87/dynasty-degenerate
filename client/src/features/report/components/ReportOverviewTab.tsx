@@ -225,9 +225,9 @@ export function ReportOverviewTab({
             premium
             previewMetrics={[
               {
-                label: "Cycle",
-                compactLabel: "Cycle",
-                value: "Monthly",
+                label: "Direction",
+                compactLabel: "Dir",
+                value: "Monthly direction",
                 tone: "neutral",
               },
               {
@@ -237,8 +237,8 @@ export function ReportOverviewTab({
                 tone: "neutral",
               },
               {
-                label: "Snap",
-                compactLabel: "Snap",
+                label: "Window",
+                compactLabel: "Window",
                 value: reportData.weeklyRisers?.length ? "Partial" : "Current",
                 tone: reportData.weeklyRisers?.length ? "info" : "warn",
               },
@@ -267,7 +267,7 @@ export function ReportOverviewTab({
                 tone: reportData.powerRankings?.length ? "info" : "warn",
               },
               {
-                label: "Order",
+                label: "League ordering",
                 compactLabel: "Order",
                 value: "Power",
                 tone: "neutral",

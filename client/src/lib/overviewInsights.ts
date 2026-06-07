@@ -184,9 +184,9 @@ export function buildOverviewPulseRead(data: ReportData): {
       data.positionDepth?.length
   );
   const coverage = [
-    hasPowerRanks ? "league ordering" : null,
+    hasPowerRanks ? "League ordering" : null,
     hasRosterRecon ? "roster recon" : null,
-    hasMarketSignals ? "market pressure" : null,
+    hasMarketSignals ? "Market pressure" : null,
   ].filter(Boolean);
   const lead = manager
     ? `${manager} sets the starting lens for this Overview narrative handoff.`

@@ -1032,7 +1032,7 @@ export function OverviewAIPulse({
           <p>{read.body}</p>
           <AIActionQueue
             items={actionQueue}
-            title="Top Action Signal"
+            title="Team Direction"
             subtitle="Overview summary only."
             compact
             presentation="summary"
@@ -3357,7 +3357,7 @@ function buildFeatureCoverageRows(data: ReportData, selectedManager: string, opt
       tone: (data.draftPicks?.length || prospectCount) ? 'good' : 'warn',
     },
     {
-      label: 'Trade Windows',
+      label: 'Trade Calibration',
       status: tradeCalibrationCoverage.timelinePlayers
         ? tradeCalibrationCoverage.signalPlayers
           ? 'Backed'

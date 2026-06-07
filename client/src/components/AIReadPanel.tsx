@@ -258,7 +258,7 @@ function getVisibleTraceItems(traceItems?: string[]) {
 function getTraceGroupLabel(traceLabel?: string) {
   const normalized = normalizeTraceItem(traceLabel || '');
   if (!normalized || /^(why|signals?|receipts?|evidence)$/i.test(normalized)) {
-    return 'Why this matters';
+    return 'Read details';
   }
   return normalized;
 }
@@ -648,7 +648,7 @@ function AIReadTrace({ groups }: { groups: AIReadTraceGroup[] }) {
       onToggle={event => setIsOpen(event.currentTarget.open)}
     >
       <summary className="ai-read-trace-kicker">
-        Why this matters <span>{totalSignals} note{totalSignals === 1 ? '' : 's'}</span>
+        {groups[0]?.label || 'Read details'} <span>{totalSignals} note{totalSignals === 1 ? '' : 's'}</span>
       </summary>
       {isOpen && (
         <div className="ai-read-trace-body">

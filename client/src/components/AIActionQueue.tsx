@@ -75,13 +75,13 @@ function getManagerFacingQueueDetail(value?: string | null): string {
 function getSecondaryQueueDetail(item: AIActionQueueItem): { label: string; detail: string } | null {
   if (item.missingEvidence[0]) {
     return {
-      label: 'Verify first',
+      label: 'What to verify',
       detail: getManagerFacingQueueDetail(item.missingEvidence[0]),
     };
   }
   if (item.changeTriggers[0]) {
     return {
-      label: 'Could change',
+      label: 'Manager impact',
       detail: getManagerFacingQueueDetail(item.changeTriggers[0]),
     };
   }
@@ -155,7 +155,7 @@ function QueueReceipts({
     <div className="ai-action-queue-receipts">
       {receipts.length > 0 && (
         <div>
-          <span>What to know</span>
+          <span>Signal summary</span>
           <ul>
             {receipts.map((receipt) => (
               <li key={receipt}>{receipt}</li>
@@ -165,7 +165,7 @@ function QueueReceipts({
       )}
       {visibleRiskRows.length > 0 && (
         <div>
-          <span>Before acting</span>
+          <span>Risk checks</span>
           <ul>
             {visibleRiskRows.map((risk) => (
               <li key={risk}>{risk}</li>
@@ -175,7 +175,7 @@ function QueueReceipts({
       )}
       {visibleChangeTriggers.length > 0 && (
         <div className="ai-action-queue-change-mind">
-          <span>Could change</span>
+          <span>Manager impact</span>
           <ul>
             {visibleChangeTriggers.map((trigger) => (
               <li key={trigger}>{trigger}</li>
