@@ -12,7 +12,6 @@ import Home from "./pages/Home";
 
 const ReportComponentShowcase = lazy(() => import("./pages/ReportComponentShowcase"));
 const LoaderKitPreview = lazy(() => import("./pages/LoaderKitPreview"));
-const FootballLoaderPrototype = lazy(() => import("./pages/FootballLoaderPrototype"));
 const LegalPage = lazy(() => import("./pages/LegalPage"));
 const SleeperHelperPage = lazy(() => import("./pages/SleeperHelper"));
 const LOCAL_TELEMETRY_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -72,13 +71,6 @@ function Router() {
           <LoaderKitPreview />
         </Suspense>
       </Route>
-      {!import.meta.env.PROD && (
-        <Route path={"/prototype/football-loader"}>
-          <Suspense fallback={<RouteSuspenseFallback />}>
-            <FootballLoaderPrototype />
-          </Suspense>
-        </Route>
-      )}
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
