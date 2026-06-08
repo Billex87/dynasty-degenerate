@@ -70,6 +70,26 @@ app.post('/api/billing/stripe-webhook', express.raw({ type: 'application/json', 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ limit: '1mb', extended: true, parameterLimit: 100 }));
 
+app.post('/api/source-health-alert', (req, res) => {
+  const body = req.body;
+  const eventType = typeof body?.type === 'string' ? body.type : 'source-health-alert';
+  const generatedAt = typeof body?.generatedAt === 'string' ? body.generatedAt : new Date().toISOString();
+  const eventCount = Array.isArray(body?.events) ? body.events.length : 0;
+
+  if (!body || typeof body !== 'object') {
+    res.status(400).json({ ok: false, error: 'Invalid JSON payload' });
+    return;
+  }
+
+  console.info('[SourceHealthWebhook] received', {
+    eventType,
+    generatedAt,
+    eventCount,
+  });
+
+  res.status(200).json({ ok: true, eventType, receivedAt: new Date().toISOString() });
+});
+
 app.get('/api/cron/ktc-snapshot', async (req, res) => {
   const auth = isCronAuthorized(req);
   const forceRun = req.query.force === 'true';

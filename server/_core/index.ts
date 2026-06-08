@@ -56,6 +56,25 @@ async function startServer() {
   });
   app.use(express.json({ limit: "1mb" }));
   app.use(express.urlencoded({ limit: "1mb", extended: true, parameterLimit: 100 }));
+  app.post("/api/source-health-alert", (req, res) => {
+    const body = req.body;
+    if (!body || typeof body !== "object") {
+      res.status(400).json({ ok: false, error: "Invalid JSON payload" });
+      return;
+    }
+
+    const eventType = typeof body?.type === "string" ? body.type : "source-health-alert";
+    const generatedAt = typeof body?.generatedAt === "string" ? body.generatedAt : new Date().toISOString();
+    const eventCount = Array.isArray(body?.events) ? body.events.length : 0;
+
+    console.info("[SourceHealthWebhook] received", {
+      eventType,
+      generatedAt,
+      eventCount,
+    });
+
+    res.status(200).json({ ok: true, eventType, receivedAt: new Date().toISOString() });
+  });
   // tRPC API
   app.use(
     "/api/trpc",
