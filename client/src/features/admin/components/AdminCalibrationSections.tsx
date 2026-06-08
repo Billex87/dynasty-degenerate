@@ -106,7 +106,6 @@ function AdminAICalibrationSection() {
         ) : undefined
       }
       premium
-      defaultOpen
     >
       <AdminAICalibrationPanel
         canViewTelemetry={canViewTelemetry}

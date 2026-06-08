@@ -2867,7 +2867,7 @@ export function TradeBrowserRead({
 
   return (
     <AIReadPanel
-      title="Trade browser read"
+      title="Trade Window Intelligence"
       subtitle="Searchable trade ledger foundation with value-gap context, manager tendency signals, and roster-window reads."
       readType="Trade Window"
       confidence={evidenceRead.finalScore}

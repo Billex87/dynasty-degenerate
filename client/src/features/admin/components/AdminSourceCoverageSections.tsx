@@ -118,7 +118,6 @@ export function AdminSourceCoverageSection() {
         ) : undefined
       }
       premium
-      defaultOpen
     >
       <AdminSourceCoveragePanel
         canViewTelemetry={canViewTelemetry}

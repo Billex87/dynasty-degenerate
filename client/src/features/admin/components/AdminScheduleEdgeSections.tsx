@@ -98,7 +98,6 @@ export function AdminScheduleEdgeSection({
           />
         ) : undefined
       }
-      defaultOpen
     >
       <div className="admin-schedule-edge">
         <div className="admin-schedule-edge-controls">

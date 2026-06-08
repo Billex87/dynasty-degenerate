@@ -15048,6 +15048,20 @@
     min-width: 0 !important;
   }
 
+  .report-shell .command-depth-badges,
+  .report-shell .command-mini-badges {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .report-shell .command-mini-badge,
+  .report-shell .command-depth-subtitle {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: auto !important;
+  }
+
   .report-shell :is(.command-depth-name, .command-depth-subtitle, .owner-summary-name, .trade-war-manager-board-lockup strong, .trade-war-manager-board-lockup em) {
     display: block !important;
     max-width: 100% !important;

@@ -1081,7 +1081,6 @@ export function AdminValueDiagnosticsSection({
         ) : undefined
       }
       premium
-      defaultOpen
     >
       <AdminValueDiagnosticsTable
         reportData={reportData}

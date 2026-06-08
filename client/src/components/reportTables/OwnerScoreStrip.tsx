@@ -26,8 +26,15 @@ export function OwnerScoreStrip({
   const isRedraft = leagueValueMode === "redraft";
   const renderLabel = (fullLabel: string, shortLabel: string) => (
     <strong>
-      <span className="owner-intel-score-label-full">{fullLabel}</span>
-      <span className="owner-intel-score-label-short">{shortLabel}</span>
+      <span
+        className={
+          compact
+            ? "owner-intel-score-label-short"
+            : "owner-intel-score-label-full"
+        }
+      >
+        {compact ? shortLabel : fullLabel}
+      </span>
     </strong>
   );
 

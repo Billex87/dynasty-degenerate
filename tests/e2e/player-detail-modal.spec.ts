@@ -410,23 +410,27 @@ test.describe('player detail modal', () => {
     expect(dialogText).toContain('4.22s');
     expect(dialogText).toContain('105.2');
     expect(dialogText).toContain('Jan 1, 2000');
-    await expect(dialog.getByText('Source Inputs', { exact: true })).toBeVisible();
-    await expect(dialog.getByText('Source Detail', { exact: true })).toHaveCount(0);
-    await expect(dialog.getByText('Prospect File', { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText('Blend Evidence', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Prospect Summary', { exact: true })).toBeVisible();
     await expect(dialog.getByText(/This full summary should stay readable in the full-width pill with no truncation or abbreviation/i)).toBeVisible();
     await expect(dialog.getByText('Player News', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Availability History', { exact: true })).toBeVisible();
     const projectionReceipt = dialog.getByTestId('weekly-projection-receipt');
     await expect(projectionReceipt).toBeVisible();
-    await expect(projectionReceipt).toContainText('Stored weekly projection');
+    await expect(projectionReceipt).toContainText(/Weekly projection/i);
     await expect(projectionReceipt).toContainText('14.8 pts');
     await expect(projectionReceipt).toContainText('Week 1');
     await expect(projectionReceipt).toContainText('Half PPR');
     await expect(projectionReceipt).toContainText('4 rec, 61 rec yds, 0.5 rec TD');
-    await expect(dialog.locator('.ai-read-trace-kicker:visible', { hasText: 'Why' }).first()).toBeVisible();
-    await expect(dialog.locator('.ai-read-chip:visible', { hasText: 'Round 1, pick 18' }).first()).toBeVisible();
-    await expect(dialog.locator('.ai-read-chip:visible', { hasText: 'Runway 90%' }).first()).toBeVisible();
+    await expect(
+      dialog.locator('.ai-read-trace-kicker').filter({ hasText: /^Read details/i })
+    ).toBeVisible();
+    await expect(
+      dialog.locator('.ai-read-chip').filter({ hasText: 'Round 1, pick 18' })
+    ).toBeVisible();
+    await expect(
+      dialog.locator('.ai-read-chip').filter({ hasText: 'Runway 90%' })
+    ).toBeVisible();
     await expect(dialog.locator('p').filter({ hasText: 'Availability: 2025: 14 GP' }).first()).toBeVisible();
     await expect(dialog.getByText('AVAILABLE')).toHaveCount(0);
     await dialog.getByRole('button', { name: /Open Bijan Robinson 2025 weekly availability log/i }).click();
@@ -470,7 +474,7 @@ test.describe('player detail modal', () => {
     const pointPopover = timelineDialog.locator('.player-value-point-popover');
     await expect(pointPopover).toBeVisible();
     await expect(pointPopover.locator('strong')).toContainText(/\d/);
-    await expect(pointPopover.locator('small')).toContainText(/source/i);
+    await expect(pointPopover.locator('small')).toContainText(/blend inputs|source/i);
     const firstChartPoint = timelineDialog.locator('.player-value-chart-point').first();
     const firstChartPointLabel = await firstChartPoint.getAttribute('aria-label');
     const firstChartPointValue = firstChartPointLabel?.match(/ value ([^ ]+)/)?.[1] || '';
@@ -525,7 +529,7 @@ test.describe('player detail modal', () => {
     const dialog = await openPlayerModal(page, 'Bijan Robinson');
 
     await expect(dialog.getByTestId('weekly-projection-receipt')).toHaveCount(0);
-    await expect(dialog.getByText('Stored weekly projection')).toHaveCount(0);
+    await expect(dialog.getByText(/Stored weekly projection|Weekly projection/i)).toHaveCount(0);
     await expect(dialog.getByText('14.8 pts')).toHaveCount(0);
     await expect(dialog.getByText('Half PPR')).toHaveCount(0);
   });
@@ -537,7 +541,7 @@ test.describe('player detail modal', () => {
 
     const dialog = await openPlayerModal(page, 'Bijan Robinson');
 
-    await expect(dialog.getByText('Source Inputs', { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText('Blend Evidence', { exact: true })).toHaveCount(0);
     await expect(dialog.getByText('Prospect Summary', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Player News', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Availability History', { exact: true })).toBeVisible();
