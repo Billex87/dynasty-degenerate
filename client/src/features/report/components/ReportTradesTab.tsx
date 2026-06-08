@@ -2079,7 +2079,6 @@ export function ReportTradesTab({
           kicker="Pending offers"
           previewMetrics={buildTradeProposalPreviewMetrics(reportData)}
           premium
-          defaultOpen
         >
           {showManagerPersonalityIntel && storedSleeperSnapshot ? (
             <div className="mb-4 rounded-2xl border border-cyan-300/20 bg-cyan-950/20 p-4 shadow-[0_18px_70px_rgba(34,211,238,0.10)]">

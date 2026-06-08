@@ -214,8 +214,8 @@ export function ReportOverviewTab({
 
   return (
     <div className="dashboard-overview-section-stack space-y-6 sm:space-y-8">
-      {/* Previously gated behind canViewAdminFeatureExpansion; ungated for all viewers. */}
-      {(
+      {/* Premium command-center expansions remain admin-gated */}
+      {canViewAdminFeatureExpansion && (
         <>
           <OverviewAIPulse data={reportDataForView} />
           {playerHoardSection}
@@ -398,7 +398,6 @@ export function ReportOverviewTab({
       <CollapsibleReportSection
         title={ownerTitle}
         kicker={ownerKicker}
-        defaultOpen
         afterSummaryAccessory={
           !isRedraftReport ? (
             <OwnerIntelSortControls
@@ -427,7 +426,6 @@ export function ReportOverviewTab({
       <CollapsibleReportSection
         title={rosterTitle}
         kicker={rosterKicker}
-        defaultOpen
         previewMetrics={buildRosterPreviewMetrics(reportData)}
       >
         <LeagueCommandCenter
@@ -445,7 +443,6 @@ export function ReportOverviewTab({
         <CollapsibleReportSection
           title="Taxi Squad Triage"
           kicker="Taxi checks"
-          defaultOpen
           previewMetrics={buildTaxiPreviewMetrics(reportData)}
         >
           <LeagueCommandCenter
@@ -467,7 +464,6 @@ export function ReportOverviewTab({
               ? "Position gaps"
               : "Depth map"
           }
-          defaultOpen
           previewMetrics={buildManagerPositionRoomPreviewMetrics(reportData)}
         >
           <ManagerPositionCountsTable

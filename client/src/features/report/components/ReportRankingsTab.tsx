@@ -128,7 +128,6 @@ export function ReportRankingsTab({
             ? "Season values"
             : "Player values"
         }
-        defaultOpen
       >
         {rankingsQueryIsLoading && !rankingsForReport ? (
           <div className="rankings-empty-state">Loading league-matched rankings...</div>

@@ -11,7 +11,6 @@ import type { ReportData } from "@shared/types";
 import { ChangeLeagueDialog } from "@/features/home/components/HomeLeagueDialogs";
 import { ReportDashboardFooter } from "@/features/report/components/ReportDashboardFooter";
 import { ReportDashboardHeader } from "@/features/report/components/ReportDashboardHeader";
-import { ReportSectionAccordionProvider } from "@/features/report/components/ReportSectionDisclosure";
 
 type ReportDashboardShellHeaderProps = {
   hasAdminPermissions: boolean;
@@ -170,9 +169,7 @@ export function ReportDashboardShell({
             headerLogoSrc={headerLogoSrc}
           />
 
-          <ReportSectionAccordionProvider scopeKey={resolvedActiveTab}>
-            {children}
-          </ReportSectionAccordionProvider>
+          {children}
 
           <ReportDashboardFooter
             canOpenAdminToolsEntry={canOpenAdminToolsEntry}
