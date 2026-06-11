@@ -4,6 +4,11 @@ import { buildMatchupWindowSet } from '@shared/matchupWindows';
 import type { ReportAICalibrationAdjustmentProfile, ReportData, TrendingPlayer, WaiverWeeklyEcrSignal, WaiverWeeklyEcrWeek } from '@shared/types';
 import { buildAutopilotData, buildSleeperResearchTodo } from './buildAutopilotData';
 import { AUTOPILOT_MOCK_DATA } from './mockData';
+import {
+  createPublicNextMoveFallback,
+  getReportNextMoveItems,
+  getReportNextMoveTelemetryProperties,
+} from '@/features/report/lib/reportNextMoveBrief';
 
 describe('buildAutopilotData', () => {
   it('falls back to mock data when no report data exists', () => {
@@ -124,6 +129,62 @@ describe('buildAutopilotData', () => {
     expect(data.projections.map((projection) => projection.player)).toEqual(
       expect.arrayContaining(['Depth Receiver', 'Sample Runner']),
     );
+  });
+
+  it('builds a public next-move queue without mock fallback advice or private telemetry fields', () => {
+    const reportData = createCachedCommandCenterReport().reportData;
+    const items = getReportNextMoveItems({
+      reportData,
+      leagueValueMode: 'dynasty',
+      leagueId: 'private-fixture-league',
+    });
+
+    expect(items).toHaveLength(1);
+    expect(['do', 'watch', 'hold', 'blocked']).toContain(items[0]?.decision);
+    expect(JSON.stringify(items)).not.toMatch(/Blake Corum|Derrick Henry|mock mode/i);
+
+    const properties = getReportNextMoveTelemetryProperties({
+      item: items[0]!,
+      leagueValueMode: 'dynasty',
+      queueCount: items.length,
+    });
+
+    expect(Object.keys(properties).sort()).toEqual([
+      'actionSource',
+      'decision',
+      'hasBlockers',
+      'hasMissingEvidence',
+      'mode',
+      'queueCount',
+      'readStrength',
+    ]);
+    expect(JSON.stringify(properties)).not.toMatch(/private-fixture-league|Tester|Sample|Waiver Receiver|KTC|FantasyCalc|FantasyPros|DraftSharks|Sleeper/i);
+  });
+
+  it('omits the public next-move queue when action generation fails', () => {
+    const throwingReportData = new Proxy({} as ReportData, {
+      get() {
+        throw new Error('fixture action generation failure');
+      },
+    });
+
+    expect(
+      getReportNextMoveItems({
+        reportData: throwingReportData,
+        leagueValueMode: 'dynasty',
+        leagueId: 'private-fixture-league',
+      })
+    ).toEqual([]);
+  });
+
+  it('keeps the public next-move fallback free of mock player names', () => {
+    const fallback = createPublicNextMoveFallback('dynasty');
+
+    expect(fallback.actionQueue).toEqual([]);
+    expect(fallback.lineup).toEqual([]);
+    expect(fallback.waivers).toEqual([]);
+    expect(fallback.trades).toEqual([]);
+    expect(JSON.stringify(fallback)).not.toMatch(/Blake Corum|Derrick Henry|Jayden Reed|Calvin Ridley/i);
   });
 
   it('uses stored redraft valuation rows to prioritize redraft waiver candidates', () => {

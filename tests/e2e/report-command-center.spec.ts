@@ -2163,6 +2163,22 @@ test.describe("command center feature surfaces", () => {
     page,
   }) => {
     const cachedReport = createCachedCommandCenterReport();
+    const telemetryEvents: unknown[] = [];
+    await page.exposeFunction(
+      "captureReportNextMoveTelemetry",
+      (event: unknown) => {
+        telemetryEvents.push(event);
+      }
+    );
+    await page.addInitScript(() => {
+      window.addEventListener(
+        "dynasty-degens:report-next-move-visible",
+        (event) => {
+          const detail = event instanceof CustomEvent ? event.detail : null;
+          void (window as any).captureReportNextMoveTelemetry?.(detail);
+        }
+      );
+    });
     await loadCachedReport(page, cachedReport, "#autopilot", { admin: false });
 
     await expect(page.getByRole("tab", { name: "AI Autopilot" })).toHaveCount(
@@ -2170,6 +2186,32 @@ test.describe("command center feature surfaces", () => {
     );
     await expect(page.getByText("AI Team Autopilot")).toHaveCount(0);
     await expect(page.getByText("Tester dynasty cockpit")).toHaveCount(0);
+    await expect(page.getByText("Your Next Move")).toBeVisible();
+    const nextMove = page.locator(".report-next-move-brief");
+    await expect(nextMove).toBeVisible();
+    await expect(nextMove.locator(".ai-action-queue-primary")).toBeVisible();
+    await expect(nextMove.locator(".ai-action-queue-read p")).toBeVisible();
+    await expect(nextMove).not.toContainText(/KTC|FantasyCalc|FantasyPros|DraftSharks|Sleeper/i);
+    await expect.poll(() => telemetryEvents.length).toBe(1);
+    const telemetryEvent = telemetryEvents[0] as Record<string, unknown>;
+    expect(telemetryEvent).toEqual({
+      mode: "dynasty",
+      decision: expect.any(String),
+      actionSource: expect.any(String),
+      readStrength: expect.any(String),
+      queueCount: 1,
+      hasBlockers: expect.any(Boolean),
+      hasMissingEvidence: expect.any(Boolean),
+    });
+    expect(["do", "watch", "hold", "blocked"]).toContain(
+      telemetryEvent.decision
+    );
+    expect(["lineup", "waiver", "trade", "strategy"]).toContain(
+      telemetryEvent.actionSource
+    );
+    expect(JSON.stringify(telemetryEvent)).not.toMatch(
+      /command-center-league|Tester|Sample|Waiver Receiver|KTC|FantasyCalc|FantasyPros|DraftSharks|Sleeper/i
+    );
     await expect(page).toHaveURL(
       new RegExp(`leagueId=${cachedReport.leagueId}(#overview)?$`)
     );

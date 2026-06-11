@@ -10,6 +10,7 @@ import {
   ReportOverviewHero,
 } from "@/features/report/components/ReportDashboardShowcase";
 import { ReportOverviewTab } from "@/features/report/components/ReportOverviewTab";
+import { ReportNextMoveBrief } from "@/features/report/components/ReportNextMoveBrief";
 import { ReportMomentumTab } from "@/features/report/components/ReportMomentumTab";
 import { ReportRankingsTab } from "@/features/report/components/ReportRankingsTab";
 import { ReportHacksTab } from "@/features/report/components/ReportHacksTab";
@@ -263,6 +264,13 @@ export function ReportDashboardContent({
               activeTab={resolvedActiveTab}
               leagueValueMode={leagueValueMode}
               reportData={reportDataForView}
+            />
+          ) : null}
+          {!isPreDraftReport && resolvedActiveTab === "overview" ? (
+            <ReportNextMoveBrief
+              reportData={reportDataForView}
+              leagueId={leagueId}
+              leagueValueMode={leagueValueMode}
             />
           ) : null}
           <ReportSinceLastReportBrief

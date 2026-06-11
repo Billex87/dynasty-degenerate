@@ -597,6 +597,10 @@
   line-height: 1.32;
 }
 
+.report-next-move-brief .ai-action-queue-receipts li {
+  line-height: 1.46;
+}
+
 .ai-action-queue-receipts li::before {
   content: "";
   position: absolute;

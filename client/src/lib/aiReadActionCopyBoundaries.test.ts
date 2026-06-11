@@ -93,8 +93,10 @@ describe("AI read action copy boundaries", () => {
       "components/reportTables/TradeWarRoom.tsx",
       "components/reportTables/tradeLedgerUtils.tsx",
       "components/reportTables/CommandCenterLineup.tsx",
+      "features/report/components/ReportNextMoveBrief.tsx",
       "features/report/components/ReportOverviewTab.tsx",
       "features/report/components/ReportDashboardShowcase.tsx",
+      "features/report/lib/reportNextMoveBrief.ts",
       "lib/autopilot/buildAutopilotData.ts",
       "lib/scheduleEdgeRows.ts",
     ]);
@@ -128,6 +130,18 @@ describe("AI read action copy boundaries", () => {
     expect(diagnosticSource).toContain("Confidence limited to");
     expect(diagnosticSource).toContain("Do not act yet:");
     expect(diagnosticSource).toContain("Verify first:");
+  });
+
+  it("keeps public next-move telemetry free of private identifiers", () => {
+    const source = readSpecificSources([
+      "features/report/components/ReportNextMoveBrief.tsx",
+      "features/report/lib/reportNextMoveBrief.ts",
+    ]);
+
+    expect(source).toContain("Report Next Move Visible");
+    expect(source).toContain("getReportNextMoveTelemetryProperties");
+    expect(source).not.toMatch(/track\([^)]*(leagueId|leagueName|username|manager|player|target)/i);
+    expect(source).not.toMatch(/detail:\s*{[^}]*(leagueId|leagueName|username|manager|player|target)/i);
   });
 
   it("keeps exact Do this copy limited to reviewed action-owned component panels", () => {
