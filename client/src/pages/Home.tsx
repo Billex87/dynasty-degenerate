@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -82,6 +83,7 @@ const ADMIN_UNLOCK_MODAL_DISMISSED_KEY =
   "dynasty-degenerates:admin-unlock-dismissed:v1";
 const CLOWN_EASTER_EGG_USERNAMES = new Set(["armchairgmzar", "tjsmoov"]);
 const REPORT_LOADING_TIMEOUT_MS = 10_000;
+const REPORT_SUCCESS_HANDOFF_FAILSAFE_MS = 2_200;
 const SHOW_LEGACY_LEAGUE_ID_LOGIN = true;
 const CURRENT_PENDING_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -531,6 +533,30 @@ export default function Home() {
     setAnalysisCompleteMessage,
     onRefreshReport: refreshReportInBackground,
   });
+  useEffect(() => {
+    if (!reportData || !analysisCompleteMessage) return;
+
+    const failSafeTimer = window.setTimeout(() => {
+      clearSuccessTransitionTimers();
+      setLoadingTransitionPhase("done");
+      setIsLoading(false);
+      setLoadingManagerAnchors([]);
+      setAnalysisCompleteMessage(null);
+      setPendingAnalysisLeague(null);
+      activeAnalysisLeagueIdRef.current = null;
+    }, REPORT_SUCCESS_HANDOFF_FAILSAFE_MS);
+
+    return () => window.clearTimeout(failSafeTimer);
+  }, [
+    analysisCompleteMessage,
+    clearSuccessTransitionTimers,
+    reportData,
+    setAnalysisCompleteMessage,
+    setIsLoading,
+    setLoadingManagerAnchors,
+    setLoadingTransitionPhase,
+    setPendingAnalysisLeague,
+  ]);
 
   const {
     handleClownDismiss,

@@ -131,6 +131,62 @@ async function loadCachedReport(
   });
 }
 
+function createTrpcBatchResponse(data: unknown) {
+  return [
+    {
+      result: {
+        data: {
+          json: data,
+        },
+      },
+    },
+  ];
+}
+
+async function mockLeagueAnalysisFlow(
+  page: import("@playwright/test").Page,
+  cachedReport: ReturnType<typeof createCachedCommandCenterReport>
+) {
+  await page.route("**/api/trpc/**", async route => {
+    const requestUrl = route.request().url();
+
+    if (requestUrl.includes("league.getLeaguePreview")) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(
+          createTrpcBatchResponse({
+            leagueId: cachedReport.leagueId,
+            leagueName: cachedReport.leagueName,
+            leagueFormat: cachedReport.leagueFormat,
+            leagueLogo: cachedReport.leagueLogo,
+            managerAnchors: [],
+          })
+        ),
+      });
+      return;
+    }
+
+    if (requestUrl.includes("league.analyze")) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(
+          createTrpcBatchResponse({
+            leagueId: cachedReport.leagueId,
+            leagueName: cachedReport.leagueName,
+            leagueFormat: cachedReport.leagueFormat,
+            leagueLogo: cachedReport.leagueLogo,
+            reportData: cachedReport.reportData,
+            reportCacheStatus: "miss",
+          })
+        ),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+}
+
 async function openReportSection(
   page: import("@playwright/test").Page,
   title: string | RegExp
@@ -2215,6 +2271,52 @@ test.describe("command center feature surfaces", () => {
     await expect(page).toHaveURL(
       new RegExp(`leagueId=${cachedReport.leagueId}(#overview)?$`)
     );
+  });
+
+  test("reveals the report if the success handoff timer stalls", async ({
+    page,
+  }) => {
+    const cachedReport = createCachedCommandCenterReport("success-handoff-league");
+    await mockLeagueAnalysisFlow(page, cachedReport);
+    await page.addInitScript(() => {
+      const originalSetTimeout = window.setTimeout.bind(window);
+      window.setTimeout = ((handler, timeout, ...args) => {
+        const delay = Number(timeout || 0);
+
+        if (delay >= 2800 && delay <= 3000) {
+          (window as any).__blockedReportSuccessHandoffTimer = true;
+          return 987_654_321 as unknown as number;
+        }
+
+        return originalSetTimeout(handler, timeout, ...args);
+      }) as typeof window.setTimeout;
+    });
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.getByLabel("Enter Your Sleeper League ID").fill(cachedReport.leagueId);
+    await page.getByRole("button", { name: "Run Degenerate Analysis" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "League Report Ready" })
+    ).toBeVisible({
+      timeout: 8_000,
+    });
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          Boolean((window as any).__blockedReportSuccessHandoffTimer)
+        )
+      )
+      .toBe(true);
+    await expect(
+      page.getByRole("heading", { name: "League Report Ready" })
+    ).toBeHidden({
+      timeout: 9_000,
+    });
+    await expect(page.getByText("Your Next Move")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
   });
 
   test("shows waiver intelligence with the other weekly momentum sections for regular viewers", async ({
