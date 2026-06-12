@@ -62,6 +62,7 @@ import {
 } from "./draftSharksSchedule";
 import { buildPlayerCohortProfiles } from "./playerCohortEngine";
 import { buildPlayerSituationDeltas } from "./playerSituationDelta";
+import { loadDepthChartMoversForPlayers } from "./depthChartMovers";
 import { filterCompletedFuturePickPortfolios } from "../shared/pickPortfolioFilters";
 import { gradeRoster } from "../shared/blueprint/playerGrading";
 import { getOverallGrade } from "../shared/blueprint/rosterAggregates";
@@ -10726,6 +10727,13 @@ export const appRouter = router({
               },
             ])
           );
+          const currentPositionRankById = buildPrimaryPositionRankMap(detailPlayerIds, players, ktcValues, valueProfilesById, leagueValueMode);
+          const depthChartMovers = await loadDepthChartMoversForPlayers({
+            playerIds: detailPlayerIds,
+            playersById: players,
+            ownerByPlayerId,
+            currentPositionRankById,
+          });
           markAnalyzeStep(`player static enrichment ${playerStaticEnrichment.cacheStatus}`);
 
           const currentSeasonDraftDiagnostics = buildCurrentSeasonMainDraftDiagnostics(
@@ -10806,7 +10814,8 @@ export const appRouter = router({
             managerChampionships,
             managerRosterIntelligence: managerRosterIntelligenceWithSituation,
             playerDetailsById: playerDetailsWithSituationById,
-            currentPositionRankById: buildPrimaryPositionRankMap(detailPlayerIds, players, ktcValues, valueProfilesById, leagueValueMode),
+            currentPositionRankById,
+            depthChartMovers,
             trendingAdds,
             trendingDrops,
             pickPortfolios,

@@ -489,6 +489,25 @@ export function buildMomentumPreviewMetrics(data: ReportData): PreviewMetric[] {
   ].filter(Boolean) as PreviewMetric[];
 }
 
+export function buildDepthChartMoverPreviewMetrics(data: ReportData): PreviewMetric[] {
+  const upCount = data.depthChartMovers?.up?.length || 0;
+  const downCount = data.depthChartMovers?.down?.length || 0;
+  return [
+    {
+      label: "Moved up",
+      compactLabel: "Up",
+      value: upCount,
+      tone: upCount ? "good" : "neutral",
+    },
+    {
+      label: "Moved down",
+      compactLabel: "Down",
+      value: downCount,
+      tone: downCount ? "danger" : "neutral",
+    },
+  ];
+}
+
 export function buildCombinedTrendingPreviewMetrics(
   data: ReportData
 ): PreviewMetric[] {

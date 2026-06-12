@@ -2,10 +2,12 @@ import type { ComponentType } from "react";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import type { ReportNextMoveTarget } from "@/features/report/lib/reportNextMoveBrief";
 import {
+  buildDepthChartMoverPreviewMetrics,
   buildMomentumPreviewMetrics,
   buildRecentTransactionPreviewMetrics,
   buildCombinedTrendingPreviewMetrics,
 } from "@/features/report/lib/reportOverviewPreview";
+import { ReportDepthChartMovers } from "@/features/report/components/ReportDepthChartMovers";
 import type { ReportData } from "@shared/types";
 
 type ReportMomentumTabProps = {
@@ -123,6 +125,16 @@ export function ReportMomentumTab({
           leagueLogo={leagueLogo}
           viewerManager={effectiveViewerManager}
           leagueValueMode={leagueValueMode}
+        />
+      </CollapsibleReportSection>
+      <CollapsibleReportSection
+        title="Depth Chart Movers"
+        kicker="7-day role movement"
+        previewMetrics={buildDepthChartMoverPreviewMetrics(reportData)}
+      >
+        <ReportDepthChartMovers
+          data={reportData.depthChartMovers}
+          playerDetailsById={reportData.playerDetailsById}
         />
       </CollapsibleReportSection>
       <CollapsibleReportSection

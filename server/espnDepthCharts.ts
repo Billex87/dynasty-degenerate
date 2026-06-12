@@ -63,7 +63,7 @@ export interface EspnDepthChartWarmResult {
 const ESPN_FITT_MARKER = "window['__espnfitt__']=";
 const ESPN_DEPTH_CHART_CACHE_TTL_MS = 1000 * 60 * 30;
 const ESPN_DEPTH_CHART_CONCURRENCY = 6;
-const ESPN_DEPTH_CHART_SNAPSHOT_SOURCE_KEY = 'espn-depth-charts-v1';
+export const ESPN_DEPTH_CHART_SNAPSHOT_SOURCE_KEY = 'espn-depth-charts-v1';
 const teamDepthChartCache = new Map<string, { expiresAt: number; chart: EspnTeamDepthChart | null }>();
 
 type EspnDepthChartLoadOptions = {

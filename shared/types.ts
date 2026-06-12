@@ -24,6 +24,43 @@ export interface WeeklyMomentum {
   pct_change: number;
 }
 
+export type DepthChartMoverKind =
+  | 'promoted-to-starter'
+  | 'demoted-from-starter'
+  | 'rank-improved'
+  | 'rank-declined'
+  | 'newly-listed'
+  | 'removed';
+
+export interface DepthChartMover {
+  playerId?: string;
+  playerName: string;
+  owner?: string | null;
+  team: string;
+  position: string;
+  kind: DepthChartMoverKind;
+  direction: 'up' | 'down';
+  previousRank: number | null;
+  currentRank: number | null;
+  previousSlot: string | null;
+  currentSlot: string | null;
+  confidence: number;
+  note: string;
+  source: 'espn-depth-charts-v1';
+  currentSnapshotKey: string;
+  baselineSnapshotKey: string;
+  currentPositionRank?: string | null;
+}
+
+export interface DepthChartMovers {
+  windowDays: number;
+  currentSnapshotKey: string | null;
+  baselineSnapshotKey: string | null;
+  generatedAt: string | null;
+  up: DepthChartMover[];
+  down: DepthChartMover[];
+}
+
 export type RankingBoardCategory = 'dynasty' | 'redraft' | 'devy';
 
 export type RankingBoardFormat =
@@ -2625,6 +2662,7 @@ export interface ReportData {
   }>;
   weeklyRisers: WeeklyMomentum[];
   weeklyFallers: WeeklyMomentum[];
+  depthChartMovers?: DepthChartMovers;
   rankings?: RankingsBoard;
   trendingAdds?: TrendingPlayer[];
   trendingDrops?: TrendingPlayer[];
