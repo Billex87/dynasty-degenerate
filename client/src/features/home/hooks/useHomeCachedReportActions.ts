@@ -15,6 +15,7 @@ import type {
   ReportAnalysisMode,
   ReportLoadTelemetryEvent,
 } from "@/features/home/lib/adminSessionState";
+import { getReportModeBucket } from "@/features/home/lib/firstSessionTelemetry";
 import type { AnalysisLeaguePreview } from "@/features/home/lib/leagueHistory";
 import type {
   AnalysisLoadingLeague,
@@ -154,6 +155,7 @@ export function useHomeCachedReportActions({
       activeTab: nextActiveTab || cachedReport.activeTab || "overview",
       source: "browser-cache",
       cacheStatus: "browser",
+      reportMode: getReportModeBucket(cachedReport.reportData),
       requestMs: null,
       payloadVersion: cachedReport.cacheVersion || REPORT_CACHE_DATA_VERSION,
     });

@@ -9,6 +9,11 @@ import {
   clearBrowserReportCache,
   normalizeReportLeagueId,
 } from "@/features/home/lib/reportCache";
+import {
+  getLeagueCountBucket,
+  getViewportBucket,
+  trackFirstSessionFunnelEvent,
+} from "@/features/home/lib/firstSessionTelemetry";
 import { updateReportTabUrl } from "@/features/home/lib/reportRouteState";
 import type { ReportAnalysisMode } from "@/features/home/lib/adminSessionState";
 import type {
@@ -175,6 +180,11 @@ export function useHomeNavigationActions({
 
   const openLeagueSelector = () => {
     if (userLeagues.length > 0) {
+      trackFirstSessionFunnelEvent("League Picker Opened", {
+        trigger: reportData ? "report_header" : "change_league",
+        viewport: getViewportBucket(),
+        leagueCountBucket: getLeagueCountBucket(userLeagues.length),
+      });
       setIsLeaguePickerOpen(true);
       return;
     }
@@ -182,6 +192,11 @@ export function useHomeNavigationActions({
   };
 
   const handleAnalyzeLeagueOption = async (nextLeagueId: string) => {
+    trackFirstSessionFunnelEvent("League Selected", {
+      entryMethod: "league_picker",
+      viewport: getViewportBucket(),
+      leagueCountBucket: getLeagueCountBucket(userLeagues.length),
+    });
     setIsLeaguePickerOpen(false);
     clearBrowserReportCache(nextLeagueId);
     await handleAnalyze(nextLeagueId);

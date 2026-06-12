@@ -2237,6 +2237,9 @@ test.describe("command center feature surfaces", () => {
     });
     await loadCachedReport(page, cachedReport, "#autopilot", { admin: false });
 
+    await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible({
+      timeout: 30_000,
+    });
     await expect(page.getByRole("tab", { name: "AI Autopilot" })).toHaveCount(
       0
     );
@@ -2277,13 +2280,32 @@ test.describe("command center feature surfaces", () => {
     page,
   }) => {
     const cachedReport = createCachedCommandCenterReport("success-handoff-league");
+    const firstSessionEvents: unknown[] = [];
     await mockLeagueAnalysisFlow(page, cachedReport);
+    await page.exposeFunction(
+      "captureFirstSessionFunnelTelemetry",
+      (event: unknown) => {
+        firstSessionEvents.push(event);
+      }
+    );
     await page.addInitScript(() => {
+      window.addEventListener(
+        "dynasty-degens:first-session-funnel",
+        (event) => {
+          const detail = event instanceof CustomEvent ? event.detail : null;
+          void (window as any).captureFirstSessionFunnelTelemetry?.(detail);
+        }
+      );
+
       const originalSetTimeout = window.setTimeout.bind(window);
       window.setTimeout = ((handler, timeout, ...args) => {
         const delay = Number(timeout || 0);
 
-        if (delay >= 2800 && delay <= 3000) {
+        if (
+          (window as any).__blockReportSuccessHandoffTimers &&
+          delay >= 2890 &&
+          delay <= 2910
+        ) {
           (window as any).__blockedReportSuccessHandoffTimer = true;
           return 987_654_321 as unknown as number;
         }
@@ -2294,6 +2316,9 @@ test.describe("command center feature surfaces", () => {
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.getByLabel("Enter Your Sleeper League ID").fill(cachedReport.leagueId);
+    await page.evaluate(() => {
+      (window as any).__blockReportSuccessHandoffTimers = true;
+    });
     await page.getByRole("button", { name: "Run Degenerate Analysis" }).click();
 
     await expect(
@@ -2317,6 +2342,19 @@ test.describe("command center feature surfaces", () => {
       timeout: 30_000,
     });
     await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
+    await expect
+      .poll(() => firstSessionEvents.map((event) => (event as any)?.event))
+      .toEqual(
+        expect.arrayContaining([
+          "Home Viewed",
+          "League ID Submitted",
+          "Analysis Started",
+          "Report Visible",
+        ])
+      );
+    expect(JSON.stringify(firstSessionEvents)).not.toMatch(
+      /success-handoff-league|Tester|Sample|Waiver Receiver|KTC|FantasyCalc|FantasyPros|DraftSharks/i
+    );
   });
 
   test("shows waiver intelligence with the other weekly momentum sections for regular viewers", async ({

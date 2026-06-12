@@ -17,6 +17,11 @@ import {
   REPORT_CACHE_DATA_VERSION,
   showMutationErrorToast,
 } from "@/features/home/lib/reportCache";
+import {
+  getReportModeBucket,
+  getViewportBucket,
+  trackFirstSessionFunnelEvent,
+} from "@/features/home/lib/firstSessionTelemetry";
 import { updateReportTabUrl } from "@/features/home/lib/reportRouteState";
 import { getValidSleeperUserId } from "@/features/home/lib/sleeperIdentity";
 import {
@@ -180,6 +185,7 @@ export function useHomeReportAnalysis({
           activeTab,
           source: "server",
           cacheStatus: data.reportCacheStatus || "unknown",
+          reportMode: getReportModeBucket(data.reportData),
           requestMs,
           payloadVersion: REPORT_CACHE_DATA_VERSION,
         });
@@ -223,6 +229,7 @@ export function useHomeReportAnalysis({
           activeTab,
           source: "server",
           cacheStatus: "hit",
+          reportMode: getReportModeBucket(data.reportData),
           requestMs,
           payloadVersion: REPORT_CACHE_DATA_VERSION,
         });
@@ -239,6 +246,7 @@ export function useHomeReportAnalysis({
           activeTab,
           source: "server",
           cacheStatus: data.reportCacheStatus || "unknown",
+          reportMode: getReportModeBucket(data.reportData),
           requestMs,
           payloadVersion: REPORT_CACHE_DATA_VERSION,
         });
@@ -314,6 +322,20 @@ export function useHomeReportAnalysis({
       toast.error("Please enter a league ID");
       return;
     }
+    const entryMethod =
+      targetLeagueId && targetLeagueId !== leagueId
+        ? "league_picker"
+        : "league_id";
+    if (entryMethod === "league_id") {
+      trackFirstSessionFunnelEvent("League ID Submitted", {
+        entryMethod,
+        viewport: getViewportBucket(),
+      });
+    }
+    trackFirstSessionFunnelEvent("Analysis Started", {
+      entryMethod,
+      viewport: getViewportBucket(),
+    });
     setAnalysisErrorMessage(null);
     const isSameLeague = nextLeagueId === leagueId.trim();
     const knownLeague = findKnownSleeperLeague(

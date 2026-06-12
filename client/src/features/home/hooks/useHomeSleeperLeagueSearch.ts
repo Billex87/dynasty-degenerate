@@ -18,6 +18,11 @@ import {
   showMutationErrorToast,
   type SleeperSession,
 } from "@/features/home/lib/reportCache";
+import {
+  getLeagueCountBucket,
+  getViewportBucket,
+  trackFirstSessionFunnelEvent,
+} from "@/features/home/lib/firstSessionTelemetry";
 import { persistHomeAdminViewMode } from "@/features/home/hooks/useHomeAdminAccess";
 
 type UseHomeSleeperLeagueSearchOptions = {
@@ -111,6 +116,12 @@ export function useHomeSleeperLeagueSearch({
       toast.success(
         `Found ${data.leagues.length} Sleeper league${data.leagues.length === 1 ? "" : "s"}`
       );
+      trackFirstSessionFunnelEvent("League Picker Opened", {
+        entryMethod: "username",
+        trigger: "username_lookup_success",
+        viewport: getViewportBucket(),
+        leagueCountBucket: getLeagueCountBucket(data.leagues.length),
+      });
       setIsLeaguePickerOpen(true);
     },
     onError: error => {
@@ -130,6 +141,10 @@ export function useHomeSleeperLeagueSearch({
       setIsClownModalOpen(true);
       return;
     }
+    trackFirstSessionFunnelEvent("Sleeper Username Submitted", {
+      entryMethod: "username",
+      viewport: getViewportBucket(),
+    });
     setPortfolioSearch("");
     setAnalysisErrorMessage(null);
     setIsLeagueIntelLoading(false);

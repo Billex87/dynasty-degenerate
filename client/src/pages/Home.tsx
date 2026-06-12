@@ -53,6 +53,10 @@ import {
   STALE_REPORT_CACHE_KEYS,
 } from "@/features/home/lib/reportCache";
 import {
+  getViewportBucket,
+  trackFirstSessionFunnelEvent,
+} from "@/features/home/lib/firstSessionTelemetry";
+import {
   type AnalysisLeaguePreview,
   type CachedSleeperUser,
   type SleeperLeagueOption,
@@ -306,6 +310,21 @@ export default function Home() {
     typeof window === "undefined"
       ? null
       : new URLSearchParams(window.location.search).get("preview");
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    let hasSleeperSession = false;
+    try {
+      hasSleeperSession = Boolean(localStorage.getItem(SLEEPER_SESSION_KEY));
+    } catch {
+      hasSleeperSession = false;
+    }
+    trackFirstSessionFunnelEvent("Home Viewed", {
+      trigger: "home",
+      viewport: getViewportBucket(),
+      hasLeagueParam: Boolean(searchParams.get("leagueId")),
+      hasSleeperSession,
+    });
+  }, []);
 
   const [isLeaguePickerOpen, setIsLeaguePickerOpen] = useState(false);
   const [isChangeLeagueModalOpen, setIsChangeLeagueModalOpen] = useState(false);

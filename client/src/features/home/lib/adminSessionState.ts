@@ -1,6 +1,7 @@
 export type ReportLoadSource = "browser-cache" | "server";
 export type ReportLoadCacheStatus = "browser" | "hit" | "miss" | "unknown";
 export type ReportAnalysisMode = "blocking" | "background";
+export type ReportLoadMode = "dynasty" | "redraft" | "unknown";
 
 export type ReportLoadTelemetryEvent = {
   leagueId: string;
@@ -8,6 +9,7 @@ export type ReportLoadTelemetryEvent = {
   activeTab: string;
   source: ReportLoadSource;
   cacheStatus: ReportLoadCacheStatus;
+  reportMode?: ReportLoadMode;
   requestMs: number | null;
   visibleMs: number;
   payloadVersion: string;

@@ -144,6 +144,22 @@ describe("AI read action copy boundaries", () => {
     expect(source).not.toMatch(/detail:\s*{[^}]*(leagueId|leagueName|username|manager|player|target)/i);
   });
 
+  it("keeps first-session funnel telemetry bucketed and free of private identifiers", () => {
+    const source = readSpecificSources([
+      "features/home/lib/firstSessionTelemetry.ts",
+      "features/home/hooks/useHomeReportAnalysis.ts",
+      "features/home/hooks/useHomeSleeperLeagueSearch.ts",
+      "features/home/hooks/useHomeNavigationActions.ts",
+      "features/home/hooks/useReportLoadTelemetry.ts",
+    ]);
+
+    expect(source).toContain("sanitizeFirstSessionFunnelProperties");
+    expect(source).toContain("getLeagueCountBucket");
+    expect(source).toContain("getElapsedMsBucket");
+    expect(source).not.toMatch(/track\([^)]*(leagueId|leagueName|username|manager|player|provider)/i);
+    expect(source).not.toMatch(/detail:\s*{[^}]*(leagueId|leagueName|username|manager|player|provider)/i);
+  });
+
   it("keeps exact Do this copy limited to reviewed action-owned component panels", () => {
     const matches = findExplicitComponentDoThisLabels();
 

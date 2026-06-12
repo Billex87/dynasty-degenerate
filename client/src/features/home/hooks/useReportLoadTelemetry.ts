@@ -4,6 +4,11 @@ import {
   persistReportLoadTelemetry,
   type ReportLoadTelemetryEvent,
 } from "@/features/home/lib/adminSessionState";
+import {
+  getActiveTabBucket,
+  getElapsedMsBucket,
+  trackFirstSessionFunnelEvent,
+} from "@/features/home/lib/firstSessionTelemetry";
 
 type UseReportLoadTelemetryInput = {
   reportLoadStartedAtRef: MutableRefObject<number | null>;
@@ -30,10 +35,19 @@ export function useReportLoadTelemetry({
             event.source === "browser-cache"
               ? appBootStartedAtRef.current
               : reportLoadStartedAtRef.current || performance.now();
+          const visibleMs = Math.round(performance.now() - startedAt);
           persistReportLoadTelemetry({
             ...event,
-            visibleMs: Math.round(performance.now() - startedAt),
+            visibleMs,
             createdAt: new Date().toISOString(),
+          });
+          trackFirstSessionFunnelEvent("Report Visible", {
+            reportSource: event.source,
+            cacheStatus: event.cacheStatus,
+            reportMode: event.reportMode || "unknown",
+            activeTab: getActiveTabBucket(event.activeTab),
+            elapsedMsBucket: getElapsedMsBucket(visibleMs),
+            requestMsBucket: getElapsedMsBucket(event.requestMs),
           });
           if (event.source === "server") {
             reportLoadStartedAtRef.current = null;
