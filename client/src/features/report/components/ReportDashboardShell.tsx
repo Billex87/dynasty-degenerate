@@ -23,8 +23,10 @@ type ReportDashboardShellHeaderProps = {
   leagueFormatPills: string[];
   leagueLogo: string | null;
   leagueLogoInitials: string;
+  isSampleReport: boolean;
   onHeaderLeagueClick: () => void;
   onAnalyzeAnotherLeague: () => void;
+  onScanMyLeagueFromSample: () => void;
   mobileLogoSrc: string;
   headerLogoSrc: string;
 };
@@ -65,8 +67,11 @@ type ReportDashboardShellProps = {
   leagueFormatPills: ReportDashboardShellHeaderProps["leagueFormatPills"];
   leagueLogo: ReportDashboardShellHeaderProps["leagueLogo"];
   leagueLogoInitials: ReportDashboardShellHeaderProps["leagueLogoInitials"];
+  isSampleReport: ReportDashboardShellHeaderProps["isSampleReport"];
   onAnalyzeAnotherLeague:
     ReportDashboardShellHeaderProps["onAnalyzeAnotherLeague"];
+  onScanMyLeagueFromSample:
+    ReportDashboardShellHeaderProps["onScanMyLeagueFromSample"];
   onHeaderLeagueClick: ReportDashboardShellHeaderProps["onHeaderLeagueClick"];
   mobileLogoSrc: ReportDashboardShellHeaderProps["mobileLogoSrc"];
   headerLogoSrc: ReportDashboardShellHeaderProps["headerLogoSrc"];
@@ -108,6 +113,7 @@ export function ReportDashboardShell({
   hasAdminPermissions,
   hasManagerViewOptions,
   headerLogoSrc,
+  isSampleReport,
   isAdminPassphraseVerifiedForSession,
   isChangeLeagueModalOpen,
   isLoadingRevealPhase,
@@ -122,6 +128,7 @@ export function ReportDashboardShell({
   mobileLogoSrc,
   onAIVoiceModeChange,
   onAnalyzeAnotherLeague,
+  onScanMyLeagueFromSample,
   onAdminToolsClick,
   onAdminViewerManagerChange,
   onChangeLeagueOpenChange,
@@ -163,8 +170,10 @@ export function ReportDashboardShell({
             leagueFormatPills={leagueFormatPills}
             leagueLogo={leagueLogo}
             leagueLogoInitials={leagueLogoInitials}
+            isSampleReport={isSampleReport}
             onHeaderLeagueClick={onHeaderLeagueClick}
             onAnalyzeAnotherLeague={onAnalyzeAnotherLeague}
+            onScanMyLeagueFromSample={onScanMyLeagueFromSample}
             mobileLogoSrc={mobileLogoSrc}
             headerLogoSrc={headerLogoSrc}
           />

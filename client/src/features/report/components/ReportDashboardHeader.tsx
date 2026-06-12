@@ -16,8 +16,10 @@ interface ReportDashboardHeaderProps {
   leagueFormatPills: string[];
   leagueLogo: string | null;
   leagueLogoInitials: string;
+  isSampleReport: boolean;
   onHeaderLeagueClick: () => void;
   onAnalyzeAnotherLeague: () => void;
+  onScanMyLeagueFromSample: () => void;
   mobileLogoSrc: string;
   headerLogoSrc: string;
 }
@@ -35,7 +37,9 @@ export function ReportDashboardHeader({
   leagueFormatPills,
   leagueLogo,
   leagueLogoInitials,
+  isSampleReport,
   onHeaderLeagueClick,
+  onScanMyLeagueFromSample,
   mobileLogoSrc,
   headerLogoSrc,
 }: ReportDashboardHeaderProps) {
@@ -182,33 +186,52 @@ export function ReportDashboardHeader({
           </TabsList>
 
           <div className="report-league-zone md:col-start-3">
-            <button
-              type="button"
-              className="report-league-lockup"
-              onClick={onHeaderLeagueClick}
-              aria-label="Open league switcher"
-            >
-              <div className="min-w-0 text-right">
-                <p className="truncate text-sm font-semibold text-orange-400 sm:text-lg md:text-xl">
-                  {leagueName}
-                </p>
-                {leagueFormatPills.length > 0 && (
-                  <p
-                    className="report-league-format-row text-[11px] font-medium text-cyan-200/70 sm:text-xs"
-                    aria-label={`League format: ${leagueFormatPills.join(", ")}`}
+            <div className="min-w-0 flex-1">
+              {isSampleReport ? (
+                <div className="mb-1 flex max-w-full flex-wrap items-center justify-end gap-1.5">
+                  <span className="report-pill-shell report-inline-pill report-sample-report-pill text-[10px] font-black">
+                    Sample Report
+                  </span>
+                  <button
+                    type="button"
+                    className="report-header-action report-sample-scan-action inline-flex items-center gap-1.5 px-2"
+                    onClick={onScanMyLeagueFromSample}
+                    aria-label="Scan My League"
                   >
-                    {leagueFormatPills.map(chip => (
-                      <span
-                        key={chip}
-                        className="report-pill-shell report-inline-pill report-league-format-pill"
-                      >
-                        {chip}
-                      </span>
-                    ))}
+                    <span className="report-header-action-label whitespace-nowrap">
+                      Scan My League
+                    </span>
+                  </button>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="report-league-lockup w-full"
+                onClick={onHeaderLeagueClick}
+                aria-label="Open league switcher"
+              >
+                <div className="min-w-0 text-right">
+                  <p className="truncate text-sm font-semibold text-orange-400 sm:text-lg md:text-xl">
+                    {leagueName}
                   </p>
-                )}
-              </div>
-            </button>
+                  {leagueFormatPills.length > 0 && (
+                    <p
+                      className="report-league-format-row text-[11px] font-medium text-cyan-200/70 sm:text-xs"
+                      aria-label={`League format: ${leagueFormatPills.join(", ")}`}
+                    >
+                      {leagueFormatPills.map(chip => (
+                        <span
+                          key={chip}
+                          className="report-pill-shell report-inline-pill report-league-format-pill"
+                        >
+                          {chip}
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                </div>
+              </button>
+            </div>
             <button
               type="button"
               className="report-header-league-avatar"

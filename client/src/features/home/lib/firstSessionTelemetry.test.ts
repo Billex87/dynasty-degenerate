@@ -14,6 +14,7 @@ describe("first-session telemetry", () => {
   it("drops private identifiers and only keeps allowlisted public buckets", () => {
     const sanitized = sanitizeFirstSessionFunnelProperties({
       entryMethod: "username",
+      trigger: "sample_report",
       viewport: "desktop",
       leagueCountBucket: "4-7",
       reportMode: "dynasty",
@@ -27,6 +28,7 @@ describe("first-session telemetry", () => {
 
     expect(sanitized).toEqual({
       entryMethod: "username",
+      trigger: "sample_report",
       viewport: "desktop",
       leagueCountBucket: "4-7",
       reportMode: "dynasty",

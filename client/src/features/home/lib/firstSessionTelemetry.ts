@@ -17,6 +17,7 @@ export type FirstSessionFunnelEventName =
   | "League Picker Opened"
   | "League Selected"
   | "Analysis Started"
+  | "Sample Report CTA Clicked"
   | "Report Visible";
 
 export type FirstSessionEntryMethod =
@@ -39,6 +40,7 @@ export type FirstSessionFunnelProperties = {
   entryMethod?: FirstSessionEntryMethod;
   trigger?:
     | "home"
+    | "sample_report"
     | "username_lookup_success"
     | "report_header"
     | "change_league";
@@ -87,6 +89,7 @@ const ENTRY_METHODS = [
 ] as const;
 const TRIGGERS = [
   "home",
+  "sample_report",
   "username_lookup_success",
   "report_header",
   "change_league",

@@ -34,11 +34,20 @@ test.describe('homepage smoke', () => {
     await expect(page.getByRole('tab', { name: 'Overview' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'AI Autopilot' })).toHaveCount(0);
     await expect(page.getByText('AI Team Autopilot')).toHaveCount(0);
+    await expect(page.getByText('Sample Report')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Scan My League' })).toBeVisible();
     expect(await page.evaluate(() => localStorage.getItem('dynasty-degenerates:last-league:v1'))).toBeNull();
 
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByText('Your Next Move')).toBeVisible();
     await expect(page.getByRole('tab', { name: 'AI Autopilot' })).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem('dynasty-degenerates:last-league:v1'))).toBeNull();
+
+    await page.getByRole('button', { name: 'Scan My League' }).click();
+    await expect(page).not.toHaveURL(/demo=sample/);
+    await expect(page.getByPlaceholder('Sleeper username')).toBeVisible();
+    await expect(page.getByPlaceholder('Sleeper username')).toBeFocused();
+    await expect(page.getByRole('heading', { name: /Sample Dynasty League league report/i })).toHaveCount(0);
     expect(await page.evaluate(() => localStorage.getItem('dynasty-degenerates:last-league:v1'))).toBeNull();
   });
 

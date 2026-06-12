@@ -66,8 +66,10 @@ type HomeReportExperienceProps = {
   leagueFormatPills: string[];
   leagueLogo: string | null;
   leagueLogoInitials: string;
+  isSampleReport: boolean;
   onHeaderLeagueClick: () => void;
   onAnalyzeAnotherLeague: () => void;
+  onScanMyLeagueFromSample: () => void;
   isChangeLeagueModalOpen: boolean;
   onChangeLeagueOpenChange: (open: boolean) => void;
   onStartOver: () => void;
@@ -135,6 +137,7 @@ export function HomeReportExperience({
   leagueLogoInitials,
   leagueName,
   leagueRosterScannerMode,
+  isSampleReport,
   onAIVoiceModeChange,
   onAdminToolsClick,
   onAdminViewerManagerChange,
@@ -149,6 +152,7 @@ export function HomeReportExperience({
   onPortfolioLeagueFilterChange,
   onPortfolioSearchChange,
   onReportTabChange,
+  onScanMyLeagueFromSample,
   onScoutLeaguemates,
   onStartOver,
   orderedUserLeagues,
@@ -231,8 +235,10 @@ export function HomeReportExperience({
           leagueFormatPills={leagueFormatPills}
           leagueLogo={leagueLogo}
           leagueLogoInitials={leagueLogoInitials}
+          isSampleReport={isSampleReport}
           onHeaderLeagueClick={onHeaderLeagueClick}
           onAnalyzeAnotherLeague={onAnalyzeAnotherLeague}
+          onScanMyLeagueFromSample={onScanMyLeagueFromSample}
           mobileLogoSrc={DYNASTY_MOBILE_REPORT_LOGO_SRC}
           headerLogoSrc={DYNASTY_REPORT_HEADER_LOGO_SRC}
           isChangeLeagueModalOpen={isChangeLeagueModalOpen}

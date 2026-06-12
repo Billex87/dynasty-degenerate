@@ -746,6 +746,54 @@ export default function Home() {
     setSampleReportUrl(false);
     handleStartOverBase();
   };
+  const handleScanMyLeagueFromSample = () => {
+    clearSuccessTransitionTimers();
+    activeAnalysisLeagueIdRef.current = null;
+    analyzeRequestStartedAtRef.current = null;
+    backgroundRefreshLeagueIdRef.current = null;
+    reportLoadStartedAtRef.current = null;
+    analysisModeRef.current = "blocking";
+    setIsSampleReportActive(false);
+    setSampleReportUrl(false);
+    setSleeperTradeCenterImportDisplayPatch(null);
+    setAnalysisCompleteMessage(null);
+    setAnalysisErrorMessage(null);
+    setPendingAnalysisLeague(null);
+    setHasLoadingTimedOut(false);
+    setLoadingManagerAnchors([]);
+    setLoadingTransitionPhase("loading");
+    setIsLoading(false);
+    setIsReportRefreshing(false);
+    setIsLeaguePickerOpen(false);
+    setIsChangeLeagueModalOpen(false);
+    setIsAdminAccessModalOpen(false);
+    setAdminViewMode(null);
+    setAdminViewerManager(null);
+    setLeagueId("");
+    setLeagueName("");
+    setLeagueLogo(null);
+    setLeagueFormat("");
+    setViewerUserId(null);
+    setViewerUsername(null);
+    setReportData(null);
+    setReportDataCacheVersion(null);
+    setActiveTab("overview");
+    setFocusedAutocomplete("username");
+    trackFirstSessionFunnelEvent("Sample Report CTA Clicked", {
+      entryMethod: "sample_report",
+      trigger: "sample_report",
+      viewport: getViewportBucket(),
+    });
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        const input = document.getElementById(
+          "sleeper-username"
+        ) as HTMLInputElement | null;
+        input?.focus();
+        input?.select();
+      }, 0);
+    }
+  };
 
   const activeCachedSleeperUser = findCachedSleeperUser(
     cachedSleeperUsers,
@@ -996,8 +1044,10 @@ export default function Home() {
         leagueFormatPills={leagueFormatPills}
         leagueLogo={leagueLogo}
         leagueLogoInitials={leagueLogoInitials}
+        isSampleReport={isSampleReportActive}
         onHeaderLeagueClick={handleHeaderLeagueClick}
         onAnalyzeAnotherLeague={handleAnalyzeAnotherLeague}
+        onScanMyLeagueFromSample={handleScanMyLeagueFromSample}
         isChangeLeagueModalOpen={isChangeLeagueModalOpen}
         onChangeLeagueOpenChange={setIsChangeLeagueModalOpen}
         onStartOver={handleStartOver}
