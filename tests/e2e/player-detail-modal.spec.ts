@@ -255,6 +255,50 @@ function stripPlayerProjection(
   }
 }
 
+function setDivergentValueRankTimeline(cachedReport: ReturnType<typeof createCachedRedraftReport>) {
+  const player1 = cachedReport.reportData.playerDetailsById['player-1'] as any;
+  const timeline = player1.valueTimeline;
+  if (!timeline) return;
+
+  const points = [
+    { date: '2025-11-17', value: 5200, rank: 'RB9', overallRank: 42, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2, marketKtc: 5125, fantasyCalcDynasty: 5250 },
+    { date: '2026-02-17', value: 5000, rank: 'RB7', overallRank: 35, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2, marketKtc: 4925, fantasyCalcDynasty: 5050 },
+    { date: '2026-05-17', value: 4600, rank: 'RB5', overallRank: 28, sources: ['marketKtc', 'fantasyCalc'], sourceCount: 2, marketKtc: 4525, fantasyCalcDynasty: 4650 },
+  ];
+  const divergentWindow = {
+    key: '6m',
+    label: '6M',
+    days: 183,
+    pointCount: points.length,
+    startDate: points[0].date,
+    endDate: points[points.length - 1].date,
+    startValue: points[0].value,
+    endValue: points[points.length - 1].value,
+    delta: -600,
+    deltaPct: -11.5,
+    points,
+  };
+
+  timeline.selectedWindow = '6m';
+  timeline.availableWindows = timeline.availableWindows.map((window: any) => (
+    window.key === '6m'
+      ? { ...divergentWindow, points: undefined }
+      : window
+  ));
+  timeline.windows = {
+    ...timeline.windows,
+    '6m': divergentWindow,
+  };
+  timeline.points = points;
+  timeline.summary = {
+    ...timeline.summary,
+    startValue: divergentWindow.startValue,
+    endValue: divergentWindow.endValue,
+    delta: divergentWindow.delta,
+    deltaPct: divergentWindow.deltaPct,
+  };
+}
+
 async function loadModalReport(
   page: import('@playwright/test').Page,
   cachedReport: ReturnType<typeof createCachedRedraftReport>,
@@ -331,12 +375,122 @@ async function openRankings(page: import('@playwright/test').Page) {
 
 async function openPlayerModal(page: import('@playwright/test').Page, playerName: string) {
   const rowButton = page.getByRole('button', { name: new RegExp(playerName) }).first();
-  await expect(rowButton).toBeVisible();
+  await expect(rowButton).toBeVisible({ timeout: 30_000 });
   await rowButton.click();
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   return dialog;
+}
+
+async function tabUntilFocused(
+  page: import('@playwright/test').Page,
+  target: import('@playwright/test').Locator,
+  maxTabs = 80,
+) {
+  for (let index = 0; index < maxTabs; index += 1) {
+    const isFocused = await target.evaluate((element) => element === document.activeElement).catch(() => false);
+    if (isFocused) return;
+    await page.keyboard.press('Tab');
+  }
+
+  await expect(target).toBeFocused();
+}
+
+async function expectValueTimelineModalFitsViewport(
+  page: import('@playwright/test').Page,
+  timelineDialog: import('@playwright/test').Locator,
+) {
+  const viewport = page.viewportSize();
+  const modalBox = await timelineDialog.boundingBox();
+
+  expect(modalBox).not.toBeNull();
+  if (!viewport || !modalBox) return;
+
+  expect(modalBox.x).toBeGreaterThanOrEqual(0);
+  expect(modalBox.x + modalBox.width).toBeLessThanOrEqual(viewport.width + 1);
+  expect(modalBox.width).toBeLessThanOrEqual(Math.min(viewport.width - 4, 920));
+  expect(Math.abs((modalBox.x + modalBox.width / 2) - viewport.width / 2)).toBeLessThanOrEqual(2);
+
+  if (viewport.width <= 480) {
+    const backButtonBox = await timelineDialog.getByRole('button', { name: 'Back to player' }).boundingBox();
+    const closeAllButtonBox = await timelineDialog.getByRole('button', { name: 'Close all' }).boundingBox();
+
+    expect(backButtonBox).not.toBeNull();
+    expect(closeAllButtonBox).not.toBeNull();
+    if (backButtonBox && closeAllButtonBox) {
+      const verticalOverlap = Math.min(
+        backButtonBox.y + backButtonBox.height,
+        closeAllButtonBox.y + closeAllButtonBox.height,
+      ) - Math.max(backButtonBox.y, closeAllButtonBox.y);
+      expect(verticalOverlap).toBeGreaterThanOrEqual(Math.min(backButtonBox.height, closeAllButtonBox.height) * 0.5);
+      expect(backButtonBox.height).toBeGreaterThanOrEqual(40);
+      expect(closeAllButtonBox.height).toBeGreaterThanOrEqual(40);
+      expect(closeAllButtonBox.x + closeAllButtonBox.width).toBeLessThanOrEqual(viewport.width + 1);
+    }
+  }
+}
+
+async function expectValueTimelineResponsivePolish(
+  page: import('@playwright/test').Page,
+  timelineDialog: import('@playwright/test').Locator,
+) {
+  const viewport = page.viewportSize();
+  await expectValueTimelineModalFitsViewport(page, timelineDialog);
+  if (!viewport) return;
+
+  const horizontalOverflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth
+  );
+  expect(horizontalOverflow).toBeLessThanOrEqual(1);
+
+  const headerBox = await timelineDialog.locator('.player-value-timeline-modal-header').boundingBox();
+  const backgroundBox = await timelineDialog.locator('.player-value-team-backdrop').boundingBox();
+  expect(headerBox).not.toBeNull();
+  expect(backgroundBox).not.toBeNull();
+  if (headerBox && backgroundBox) {
+    expect(backgroundBox.width).toBeGreaterThanOrEqual(headerBox.width - 1);
+    expect(backgroundBox.height).toBeGreaterThanOrEqual(headerBox.height - 1);
+  }
+
+  const actionButtons = timelineDialog.locator('.player-value-timeline-back-button, .player-value-timeline-close-all-button');
+  const actionButtonCount = await actionButtons.count();
+  for (let index = 0; index < actionButtonCount; index += 1) {
+    const button = actionButtons.nth(index);
+    const box = await button.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.height).toBeGreaterThanOrEqual(40);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
+    }
+    const doesTextFit = await button.evaluate((node) => node.scrollWidth <= node.clientWidth + 1);
+    expect(doesTextFit).toBe(true);
+  }
+
+  const interactiveControls = timelineDialog.locator('.player-value-window-tab, .player-value-chart-mode-button');
+  const interactiveControlCount = await interactiveControls.count();
+  for (let index = 0; index < interactiveControlCount; index += 1) {
+    const control = interactiveControls.nth(index);
+    const box = await control.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.height).toBeGreaterThanOrEqual(40);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
+    }
+  }
+
+  const chartStageBox = await timelineDialog.locator('.player-value-chart-stage').boundingBox();
+  expect(chartStageBox).not.toBeNull();
+  if (chartStageBox) {
+    expect(chartStageBox.x).toBeGreaterThanOrEqual(0);
+    expect(chartStageBox.x + chartStageBox.width).toBeLessThanOrEqual(viewport.width + 1);
+  }
+
+  await expect(timelineDialog.locator('.player-value-timeline-title')).toBeVisible();
+  await expect(timelineDialog.locator('.player-value-timeline-description')).toBeVisible();
+  await expect(timelineDialog.getByText('Select points for exact value and rank.')).toBeVisible();
 }
 
 function addRankingModalPlayer(
@@ -395,26 +549,29 @@ test.describe('player detail modal', () => {
 
     const heroTextAlign = await dialog.locator('.athletic-headline').evaluate((node) => getComputedStyle(node.parentElement!).textAlign);
     expect(heroTextAlign).toBe('center');
-    const dialogText = (await dialog.textContent()) || '';
     await expect(dialog.getByText('Value Basis:', { exact: true })).toHaveCount(0);
 
     await expect(dialog.getByText('College')).toBeVisible();
     await expect(dialog.getByText('40 Time')).toBeVisible();
     await expect(dialog.getByText('Vertical')).toBeVisible();
     await expect(dialog.getByText('Birthday')).toBeVisible();
-    expect(dialogText).toContain('4.41s');
-    expect(dialogText).toContain('36.5"');
-    expect(dialogText).toContain('125"');
-    expect(dialogText).toContain('18 reps');
-    expect(dialogText).toContain('6.95s');
-    expect(dialogText).toContain('4.22s');
-    expect(dialogText).toContain('105.2');
-    expect(dialogText).toContain('Jan 1, 2000');
+    const productionDialogText = (await dialog.textContent()) || '';
+    expect(productionDialogText).toContain('4.41s');
+    expect(productionDialogText).toContain('36.5"');
+    expect(productionDialogText).toContain('125"');
+    expect(productionDialogText).toContain('18 reps');
+    expect(productionDialogText).toContain('6.95s');
+    expect(productionDialogText).toContain('4.22s');
+    expect(productionDialogText).toContain('105.2');
+    expect(productionDialogText).toContain('Jan 1, 2000');
+    await expect(dialog.locator('p').filter({ hasText: 'Availability: 2025: 14 GP' }).first()).toBeVisible();
+
     await expect(dialog.getByText('Blend Evidence', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Prospect Summary', { exact: true })).toBeVisible();
     await expect(dialog.getByText(/This full summary should stay readable in the full-width pill with no truncation or abbreviation/i)).toBeVisible();
     await expect(dialog.getByText('Player News', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Availability History', { exact: true })).toBeVisible();
+
     const projectionReceipt = dialog.getByTestId('weekly-projection-receipt');
     await expect(projectionReceipt).toBeVisible();
     await expect(projectionReceipt).toContainText(/Weekly projection/i);
@@ -431,8 +588,8 @@ test.describe('player detail modal', () => {
     await expect(
       dialog.locator('.ai-read-chip').filter({ hasText: 'Runway 90%' })
     ).toBeVisible();
-    await expect(dialog.locator('p').filter({ hasText: 'Availability: 2025: 14 GP' }).first()).toBeVisible();
     await expect(dialog.getByText('AVAILABLE')).toHaveCount(0);
+
     await dialog.getByRole('button', { name: /Open Bijan Robinson 2025 weekly availability log/i }).click();
     const availabilityDialog = page.getByRole('dialog').filter({ hasText: 'Weekly Availability Log' });
     await expect(availabilityDialog.getByRole('heading', { name: /Bijan Robinson 2025/i })).toBeVisible();
@@ -448,7 +605,7 @@ test.describe('player detail modal', () => {
     await expect(dialog.getByText('Degen Gap', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Dynasty Market Price Trend')).toHaveCount(0);
     await expect(dialog.getByText('Current Redraft Market Price Trend')).toBeVisible();
-    await dialog.getByRole('button', { name: /Open Bijan Robinson value timeline detail/i }).click();
+    await dialog.getByRole('button', { name: /View Bijan Robinson value history/i }).click();
     const timelineDialog = page.getByRole('dialog').filter({ hasText: 'Current Redraft Market Price Timeline' });
     await expect(timelineDialog.getByRole('tab', { name: /1M/i })).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: /3M/i })).toBeVisible();
@@ -456,20 +613,31 @@ test.describe('player detail modal', () => {
     await expect(timelineDialog.getByRole('tab', { name: /1Y/i })).toBeVisible();
     await expect(timelineDialog.getByRole('tab', { name: /All/i })).toBeVisible();
     await expect(timelineDialog.getByText('Current Redraft Market Price Timeline')).toBeVisible();
+    await expectValueTimelineModalFitsViewport(page, timelineDialog);
+    await expect(timelineDialog.locator('.player-value-team-backdrop')).toHaveAttribute('style', /buf\.jpg/i);
     const identityHeader = timelineDialog.locator('.player-value-identity-row');
     await expect(identityHeader).toBeVisible();
-    await expect(identityHeader.locator('.player-value-timeline-title')).toHaveText('Bijan Robinson');
+    await expect(identityHeader.locator('.player-value-timeline-title')).toHaveText('Bijan Robinson Value History');
+    await expect(identityHeader.locator('.player-value-timeline-title')).toBeFocused();
     await expect(identityHeader.locator('.player-value-identity-team-pill')).toContainText('BUF');
     await expect(identityHeader.locator('.player-value-identity-position-pill')).toHaveCount(0);
     await expect(identityHeader.locator('.player-value-identity-rank-pill')).toHaveText(/^RB\d+$/);
     await expect(identityHeader.locator('.player-value-identity-value-pill')).toHaveText(/^Value \d[\d,]*$/);
-    await expect(timelineDialog.locator('.player-value-timeline-description')).toHaveCount(0);
+    await expect(timelineDialog.locator('.player-value-timeline-description')).toBeVisible();
+    await expect(timelineDialog.locator('.player-value-timeline-description')).toContainText(/current value .* net move .* rank movement/i);
+    await expect(timelineDialog.getByRole('button', { name: 'Back to player' })).toBeVisible();
+    await expect(timelineDialog.getByRole('button', { name: 'Close all' })).toBeVisible();
+    await expect(timelineDialog.getByText('Current Value', { exact: true })).toBeVisible();
+    await expect(timelineDialog.getByText('Net Move', { exact: true })).toBeVisible();
+    await expect(timelineDialog.getByText('Rank Move', { exact: true })).toBeVisible();
+    await expect(timelineDialog.getByText('Range', { exact: true })).toBeVisible();
     await expect(timelineDialog.getByText('All-Time Range')).toBeVisible();
-    await expect(timelineDialog.getByRole('tab', { name: 'Value' })).toHaveAttribute('aria-selected', 'true');
+    await expect(timelineDialog.getByRole('tab', { name: /market value chart/i })).toHaveAttribute('aria-selected', 'true');
+    await expect(timelineDialog.getByText('Select points for exact value and rank.')).toBeVisible();
     await expect(timelineDialog.locator([
       '.player-value-timeline-chart path[stroke="#34d399"]',
       '.player-value-timeline-chart path[stroke="#fb7185"]',
-      '.player-value-timeline-chart path[stroke="#38bdf8"]',
+      '.player-value-timeline-chart path[stroke="#94a3b8"]',
     ].join(', '))).toHaveCount(1);
     const pointPopover = timelineDialog.locator('.player-value-point-popover');
     await expect(pointPopover).toBeVisible();
@@ -477,14 +645,14 @@ test.describe('player detail modal', () => {
     await expect(pointPopover.locator('small')).toContainText(/blend inputs|source/i);
     const firstChartPoint = timelineDialog.locator('.player-value-chart-point').first();
     const firstChartPointLabel = await firstChartPoint.getAttribute('aria-label');
-    const firstChartPointValue = firstChartPointLabel?.match(/ value ([^ ]+)/)?.[1] || '';
+    const firstChartPointValue = firstChartPointLabel?.match(/value ([\d,]+), rank/)?.[1] || '';
     expect(firstChartPointValue).not.toBe('');
     await firstChartPoint.click();
     await expect(pointPopover.locator('strong')).toContainText(firstChartPointValue);
     await expect(timelineDialog.locator('.player-value-selected-point')).toBeVisible();
     await expect(timelineDialog.locator('.player-value-timeline-note')).toHaveCount(0);
-    await timelineDialog.getByRole('tab', { name: 'Position Rank' }).click();
-    await expect(timelineDialog.getByRole('tab', { name: 'Position Rank' })).toHaveAttribute('aria-selected', 'true');
+    await timelineDialog.getByRole('tab', { name: /position rank chart/i }).click();
+    await expect(timelineDialog.getByRole('tab', { name: /position rank chart/i })).toHaveAttribute('aria-selected', 'true');
     await expect(timelineDialog.getByText(/rank points/i)).toBeVisible();
     await expect(timelineDialog.getByText('Snapshot Source History')).toHaveCount(0);
     await expect(timelineDialog.getByText('Source Movement')).toHaveCount(0);
@@ -496,8 +664,9 @@ test.describe('player detail modal', () => {
     await page.keyboard.press('Enter');
     await expect(allRangeTab).toHaveAttribute('aria-selected', 'true');
     await expect(timelineDialog.getByText('May').first()).toBeVisible();
-    await timelineDialog.getByRole('button', { name: /Close Bijan Robinson value timeline detail/i }).click();
+    await timelineDialog.getByRole('button', { name: 'Back to player' }).click();
     await expect(timelineDialog).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: /View Bijan Robinson value history/i })).toBeFocused();
 
     const newsLink = dialog.locator('a[href="https://example.com/news/travis-etienne-saints"]');
     await expect(newsLink).toHaveAttribute('target', '_blank');
@@ -532,6 +701,134 @@ test.describe('player detail modal', () => {
     await expect(dialog.getByText(/Stored weekly projection|Weekly projection/i)).toHaveCount(0);
     await expect(dialog.getByText('14.8 pts')).toHaveCount(0);
     await expect(dialog.getByText('Half PPR')).toHaveCount(0);
+  });
+
+  test('closes player detail from value history close-all action', async ({ page }) => {
+    const cachedReport = createModalFixture('player-modal-value-history-close-all');
+    await loadModalReport(page, cachedReport, 'regular');
+    await openRankings(page);
+
+    const dialog = await openPlayerModal(page, 'Bijan Robinson');
+    await dialog.getByRole('button', { name: /View Bijan Robinson value history/i }).click();
+
+    const timelineDialog = page.getByRole('dialog').filter({ hasText: 'Current Redraft Market Price Timeline' });
+    await expect(timelineDialog.getByRole('heading', { name: 'Bijan Robinson Value History' })).toBeVisible();
+    await timelineDialog.getByRole('button', { name: 'Close all' }).click();
+
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('supports keyboard focus through player and value history modals', async ({ page }) => {
+    const cachedReport = createModalFixture('player-modal-keyboard-focus-flow');
+    await loadModalReport(page, cachedReport, 'regular');
+    await openRankings(page);
+
+    const rowButton = page.getByRole('button', { name: /Bijan Robinson/ }).first();
+    await expect(rowButton).toBeVisible();
+    await rowButton.focus();
+    await expect(rowButton).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    let dialog = page.getByRole('dialog').filter({ hasText: 'Bijan Robinson' });
+    await expect(dialog.getByRole('heading', { name: 'Bijan Robinson', exact: true })).toBeFocused();
+
+    const closePlayerButton = dialog.getByRole('button', { name: /Close Bijan Robinson details/i });
+    await closePlayerButton.focus();
+    await expect(closePlayerButton).toBeFocused();
+
+    let valueHistoryTrigger = dialog.getByRole('button', { name: /View Bijan Robinson value history/i });
+    await tabUntilFocused(page, valueHistoryTrigger);
+    await page.keyboard.press('Enter');
+
+    let timelineDialog = page.getByRole('dialog').filter({ hasText: 'Current Redraft Market Price Timeline' });
+    let timelineTitle = timelineDialog.getByRole('heading', { name: 'Bijan Robinson Value History' });
+    await expect(timelineTitle).toBeFocused();
+
+    await timelineTitle.press('Escape');
+    await expect(timelineDialog).toHaveCount(0);
+    await expect(valueHistoryTrigger).toBeFocused();
+
+    await page.keyboard.press('Enter');
+    timelineDialog = page.getByRole('dialog').filter({ hasText: 'Current Redraft Market Price Timeline' });
+    timelineTitle = timelineDialog.getByRole('heading', { name: 'Bijan Robinson Value History' });
+    await expect(timelineTitle).toBeFocused();
+
+    await page.keyboard.press('Shift+Tab');
+    await expect(timelineDialog.getByRole('button', { name: 'Close all' })).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(rowButton).toBeFocused();
+
+    await page.keyboard.press('Enter');
+    dialog = page.getByRole('dialog').filter({ hasText: 'Bijan Robinson' });
+    await expect(dialog.getByRole('heading', { name: 'Bijan Robinson', exact: true })).toBeFocused();
+
+    valueHistoryTrigger = dialog.getByRole('button', { name: /View Bijan Robinson value history/i });
+    await tabUntilFocused(page, valueHistoryTrigger);
+    await page.keyboard.press('Enter');
+    timelineDialog = page.getByRole('dialog').filter({ hasText: 'Current Redraft Market Price Timeline' });
+    await expect(timelineDialog.getByRole('heading', { name: 'Bijan Robinson Value History' })).toBeFocused();
+
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Shift+Tab');
+    await expect(timelineDialog.getByRole('button', { name: 'Back to player' })).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect(timelineDialog).toHaveCount(0);
+    await expect(valueHistoryTrigger).toBeFocused();
+  });
+
+  test('colors value and rank charts by the selected metric direction', async ({ page }) => {
+    const cachedReport = createModalFixture('player-modal-value-rank-color-direction');
+    setDivergentValueRankTimeline(cachedReport);
+    await loadModalReport(page, cachedReport, 'regular');
+    await openRankings(page);
+
+    const dialog = await openPlayerModal(page, 'Bijan Robinson');
+    await dialog.getByRole('button', { name: /View Bijan Robinson value history/i }).click();
+
+    const timelineDialog = page.getByRole('dialog').filter({ hasText: 'Current Redraft Market Price Timeline' });
+    await expect(timelineDialog.getByRole('heading', { name: 'Bijan Robinson Value History' })).toBeVisible();
+    const sixMonthTab = timelineDialog.getByRole('tab', { name: /6M/i });
+    await expect(sixMonthTab).toHaveAttribute('aria-selected', 'true');
+    await expect(sixMonthTab).toHaveClass(/player-value-window-tab-down/);
+    await expect(timelineDialog.locator('.player-value-timeline-chart path[stroke="#fb7185"]')).toHaveCount(1);
+
+    await timelineDialog.getByRole('tab', { name: /position rank chart/i }).click();
+    await expect(timelineDialog.getByRole('tab', { name: /position rank chart/i })).toHaveAttribute('aria-selected', 'true');
+    await expect(timelineDialog.locator('.player-value-timeline-chart path[stroke="#34d399"]')).toHaveCount(1);
+  });
+
+  test('keeps value history modal centered and readable across the polish viewport matrix', async ({ page }) => {
+    const viewports = [
+      { width: 320, height: 720 },
+      { width: 360, height: 780 },
+      { width: 375, height: 812 },
+      { width: 390, height: 844 },
+      { width: 414, height: 896 },
+      { width: 768, height: 1024 },
+      { width: 1024, height: 768 },
+      { width: 1440, height: 1000 },
+    ];
+
+    for (const viewport of viewports) {
+      await page.setViewportSize(viewport);
+      const cachedReport = createModalFixture(`player-modal-value-responsive-${viewport.width}`);
+      await loadModalReport(page, cachedReport, 'regular');
+      await openRankings(page);
+
+      const dialog = await openPlayerModal(page, 'Bijan Robinson');
+      await dialog.getByRole('button', { name: /View Bijan Robinson value history/i }).click();
+      const timelineDialog = page.getByRole('dialog').filter({ hasText: 'Current Redraft Market Price Timeline' });
+
+      await expect(timelineDialog.getByRole('heading', { name: 'Bijan Robinson Value History' })).toBeVisible();
+      await expect(timelineDialog.locator('.player-value-team-backdrop')).toHaveAttribute('style', /buf\.jpg/i);
+      await expectValueTimelineResponsivePolish(page, timelineDialog);
+
+      await timelineDialog.getByRole('button', { name: 'Close all' }).click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+    }
   });
 
   test('hides admin-only source inputs in regular view', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useId, type ReactNode } from 'react';
+import { useMemo, useState, useEffect, useId, useRef, type ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +15,7 @@ import {
   type AIEvidenceResult,
   type AISourceTrace,
 } from '@shared/aiEvidenceEngine';
-import { ExternalLink, TrendingUp, TrendingDown, X } from 'lucide-react';
+import { ArrowLeft, ExternalLink, TrendingUp, TrendingDown, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { getPositionRankPillClass } from '@/lib/positionRank';
 import { getPlayerAvailability } from '@/lib/playerStatus';
@@ -227,6 +227,8 @@ export function PlayerDetailModal({
 }: PlayerDetailModalProps) {
   const [focusedPeerPick, setFocusedPeerPick] = useState<PlayerModalData | null>(null);
   const [expandedAvailabilitySeason, setExpandedAvailabilitySeason] = useState<string | null>(null);
+  const playerTitleRef = useRef<HTMLHeadingElement | null>(null);
+  const playerModalReturnFocusRef = useRef<HTMLElement | null>(null);
   const pick = focusedPeerPick || selectedPick;
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [directImageFailed, setDirectImageFailed] = useState(false);
@@ -611,7 +613,6 @@ export function PlayerDetailModal({
         },
     });
   };
-
   return (
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -620,6 +621,22 @@ export function PlayerDetailModal({
         overlayClassName="player-detail-modal-overlay"
         className={`player-detail-modal ${isCollegeProspect ? 'player-detail-modal-prospect' : ''} max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-slate-700/70 bg-[#121827] p-0 text-slate-100 shadow-2xl shadow-black/60 sm:max-h-[88vh] sm:max-w-2xl`}
         style={{ ...collegeTileStyle, background: modalBackground }}
+        onOpenAutoFocus={(event) => {
+          const activeElement = document.activeElement;
+          if (activeElement instanceof HTMLElement) {
+            playerModalReturnFocusRef.current = activeElement;
+          }
+          event.preventDefault();
+          playerTitleRef.current?.focus({ preventScroll: true });
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          const returnTarget = playerModalReturnFocusRef.current;
+          playerModalReturnFocusRef.current = null;
+          if (returnTarget && document.contains(returnTarget)) {
+            window.requestAnimationFrame(() => returnTarget.focus({ preventScroll: true }));
+          }
+        }}
       >
         <PremiumFxLayer variant="player-modal" intensity="low" />
         <div className="max-h-[calc(100dvh-1rem)] overflow-y-auto pb-[env(safe-area-inset-bottom)] sm:max-h-[88vh]">
@@ -682,7 +699,7 @@ export function PlayerDetailModal({
                   </div>
                 )}
               </div>
-              <DialogTitle className="sr-only">
+              <DialogTitle ref={playerTitleRef} tabIndex={-1} className="sr-only">
                 {pick.playerName}
               </DialogTitle>
               <DialogDescription className="sr-only">
@@ -874,7 +891,7 @@ export function PlayerDetailModal({
                   value={valueGain !== undefined && valueGain !== null ? `${valueGain > 0 ? '+' : ''}${valueGain.toLocaleString()}` : '-'}
                   tone={valueGain !== undefined && valueGain !== null && valueGain > 0 ? 'positive' : valueGain !== undefined && valueGain !== null && valueGain < 0 ? 'negative' : 'neutral'}
                   icon={
-                    valueGain !== undefined && valueGain !== null && valueGain > 0 ? <TrendingUp className="h-4 w-4" /> : valueGain !== undefined && valueGain !== null && valueGain < 0 ? <TrendingDown className="h-4 w-4" /> : null
+                    valueGain !== undefined && valueGain !== null && valueGain > 0 ? <TrendingUp className="h-4 w-4" aria-hidden="true" /> : valueGain !== undefined && valueGain !== null && valueGain < 0 ? <TrendingDown className="h-4 w-4" aria-hidden="true" /> : null
                   }
                   teamColors={teamColors}
                   tileAccent={tileAccent}
@@ -936,8 +953,8 @@ export function PlayerDetailModal({
                           <em>Gap</em>
                           <strong>
                             {peer.difference > 0 ? '+' : ''}{peer.difference.toLocaleString()}
-                            {peer.difference > 0 && <TrendingUp className="h-3.5 w-3.5" />}
-                            {peer.difference < 0 && <TrendingDown className="h-3.5 w-3.5" />}
+                            {peer.difference > 0 && <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />}
+                            {peer.difference < 0 && <TrendingDown className="h-3.5 w-3.5" aria-hidden="true" />}
                           </strong>
                         </span>
                       </div>
@@ -1224,6 +1241,7 @@ export function PlayerDetailModal({
                         playerName={pick.playerName}
                         playerImageUrl={playerImageSrc}
                         team={team}
+                        teamHeaderBackgroundUrl={teamHeaderBackgroundUrl}
                         teamColors={teamColors}
                         tileAccent={tileAccent}
                         showSourceAdmin={isAdminView}
@@ -1232,6 +1250,7 @@ export function PlayerDetailModal({
                         detailTitle="Dynasty Market Price Timeline"
                         serverTimeline={serverDynastyValueTimeline}
                         isServerHydrating={isDynastyTimelineFetching}
+                        onCloseAll={onClose}
                       />
                     )}
                     {shouldShowRedraftTimeline && (
@@ -1241,10 +1260,12 @@ export function PlayerDetailModal({
                         playerName={pick.playerName}
                         playerImageUrl={playerImageSrc}
                         team={team}
+                        teamHeaderBackgroundUrl={teamHeaderBackgroundUrl}
                         teamColors={teamColors}
                         tileAccent={tileAccent}
                         showSourceAdmin={isAdminView}
                         isLoading={isRedraftTimelineFetching}
+                        onCloseAll={onClose}
                       />
                     )}
                   </div>
@@ -1579,10 +1600,9 @@ export function PlayerDetailModal({
                   </div>
                 </div>
               ) : null}
-            </div>
+                </div>
               </div>
             )}
-
           </div>
         </div>
       </DialogContent>
@@ -1744,9 +1764,9 @@ function formatHeight(height: PlayerDetails['height']) {
 }
 
 function getPlayerNameSizeClass(name: string) {
-  if (name.length > 24) return 'text-[1.25rem] sm:text-[1.65rem]';
-  if (name.length > 18) return 'text-[1.45rem] sm:text-[1.85rem]';
-  return 'text-[1.7rem] sm:text-[2.15rem]';
+  if (name.length > 24) return 'text-[1.25rem] sm:text-[1.65rem] lg:text-[1.82rem]';
+  if (name.length > 18) return 'text-[1.45rem] sm:text-[1.85rem] lg:text-[2.05rem]';
+  return 'text-[1.7rem] sm:text-[2.15rem] lg:text-[2.38rem]';
 }
 
 function formatBirthday(birthDate: PlayerDetails['birthDate']) {
@@ -2113,9 +2133,24 @@ function getTimelineWindowSnapshot(timeline: PlayerValueTimeline, key: TimelineW
 }
 
 function getTimelineMovementColor(delta: number | null | undefined) {
-  if ((delta || 0) > 0) return '#34d399';
-  if ((delta || 0) < 0) return '#fb7185';
-  return '#38bdf8';
+  const tone = getTimelineMovementTone(delta);
+  if (tone === 'up') return '#34d399';
+  if (tone === 'down') return '#fb7185';
+  return '#94a3b8';
+}
+
+function getTimelineMovementTone(delta: number | null | undefined) {
+  if ((delta || 0) > 0) return 'up';
+  if ((delta || 0) < 0) return 'down';
+  return 'flat';
+}
+
+function getTimelineWindowTabClassName(window: TimelineWindowTab, isActive: boolean) {
+  return [
+    'player-value-window-tab',
+    `player-value-window-tab-${getTimelineMovementTone(window.delta)}`,
+    isActive ? 'player-value-window-tab-active' : '',
+  ].filter(Boolean).join(' ');
 }
 
 function formatTimelineWindowRange(window: TimelineWindowTab) {
@@ -2174,11 +2209,13 @@ function getTimelineChartAxisLabels(
   };
 }
 
-function getChartPointPopoverClass(point: { x: number } | null) {
+function getChartPointPopoverClass(point: { x: number; y: number } | null) {
   if (!point) return '';
-  if (point.x < 110) return 'player-value-point-popover-left';
-  if (point.x > 410) return 'player-value-point-popover-right';
-  return '';
+  const classes: string[] = [];
+  if (point.y < 72) classes.push('player-value-point-popover-below');
+  if (point.x < 110) classes.push('player-value-point-popover-left');
+  if (point.x > 410) classes.push('player-value-point-popover-right');
+  return classes.join(' ');
 }
 
 function getTimelineHistoryScore(timeline?: PlayerValueTimeline | null) {
@@ -2347,20 +2384,24 @@ function RedraftValueTimelinePanel({
   playerName,
   playerImageUrl,
   team,
+  teamHeaderBackgroundUrl,
   teamColors,
   tileAccent,
   showSourceAdmin,
   isLoading,
+  onCloseAll,
 }: {
   timeline: RedraftValueTimelineData | null;
   fallbackTimeline?: PlayerValueTimeline | null;
   playerName: string;
   playerImageUrl?: string | null;
   team?: string | null;
+  teamHeaderBackgroundUrl?: string | null;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
   showSourceAdmin?: boolean;
   isLoading?: boolean;
+  onCloseAll?: () => void;
 }) {
   const scopes = timeline?.scopes?.filter((scope) => scope.points.length >= 1) || [];
   const preferredScope = getPreferredRedraftScope(scopes);
@@ -2401,6 +2442,7 @@ function RedraftValueTimelinePanel({
         playerName={playerName}
         playerImageUrl={playerImageUrl}
         team={team}
+        teamHeaderBackgroundUrl={teamHeaderBackgroundUrl}
         teamColors={teamColors}
         tileAccent={tileAccent}
         showSourceAdmin={showSourceAdmin}
@@ -2409,6 +2451,7 @@ function RedraftValueTimelinePanel({
         detailTitle="Current Redraft Market Price Timeline"
         detailDescription="Current-season Market Price movement from the report payload. Static redraft history shards were not available for this player."
         disableStaticHydration
+        onCloseAll={onCloseAll}
       />
     );
   }
@@ -2442,6 +2485,7 @@ function RedraftValueTimelinePanel({
         playerName={playerName}
         playerImageUrl={playerImageUrl}
         team={team}
+        teamHeaderBackgroundUrl={teamHeaderBackgroundUrl}
         teamColors={teamColors}
         tileAccent={tileAccent}
         showSourceAdmin={showSourceAdmin}
@@ -2450,6 +2494,7 @@ function RedraftValueTimelinePanel({
         detailTitle={`${activeScope.label} Redraft Market Price Timeline`}
         detailDescription={`${activeScope.sourceLabel} redraft history with Market Price, positional rank, high/low, and movement windows from static player shards.`}
         disableStaticHydration
+        onCloseAll={onCloseAll}
       />
 
       <div className="grid grid-cols-3 gap-2 text-center">
@@ -2466,6 +2511,7 @@ function PlayerValueTimelineCard({
   playerName,
   playerImageUrl,
   team,
+  teamHeaderBackgroundUrl,
   teamColors,
   tileAccent,
   showSourceAdmin = false,
@@ -2476,11 +2522,13 @@ function PlayerValueTimelineCard({
   disableStaticHydration = false,
   serverTimeline,
   isServerHydrating = false,
+  onCloseAll,
 }: {
   timeline: PlayerValueTimeline;
   playerName: string;
   playerImageUrl?: string | null;
   team?: string | null;
+  teamHeaderBackgroundUrl?: string | null;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
   showSourceAdmin?: boolean;
@@ -2491,8 +2539,20 @@ function PlayerValueTimelineCard({
   disableStaticHydration?: boolean;
   serverTimeline?: PlayerValueTimeline | null;
   isServerHydrating?: boolean;
+  onCloseAll?: () => void;
 }) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const handleCloseDetail = () => {
+    setIsDetailOpen(false);
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => triggerRef.current?.focus());
+    }
+  };
+  const handleCloseAll = () => {
+    setIsDetailOpen(false);
+    onCloseAll?.();
+  };
   const displayTimeline = useMemo(
     () => getPreferredValueTimeline(serverTimeline, timeline),
     [serverTimeline, timeline]
@@ -2519,6 +2579,7 @@ function PlayerValueTimelineCard({
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         className="player-value-timeline-trigger rounded-lg border p-3 text-left sm:p-4"
         style={{
@@ -2528,7 +2589,7 @@ function PlayerValueTimelineCard({
             : undefined,
         }}
         onClick={() => setIsDetailOpen(true)}
-        aria-label={`Open ${playerName} value timeline detail`}
+        aria-label={`View ${playerName} value history`}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -2550,7 +2611,7 @@ function PlayerValueTimelineCard({
             <div className={`text-sm font-black ${isPositive ? 'text-emerald-300' : isNegative ? 'text-rose-300' : 'text-sky-300'}`}>
               {deltaLabel}
             </div>
-            <span className="player-value-timeline-open-pill">Open detail</span>
+            <span className="player-value-timeline-open-pill">View value history</span>
           </div>
         </div>
 
@@ -2610,10 +2671,11 @@ function PlayerValueTimelineCard({
 
       <PlayerValueTimelineDetailDialog
         isOpen={isDetailOpen}
-        onClose={() => setIsDetailOpen(false)}
+        onClose={handleCloseDetail}
         playerName={playerName}
         playerImageUrl={playerImageUrl}
         team={team}
+        teamHeaderBackgroundUrl={teamHeaderBackgroundUrl}
         teamColors={teamColors}
         tileAccent={tileAccent}
         title={detailTitle}
@@ -2622,6 +2684,7 @@ function PlayerValueTimelineCard({
         deltaLabel={deltaLabel}
         showSourceAdmin={showSourceAdmin}
         isHydrating={hydrated.isHydrating}
+        onCloseAll={onCloseAll ? handleCloseAll : undefined}
       />
     </>
   );
@@ -2633,6 +2696,7 @@ function PlayerValueTimelineDetailDialog({
   playerName,
   playerImageUrl,
   team,
+  teamHeaderBackgroundUrl,
   teamColors,
   tileAccent,
   title = 'Value Timeline',
@@ -2641,12 +2705,14 @@ function PlayerValueTimelineDetailDialog({
   deltaLabel,
   showSourceAdmin,
   isHydrating = false,
+  onCloseAll,
 }: {
   isOpen: boolean;
   onClose: () => void;
   playerName: string;
   playerImageUrl?: string | null;
   team?: string | null;
+  teamHeaderBackgroundUrl?: string | null;
   teamColors?: { primary: string; secondary: string; accent: string } | null;
   tileAccent?: string;
   title?: string;
@@ -2655,8 +2721,10 @@ function PlayerValueTimelineDetailDialog({
   deltaLabel: string;
   showSourceAdmin: boolean;
   isHydrating?: boolean;
+  onCloseAll?: () => void;
 }) {
   const rawChartGradientId = useId();
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
   const chartGradientId = `player-value-chart-area-${rawChartGradientId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const [activeWindowKey, setActiveWindowKey] = useState<TimelineWindowKey>(() => getDefaultTimelineWindowKey(timeline));
   const [chartMode, setChartMode] = useState<'value' | 'rank'>('value');
@@ -2670,10 +2738,12 @@ function PlayerValueTimelineDetailDialog({
   const activePoints = activeWindow.points.length ? activeWindow.points : timeline.points;
   const firstPoint = activePoints[0];
   const lastPoint = activePoints[activePoints.length - 1];
+  const activeWindowLabel = activeWindow.label || timelineWindowLabels[activeWindowKey] || String(activeWindowKey).toUpperCase();
+  const activeWindowPointCount = activeWindow.pointCount || activePoints.length;
+  const activeWindowRange = `${formatTimelineDate(firstPoint.date)} to ${formatTimelineDate(lastPoint.date)} · ${activeWindowPointCount} pt${activeWindowPointCount === 1 ? '' : 's'}`;
   const activeDelta = activeWindow?.delta ?? timeline.summary.delta;
   const activeDeltaPct = activeWindow?.deltaPct ?? timeline.summary.deltaPct;
   const activeDeltaLabel = buildTimelineWindowDeltaLabel({ delta: activeDelta, deltaPct: activeDeltaPct }) || deltaLabel || 'No move';
-  const activeStrokeColor = getTimelineMovementColor(activeDelta);
   const rankChartPoints = useMemo(() => buildPositionRankChartPoints(activePoints), [activePoints]);
   const hasRankChart = rankChartPoints.length >= 2;
   useEffect(() => {
@@ -2684,6 +2754,10 @@ function PlayerValueTimelineDetailDialog({
   const chartTimelinePoints = visibleChartMode === 'rank'
     ? rankChartPoints.map((rankPoint) => activePoints.find((point) => point.date === rankPoint.date) || activePoints[0]).filter(Boolean)
     : activePoints;
+  const rankDirectionDelta = rankChartPoints.length >= 2
+    ? rankChartPoints[rankChartPoints.length - 1].value - rankChartPoints[0].value
+    : null;
+  const activeStrokeColor = getTimelineMovementColor(visibleChartMode === 'rank' ? rankDirectionDelta : activeDelta);
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
   const chartPoints = useMemo(() => buildTimelineCoordinates(chartInputPoints, 520, 178, 18), [chartInputPoints]);
   const chartPath = useMemo(() => buildTimelinePath(chartInputPoints, 520, 178, 18), [chartInputPoints]);
@@ -2717,6 +2791,10 @@ function PlayerValueTimelineDetailDialog({
     ? `${firstRankPoint?.rankLabel || '-'} to ${lastRankPoint?.rankLabel || '-'}`
     : `${formatValueLens(firstPoint.value)} to ${formatValueLens(lastPoint.value)}`;
   const latestRankLabel = formatTimelineRank(lastPoint);
+  const firstRankLabel = formatTimelineRank(firstPoint);
+  const rankMoveLabel = firstRankLabel !== '-' && latestRankLabel !== '-'
+    ? firstRankLabel === latestRankLabel ? latestRankLabel : `${firstRankLabel} to ${latestRankLabel}`
+    : latestRankLabel;
   const headerBackground = teamColors
     ? `radial-gradient(circle at 12% 0%, ${teamColors.primary}80, transparent 34%), radial-gradient(circle at 92% 10%, ${teamColors.secondary}88, transparent 32%), linear-gradient(135deg, ${teamColors.primary} 0%, #070b13 50%, ${teamColors.secondary} 100%)`
     : undefined;
@@ -2724,6 +2802,14 @@ function PlayerValueTimelineDetailDialog({
   const selectedSourceLabel = selectedTimelinePoint?.sourceCount
     ? `${selectedTimelinePoint.sourceCount} blend input${selectedTimelinePoint.sourceCount === 1 ? '' : 's'}`
     : 'No blend input count';
+  const visibleDescription = `Showing ${activeWindowLabel}: current value ${formatValueLens(lastPoint.value)}, net move ${activeDeltaLabel}, rank movement ${rankMoveLabel}; ${activeWindowRange}.`;
+  const handleCloseAll = () => {
+    if (onCloseAll) {
+      onCloseAll();
+      return;
+    }
+    onClose();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -2731,11 +2817,12 @@ function PlayerValueTimelineDetailDialog({
         showCloseButton={false}
         overlayClassName="player-value-timeline-overlay"
         className="player-value-timeline-modal max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[86vh] sm:max-w-3xl"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          titleRef.current?.focus({ preventScroll: true });
+        }}
       >
         <div className="player-value-timeline-modal-inner">
-          <button type="button" className="manager-modal-close" onClick={onClose} aria-label={`Close ${playerName} value timeline detail`}>
-            <X />
-          </button>
           <DialogHeader
             className="player-value-timeline-modal-header"
             style={{
@@ -2743,6 +2830,28 @@ function PlayerValueTimelineDetailDialog({
               borderColor: `${headerAccent}33`,
             }}
           >
+            {teamHeaderBackgroundUrl && (
+              <>
+                <div
+                  className="player-value-team-backdrop"
+                  style={{ backgroundImage: `url("${teamHeaderBackgroundUrl}")` }}
+                  aria-hidden="true"
+                />
+                <div className="player-value-team-backdrop-scrim" aria-hidden="true" />
+              </>
+            )}
+            <div className="player-value-timeline-actions">
+              <button type="button" className="player-value-timeline-back-button" onClick={onClose}>
+                <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5" />
+                <span>Back to player</span>
+              </button>
+              {onCloseAll && (
+                <button type="button" className="player-value-timeline-close-all-button" onClick={handleCloseAll}>
+                  <X aria-hidden="true" className="h-3.5 w-3.5" />
+                  <span>Close all</span>
+                </button>
+              )}
+            </div>
             <div className="player-value-identity-row">
               <div
                 className="player-value-identity-photo"
@@ -2759,7 +2868,7 @@ function PlayerValueTimelineDetailDialog({
               </div>
               <div className="player-value-identity-copy">
                 <p className="player-value-timeline-kicker">{title}</p>
-                <DialogTitle className="player-value-timeline-title">{playerName}</DialogTitle>
+                <DialogTitle ref={titleRef} tabIndex={-1} className="player-value-timeline-title">{playerName} Value History</DialogTitle>
                 <div className="player-value-identity-meta">
                   <TeamLogoPill team={team} showText className="player-value-identity-team-pill" />
                   {latestRankLabel !== '-' && (
@@ -2773,45 +2882,51 @@ function PlayerValueTimelineDetailDialog({
                 </div>
               </div>
             </div>
-            <DialogDescription className="sr-only">
-              {description || (isHydrating ? `Loading ${title} for ${playerName}` : `${title} for ${playerName}`)}
-            </DialogDescription>
           </DialogHeader>
 
           <div className="player-value-timeline-modal-body">
+            <DialogDescription className="player-value-timeline-description">
+              {isHydrating ? `Loading fresh value history. ${visibleDescription}` : visibleDescription}
+            </DialogDescription>
+
             {visibleWindows.length > 1 && (
               <div className="player-value-window-tabs" role="tablist" aria-label={`${playerName} value timeline range`}>
                 {visibleWindows.map((window) => (
                   <button
                     key={window.key}
                     type="button"
-                    className={`player-value-window-tab ${activeWindowKey === window.key ? 'player-value-window-tab-active' : ''}`}
+                    className={getTimelineWindowTabClassName(window, activeWindowKey === window.key)}
                     onClick={() => window.isAvailable && setActiveWindowKey(window.key)}
                     role="tab"
                     aria-selected={activeWindowKey === window.key}
+                    aria-label={`Show ${playerName} ${window.label} value history: ${window.isAvailable ? formatTimelineWindowRange(window) : 'unavailable'}`}
                     disabled={!window.isAvailable}
                     title={window.isAvailable ? `${window.label} timeline range` : `${window.label} history is still loading or unavailable`}
                   >
                     <span>{window.label}</span>
                     <strong>{window.isAvailable ? buildTimelineWindowDeltaLabel(window) || 'No move' : isHydrating ? 'Loading' : 'No data'}</strong>
                     <small>{window.isAvailable ? formatTimelineWindowRange(window) : 'Not enough points'}</small>
+                    <span className="player-value-window-tab-action" aria-hidden="true">
+                      {activeWindowKey === window.key ? 'Shown' : 'Update'}
+                    </span>
                   </button>
                 ))}
               </div>
             )}
 
             <div className="player-value-timeline-metric-grid">
-              <TimelineMetric label="Start" value={formatValueLens(firstPoint.value)} note={formatTimelineDate(firstPoint.date)} />
-              <TimelineMetric label="Current" value={formatValueLens(lastPoint.value)} note={formatTimelineDate(lastPoint.date)} />
-              <TimelineMetric label="Move" value={activeDeltaLabel} note={timeline.summary.sourceSetChanged ? 'Blend mix changed' : 'Same blend mix'} />
-              <TimelineMetric label="Latest Rank" value={formatTimelineRank(lastPoint)} note={`${lastPoint.sourceCount} blend inputs`} />
+              <TimelineMetric label="Current Value" value={formatValueLens(lastPoint.value)} note={formatTimelineDate(lastPoint.date)} />
+              <TimelineMetric label="Net Move" value={activeDeltaLabel} note={timeline.summary.sourceSetChanged ? 'Blend mix changed' : 'Same blend mix'} />
+              <TimelineMetric label="Rank Move" value={rankMoveLabel} note={`${lastPoint.sourceCount} blend inputs`} />
+              <TimelineMetric label="Range" value={activeWindowLabel} note={activeWindowRange} />
             </div>
 
             <div className="player-value-timeline-chart-panel">
               <div className="player-value-chart-toolbar">
                 <div className="player-value-chart-toolbar-copy">
-                  <span>Main Graph</span>
+                  <span>Interactive Chart</span>
                   <strong>{chartSummaryLabel}</strong>
+                  <small>Select points for exact value and rank.</small>
                 </div>
                 <div className="player-value-chart-mode-toggle" role="tablist" aria-label={`${playerName} timeline metric`}>
                   <button
@@ -2820,8 +2935,9 @@ function PlayerValueTimelineDetailDialog({
                     onClick={() => setChartMode('value')}
                     role="tab"
                     aria-selected={visibleChartMode === 'value'}
+                    aria-label={`Show ${playerName} market value chart`}
                   >
-                    Value
+                    Market Value
                   </button>
                   <button
                     type="button"
@@ -2829,6 +2945,7 @@ function PlayerValueTimelineDetailDialog({
                     onClick={() => hasRankChart && setChartMode('rank')}
                     role="tab"
                     aria-selected={visibleChartMode === 'rank'}
+                    aria-label={`Show ${playerName} position rank chart`}
                     disabled={!hasRankChart}
                     title={hasRankChart ? 'Show positional rank movement' : 'Not enough positional rank history'}
                   >
@@ -2877,16 +2994,20 @@ function PlayerValueTimelineDetailDialog({
                     const hasEvents = showSourceAdmin && Boolean(timelinePoint.events?.length);
                     const showMarker = visibleMarkerIndexes.has(index);
                     return (
-                      <g key={`${visibleChartMode}-${timelinePoint.date}-${timelinePoint.value}`}>
+                      <g
+                        key={`${visibleChartMode}-${timelinePoint.date}-${timelinePoint.value}`}
+                        className={`player-value-chart-point-group ${selectedPointIndex === index ? 'player-value-chart-point-group-selected' : ''}`}
+                      >
                         <circle
                           cx={point.x}
                           cy={point.y}
-                          r="10"
+                          r="12"
                           fill="transparent"
                           className="player-value-chart-point player-value-chart-hit-target"
                           role="button"
                           tabIndex={0}
-                          aria-label={`${formatTimelineDate(timelinePoint.date)} value ${formatTimelineExactValue(timelinePoint.value)} rank ${formatTimelineRank(timelinePoint)}`}
+                          aria-pressed={selectedPointIndex === index}
+                          aria-label={`Select ${formatTimelineDate(timelinePoint.date)} chart point: value ${formatTimelineExactValue(timelinePoint.value)}, rank ${formatTimelineRank(timelinePoint)}`}
                           onMouseEnter={() => setSelectedPointIndex(index)}
                           onFocus={() => setSelectedPointIndex(index)}
                           onClick={() => setSelectedPointIndex(index)}
