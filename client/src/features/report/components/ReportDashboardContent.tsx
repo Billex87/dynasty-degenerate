@@ -421,6 +421,7 @@ export function ReportDashboardContent({
           <ReportSinceLastReportBrief
             changes={reportDeltaChanges}
             previousSavedAt={previousSavedAt}
+            onFollowChange={handleReportNextMoveFollow}
           />
           {isPreDraftReport ? (
             <EmptyState

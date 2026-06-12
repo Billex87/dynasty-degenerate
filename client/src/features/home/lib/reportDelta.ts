@@ -9,6 +9,7 @@ import {
   type LeagueValueMode,
 } from "@/lib/leagueValueMode";
 import type { ReportDeltaChange, ReportDeltaTone } from "@/features/report/components/ReportDeltaBrief";
+import type { ReportNextMoveDestination } from "@/features/report/lib/reportNextMoveBrief";
 import type { ReportData } from "@shared/types";
 
 export const REPORT_DELTA_SNAPSHOT_KEY =
@@ -25,6 +26,7 @@ export type ReportDeltaPlayer = {
 
 export type ReportDeltaAction = {
   id: string;
+  source?: AIActionQueueItem["source"] | null;
   decision: AIActionQueueItem["decision"];
   label: string;
   action: string;
@@ -129,6 +131,7 @@ function buildReportDeltaAction(
     if (!action) return null;
     return {
       id: action.id,
+      source: action.source,
       decision: action.decision,
       label: action.label,
       action: action.action,
@@ -160,6 +163,103 @@ function describeReportDeltaPlayer(
   if (!player) return "No player";
   const meta = [player.position, player.team].filter(Boolean).join(" · ");
   return meta ? `${player.name} (${meta})` : player.name;
+}
+
+type BuildReportDeltaChangesContext = {
+  hasLeaguemateScoutRows?: boolean;
+};
+
+function getReportDeltaActionDestination(
+  action: ReportDeltaAction,
+  context: BuildReportDeltaChangesContext
+): ReportNextMoveDestination {
+  if (action.source === "waiver") {
+    return {
+      tab: "momentum",
+      sectionKey: "waiver-intelligence",
+      sectionTitle: "Waiver Intelligence",
+      buttonLabel: "Open Waiver Intelligence",
+      focusText: action.target,
+    };
+  }
+
+  if (action.source === "trade") {
+    return {
+      tab: "trades",
+      sectionKey: "trade-war-room",
+      sectionTitle: "Trade War Room",
+      buttonLabel: "Open Trade War Room",
+      focusText: action.target,
+    };
+  }
+
+  if (action.source === "lineup") {
+    return context.hasLeaguemateScoutRows
+      ? {
+          tab: "rankings",
+          sectionKey: "scout-leaguemates",
+          sectionTitle: "Scout Leaguemates",
+          buttonLabel: "Open Scout Leaguemates",
+          focusText: action.target,
+        }
+      : {
+          tab: "rankings",
+          sectionKey: "full-roster-rankings",
+          sectionTitle: "Full Roster Rankings",
+          buttonLabel: "Open Roster Rankings",
+          focusText: action.target,
+        };
+  }
+
+  return {
+    tab: "overview",
+    sectionKey: "owner-intel",
+    sectionTitle: "Owner Intel",
+    buttonLabel: "Open Owner Intel",
+    focusText: action.target,
+  };
+}
+
+function getReportDeltaWaiverDestination(
+  player: ReportDeltaPlayer
+): ReportNextMoveDestination {
+  return {
+    tab: "momentum",
+    sectionKey: "waiver-intelligence",
+    sectionTitle: "Waiver Intelligence",
+    buttonLabel: "Open Waiver Intelligence",
+    focusText: player.name,
+  };
+}
+
+function getReportDeltaTransactionsDestination(): ReportNextMoveDestination {
+  return {
+    tab: "momentum",
+    sectionKey: "recent-transactions",
+    sectionTitle: "Recent Transactions",
+    buttonLabel: "Open Recent Transactions",
+  };
+}
+
+function getReportDeltaMarketMoversDestination(
+  player: ReportDeltaPlayer
+): ReportNextMoveDestination {
+  return {
+    tab: "momentum",
+    sectionKey: "market-movers",
+    sectionTitle: "Market Movers",
+    buttonLabel: "Open Market Movers",
+    focusText: player.name,
+  };
+}
+
+function getReportDeltaTradeDestination(): ReportNextMoveDestination {
+  return {
+    tab: "trades",
+    sectionKey: "trade-war-room",
+    sectionTitle: "Trade War Room",
+    buttonLabel: "Open Trade War Room",
+  };
 }
 
 export function getEmptyReportDeltaSnapshotStore(): ReportDeltaSnapshotStore {
@@ -290,7 +390,8 @@ export function buildReportDeltaSnapshot(
 
 export function buildReportDeltaChanges(
   previous: ReportDeltaSnapshot | null,
-  current: ReportDeltaSnapshot | null
+  current: ReportDeltaSnapshot | null,
+  context: BuildReportDeltaChangesContext = {}
 ): ReportDeltaChange[] {
   if (!previous || !current || previous.signature === current.signature) {
     return [];
@@ -313,6 +414,7 @@ export function buildReportDeltaChanges(
         `Current confidence: ${currentAction.confidence}%`,
         `Mode: ${current.valueMode}`,
       ],
+      destination: getReportDeltaActionDestination(currentAction, context),
       priority: 10,
     });
   }
@@ -330,6 +432,7 @@ export function buildReportDeltaChanges(
         current.topWaiver.metricLabel || "Top available",
         `Previous: ${previous.topWaiver?.name || "none"}`,
       ],
+      destination: getReportDeltaWaiverDestination(current.topWaiver),
       priority: 8,
     });
   }
@@ -346,6 +449,7 @@ export function buildReportDeltaChanges(
         `Previous events: ${previous.transactionCount}`,
         `Current events: ${current.transactionCount}`,
       ],
+      destination: getReportDeltaTransactionsDestination(),
       priority: 7,
     });
   }
@@ -362,6 +466,7 @@ export function buildReportDeltaChanges(
         `Previous trades: ${previous.tradeCount}`,
         `Current trades: ${current.tradeCount}`,
       ],
+      destination: getReportDeltaTradeDestination(),
       priority: 6,
     });
   }
@@ -377,6 +482,7 @@ export function buildReportDeltaChanges(
         current.topRiser.metricLabel || "Positive weekly movement",
         `Previous: ${previous.topRiser?.name || "none"}`,
       ],
+      destination: getReportDeltaMarketMoversDestination(current.topRiser),
       priority: 5,
     });
   }
@@ -392,6 +498,7 @@ export function buildReportDeltaChanges(
         current.topFaller.metricLabel || "Negative weekly movement",
         `Previous: ${previous.topFaller?.name || "none"}`,
       ],
+      destination: getReportDeltaMarketMoversDestination(current.topFaller),
       priority: 4,
     });
   }

@@ -202,7 +202,11 @@ export function HomeReportExperience({
   const reportDeltaChanges = currentReportDeltaSnapshot
     ? buildReportDeltaChanges(
         previousReportDeltaSnapshot,
-        currentReportDeltaSnapshot
+        currentReportDeltaSnapshot,
+        {
+          hasLeaguemateScoutRows:
+            (reportDataForView.managerRosterIntelligence?.length || 0) > 0,
+        }
       )
     : [];
   const reportFxVariant: PremiumFxVariant =
@@ -283,7 +287,7 @@ export function HomeReportExperience({
             ownerIntelSortMode={ownerIntelSortMode}
             ownerTitle={modeCopy.ownerTitle}
             ownerKicker={modeCopy.ownerKicker}
-            previousSavedAt={currentReportDeltaSnapshot?.savedAt}
+            previousSavedAt={previousReportDeltaSnapshot?.savedAt}
             rankingsForReport={rankingsForReport}
             rankingsQueryIsLoading={rankingsQueryIsLoading}
             reportData={reportData}

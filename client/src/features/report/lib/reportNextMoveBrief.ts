@@ -11,6 +11,8 @@ export type ReportNextMoveTab = "overview" | "momentum" | "rankings" | "trades";
 
 export type ReportNextMoveSectionKey =
   | "waiver-intelligence"
+  | "recent-transactions"
+  | "market-movers"
   | "trade-war-room"
   | "scout-leaguemates"
   | "full-roster-rankings"

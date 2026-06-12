@@ -39,6 +39,14 @@ export function ReportMomentumTab({
     nextMoveTarget?.sectionKey === "waiver-intelligence"
       ? nextMoveTarget.openSignal
       : 0;
+  const recentTransactionsOpenSignal =
+    nextMoveTarget?.sectionKey === "recent-transactions"
+      ? nextMoveTarget.openSignal
+      : 0;
+  const marketMoversOpenSignal =
+    nextMoveTarget?.sectionKey === "market-movers"
+      ? nextMoveTarget.openSignal
+      : 0;
 
   return (
     <div className="report-command-section-stack space-y-6 sm:space-y-8">
@@ -77,6 +85,8 @@ export function ReportMomentumTab({
           reportData.recentTransactions,
           leagueValueMode
         )}
+        targetKey="recent-transactions"
+        openSignal={recentTransactionsOpenSignal}
       >
         <RecentTransactionsPanel
           data={reportData.recentTransactions}
@@ -91,6 +101,8 @@ export function ReportMomentumTab({
         title="Market Movers"
         kicker="Value swings"
         previewMetrics={buildMomentumPreviewMetrics(reportData)}
+        targetKey="market-movers"
+        openSignal={marketMoversOpenSignal}
       >
         <WeeklyMomentumTable
           data={[]}

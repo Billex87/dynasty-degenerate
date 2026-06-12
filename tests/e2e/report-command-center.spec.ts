@@ -1093,6 +1093,27 @@ test.describe("command center feature surfaces", () => {
       /Decision changed|Waiver target changed|Sleeper activity changed/
     );
     await expect(deltaBrief).toContainText(/Previous:|Current/);
+
+    const waiverChange = deltaBrief.locator("article").filter({
+      hasText: "Waiver target changed",
+    });
+    await expect(
+      waiverChange.getByRole("button", { name: "Open Waiver Intelligence" })
+    ).toBeVisible();
+    await waiverChange
+      .getByRole("button", { name: "Open Waiver Intelligence" })
+      .click();
+    await expect(page).toHaveURL(
+      new RegExp(`leagueId=${cachedReport.leagueId}#momentum$`)
+    );
+    const waiverSection = page.locator(
+      'details.report-disclosure[data-report-section-target="waiver-intelligence"]'
+    );
+    await expect(waiverSection).toBeVisible({ timeout: 30_000 });
+    await expect(waiverSection).toHaveAttribute("open", "");
+    await expect(
+      waiverSection.locator(".report-disclosure-body-inner")
+    ).toBeVisible();
   });
 
   test("lets report users switch the global AI voice without adding another readout", async ({

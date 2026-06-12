@@ -1,6 +1,7 @@
-import { Bot, ClipboardList } from "lucide-react";
+import { ArrowRight, Bot, ClipboardList } from "lucide-react";
 import { AITronSurface, type AITronTheme } from "@/components/AITronSurface";
 import { getAIDeltaBriefCopy } from "@/lib/aiVoice";
+import type { ReportNextMoveDestination } from "@/features/report/lib/reportNextMoveBrief";
 
 export type ReportDeltaTone = "good" | "info" | "warn" | "danger" | "neutral";
 
@@ -12,6 +13,7 @@ export type ReportDeltaChange = {
   tone: ReportDeltaTone;
   receipts: string[];
   priority: number;
+  destination?: ReportNextMoveDestination;
 };
 
 function formatReportDeltaSavedAt(value?: number | null): string {
@@ -42,9 +44,11 @@ function getReportDeltaSurfaceClass(tone: ReportDeltaTone): string {
 export function ReportSinceLastReportBrief({
   changes,
   previousSavedAt,
+  onFollowChange,
 }: {
   changes: ReportDeltaChange[];
   previousSavedAt?: number | null;
+  onFollowChange?: (destination: ReportNextMoveDestination) => void;
 }) {
   if (!changes.length) return null;
   const visibleChanges = changes.slice(0, 3);
@@ -85,6 +89,18 @@ export function ReportSinceLastReportBrief({
                 <em key={receipt}>{receipt}</em>
               ))}
             </div>
+            {change.destination && onFollowChange ? (
+              <button
+                type="button"
+                className="report-delta-brief-action inline-flex items-center justify-center gap-2 rounded-md border border-cyan-200/25 bg-cyan-300/10 px-3 py-1.5 text-xs font-bold text-cyan-50 transition hover:border-cyan-100/50 hover:bg-cyan-300/20 focus:outline-none focus:ring-2 focus:ring-cyan-200/60"
+                onClick={() => {
+                  if (change.destination) onFollowChange(change.destination);
+                }}
+              >
+                {change.destination.buttonLabel}
+                <ArrowRight size={14} aria-hidden="true" />
+              </button>
+            ) : null}
           </article>
         ))}
         {deltaCopy.hidden && (
