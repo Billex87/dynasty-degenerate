@@ -17,7 +17,7 @@ describe("buildAIReadDecision", () => {
 
     expect(decision.label).toBe("Do this");
     expect(decision.tone).toBe("go");
-    expect(decision.status).toBe("priority · 82%");
+    expect(decision.status).toBe("Strong read");
   });
 
   it("does not invent do-this copy for actionable evidence without an attached action", () => {
@@ -32,10 +32,10 @@ describe("buildAIReadDecision", () => {
       },
     });
 
-    expect(decision.label).toBe("Don't force it");
+    expect(decision.label).toBe("Watch only");
     expect(decision.tone).toBe("watch");
-    expect(decision.detail).toContain("no concrete action");
-    expect(decision.status).toBe("priority · 82%");
+    expect(decision.detail).toContain("no concrete move attached");
+    expect(decision.status).toBe("Context");
   });
 
   it("keeps capped actionable evidence from rendering as do-this copy", () => {
@@ -52,10 +52,10 @@ describe("buildAIReadDecision", () => {
       },
     });
 
-    expect(decision.label).toBe("Don't force it");
+    expect(decision.label).toBe("Verify first");
     expect(decision.tone).toBe("watch");
-    expect(decision.detail).toContain("Confidence limited by Missing source-health proof");
-    expect(decision.status).toBe("Limited · 72%");
+    expect(decision.detail).toContain("needs a cleaner manager-useful signal");
+    expect(decision.status).toBe("Watch only");
   });
 
   it("keeps actionable evidence with unresolved evidence gaps from rendering as do-this copy", () => {
@@ -72,10 +72,10 @@ describe("buildAIReadDecision", () => {
       },
     });
 
-    expect(decision.label).toBe("Don't force it");
+    expect(decision.label).toBe("Verify first");
     expect(decision.tone).toBe("watch");
-    expect(decision.detail).toContain("No live roster proof");
-    expect(decision.status).toBe("Limited · 74%");
+    expect(decision.detail).toContain("Availability and roster status need a final check");
+    expect(decision.status).toBe("Watch only");
   });
 
   it("does not let explicit do-this copy override unresolved evidence gaps", () => {
@@ -93,9 +93,9 @@ describe("buildAIReadDecision", () => {
       },
     });
 
-    expect(decision.label).toBe("Don't force it");
+    expect(decision.label).toBe("Verify first");
     expect(decision.tone).toBe("watch");
-    expect(decision.detail).toContain("Verify live roster");
+    expect(decision.detail).toContain("Availability and roster status need a final check");
   });
 
   it("does not let explicit go-tone decisions override hard blockers", () => {
@@ -119,7 +119,7 @@ describe("buildAIReadDecision", () => {
 
     expect(decision.label).toBe("Do not do this");
     expect(decision.tone).toBe("stop");
-    expect(decision.detail).toContain("already rostered");
+    expect(decision.detail).toContain("Availability and roster status need a final check");
   });
 
   it("turns blocked evidence reads into a do-not decision", () => {
@@ -136,19 +136,19 @@ describe("buildAIReadDecision", () => {
 
     expect(decision.label).toBe("Do not do this");
     expect(decision.tone).toBe("stop");
-    expect(decision.detail).toContain("already rostered");
+    expect(decision.detail).toContain("Availability and roster status need a final check");
   });
 
-  it("keeps warning and mid-confidence reads as do-not-force decisions", () => {
+  it("keeps warning and mid-confidence reads as watch-only decisions", () => {
     const decision = buildAIReadDecision({
       confidence: 63,
       confidenceNote: "Schedule source is partial.",
       severity: "warn",
     });
 
-    expect(decision.label).toBe("Don't force it");
+    expect(decision.label).toBe("Watch only");
     expect(decision.tone).toBe("watch");
-    expect(decision.status).toBe("Limited · 63%");
+    expect(decision.status).toBe("Verify first");
   });
 
   it("does not invent action when no score exists", () => {
@@ -157,18 +157,18 @@ describe("buildAIReadDecision", () => {
       severity: "info",
     });
 
-    expect(decision.label).toBe("Insufficient evidence");
+    expect(decision.label).toBe("Not enough signal");
     expect(decision.tone).toBe("thin");
   });
 
-  it("keeps unscored context panels as do-not-force decisions when they still have receipts", () => {
+  it("keeps unscored context panels as watch-only decisions when they still have receipts", () => {
     const decision = buildAIReadDecision({
       confidence: null,
       severity: "info",
       hasEvidenceHints: true,
     });
 
-    expect(decision.label).toBe("Don't force it");
+    expect(decision.label).toBe("Watch only");
     expect(decision.tone).toBe("watch");
     expect(decision.status).toBe("Context only");
   });
@@ -186,9 +186,9 @@ describe("buildAIReadDecision", () => {
       hasEnabledAction: true,
     });
 
-    expect(contextOnly.label).toBe("Don't force it");
+    expect(contextOnly.label).toBe("Watch only");
     expect(contextOnly.tone).toBe("watch");
-    expect(contextOnly.status).toBe("Context · 84%");
+    expect(contextOnly.status).toBe("Context");
     expect(actionAttached.label).toBe("Do this");
     expect(actionAttached.tone).toBe("go");
   });

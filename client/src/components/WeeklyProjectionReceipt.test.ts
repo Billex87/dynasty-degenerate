@@ -32,7 +32,7 @@ describe("WeeklyProjectionReceipt", () => {
     );
 
     expect(html).toContain('data-testid="weekly-projection-receipt"');
-    expect(html).toContain("Stored weekly projection");
+    expect(html).toContain("<em>Weekly projection</em>");
     expect(html).toContain("13.4 pts");
     expect(html).toContain("Week 1");
     expect(html).toContain("at BUF");
@@ -52,7 +52,7 @@ describe("WeeklyProjectionReceipt", () => {
     );
 
     expect(html).toContain('data-testid="projection-player-detail-trigger"');
-    expect(html).toContain("Open stored weekly projection for Waiver Receiver");
+    expect(html).toContain("Open weekly projection for Waiver Receiver");
   });
 
   it.each(["stale", "missing", "bye", "error"] as const)(

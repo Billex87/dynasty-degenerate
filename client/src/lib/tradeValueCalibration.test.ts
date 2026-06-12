@@ -106,7 +106,7 @@ describe("trade value calibration", () => {
         calibration: strongest!.calibration,
         side: "outgoing",
       })
-    ).toContain("validated riser");
+    ).toContain("confirmed riser (+1,000 since the earliest value check)");
   });
 
   it("summarizes trade calibration coverage without double-counting repeated assets", () => {

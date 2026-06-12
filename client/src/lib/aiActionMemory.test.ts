@@ -89,7 +89,7 @@ describe("aiActionMemory", () => {
     }));
 
     expect(conflicts.map(conflict => conflict.label)).toEqual(
-      expect.arrayContaining(["Hard blocker", "Missing evidence", "Source health"])
+      expect.arrayContaining(["Hard blocker", "Missing evidence", "Input health"])
     );
     expect(conflicts.some(conflict => conflict.tone === "danger")).toBe(true);
   });

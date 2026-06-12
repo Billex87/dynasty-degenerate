@@ -1129,14 +1129,14 @@ describe("schedule edge rows", () => {
       { now: NOW }
     );
 
-    expect(staleRows[0].sourceFreshness).toMatch(/^Stale - /);
+    expect(staleRows[0].sourceFreshness).toMatch(/^Schedule stale - /);
     expect(staleRows[0].sourceTone).toBe("warn");
     expect(staleRows[0].evidenceRead.canAct).toBe(false);
     expect(staleRows[0].evidenceRead.confidenceCap).toBe(55);
     expect(staleRows[0].evidenceRead.confidenceCapReason).toContain(
       "evidence freshness"
     );
-    expect(partialRows[0].sourceFreshness).toMatch(/^Partial - /);
+    expect(partialRows[0].sourceFreshness).toMatch(/^Schedule partial - /);
     expect(partialRows[0].sourceTone).toBe("warn");
     expect(partialRows[0].evidenceRead.canAct).toBe(false);
     expect(partialRows[0].evidenceRead.confidenceCap).toBe(48);
@@ -1166,7 +1166,7 @@ describe("schedule edge rows", () => {
 
     expect(row.evidenceRead.canAct).toBe(false);
     expect(row.evidenceRead.confidenceCap).toBe(48);
-    expect(row.evidenceRead.confidenceCapReason).toBe("No schedule source trace");
+    expect(row.evidenceRead.confidenceCapReason).toBe("Schedule coverage pending");
     expect(row.decisionLabel).toBe("Don't force it");
   });
 
@@ -1247,7 +1247,7 @@ describe("schedule edge rows", () => {
       { now: NOW }
     );
 
-    expect(row.sourceFreshness).toMatch(/^Fresh - /);
+    expect(row.sourceFreshness).toMatch(/^Schedule current - /);
     expect(row.sourceTone).toBe("good");
   });
 
