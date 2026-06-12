@@ -55,7 +55,7 @@ describe("buildAIReadDecision", () => {
     expect(decision.label).toBe("Verify first");
     expect(decision.tone).toBe("watch");
     expect(decision.detail).toContain("needs a cleaner manager-useful signal");
-    expect(decision.status).toBe("Watch only");
+    expect(decision.status).toBe("Limited read");
   });
 
   it("keeps actionable evidence with unresolved evidence gaps from rendering as do-this copy", () => {
@@ -75,7 +75,7 @@ describe("buildAIReadDecision", () => {
     expect(decision.label).toBe("Verify first");
     expect(decision.tone).toBe("watch");
     expect(decision.detail).toContain("Availability and roster status need a final check");
-    expect(decision.status).toBe("Watch only");
+    expect(decision.status).toBe("Limited read");
   });
 
   it("does not let explicit do-this copy override unresolved evidence gaps", () => {
@@ -148,7 +148,7 @@ describe("buildAIReadDecision", () => {
 
     expect(decision.label).toBe("Watch only");
     expect(decision.tone).toBe("watch");
-    expect(decision.status).toBe("Verify first");
+    expect(decision.status).toBe("Limited read");
   });
 
   it("does not invent action when no score exists", () => {

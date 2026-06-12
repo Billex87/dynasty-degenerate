@@ -141,7 +141,7 @@ function getEvidenceDecision(
         label: "Verify first",
         detail,
         tone: "watch",
-        status: "Watch only",
+        status: "Limited read",
       };
     }
 
@@ -217,7 +217,7 @@ export function buildAIReadDecision(input: AIReadDecisionInput): AIReadDecision 
       label: "Watch only",
       detail: confidenceDetail || "Useful signal, but not strong enough to force an action.",
       tone: "watch",
-      status: "Verify first",
+      status: "Limited read",
     };
   }
 
