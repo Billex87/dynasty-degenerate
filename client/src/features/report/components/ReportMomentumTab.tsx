@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
+import type { ReportNextMoveTarget } from "@/features/report/lib/reportNextMoveBrief";
 import {
   buildMomentumPreviewMetrics,
   buildRecentTransactionPreviewMetrics,
@@ -18,6 +19,7 @@ type ReportMomentumTabProps = {
   RecentTransactionsPanel: ComponentType<any>;
   WeeklyMomentumTable: ComponentType<any>;
   TrendingPlayersTable: ComponentType<any>;
+  nextMoveTarget?: ReportNextMoveTarget | null;
 };
 
 export function ReportMomentumTab({
@@ -31,7 +33,13 @@ export function ReportMomentumTab({
   RecentTransactionsPanel,
   WeeklyMomentumTable,
   TrendingPlayersTable,
+  nextMoveTarget,
 }: ReportMomentumTabProps) {
+  const waiverOpenSignal =
+    nextMoveTarget?.sectionKey === "waiver-intelligence"
+      ? nextMoveTarget.openSignal
+      : 0;
+
   return (
     <div className="report-command-section-stack space-y-6 sm:space-y-8">
       <CollapsibleReportSection
@@ -42,6 +50,8 @@ export function ReportMomentumTab({
             : "Waiver value"
         }
         previewMetrics={buildMomentumPreviewMetrics(reportData)}
+        targetKey="waiver-intelligence"
+        openSignal={waiverOpenSignal}
       >
         <WaiverIntelligencePanel
           data={reportData.waiverIntelligence}

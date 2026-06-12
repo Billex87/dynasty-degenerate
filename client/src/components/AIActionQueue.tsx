@@ -1,5 +1,6 @@
 import {
   Activity,
+  ArrowRight,
   BadgeCheck,
   CircleOff,
   Eye,
@@ -324,6 +325,9 @@ export function AIActionQueue({
   maxVisibleItems = 1,
   showSuppressedAlternates = true,
   showDiagnostics = false,
+  primaryActionLabel,
+  primaryActionDescription,
+  onPrimaryActionClick,
 }: {
   items?: AIActionQueueItem[];
   title?: string;
@@ -337,6 +341,9 @@ export function AIActionQueue({
   maxVisibleItems?: number;
   showSuppressedAlternates?: boolean;
   showDiagnostics?: boolean;
+  primaryActionLabel?: string;
+  primaryActionDescription?: string;
+  onPrimaryActionClick?: (item: AIActionQueueItem) => void;
 }) {
   const visibleLimit = compact ? 1 : Math.max(1, Math.floor(maxVisibleItems));
   const sourceQueue = (items || []).filter(Boolean);
@@ -492,6 +499,17 @@ export function AIActionQueue({
             memory={memory}
             memoryKey={resolvedMemoryKey}
           />
+        )}
+        {primaryActionLabel && onPrimaryActionClick && (
+          <button
+            type="button"
+            className="ai-action-queue-follow-up inline-flex items-center justify-center gap-2 rounded-full border border-cyan-200/25 bg-cyan-300/10 px-4 py-2 text-sm font-black text-cyan-50 transition hover:border-cyan-100/50 hover:bg-cyan-300/20 focus:outline-none focus:ring-2 focus:ring-cyan-200/60"
+            aria-label={primaryActionDescription || primaryActionLabel}
+            onClick={() => onPrimaryActionClick(primary)}
+          >
+            {primaryActionLabel}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </button>
         )}
       </article>
 

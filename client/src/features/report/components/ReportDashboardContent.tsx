@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 
 import { TabsContent } from "@/components/ui/tabs";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -20,6 +20,10 @@ import {
   ReportSinceLastReportBrief,
   type ReportDeltaChange,
 } from "@/features/report/components/ReportDeltaBrief";
+import type {
+  ReportNextMoveDestination,
+  ReportNextMoveTarget,
+} from "@/features/report/lib/reportNextMoveBrief";
 import {
   LeagueRosterScannerModeControls,
   OwnerIntelSortControls,
@@ -154,6 +158,7 @@ type ReportDashboardContentProps = {
   leagueId: string;
   leagueLogo: string | null;
   resolvedActiveTab: string;
+  onReportTabChange: (nextTab: string) => void;
   effectiveViewerManager: string | null;
   ownerIntelSortMode: OwnerIntelSortMode;
   onOwnerIntelSortModeChange: (mode: OwnerIntelSortMode) => void;
@@ -218,6 +223,7 @@ export function ReportDashboardContent({
   rankingsForReport,
   rankingsQueryIsLoading,
   resolvedActiveTab,
+  onReportTabChange,
   reportData,
   reportDataForView,
   reportDeltaChanges,
@@ -241,6 +247,8 @@ export function ReportDashboardContent({
   portfolioSearch,
   rosterKicker,
 }: ReportDashboardContentProps) {
+  const [nextMoveTarget, setNextMoveTarget] =
+    useState<ReportNextMoveTarget | null>(null);
   const isPreDraftReport =
     reportData.leagueDiagnostics?.draftStatus === "pre_draft" ||
     reportData.leagueDiagnostics?.draftStatus === "drafting" ||
@@ -249,6 +257,44 @@ export function ReportDashboardContent({
         "not_started");
   const preDraftDescription =
     "Sleeper has not returned complete drafted rosters for this league yet. Use Rankings for draft planning now; team-specific grades, trade reads, and draft receipts unlock after the league drafts.";
+  const handleReportNextMoveFollow = useCallback(
+    (destination: ReportNextMoveDestination) => {
+      setNextMoveTarget({
+        tab: destination.tab,
+        sectionKey: destination.sectionKey,
+        openSignal: Date.now(),
+      });
+      onReportTabChange(destination.tab);
+    },
+    [onReportTabChange]
+  );
+
+  useEffect(() => {
+    if (!nextMoveTarget || nextMoveTarget.tab !== resolvedActiveTab) return;
+    if (typeof window === "undefined") return;
+
+    let attempts = 0;
+    let timeoutId: number | null = null;
+    const selector = `[data-report-section-target="${nextMoveTarget.sectionKey}"]`;
+    const scrollToSection = () => {
+      const target = document.querySelector(selector);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      attempts += 1;
+      if (attempts <= 8) {
+        timeoutId = window.setTimeout(scrollToSection, 50);
+      }
+    };
+
+    timeoutId = window.setTimeout(scrollToSection, 0);
+    return () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [nextMoveTarget, resolvedActiveTab]);
 
   return (
     <div className="report-dashboard-shell">
@@ -271,6 +317,8 @@ export function ReportDashboardContent({
               reportData={reportDataForView}
               leagueId={leagueId}
               leagueValueMode={leagueValueMode}
+              canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+              onFollowDestination={handleReportNextMoveFollow}
             />
           ) : null}
           <ReportSinceLastReportBrief
@@ -342,6 +390,7 @@ export function ReportDashboardContent({
                   OwnerIntelMatrix={OwnerIntelMatrix}
                   LeagueCommandCenter={LeagueCommandCenter}
                   ManagerPositionCountsTable={ManagerPositionCountsTable}
+                  nextMoveTarget={nextMoveTarget}
                 />
               )}
             </TabsContent>
@@ -382,6 +431,7 @@ export function ReportDashboardContent({
                 RecentTransactionsPanel={RecentTransactionsPanel}
                 WeeklyMomentumTable={WeeklyMomentumTable}
                 TrendingPlayersTable={TrendingPlayersTable}
+                nextMoveTarget={nextMoveTarget}
               />
             </TabsContent>
 
@@ -408,6 +458,7 @@ export function ReportDashboardContent({
                 LeagueRosterScanner={LeagueRosterScanner}
                 RankingsBoard={RankingsBoard}
                 RankingsMarketRead={RankingsMarketRead}
+                nextMoveTarget={nextMoveTarget}
               />
             </TabsContent>
 
@@ -448,6 +499,7 @@ export function ReportDashboardContent({
                   TradeProfitLeaderboardTable={TradeProfitLeaderboardTable}
                   TradeTheftDetector={TradeTheftDetector}
                   TradeHistoryTable={TradeHistoryTable}
+                  nextMoveTarget={nextMoveTarget}
                 />
               )}
             </TabsContent>

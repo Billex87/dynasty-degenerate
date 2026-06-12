@@ -290,6 +290,7 @@ export function HomeReportExperience({
             reportDataForView={reportDataForView}
             reportDeltaChanges={reportDeltaChanges}
             resolvedActiveTab={resolvedActiveTab}
+            onReportTabChange={onReportTabChange}
             rosterScannerFocusKey={rosterScannerFocusKey}
             rosterTitle={modeCopy.rosterTitle}
             rosterKicker={modeCopy.rosterKicker}

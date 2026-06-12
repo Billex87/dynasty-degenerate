@@ -7,6 +7,29 @@ import type {
 } from "@/lib/autopilot/types";
 import type { LeagueValueMode } from "@/lib/leagueValueMode";
 
+export type ReportNextMoveTab = "overview" | "momentum" | "rankings" | "trades";
+
+export type ReportNextMoveSectionKey =
+  | "waiver-intelligence"
+  | "trade-war-room"
+  | "scout-leaguemates"
+  | "full-roster-rankings"
+  | "monthly-team-blueprint"
+  | "owner-intel";
+
+export type ReportNextMoveDestination = {
+  tab: ReportNextMoveTab;
+  sectionKey: ReportNextMoveSectionKey;
+  sectionTitle: string;
+  buttonLabel: string;
+};
+
+export type ReportNextMoveTarget = {
+  tab: ReportNextMoveTab;
+  sectionKey: ReportNextMoveSectionKey;
+  openSignal: number;
+};
+
 export type ReportNextMoveTelemetryProperties = {
   mode: AutopilotMode;
   decision: AIActionQueueItem["decision"];
@@ -55,6 +78,69 @@ export function createPublicNextMoveFallback(
     projections: [],
     power: [],
     scheduleTodo: [],
+  };
+}
+
+export function getReportNextMoveDestination({
+  item,
+  reportData,
+  canViewAdminFeatureExpansion = false,
+}: {
+  item: AIActionQueueItem;
+  reportData?: ReportData | null;
+  canViewAdminFeatureExpansion?: boolean;
+}): ReportNextMoveDestination {
+  if (item.source === "waiver") {
+    return {
+      tab: "momentum",
+      sectionKey: "waiver-intelligence",
+      sectionTitle: "Waiver Intelligence",
+      buttonLabel: "Open Waiver Intelligence",
+    };
+  }
+
+  if (item.source === "trade") {
+    return {
+      tab: "trades",
+      sectionKey: "trade-war-room",
+      sectionTitle: "Trade War Room",
+      buttonLabel: "Open Trade War Room",
+    };
+  }
+
+  if (item.source === "lineup") {
+    const hasLeaguemateScoutRows =
+      (reportData?.managerRosterIntelligence?.length || 0) > 0;
+
+    return hasLeaguemateScoutRows
+      ? {
+          tab: "rankings",
+          sectionKey: "scout-leaguemates",
+          sectionTitle: "Scout Leaguemates",
+          buttonLabel: "Open Scout Leaguemates",
+        }
+      : {
+          tab: "rankings",
+          sectionKey: "full-roster-rankings",
+          sectionTitle: "Full Roster Rankings",
+          buttonLabel: "Open Roster Rankings",
+        };
+  }
+
+  if (canViewAdminFeatureExpansion) {
+    return {
+      tab: "overview",
+      sectionKey: "monthly-team-blueprint",
+      sectionTitle: "Monthly Team Blueprint",
+      buttonLabel: "Open Monthly Blueprint",
+    };
+  }
+
+  return {
+    tab: "overview",
+    sectionKey: "owner-intel",
+    sectionTitle: "Owner Intel",
+    buttonLabel: "Open Owner Intel",
   };
 }
 

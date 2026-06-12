@@ -2,8 +2,10 @@ import { track } from "@vercel/analytics";
 import { useEffect, useMemo, useRef } from "react";
 import { AIActionQueue } from "@/components/AIActionQueue";
 import {
+  getReportNextMoveDestination,
   getReportNextMoveItems,
   getReportNextMoveTelemetryProperties,
+  type ReportNextMoveDestination,
   type ReportNextMoveTelemetryProperties,
 } from "@/features/report/lib/reportNextMoveBrief";
 import type { LeagueValueMode } from "@/lib/leagueValueMode";
@@ -41,10 +43,14 @@ export function ReportNextMoveBrief({
   reportData,
   leagueId,
   leagueValueMode,
+  canViewAdminFeatureExpansion = false,
+  onFollowDestination,
 }: {
   reportData: ReportData;
   leagueId?: string | null;
   leagueValueMode?: LeagueValueMode | null;
+  canViewAdminFeatureExpansion?: boolean;
+  onFollowDestination?: (destination: ReportNextMoveDestination) => void;
 }) {
   const items = useMemo(
     () =>
@@ -56,6 +62,17 @@ export function ReportNextMoveBrief({
     [leagueId, leagueValueMode, reportData]
   );
   const primary = items[0] || null;
+  const destination = useMemo(
+    () =>
+      primary
+        ? getReportNextMoveDestination({
+            item: primary,
+            reportData,
+            canViewAdminFeatureExpansion,
+          })
+        : null,
+    [canViewAdminFeatureExpansion, primary, reportData]
+  );
   const trackedEventKeyRef = useRef<string | null>(null);
   const telemetryEventKey = primary
     ? [
@@ -94,6 +111,17 @@ export function ReportNextMoveBrief({
       maxVisibleItems={1}
       showSuppressedAlternates={false}
       showDiagnostics={false}
+      primaryActionLabel={destination?.buttonLabel}
+      primaryActionDescription={
+        destination
+          ? `Open ${destination.sectionTitle} in this report`
+          : undefined
+      }
+      onPrimaryActionClick={
+        destination && onFollowDestination
+          ? () => onFollowDestination(destination)
+          : undefined
+      }
     />
   );
 }

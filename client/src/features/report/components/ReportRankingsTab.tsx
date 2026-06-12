@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import type { OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
+import type { ReportNextMoveTarget } from "@/features/report/lib/reportNextMoveBrief";
 import type { ReportData } from "@shared/types";
 
 type ReportRankingsTabProps = {
@@ -53,6 +54,7 @@ type ReportRankingsTabProps = {
     showAIReads?: boolean;
   }>;
   RankingsMarketRead: ComponentType<{ data: ReportData }>;
+  nextMoveTarget?: ReportNextMoveTarget | null;
 };
 
 export function ReportRankingsTab({
@@ -72,14 +74,25 @@ export function ReportRankingsTab({
   LeagueRosterScanner,
   RankingsBoard,
   RankingsMarketRead,
+  nextMoveTarget,
 }: ReportRankingsTabProps) {
+  const scoutOpenSignal =
+    nextMoveTarget?.sectionKey === "scout-leaguemates"
+      ? nextMoveTarget.openSignal
+      : rosterScannerFocusKey;
+  const fullRankingsOpenSignal =
+    nextMoveTarget?.sectionKey === "full-roster-rankings"
+      ? nextMoveTarget.openSignal
+      : 0;
+
   return (
     <div className="report-command-section-stack space-y-6 sm:space-y-8">
       {reportData.managerRosterIntelligence?.length ? (
         <CollapsibleReportSection
           title="Scout Leaguemates"
           kicker="Manager ranks"
-          openSignal={rosterScannerFocusKey}
+          targetKey="scout-leaguemates"
+          openSignal={scoutOpenSignal}
           afterSummaryAccessory={
             !isRedraftReport ? (
               <LeagueRosterScannerModeControls
@@ -128,6 +141,8 @@ export function ReportRankingsTab({
             ? "Season values"
             : "Player values"
         }
+        targetKey="full-roster-rankings"
+        openSignal={fullRankingsOpenSignal}
       >
         {rankingsQueryIsLoading && !rankingsForReport ? (
           <div className="rankings-empty-state">Loading league-matched rankings...</div>

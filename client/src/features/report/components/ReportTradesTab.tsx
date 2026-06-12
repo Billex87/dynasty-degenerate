@@ -34,6 +34,7 @@ import {
 import { buildMomentumPreviewMetrics } from "@/features/report/lib/reportOverviewPreview";
 import { buildTradeProposalPreviewMetrics } from "@/features/report/lib/reportOverviewPreview";
 import { buildTradePreviewMetrics } from "@/features/report/lib/reportOverviewPreview";
+import type { ReportNextMoveTarget } from "@/features/report/lib/reportNextMoveBrief";
 
 type ReportTradesTabProps = {
   reportData: ReportData;
@@ -134,6 +135,7 @@ type ReportTradesTabProps = {
     leagueValueMode?: ReportData["leagueValueMode"];
     variant?: "inline" | "modal";
   }>;
+  nextMoveTarget?: ReportNextMoveTarget | null;
 };
 
 type TradeProposalSignal = NonNullable<ReportData["tradeProposalSignals"]>[number];
@@ -1651,6 +1653,7 @@ export function ReportTradesTab({
   TradeProfitLeaderboardTable,
   TradeTheftDetector,
   TradeHistoryTable,
+  nextMoveTarget,
 }: ReportTradesTabProps) {
   const [helperSnapshot, setHelperSnapshot] =
     useState<SleeperExtensionTradeCenterSnapshot | null>(null);
@@ -2040,6 +2043,10 @@ export function ReportTradesTab({
     Boolean(helperSnapshot) &&
     !isHelperImporting &&
     !helperError;
+  const tradeWarRoomSectionOpenSignal =
+    nextMoveTarget?.sectionKey === "trade-war-room"
+      ? nextMoveTarget.openSignal
+      : tradeWarRoomOpenSignal;
 
   const viewSignalInTradeWarRoom = (signal: TradeProposalSignal) => {
     setTradeWarRoomSignal(signal);
@@ -2368,7 +2375,8 @@ export function ReportTradesTab({
             leagueValueMode,
             "war-room"
           )}
-          openSignal={tradeWarRoomOpenSignal}
+          targetKey="trade-war-room"
+          openSignal={tradeWarRoomSectionOpenSignal}
         >
           <TradeWarRoom
             data={reportData.managerRosterIntelligence}

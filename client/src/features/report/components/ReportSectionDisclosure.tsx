@@ -50,6 +50,7 @@ export function CollapsibleReportSection({
   defaultOpen = false,
   openSignal = 0,
   premium = false,
+  targetKey,
   onOpenChange,
   children,
 }: {
@@ -62,6 +63,7 @@ export function CollapsibleReportSection({
   defaultOpen?: boolean;
   openSignal?: number;
   premium?: boolean;
+  targetKey?: string;
   onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
@@ -75,6 +77,7 @@ export function CollapsibleReportSection({
     accordion ? defaultOpen : defaultOpen
   );
   const handledOpenSignalRef = useRef(0);
+  const summaryRef = useRef<HTMLElement | null>(null);
   const visiblePreviewMetrics = (previewMetrics || []).filter(metric => metric.value !== null && metric.value !== undefined && metric.value !== "");
   const useMiddleAccessoryLayout = previewAccessoryPlacement === "middle" && Boolean(previewAccessory) && visiblePreviewMetrics.length === 2;
 
@@ -96,6 +99,11 @@ export function CollapsibleReportSection({
     }
     setHasRenderedContent(true);
     onOpenChange?.(true);
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        summaryRef.current?.focus({ preventScroll: true });
+      }, 0);
+    }
   }, [accordion, openSignal, sectionId]);
 
   const handleToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
@@ -120,8 +128,9 @@ export function CollapsibleReportSection({
       className={`report-section report-disclosure${premium ? " admin-premium-flare admin-premium-section" : ""}`}
       open={accordion ? isOpen : localIsOpen}
       onToggle={handleToggle}
+      data-report-section-target={targetKey || undefined}
     >
-      <summary className="report-disclosure-summary">
+      <summary ref={summaryRef} className="report-disclosure-summary">
         <ReportSectionHeader title={title} kicker={kicker} />
         {previewAccessory ? (
           useMiddleAccessoryLayout ? (

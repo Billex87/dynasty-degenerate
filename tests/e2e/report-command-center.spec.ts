@@ -205,6 +205,50 @@ async function openReportSection(
   return section;
 }
 
+function getExpectedPublicNextMoveDestination(
+  actionSource: unknown,
+  reportData: any
+) {
+  if (actionSource === "waiver") {
+    return {
+      tabHash: "momentum",
+      sectionKey: "waiver-intelligence",
+      buttonText: "Open Waiver Intelligence",
+    };
+  }
+
+  if (actionSource === "trade") {
+    return {
+      tabHash: "trades",
+      sectionKey: "trade-war-room",
+      buttonText: "Open Trade War Room",
+    };
+  }
+
+  if (actionSource === "lineup") {
+    const hasScoutRows = Boolean(
+      reportData?.managerRosterIntelligence?.length
+    );
+    return hasScoutRows
+      ? {
+          tabHash: "rankings",
+          sectionKey: "scout-leaguemates",
+          buttonText: "Open Scout Leaguemates",
+        }
+      : {
+          tabHash: "rankings",
+          sectionKey: "full-roster-rankings",
+          buttonText: "Open Roster Rankings",
+        };
+  }
+
+  return {
+    tabHash: "overview",
+    sectionKey: "owner-intel",
+    buttonText: "Open Owner Intel",
+  };
+}
+
 async function expectVisibleOverviewPulse(
   page: import("@playwright/test").Page,
   text: RegExp | string
@@ -2397,6 +2441,28 @@ test.describe("command center feature surfaces", () => {
     await expect(page).toHaveURL(
       new RegExp(`leagueId=${cachedReport.leagueId}(#overview)?$`)
     );
+
+    const expectedDestination = getExpectedPublicNextMoveDestination(
+      telemetryEvent.actionSource,
+      cachedReport.reportData
+    );
+    const followButton = nextMove.locator(".ai-action-queue-follow-up");
+    await expect(followButton).toBeVisible();
+    await expect(followButton).toContainText(expectedDestination.buttonText);
+    await followButton.click();
+    const destinationUrlPattern =
+      expectedDestination.tabHash === "overview"
+        ? new RegExp(`leagueId=${cachedReport.leagueId}(#overview)?$`)
+        : new RegExp(`leagueId=${cachedReport.leagueId}#${expectedDestination.tabHash}$`);
+    await expect(page).toHaveURL(destinationUrlPattern);
+    const destinationSection = page.locator(
+      `details.report-disclosure[data-report-section-target="${expectedDestination.sectionKey}"]`
+    );
+    await expect(destinationSection).toBeVisible({ timeout: 30_000 });
+    await expect(destinationSection).toHaveAttribute("open", "");
+    await expect(
+      destinationSection.locator(".report-disclosure-body-inner")
+    ).toBeVisible();
   });
 
   test("reveals the report if the success handoff timer stalls", async ({

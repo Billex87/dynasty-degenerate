@@ -8,6 +8,7 @@ import {
   buildTaxiPreviewMetrics,
 } from "@/features/report/lib/reportOverviewPreview";
 import type { OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
+import type { ReportNextMoveTarget } from "@/features/report/lib/reportNextMoveBrief";
 import type { ReportData } from "@shared/types";
 import {
   HomePortfolioPanel,
@@ -107,6 +108,7 @@ type ReportOverviewTabProps = {
     viewerManager?: string | null;
     leagueValueMode?: ReportData["leagueValueMode"];
   }>;
+  nextMoveTarget?: ReportNextMoveTarget | null;
 };
 
 export function ReportOverviewTab({
@@ -149,6 +151,7 @@ export function ReportOverviewTab({
   OwnerIntelMatrix,
   LeagueCommandCenter,
   ManagerPositionCountsTable,
+  nextMoveTarget,
 }: ReportOverviewTabProps) {
   const hasTaxiTriage =
     !isRedraftReport &&
@@ -158,6 +161,8 @@ export function ReportOverviewTab({
   const portfolioOverlapCount = homePortfolioRows.filter(
     row => row.leagueCount > 1
   ).length;
+  const getNextMoveOpenSignal = (sectionKey: ReportNextMoveTarget["sectionKey"]) =>
+    nextMoveTarget?.sectionKey === sectionKey ? nextMoveTarget.openSignal : 0;
   const playerHoardSection = orderedUserLeagues.length > 0 ? (
     <CollapsibleReportSection
       title="Cross League Exposure"
@@ -223,6 +228,8 @@ export function ReportOverviewTab({
             title="Monthly Team Blueprint"
             kicker="Monthly roster plan"
             premium
+            targetKey="monthly-team-blueprint"
+            openSignal={getNextMoveOpenSignal("monthly-team-blueprint")}
             previewMetrics={[
               {
                 label: "Direction",
@@ -398,6 +405,8 @@ export function ReportOverviewTab({
       <CollapsibleReportSection
         title={ownerTitle}
         kicker={ownerKicker}
+        targetKey="owner-intel"
+        openSignal={getNextMoveOpenSignal("owner-intel")}
         afterSummaryAccessory={
           !isRedraftReport ? (
             <OwnerIntelSortControls
