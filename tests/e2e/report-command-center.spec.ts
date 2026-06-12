@@ -2463,6 +2463,11 @@ test.describe("command center feature surfaces", () => {
     await expect(
       destinationSection.locator(".report-disclosure-body-inner")
     ).toBeVisible();
+    await expect(
+      destinationSection
+        .locator('[data-report-next-move-focus="true"]')
+        .first()
+    ).toBeVisible({ timeout: 30_000 });
   });
 
   test("reveals the report if the success handoff timer stalls", async ({

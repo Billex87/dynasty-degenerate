@@ -10,7 +10,7 @@ import type { ReportData } from "@shared/types";
 function createActionItem(
   source: AIActionQueueItem["source"]
 ): AIActionQueueItem {
-  return { source } as AIActionQueueItem;
+  return { source, target: "Focus Player" } as AIActionQueueItem;
 }
 
 function expectDestination(
@@ -35,12 +35,14 @@ describe("getReportNextMoveDestination", () => {
       tab: "momentum",
       sectionKey: "waiver-intelligence",
       buttonLabel: "Open Waiver Intelligence",
+      focusText: "Focus Player",
     });
 
     expectDestination("trade", {
       tab: "trades",
       sectionKey: "trade-war-room",
       buttonLabel: "Open Trade War Room",
+      focusText: "Focus Player",
     });
   });
 

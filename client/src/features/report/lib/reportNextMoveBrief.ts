@@ -22,12 +22,14 @@ export type ReportNextMoveDestination = {
   sectionKey: ReportNextMoveSectionKey;
   sectionTitle: string;
   buttonLabel: string;
+  focusText?: string;
 };
 
 export type ReportNextMoveTarget = {
   tab: ReportNextMoveTab;
   sectionKey: ReportNextMoveSectionKey;
   openSignal: number;
+  focusText?: string;
 };
 
 export type ReportNextMoveTelemetryProperties = {
@@ -96,6 +98,7 @@ export function getReportNextMoveDestination({
       sectionKey: "waiver-intelligence",
       sectionTitle: "Waiver Intelligence",
       buttonLabel: "Open Waiver Intelligence",
+      focusText: item.target,
     };
   }
 
@@ -105,6 +108,7 @@ export function getReportNextMoveDestination({
       sectionKey: "trade-war-room",
       sectionTitle: "Trade War Room",
       buttonLabel: "Open Trade War Room",
+      focusText: item.target,
     };
   }
 
@@ -118,12 +122,14 @@ export function getReportNextMoveDestination({
           sectionKey: "scout-leaguemates",
           sectionTitle: "Scout Leaguemates",
           buttonLabel: "Open Scout Leaguemates",
+          focusText: item.target,
         }
       : {
           tab: "rankings",
           sectionKey: "full-roster-rankings",
           sectionTitle: "Full Roster Rankings",
           buttonLabel: "Open Roster Rankings",
+          focusText: item.target,
         };
   }
 
@@ -133,6 +139,7 @@ export function getReportNextMoveDestination({
       sectionKey: "monthly-team-blueprint",
       sectionTitle: "Monthly Team Blueprint",
       buttonLabel: "Open Monthly Blueprint",
+      focusText: item.target,
     };
   }
 
@@ -141,6 +148,7 @@ export function getReportNextMoveDestination({
     sectionKey: "owner-intel",
     sectionTitle: "Owner Intel",
     buttonLabel: "Open Owner Intel",
+    focusText: item.target,
   };
 }
 

@@ -144,6 +144,84 @@ const AssistantFeatureShells = lazy(() =>
   }))
 );
 
+const NEXT_MOVE_FOCUS_CANDIDATE_SELECTOR = [
+  "button",
+  "a",
+  "[role='button']",
+  "[tabindex]",
+  ".player-team-tile",
+  ".waiver-intel-card",
+  ".trade-war-manager-board-card",
+  ".trade-war-manager-board-row",
+  ".rankings-row",
+  ".rankings-player-row",
+  "tr",
+  "li",
+  "article",
+].join(",");
+
+function normalizeNextMoveFocusText(value?: string | null) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function isVisibleReportElement(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  const style = window.getComputedStyle(element);
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    style.display !== "none" &&
+    style.visibility !== "hidden"
+  );
+}
+
+function clearReportNextMoveFocus() {
+  document
+    .querySelectorAll('[data-report-next-move-focus="true"]')
+    .forEach(element => {
+      element.removeAttribute("data-report-next-move-focus");
+    });
+}
+
+function findReportNextMoveFocusElement(
+  section: Element,
+  focusText?: string | null
+) {
+  const normalizedFocusText = normalizeNextMoveFocusText(focusText);
+  if (!normalizedFocusText) return null;
+
+  return (
+    Array.from(
+      section.querySelectorAll<HTMLElement>(NEXT_MOVE_FOCUS_CANDIDATE_SELECTOR)
+    ).find(element => {
+      if (!isVisibleReportElement(element)) return false;
+      return normalizeNextMoveFocusText(element.textContent).includes(
+        normalizedFocusText
+      );
+    }) || null
+  );
+}
+
+function focusReportNextMoveElement(element: HTMLElement) {
+  const focusable = element.matches(
+    "button,a,input,select,textarea,[tabindex]"
+  )
+    ? element
+    : element.querySelector<HTMLElement>(
+        "button,a,input,select,textarea,[tabindex]"
+      );
+
+  focusable?.focus({ preventScroll: true });
+}
+
+function markReportNextMoveFocus(element: HTMLElement) {
+  clearReportNextMoveFocus();
+  element.setAttribute("data-report-next-move-focus", "true");
+}
+
 type ReportDashboardContentProps = {
   reportData: ReportData;
   reportDataForView: ReportData;
@@ -263,6 +341,7 @@ export function ReportDashboardContent({
         tab: destination.tab,
         sectionKey: destination.sectionKey,
         openSignal: Date.now(),
+        focusText: destination.focusText,
       });
       onReportTabChange(destination.tab);
     },
@@ -277,9 +356,27 @@ export function ReportDashboardContent({
     let timeoutId: number | null = null;
     const selector = `[data-report-section-target="${nextMoveTarget.sectionKey}"]`;
     const scrollToSection = () => {
-      const target = document.querySelector(selector);
-      if (target) {
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      const section = document.querySelector(selector);
+      if (section) {
+        const focusElement = findReportNextMoveFocusElement(
+          section,
+          nextMoveTarget.focusText
+        );
+        if (nextMoveTarget.focusText && !focusElement && attempts <= 8) {
+          attempts += 1;
+          timeoutId = window.setTimeout(scrollToSection, 50);
+          return;
+        }
+
+        const scrollTarget = focusElement || section;
+        scrollTarget.scrollIntoView({
+          behavior: "smooth",
+          block: focusElement ? "center" : "start",
+        });
+        if (focusElement) {
+          markReportNextMoveFocus(focusElement);
+          focusReportNextMoveElement(focusElement);
+        }
         return;
       }
       attempts += 1;
