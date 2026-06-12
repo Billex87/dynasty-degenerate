@@ -57,6 +57,12 @@ import {
   trackFirstSessionFunnelEvent,
 } from "@/features/home/lib/firstSessionTelemetry";
 import {
+  SAMPLE_REPORT_LEAGUE_FORMAT,
+  SAMPLE_REPORT_LEAGUE_ID,
+  SAMPLE_REPORT_LEAGUE_NAME,
+  createSampleReportData,
+} from "@/features/home/lib/sampleReport";
+import {
   type AnalysisLeaguePreview,
   type CachedSleeperUser,
   type SleeperLeagueOption,
@@ -239,6 +245,23 @@ function applySleeperTradeCenterImportDisplayPatch(
   };
 }
 
+function setSampleReportUrl(active: boolean) {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  params.delete("leagueId");
+  params.delete("league");
+  params.delete("tab");
+  if (active) {
+    params.set("demo", "sample");
+  } else {
+    params.delete("demo");
+  }
+
+  const nextSearch = params.toString();
+  const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}`;
+  window.history.replaceState(null, "", nextUrl);
+}
+
 export default function Home() {
   const authQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
@@ -278,6 +301,7 @@ export default function Home() {
   );
   const { aiVoiceMode, handleAIVoiceModeChange } = useHomeAIVoiceMode();
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [isSampleReportActive, setIsSampleReportActive] = useState(false);
   const [
     sleeperTradeCenterImportDisplayPatch,
     setSleeperTradeCenterImportDisplayPatch,
@@ -412,7 +436,8 @@ export default function Home() {
     setLeagueIdHistory,
   });
 
-  const { analyzeReport, handleAnalyze } = useHomeReportAnalysis({
+  const { analyzeReport, handleAnalyze: handleAnalyzeReport } =
+    useHomeReportAnalysis({
     activeTab,
     cachedSleeperUsers,
     leagueId,
@@ -446,6 +471,71 @@ export default function Home() {
     setReportData,
     setReportDataCacheVersion,
   });
+
+  const handleAnalyze = async (targetLeagueId?: string) => {
+    setIsSampleReportActive(false);
+    setSampleReportUrl(false);
+    await handleAnalyzeReport(targetLeagueId);
+  };
+
+  const handleViewSampleReport = (options?: { syncUrl?: boolean }) => {
+    clearSuccessTransitionTimers();
+    activeAnalysisLeagueIdRef.current = null;
+    analyzeRequestStartedAtRef.current = null;
+    backgroundRefreshLeagueIdRef.current = null;
+    reportLoadStartedAtRef.current = null;
+    analysisModeRef.current = "blocking";
+    setIsSampleReportActive(true);
+    setSleeperTradeCenterImportDisplayPatch(null);
+    setAnalysisCompleteMessage(null);
+    setAnalysisErrorMessage(null);
+    setPendingAnalysisLeague(null);
+    setHasLoadingTimedOut(false);
+    setLoadingManagerAnchors([]);
+    setLoadingTransitionPhase("done");
+    setIsLoading(false);
+    setIsReportRefreshing(false);
+    setIsLeaguePickerOpen(false);
+    setIsChangeLeagueModalOpen(false);
+    setIsAdminAccessModalOpen(false);
+    setAdminViewMode(null);
+    setAdminViewerManager(null);
+    setLeagueId(SAMPLE_REPORT_LEAGUE_ID);
+    setLeagueName(SAMPLE_REPORT_LEAGUE_NAME);
+    setLeagueLogo(null);
+    setLeagueFormat(SAMPLE_REPORT_LEAGUE_FORMAT);
+    setViewerUserId(null);
+    setViewerUsername(null);
+    setActiveTab("overview");
+    setReportDataCacheVersion(null);
+    setReportData(createSampleReportData());
+    if (options?.syncUrl !== false) {
+      setSampleReportUrl(true);
+    }
+    trackFirstSessionFunnelEvent("Analysis Started", {
+      entryMethod: "sample_report",
+      viewport: getViewportBucket(),
+    });
+    trackFirstSessionFunnelEvent("Report Visible", {
+      entryMethod: "sample_report",
+      viewport: getViewportBucket(),
+      reportMode: "dynasty",
+      reportSource: "sample",
+      cacheStatus: "unknown",
+      activeTab: "overview",
+      elapsedMsBucket: "<1s",
+      requestMsBucket: "<1s",
+    });
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") !== "sample") return;
+    handleViewSampleReport({ syncUrl: false });
+    // The demo deep link should hydrate once on initial page load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const {
     applyCachedReport,
@@ -532,6 +622,10 @@ export default function Home() {
     setViewerUsername,
   });
 
+  const reportDataForPrivateSideEffects = isSampleReportActive
+    ? null
+    : reportData;
+
   usePersistHomeReportCache({
     activeTab,
     lastLeagueKey: LAST_LEAGUE_KEY,
@@ -539,11 +633,11 @@ export default function Home() {
     leagueId,
     leagueLogo,
     leagueName,
-    reportData,
+    reportData: reportDataForPrivateSideEffects,
   });
 
   useStaleReportCacheRefresh({
-    reportData,
+    reportData: reportDataForPrivateSideEffects,
     reportDataCacheVersion,
     leagueId,
     isLoading,
@@ -608,7 +702,7 @@ export default function Home() {
     handleCancelLoading,
     handleHeaderLeagueClick,
     handleRetryLoading,
-    handleStartOver,
+    handleStartOver: handleStartOverBase,
   } = useHomeNavigationActions({
     activeAnalysisLeagueIdRef,
     analysisModeRef,
@@ -647,6 +741,11 @@ export default function Home() {
     setViewerUserId,
     setViewerUsername,
   });
+  const handleStartOver = () => {
+    setIsSampleReportActive(false);
+    setSampleReportUrl(false);
+    handleStartOverBase();
+  };
 
   const activeCachedSleeperUser = findCachedSleeperUser(
     cachedSleeperUsers,
@@ -747,12 +846,12 @@ export default function Home() {
     currentReportDeltaSnapshot,
     previousReportDeltaSnapshot,
   } = useReportDeltaSnapshots({
-    reportData: reportDataWithRankings,
+    reportData: isSampleReportActive ? null : reportDataWithRankings,
     leagueId,
     leagueName,
   });
   useReportBackgroundRefresh({
-    reportData,
+    reportData: reportDataForPrivateSideEffects,
     leagueId,
     reportDataCacheVersion,
     isLoading,
@@ -987,6 +1086,7 @@ export default function Home() {
         analysisErrorMessage={analysisErrorMessage}
         showLegacyLeagueIdLogin={SHOW_LEGACY_LEAGUE_ID_LOGIN}
         handleAnalyze={() => handleAnalyze()}
+        onViewSampleReport={handleViewSampleReport}
         isAnalysisBusy={isLoading}
         showLoadingFooter={!reportData}
         onStartOver={handleStartOver}

@@ -5,6 +5,7 @@ test.describe('homepage smoke', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByPlaceholder('Sleeper username')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'View Sample Report' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Run (The Damn Report|Degenerate Analysis)/ })).toBeVisible();
     await expect(page.getByPlaceholder('Find in your Sleeper app settings or URL')).toBeVisible();
 
@@ -15,6 +16,30 @@ test.describe('homepage smoke', () => {
     });
 
     expect(overflow).toBeLessThanOrEqual(1);
+  });
+
+  test('opens a public sample report from the signed-out landing', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+    await page.getByRole('button', { name: 'View Sample Report' }).click();
+
+    await expect(page.getByRole('heading', { name: /Sample Dynasty League league report/i })).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page).toHaveURL(/demo=sample/);
+    await expect(page.getByText('Your Next Move')).toBeVisible();
+    await expect(page.locator('.report-next-move-brief')).not.toContainText(
+      /KTC|FantasyCalc|FantasyPros|DraftSharks/i
+    );
+    await expect(page.getByRole('tab', { name: 'Overview' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'AI Autopilot' })).toHaveCount(0);
+    await expect(page.getByText('AI Team Autopilot')).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem('dynasty-degenerates:last-league:v1'))).toBeNull();
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByText('Your Next Move')).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'AI Autopilot' })).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem('dynasty-degenerates:last-league:v1'))).toBeNull();
   });
 
   test('renders the internal report component reference', async ({ page }) => {

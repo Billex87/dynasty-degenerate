@@ -23,6 +23,7 @@ export type FirstSessionEntryMethod =
   | "username"
   | "league_id"
   | "league_picker"
+  | "sample_report"
   | "cached_report"
   | "unknown";
 
@@ -44,7 +45,7 @@ export type FirstSessionFunnelProperties = {
   viewport?: FirstSessionViewportBucket;
   leagueCountBucket?: "0" | "1" | "2-3" | "4-7" | "8+";
   reportMode?: FirstSessionReportMode;
-  reportSource?: "browser-cache" | "server";
+  reportSource?: "browser-cache" | "server" | "sample";
   cacheStatus?: "browser" | "hit" | "miss" | "unknown";
   activeTab?:
     | "overview"
@@ -80,6 +81,7 @@ const ENTRY_METHODS = [
   "username",
   "league_id",
   "league_picker",
+  "sample_report",
   "cached_report",
   "unknown",
 ] as const;
@@ -92,7 +94,7 @@ const TRIGGERS = [
 const VIEWPORTS = ["mobile", "tablet", "desktop", "unknown"] as const;
 const LEAGUE_COUNT_BUCKETS = ["0", "1", "2-3", "4-7", "8+"] as const;
 const REPORT_MODES = ["dynasty", "redraft", "unknown"] as const;
-const REPORT_SOURCES = ["browser-cache", "server"] as const;
+const REPORT_SOURCES = ["browser-cache", "server", "sample"] as const;
 const CACHE_STATUSES = ["browser", "hit", "miss", "unknown"] as const;
 const ACTIVE_TABS = [
   "overview",

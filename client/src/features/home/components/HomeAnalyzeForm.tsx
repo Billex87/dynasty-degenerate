@@ -13,6 +13,7 @@ interface HomeAnalyzeFormProps {
   isFindLeaguesPending: boolean;
   isAnalysisBusy: boolean;
   analysisErrorMessage?: string | null;
+  onViewSampleReport: () => void;
   onFocusedAutocompleteChange: (value: "username" | "league" | null) => void;
   onSleeperUsernameChange: (value: string) => void;
   onLeagueIdChange: (value: string) => void;
@@ -33,6 +34,7 @@ export function HomeAnalyzeForm({
   isFindLeaguesPending,
   isAnalysisBusy,
   analysisErrorMessage,
+  onViewSampleReport,
   onFocusedAutocompleteChange,
   onSleeperUsernameChange,
   onLeagueIdChange,
@@ -92,6 +94,15 @@ export function HomeAnalyzeForm({
             {isFindLeaguesPending ? "Finding Leagues..." : "Find Leagues"}
           </Button>
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onViewSampleReport}
+          disabled={isAnalysisBusy || isFindLeaguesPending}
+          className="home-sample-report-button mt-3 h-auto min-h-10 w-full rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10 sm:w-auto"
+        >
+          View Sample Report
+        </Button>
       </div>
 
       {analysisErrorMessage ? (

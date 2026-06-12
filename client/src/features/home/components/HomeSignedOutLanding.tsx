@@ -42,6 +42,7 @@ interface HomeSignedOutLandingProps {
   analysisErrorMessage?: string | null;
   showLegacyLeagueIdLogin: boolean;
   handleAnalyze: () => void;
+  onViewSampleReport: () => void;
   isAnalysisBusy: boolean;
   showLoadingFooter: boolean;
   onStartOver: () => void;
@@ -78,6 +79,7 @@ export function HomeSignedOutLanding({
   analysisErrorMessage,
   showLegacyLeagueIdLogin,
   handleAnalyze,
+  onViewSampleReport,
   isAnalysisBusy,
   showLoadingFooter,
   onStartOver,
@@ -101,6 +103,7 @@ export function HomeSignedOutLanding({
 
             <HomeAnalyzeForm
               showLegacyLeagueIdLogin={showLegacyLeagueIdLogin}
+              onViewSampleReport={onViewSampleReport}
               leagueId={leagueId}
               sleeperUsername={sleeperUsername}
               leagueIdHistory={leagueIdHistory}
