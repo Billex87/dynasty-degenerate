@@ -150,8 +150,6 @@ Review-only candidates:
 - `home-image-kit/`
 - `interactive-globe/`
 - `rightpanel/`
-- `loader-kit/`
-- `client/src/_core/loader-kit/`
 - `client/src/pages/ComponentShowcase.tsx`
 - `.DS_Store` files, `dev_server.log`, `.tmp.prod.env`
 
