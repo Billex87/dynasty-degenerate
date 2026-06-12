@@ -32,6 +32,24 @@ export type LeagueRankResult = Pick<
   "leagueId" | "standingsRank" | "powerRank" | "rosterPlayers" | "managerAnchors"
 >;
 
+type LeagueStartRecommendationCandidate = Pick<
+  SleeperLeagueOption,
+  | "leagueId"
+  | "name"
+  | "totalRosters"
+  | "standingsRank"
+  | "powerRank"
+  | "rosterPlayers"
+>;
+
+export type LeagueStartRecommendation = {
+  leagueId: string;
+  leagueName: string;
+  reason: string;
+  cardLabel: string;
+  cardDetail: string;
+};
+
 export type AnalysisLeaguePreview = {
   leagueName: string;
   leagueFormat: string;
@@ -374,6 +392,137 @@ export function getOrderedLeagueOptions(
     ...recentLeagues,
     ...leagues.filter(league => !seen.has(league.leagueId)),
   ];
+}
+
+function getRankSignalScore(
+  rank: number | null | undefined,
+  totalRosters: number
+): number | null {
+  if (typeof rank !== "number" || !Number.isFinite(rank) || rank <= 0) {
+    return null;
+  }
+
+  const leagueSize = Math.max(totalRosters || 0, rank, 1);
+  return ((leagueSize - rank + 1) / leagueSize) * 100;
+}
+
+function getLeagueStartReason(
+  league: LeagueStartRecommendationCandidate,
+  hasPortfolioSignal: boolean,
+  isRecent: boolean
+): Pick<LeagueStartRecommendation, "reason" | "cardDetail"> {
+  if (league.powerRank === 1 && league.standingsRank === 1) {
+    return {
+      reason: "top power and standings signal",
+      cardDetail: "Best signal",
+    };
+  }
+  if (league.powerRank != null && league.standingsRank != null) {
+    return {
+      reason: "best combined power and standings signal",
+      cardDetail: "Best signal",
+    };
+  }
+  if (league.powerRank != null) {
+    return {
+      reason: `best power signal at #${league.powerRank}`,
+      cardDetail: `Power #${league.powerRank}`,
+    };
+  }
+  if (league.standingsRank != null) {
+    return {
+      reason: `best standings signal at #${league.standingsRank}`,
+      cardDetail: `Standings #${league.standingsRank}`,
+    };
+  }
+  if (hasPortfolioSignal) {
+    return {
+      reason: "portfolio data is already ready",
+      cardDetail: "Portfolio",
+    };
+  }
+  if (isRecent) {
+    return {
+      reason: "recently analyzed league",
+      cardDetail: "Recent",
+    };
+  }
+  return {
+    reason: "most complete league intel",
+    cardDetail: "Ready",
+  };
+}
+
+export function getLeagueStartRecommendation<
+  TLeague extends LeagueStartRecommendationCandidate,
+>(
+  leagues: TLeague[],
+  cachedUser?: Pick<CachedSleeperUser, "recentLeagueIds"> | null
+): LeagueStartRecommendation | null {
+  if (leagues.length <= 1) return null;
+
+  const recentRankByLeagueId = new Map(
+    (cachedUser?.recentLeagueIds || []).map((leagueId, index) => [
+      leagueId,
+      index,
+    ])
+  );
+  const candidates = leagues
+    .map((league, index) => {
+      const powerScore = getRankSignalScore(
+        league.powerRank,
+        league.totalRosters
+      );
+      const standingsScore = getRankSignalScore(
+        league.standingsRank,
+        league.totalRosters
+      );
+      const rosterPlayerCount = Array.isArray(league.rosterPlayers)
+        ? league.rosterPlayers.length
+        : 0;
+      const hasPortfolioSignal = rosterPlayerCount > 0;
+      const recentIndex = recentRankByLeagueId.get(league.leagueId);
+      const recentScore =
+        typeof recentIndex === "number" ? Math.max(0, 10 - recentIndex * 2) : 0;
+      const rankScore =
+        (powerScore ?? 0) * 0.42 + (standingsScore ?? 0) * 0.34;
+      const portfolioScore = hasPortfolioSignal
+        ? Math.min(18, 6 + Math.log2(rosterPlayerCount + 1) * 3)
+        : 0;
+      const score = rankScore + portfolioScore + recentScore;
+      const hasSignal =
+        powerScore !== null ||
+        standingsScore !== null ||
+        hasPortfolioSignal ||
+        recentScore > 0;
+
+      return {
+        league,
+        score,
+        hasSignal,
+        hasPortfolioSignal,
+        isRecent: recentScore > 0,
+        index,
+      };
+    })
+    .filter(candidate => candidate.hasSignal)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  const best = candidates[0];
+  if (!best) return null;
+
+  const reason = getLeagueStartReason(
+    best.league,
+    best.hasPortfolioSignal,
+    best.isRecent
+  );
+
+  return {
+    leagueId: best.league.leagueId,
+    leagueName: best.league.name,
+    cardLabel: "Start here",
+    ...reason,
+  };
 }
 
 export function buildLoadingManagerAnchors(

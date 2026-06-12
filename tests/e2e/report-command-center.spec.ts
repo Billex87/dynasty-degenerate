@@ -2014,6 +2014,129 @@ test.describe("command center feature surfaces", () => {
     await expect(playerHoard.getByText("Shared Quarterback")).toBeVisible();
   });
 
+  test("recommends the strongest starting league after username lookup", async ({
+    page,
+  }) => {
+    const leagues = [
+      {
+        leagueId: "10000000000001",
+        name: "Alpha Rebuild",
+        avatarUrl: null,
+        season: "2026",
+        format: "12-Team Dynasty PPR",
+        mobileFormat: "12-Team Dynasty",
+        totalRosters: 12,
+        standingsRank: null,
+        powerRank: null,
+      },
+      {
+        leagueId: "10000000000002",
+        name: "Beta Contenders",
+        avatarUrl: null,
+        season: "2026",
+        format: "12-Team Dynasty Superflex PPR",
+        mobileFormat: "12-Team SF",
+        totalRosters: 12,
+        standingsRank: null,
+        powerRank: null,
+      },
+      {
+        leagueId: "10000000000003",
+        name: "Gamma Middle",
+        avatarUrl: null,
+        season: "2026",
+        format: "10-Team Redraft PPR",
+        mobileFormat: "10-Team Redraft",
+        totalRosters: 10,
+        standingsRank: null,
+        powerRank: null,
+      },
+    ];
+
+    await page.route("**/api/trpc/**", async route => {
+      const requestUrl = route.request().url();
+
+      if (requestUrl.includes("league.getUserLeagues")) {
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify(
+            createTrpcBatchResponse({
+              user: {
+                userId: "123456789012345678",
+                username: "newuser",
+                displayName: "New User",
+                avatarUrl: null,
+                hasAdminPermissions: false,
+                isPrivilegedReportViewer: false,
+              },
+              leagues,
+            })
+          ),
+        });
+        return;
+      }
+
+      if (requestUrl.includes("league.getUserLeagueRanks")) {
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify(
+            createTrpcBatchResponse({
+              ranks: [
+                {
+                  leagueId: "10000000000001",
+                  standingsRank: 4,
+                  powerRank: 6,
+                  managerAnchors: [],
+                },
+                {
+                  leagueId: "10000000000002",
+                  standingsRank: 1,
+                  powerRank: 2,
+                  managerAnchors: [],
+                },
+                {
+                  leagueId: "10000000000003",
+                  standingsRank: 3,
+                  powerRank: 4,
+                  managerAnchors: [],
+                },
+              ],
+            })
+          ),
+        });
+        return;
+      }
+
+      await route.continue();
+    });
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.getByLabel("Enter Your Sleeper Username").fill("newuser");
+    await page.getByRole("button", { name: "Find Leagues" }).click();
+
+    await expect(
+      page.getByText(
+        "Start with Beta Contenders: best combined power and standings signal."
+      )
+    ).toBeVisible({
+      timeout: 15_000,
+    });
+    const recommendedLeague = page
+      .locator("button.home-league-card")
+      .filter({ hasText: "Beta Contenders" });
+    await expect(recommendedLeague).toContainText("Start here");
+    await expect(recommendedLeague).toContainText("Best signal");
+    await expect(recommendedLeague).toHaveAttribute(
+      "aria-label",
+      /Recommended start: best combined power and standings signal/
+    );
+    await expect(
+      page
+        .locator("button.home-league-card")
+        .filter({ hasText: "Alpha Rebuild" })
+    ).not.toContainText("Start here");
+  });
+
   test("keeps blueprint export controls print-focused without clipboard copy", async ({
     page,
   }) => {

@@ -11,10 +11,12 @@ import {
   LeaguePickerCard,
   type HomeLeagueSelectionLeague,
 } from "@/features/home/components/HomeLeagueSelection";
+import { getLeagueStartRecommendation } from "@/features/home/lib/leagueHistory";
 
 export type LeagueDialogUser = {
   avatarUrl?: string | null;
   displayName?: string | null;
+  recentLeagueIds?: string[];
 };
 
 export function LeaguePickerDialog({
@@ -38,6 +40,12 @@ export function LeaguePickerDialog({
 }) {
   if (!leagues.length) return null;
 
+  const recentLeagueContext = activeCachedSleeperUser?.recentLeagueIds
+    ? { recentLeagueIds: activeCachedSleeperUser.recentLeagueIds }
+    : null;
+  const startRecommendation = isLeaguePickerIntelBusy
+    ? null
+    : getLeagueStartRecommendation(leagues, recentLeagueContext);
   const fallbackInitials = (
     sleeperUsername ||
     activeCachedSleeperUser?.displayName ||
@@ -83,6 +91,12 @@ export function LeaguePickerDialog({
             {isLeaguePickerIntelBusy ? (
               <span>Syncing rankings and manager icons</span>
             ) : null}
+            {startRecommendation ? (
+              <span className="league-switch-start-hint">
+                Start with <strong>{startRecommendation.leagueName}</strong>:{" "}
+                {startRecommendation.reason}.
+              </span>
+            ) : null}
           </DialogDescription>
         </DialogHeader>
         <div className="home-league-picker league-switch-picker">
@@ -92,6 +106,11 @@ export function LeaguePickerDialog({
               league={league}
               onSelect={onLeagueSelect}
               disabled={isLeaguePickerIntelBusy}
+              startRecommendation={
+                startRecommendation?.leagueId === league.leagueId
+                  ? startRecommendation
+                  : null
+              }
             />
           ))}
         </div>

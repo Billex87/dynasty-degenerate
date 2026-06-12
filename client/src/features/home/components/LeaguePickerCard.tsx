@@ -1,5 +1,6 @@
 import { getLeagueFallbackInitials } from "@/features/home/lib/leagueIdentity";
 import { type HomeLeagueSelectionLeague } from "@/features/home/components/HomeLeagueSelection";
+import type { LeagueStartRecommendation } from "@/features/home/lib/leagueHistory";
 
 function getLeagueCardNameClassName(name: string): string {
   const length = name.trim().length;
@@ -29,10 +30,12 @@ export function LeaguePickerCard({
   league,
   onSelect,
   disabled = false,
+  startRecommendation = null,
 }: {
   league: HomeLeagueSelectionLeague;
   onSelect: (leagueId: string) => void;
   disabled?: boolean;
+  startRecommendation?: LeagueStartRecommendation | null;
 }) {
   const desktopFormat =
     league.format || `${league.totalRosters || "?"}-Team Dynasty`;
@@ -40,12 +43,23 @@ export function LeaguePickerCard({
   const desktopLeagueInfo = getLeagueInfoDisplay(desktopFormat);
   const mobileLeagueInfo = getLeagueInfoDisplay(mobileFormat);
   const hasRankInfo = Boolean(league.powerRank || league.standingsRank);
+  const isRecommended = startRecommendation?.leagueId === league.leagueId;
+  const ariaLabel = isRecommended
+    ? `${league.name} ${desktopFormat}. Recommended start: ${startRecommendation.reason}.`
+    : `${league.name} ${desktopFormat}`;
+  const cardClassName = [
+    "home-league-card",
+    disabled ? "home-league-card-disabled" : "",
+    isRecommended ? "home-league-card-recommended" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <button
       type="button"
-      className={`home-league-card${disabled ? " home-league-card-disabled" : ""}`}
-      aria-label={`${league.name} ${desktopFormat}`}
+      className={cardClassName}
+      aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => {
         if (disabled) return;
@@ -84,7 +98,22 @@ export function LeaguePickerCard({
       </div>
 
       <span className="home-league-card-meta">
-        {hasRankInfo ? (
+        {isRecommended ? (
+          <span
+            className="home-league-card-ranks"
+            aria-label={`${league.name} is the recommended starting league because ${startRecommendation.reason}`}
+          >
+            <span className="home-league-pill home-league-pill-power">
+              {startRecommendation.cardLabel}
+            </span>
+            <span
+              className="home-league-pill home-league-pill-standings"
+              title={startRecommendation.reason}
+            >
+              {startRecommendation.cardDetail}
+            </span>
+          </span>
+        ) : hasRankInfo ? (
           <span
             className="home-league-card-ranks"
             aria-label={`${league.name} current league standing and power rank`}

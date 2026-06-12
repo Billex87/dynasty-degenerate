@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getLeagueStartRecommendation,
   getLeagueRankLookupBatch,
   MAX_LEAGUE_RANK_LOOKUP_BATCH,
   type SleeperLeagueOption,
@@ -67,5 +68,68 @@ describe("league rank lookup batching", () => {
         String(10000000000000 + index)
       )
     );
+  });
+});
+
+describe("league start recommendation", () => {
+  it("recommends the league with the strongest combined rank signal", () => {
+    const recommendation = getLeagueStartRecommendation([
+      league("league-a", {
+        name: "Alpha",
+        standingsRank: 4,
+        powerRank: 5,
+      }),
+      league("league-b", {
+        name: "Beta",
+        standingsRank: 1,
+        powerRank: 2,
+      }),
+      league("league-c", {
+        name: "Gamma",
+        standingsRank: 3,
+        powerRank: 1,
+      }),
+    ]);
+
+    expect(recommendation).toMatchObject({
+      leagueId: "league-b",
+      leagueName: "Beta",
+      cardLabel: "Start here",
+      cardDetail: "Best signal",
+      reason: "best combined power and standings signal",
+    });
+  });
+
+  it("uses ready portfolio data when rank signals are missing", () => {
+    const recommendation = getLeagueStartRecommendation([
+      league("league-a", { name: "Alpha" }),
+      league("league-b", {
+        name: "Beta",
+        rosterPlayers: [
+          {
+            playerId: "player-1",
+            name: "Starter One",
+            position: "WR",
+            team: "BUF",
+            value: 2500,
+            positionRank: "WR24",
+            rosterSpot: "active",
+          },
+        ],
+      }),
+    ]);
+
+    expect(recommendation).toMatchObject({
+      leagueId: "league-b",
+      cardDetail: "Portfolio",
+      reason: "portfolio data is already ready",
+    });
+  });
+
+  it("does not recommend a league when there is no useful signal", () => {
+    expect(getLeagueStartRecommendation([league("league-a")])).toBeNull();
+    expect(
+      getLeagueStartRecommendation([league("league-a"), league("league-b")])
+    ).toBeNull();
   });
 });
