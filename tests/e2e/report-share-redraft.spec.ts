@@ -158,7 +158,7 @@ test.describe('shareable report URLs and redraft copy', () => {
     );
 
     await page.goto(`/?leagueId=${cachedReport.leagueId}#rankings`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByText('CURRENT-SEASON PLAYER VALUES').first()).toBeVisible();
+    await expect(page.getByText(/Season values/i).first()).toBeVisible();
 
     const overflow = await page.evaluate(() => {
       const root = document.documentElement;

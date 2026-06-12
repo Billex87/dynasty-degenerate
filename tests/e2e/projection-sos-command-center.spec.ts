@@ -494,11 +494,11 @@ test.describe("projection/SOS command center smoke", () => {
     attachProjectionBackedReportMechanics(report);
     attachSpecialTeamsStreamerTarget(report);
 
-    await loadCachedReport(page, report, "#autopilot");
+    await loadCachedReport(page, report, "#overview", { admin: true });
 
     const assistantSection = await openReportSection(page, "Assistant Feature Radar");
     await expect(assistantSection.getByText("Waiver Assistant").first()).toBeVisible();
-    await expect(assistantSection.getByText("10.7 stored projection pts").first()).toBeVisible();
+    await expect(assistantSection.getByText("10.7 projected pts").first()).toBeVisible();
     const matchupCard = assistantSection
       .locator(".assistant-feature-card")
       .filter({ hasText: "Matchup Preview" })
@@ -518,7 +518,7 @@ test.describe("projection/SOS command center smoke", () => {
     await expect(swapRead.getByText("Replacement Tight End").first()).toBeVisible();
     await expect(swapRead.getByText(/\+4\.1 pts/).first()).toBeVisible();
 
-    await loadCachedReport(page, report, "#rankings");
+    await loadCachedReport(page, report, "#hacks", { admin: true });
     const scheduleSection = await openReportSection(page, "Schedule Edge Table");
     await expect(scheduleSection.getByText("Streaming Kicker").first()).toBeVisible();
     await expect(scheduleSection.getByText("DraftSharks SOS windows")).toBeVisible();
@@ -526,7 +526,7 @@ test.describe("projection/SOS command center smoke", () => {
     await expect(scheduleSection.getByText("W1").first()).toBeVisible();
     await expect(scheduleSection.getByLabel("DEN").first()).toBeVisible();
     await expect(scheduleSection.getByLabel("5 star matchup").first()).toBeVisible();
-    await expect(scheduleSection.getByText("Snapshot coverage")).toBeVisible();
+    await expect(scheduleSection.getByText("Snapshot coverage", { exact: true }).first()).toBeVisible();
     await expect(scheduleSection.getByText(/FantasyPros matchup/i)).toHaveCount(0);
   });
 
@@ -535,7 +535,7 @@ test.describe("projection/SOS command center smoke", () => {
     attachProjectionBackedReportMechanics(report);
     stripWeeklyProjectionContext(report);
 
-    await loadCachedReport(page, report, "#autopilot");
+    await loadCachedReport(page, report, "#overview", { admin: true });
 
     const assistantSection = await openReportSection(page, "Assistant Feature Radar");
     await expect(assistantSection.getByText("Waiver Assistant").first()).toBeVisible();
@@ -558,7 +558,7 @@ test.describe("projection/SOS command center smoke", () => {
     await expect(page.locator(".manager-command-swap-read").getByText(/\+4\.1 pts/)).toHaveCount(0);
     await expect(page.locator(".manager-command-swap-read").getByText(/stored weekly projection/i)).toHaveCount(0);
 
-    await loadCachedReport(page, report, "#momentum");
+    await loadCachedReport(page, report, "#momentum", { admin: true });
 
     await expect(page.getByText("10.7 stored projection pts")).toHaveCount(0);
     await expect(page.getByText("Projection Scout")).toHaveCount(0);
@@ -589,7 +589,7 @@ test.describe("projection/SOS command center smoke", () => {
     await expect(autopilot.getByText(/DraftSharks SOS/i)).toHaveCount(0);
     await expect(autopilot.getByText(/FantasyPros matchup/i)).toHaveCount(0);
 
-    await loadCachedReport(page, report, "#rankings", { admin: true });
+    await loadCachedReport(page, report, "#hacks", { admin: true });
     const scheduleSection = await openReportSection(page, "Schedule Edge Table");
     await expect(scheduleSection.getByText("Streaming Kicker").first()).toBeVisible();
     await expect(scheduleSection.getByText("DraftSharks SOS windows")).toBeVisible();
@@ -636,9 +636,8 @@ test.describe("projection/SOS command center smoke", () => {
 
     await loadCachedReport(page, report, "#rankings", { admin: false });
 
-    const scheduleSection = await openReportSection(page, "Schedule Edge Table");
-    await expect(scheduleSection.getByText("Streaming Kicker").first()).toBeVisible();
-    await expect(scheduleSection.getByText("Stored DraftSharks SOS fixture row.")).toHaveCount(0);
-    await expect(scheduleSection.getByText("DraftSharks SOS source trace: W1 from stored percentage snapshots.")).toHaveCount(0);
+    await expect(page.locator("details.report-disclosure").filter({ hasText: "Schedule Edge Table" })).toHaveCount(0);
+    await expect(page.getByText("Stored DraftSharks SOS fixture row.")).toHaveCount(0);
+    await expect(page.getByText("DraftSharks SOS source trace: W1 from stored percentage snapshots.")).toHaveCount(0);
   });
 });

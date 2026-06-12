@@ -515,11 +515,17 @@ function LoaderKitCore({
         const stageScale = variant === "panel" ? 1.22 : 1.06;
         const scaledAnchorX = size.width / 2 + (anchorX - size.width / 2) * stageScale;
         const scaledAnchorY = size.height / 2 + (anchorY - size.height / 2) * stageScale;
+        const constrainedAnchorX = variant === "ambient" && isCompactViewport
+          ? THREE.MathUtils.clamp(scaledAnchorX, 32, size.width - 32)
+          : scaledAnchorX;
+        const constrainedAnchorY = variant === "ambient" && isCompactViewport
+          ? THREE.MathUtils.clamp(scaledAnchorY, 32, size.height - 32)
+          : scaledAnchorY;
         const depth = THREE.MathUtils.clamp((projected.z + 1) / 2, 0, 1);
         const opacity = projected.z > -1 && projected.z < 1 ? 0.95 - depth * 0.34 : 0;
 
-        anchorElement.style.setProperty("--anchor-x", `${scaledAnchorX}px`);
-        anchorElement.style.setProperty("--anchor-y", `${scaledAnchorY}px`);
+        anchorElement.style.setProperty("--anchor-x", `${constrainedAnchorX}px`);
+        anchorElement.style.setProperty("--anchor-y", `${constrainedAnchorY}px`);
         anchorElement.style.setProperty("--anchor-scale", `${0.9 + (1 - depth) * 0.28}`);
         anchorElement.style.setProperty("--anchor-opacity", `${Math.max(0.9, opacity)}`);
       }

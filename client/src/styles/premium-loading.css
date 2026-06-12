@@ -980,11 +980,11 @@
   [data-slot="dialog-content"].analysis-loading-dialog-loading,
   .analysis-loading-dialog-loading,
   .ddlp__current-modal-shell {
-    width: min(calc(100vw - 2rem), 22.5rem) !important;
-    max-width: min(calc(100vw - 2rem), 22.5rem) !important;
+    width: min(calc(100vw - 2rem), 19rem) !important;
+    max-width: min(calc(100vw - 2rem), 19rem) !important;
     min-height: 0 !important;
     height: auto !important;
-    scale: 0.88 !important;
+    scale: 1 !important;
     animation: none !important;
   }
 
@@ -1171,6 +1171,17 @@
   .ddlp__current-modal-shell .loading-step-list,
   .loading-step-list {
     display: none !important;
+  }
+}
+
+@layer components {
+  @media (max-width: 640px) {
+    [data-slot="dialog-content"].analysis-loading-dialog.analysis-loading-dialog-loading {
+      width: min(calc(100vw - 2rem), 19rem) !important;
+      max-width: min(calc(100vw - 2rem), 19rem) !important;
+      scale: 1 !important;
+      animation: none !important;
+    }
   }
 }
 

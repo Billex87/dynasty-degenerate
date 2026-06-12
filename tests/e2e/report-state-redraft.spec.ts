@@ -131,8 +131,10 @@ test.describe('shareable report control state', () => {
     await expect(page).not.toHaveURL(/redraftSort=/);
     await expect(page).not.toHaveURL(/redraftMovement=/);
     await expect(page).toHaveURL(/redraftPositions=WR/);
-    await expect(page.getByRole('button', { name: /#2 .*Depth Receiver/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /#1 .*Bijan Robinson/ })).toHaveCount(0);
+    const filteredDepthRow = page.locator('.value-board__row').filter({ hasText: 'Depth Receiver' });
+    await expect(filteredDepthRow).toBeVisible();
+    await expect(filteredDepthRow).toContainText('#2');
+    await expect(page.locator('.value-board__row').filter({ hasText: 'Bijan Robinson' })).toHaveCount(0);
 
     await page.reload();
     await openFullRosterRankings(page);

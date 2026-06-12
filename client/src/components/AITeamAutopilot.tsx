@@ -484,6 +484,13 @@ function buildAddSwapRows(data: AutopilotData): AIEdgeWatchRow[] {
   return dedupeWatchRows(rows, 4);
 }
 
+function formatScheduleDisplayCopy(read: string) {
+  return read
+    .replace(/\bDraftSharks SOS\b/gi, 'schedule SOS')
+    .replace(/\bDraftSharks\b/gi, 'schedule source')
+    .replace(/\bFantasyPros matchup\b/gi, 'matchup signal');
+}
+
 function buildScheduleRows(data: AutopilotData): AIEdgeWatchRow[] {
   const actionableReads = data.scheduleTodo.filter((read) =>
     /(has|is|target|streamer|pressure|checkpoint|W\d|bye|window|schedule-driven)/i.test(read) &&
@@ -493,13 +500,13 @@ function buildScheduleRows(data: AutopilotData): AIEdgeWatchRow[] {
     id: `schedule-read-${index}`,
     label: index === 0 ? 'Schedule edge' : 'Next 4 weeks',
     title: index === 0 ? 'Player window' : 'Matchup tiebreaker',
-    detail: read,
+    detail: formatScheduleDisplayCopy(read),
     action: index === 0
       ? 'Use schedule as a short-term tiebreaker beside value.'
       : 'Bump same-tier players only when schedule and role both clear.',
     confidence: Math.max(60, Math.min(86, 82 - index * 4)),
     tone: 'info' as AutopilotTone,
-    signals: ['DraftSharks SOS', 'Bye window', 'Same-tier tiebreaker'],
+    signals: ['Schedule SOS', 'Bye window', 'Same-tier tiebreaker'],
   }));
   return scheduleRows;
 }
@@ -760,8 +767,8 @@ export default function AITeamAutopilot({
     : hasLoadedReport
       ? []
       : AUTOPILOT_MOCK_DATA[mode].scheduleTodo;
-  const schedulePrimaryRead = scheduleReads[0] || '';
-  const scheduleSupportingReads = scheduleReads.slice(1, 4);
+  const schedulePrimaryRead = scheduleReads[0] ? formatScheduleDisplayCopy(scheduleReads[0]) : '';
+  const scheduleSupportingReads = scheduleReads.slice(1, 4).map(formatScheduleDisplayCopy);
   const showEdgeReview = hasAIEdgeReviewRows(data);
 
   return (

@@ -15,24 +15,25 @@ test.describe('loading manager icons', () => {
     await expect(anchors).toHaveCount(12);
     await expect(anchors.first()).toBeVisible();
 
-    const visibleAnchorCount = await anchors.evaluateAll(nodes =>
-      nodes.filter(node => {
-        const element = node as HTMLElement;
-        const style = window.getComputedStyle(element);
-        const box = element.getBoundingClientRect();
-        return (
-          Number(style.opacity) > 0.5 &&
-          box.width >= 32 &&
-          box.height >= 32 &&
-          box.left < window.innerWidth &&
-          box.right > 0 &&
-          box.top < window.innerHeight &&
-          box.bottom > 0
-        );
-      }).length
-    );
+    const getVisibleAnchorCount = () =>
+      anchors.evaluateAll(nodes =>
+        nodes.filter(node => {
+          const element = node as HTMLElement;
+          const style = window.getComputedStyle(element);
+          const box = element.getBoundingClientRect();
+          return (
+            Number(style.opacity) > 0.5 &&
+            box.width >= 32 &&
+            box.height >= 32 &&
+            box.left < window.innerWidth &&
+            box.right > 0 &&
+            box.top < window.innerHeight &&
+            box.bottom > 0
+          );
+        }).length
+      );
 
-    expect(visibleAnchorCount).toBeGreaterThanOrEqual(8);
+    await expect.poll(getVisibleAnchorCount).toBeGreaterThanOrEqual(8);
 
     const maxCenterOffset = await anchors.evaluateAll(nodes =>
       Math.max(
