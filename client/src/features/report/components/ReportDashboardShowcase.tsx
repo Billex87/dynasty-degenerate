@@ -9,6 +9,7 @@ import {
   formatDashboardSignedPercentLabel,
   getReportDashboardManagers,
 } from "@/features/report/lib/reportDashboardUtils";
+import { getManagerTrendDelta } from "@/components/ManagerTrendAvatar";
 import {
   type DashboardHeroMetric,
   type DashboardMetricBar,
@@ -91,6 +92,22 @@ function getDashboardManagerAvatar(
   avatars?: Record<string, string | null | undefined>
 ) {
   return avatars?.[manager] || null;
+}
+
+function attachDashboardManagerTrend(
+  metrics: DashboardHeroMetric[],
+  reportData: ReportData
+): DashboardHeroMetric[] {
+  return metrics.map(metric => {
+    if (!metric.targetManager) return metric;
+    return {
+      ...metric,
+      managerTrendDelta: getManagerTrendDelta(
+        metric.targetManager,
+        reportData.managerRosterValueGrowth
+      ),
+    };
+  });
 }
 
 function renderDashboardHelperStack(primary: string, secondary: string) {
@@ -1768,6 +1785,7 @@ function getReportDashboardHeroConfig({
           kind: "ring",
           label: "AI Score",
           value: aiScore ?? "-",
+          numericValue: aiScore,
           subLabel: reportData.leagueDiagnostics?.aiConfidence?.label || "League read",
           score: aiScore,
           tone: aiScore === null ? "neutral" : aiScore >= 70 ? "good" : "warn",
@@ -1776,6 +1794,7 @@ function getReportDashboardHeroConfig({
           key: "manager-reads",
           label: "Manager Reads",
           value: reportData.managerRosterIntelligence?.length || 0,
+          numericValue: reportData.managerRosterIntelligence?.length || 0,
           subLabel: "Owner profiles",
           tone: reportData.managerRosterIntelligence?.length ? "info" : "warn",
         },
@@ -1783,6 +1802,7 @@ function getReportDashboardHeroConfig({
           key: "trade-plans",
           label: "Trade Plans",
           value: reportData.tradeProposalSignals?.length || 0,
+          numericValue: reportData.tradeProposalSignals?.length || 0,
           subLabel: "Signal queue",
           tone: reportData.tradeProposalSignals?.length ? "good" : "neutral",
         },
@@ -1790,6 +1810,7 @@ function getReportDashboardHeroConfig({
           key: "waiver-plans",
           label: "Waiver Plans",
           value: reportData.waiverIntelligence?.availableTrendingAdds?.length || 0,
+          numericValue: reportData.waiverIntelligence?.availableTrendingAdds?.length || 0,
           subLabel: "Available adds",
           tone: reportData.waiverIntelligence?.availableTrendingAdds?.length
             ? "good"
@@ -1811,6 +1832,7 @@ function getReportDashboardHeroConfig({
   const topHeavy = getDashboardTopHeavy(reportData);
   const thinIce = getDashboardThinIce(reportData);
   const benchRot = getDashboardBenchRot(reportData);
+  const needHeat = getDashboardNeedHeat(reportData);
 
   return {
     pillLabel: "Overview signals",
@@ -1844,6 +1866,16 @@ function getReportDashboardHeroConfig({
         helper: "No safety net.",
       },
       {
+        key: "position-heat",
+        kind: "bars",
+        label: "Position Heat",
+        value: "Need Heat",
+        subLabel: "League weak spots",
+        bars: needHeat,
+        tone: needHeat[0]?.tone || "info",
+        helper: "Where roster pressure is pooling.",
+      },
+      {
         key: "bench-rot",
         kind: "target",
         label: "Bench Rot",
@@ -1865,18 +1897,24 @@ export function ReportOverviewHero({
   activeTab,
   leagueValueMode,
   reportData,
+  shouldAnimateMetrics,
 }: {
   leagueName: string;
   activeTab: ReportDashboardTab;
   leagueValueMode: LeagueValueMode;
   reportData: ReportData;
+  shouldAnimateMetrics?: boolean;
 }) {
   const heroCopy = getReportDashboardHeroCopy(activeTab, leagueValueMode);
-  const heroConfig = getReportDashboardHeroConfig({
+  const rawHeroConfig = getReportDashboardHeroConfig({
     activeTab,
     leagueValueMode,
     reportData,
   });
+  const heroConfig = {
+    ...rawHeroConfig,
+    metrics: attachDashboardManagerTrend(rawHeroConfig.metrics, reportData),
+  };
   const normalizedHeroTab = normalizeDashboardTab(activeTab) || "overview";
 
   return (
@@ -1885,6 +1923,7 @@ export function ReportOverviewHero({
       activeTab={normalizedHeroTab}
       heroCopy={heroCopy}
       heroConfig={heroConfig}
+      shouldAnimateMetrics={shouldAnimateMetrics}
     />
   );
 }
@@ -2169,6 +2208,8 @@ function getReportDashboardSpotlightConfig({
           kind: "ring",
           label: "Win Rate",
           value: formatDashboardPercentLabel(winPct),
+          numericValue: winPct,
+          valueFormatter: formatDashboardPercentLabel,
           subLabel: "Outcomes",
           score: winPct,
           tone: winPct === null ? "neutral" : winPct >= 50 ? "good" : "danger",
@@ -2178,6 +2219,7 @@ function getReportDashboardSpotlightConfig({
           kind: "meter",
           label: "Volume",
           value: tradeTendency?.tradeCount ?? managerTrades.length,
+          numericValue: tradeTendency?.tradeCount ?? managerTrades.length,
           subLabel: "Completed deals",
           score: getDashboardActivityScore(
             tradeTendency?.tradeCount ?? managerTrades.length,
@@ -2247,6 +2289,7 @@ function getReportDashboardSpotlightConfig({
           key: "picks",
           label: "Picks",
           value: managerDraftStats?.totalPicks ?? managerDraftPicks.length,
+          numericValue: managerDraftStats?.totalPicks ?? managerDraftPicks.length,
           subLabel: "Audited",
           tone:
             managerDraftStats?.totalPicks || managerDraftPicks.length
@@ -2258,6 +2301,8 @@ function getReportDashboardSpotlightConfig({
           kind: "ring",
           label: "Hits",
           value: formatDashboardPercentLabel(hitRate),
+          numericValue: hitRate,
+          valueFormatter: formatDashboardPercentLabel,
           subLabel: "Hits vs misses",
           score: hitRate,
           tone: hitRate === null ? "neutral" : hitRate >= 50 ? "good" : "warn",
@@ -2329,6 +2374,7 @@ function getReportDashboardSpotlightConfig({
           kind: "ring",
           label: "Confidence",
           value: aiConfidence?.score ?? "-",
+          numericValue: aiConfidence?.score ?? null,
           subLabel: aiConfidence?.label || "Manager read",
           score: aiConfidence?.score ?? null,
           tone:
@@ -2342,6 +2388,7 @@ function getReportDashboardSpotlightConfig({
           key: "starters",
           label: "Starters",
           value: starterCount ?? "-",
+          numericValue: starterCount,
           subLabel: "Projected",
           tone: "info",
         },
@@ -2350,6 +2397,7 @@ function getReportDashboardSpotlightConfig({
           kind: "ring",
           label: "Health",
           value: healthScore ?? "-",
+          numericValue: healthScore,
           subLabel: healthLabel,
           score: healthScore,
           tone: healthScore === null ? "neutral" : healthScore >= 70 ? "good" : "warn",
@@ -2414,6 +2462,8 @@ function getReportDashboardSpotlightConfig({
         key: "team-value",
         label: "Team Value",
         value: formatDashboardCompactNumber(seasonValue),
+        numericValue: seasonValue,
+        valueFormatter: formatDashboardCompactNumber,
         subLabel: "Roster total",
         tone: "good",
       },
@@ -2422,6 +2472,7 @@ function getReportDashboardSpotlightConfig({
         kind: "ring",
         label: "Teams Health",
         value: healthScore ?? "-",
+        numericValue: healthScore,
         subLabel: healthLabel,
         score: healthScore,
         tone:
@@ -2560,6 +2611,10 @@ export function ReportDashboardSpotlight({
     <ReportDashboardSpotlightPanel
       manager={manager}
       managerAvatarUrl={getDashboardManagerAvatar(manager, managerAvatars)}
+      managerTrendDelta={getManagerTrendDelta(
+        manager,
+        reportData.managerRosterValueGrowth
+      )}
       spotlightConfig={spotlightConfig}
       positionRankCards={positionRankCards}
       starterRankGroups={starterRankGroups}

@@ -3,7 +3,6 @@ import {
   useRef,
   useState,
 } from "react";
-import "@/styles/home-backgrounds-v12.css";
 import { trpc } from "@/lib/trpc";
 import type { LoaderManagerAnchor } from "@/features/report/components/LoaderKitBackdrop";
 import { HomeSignedOutLanding } from "@/features/home/components/HomeSignedOutLanding";

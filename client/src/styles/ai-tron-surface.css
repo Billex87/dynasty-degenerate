@@ -5,31 +5,81 @@
 .report-shell .ai-read-panel-r3f,
 .ai-surface-r3f,
 .ai-read-panel-r3f {
-  --ai-board-cyan: 96, 245, 255;
-  --ai-board-copper-rgb: 255, 174, 76;
+  --ai-board-cyan: 53, 223, 255;
+  --ai-board-packet-rgb: 125, 247, 255;
+  --ai-board-copper-rgb: 255, 180, 90;
   --ai-board-cyan-strong: rgba(var(--ai-board-cyan), 0.95);
   --ai-board-cyan-mid: rgba(var(--ai-board-cyan), 0.42);
   --ai-board-cyan-soft: rgba(var(--ai-board-cyan), 0.18);
   --ai-board-cyan-dim: rgba(var(--ai-board-cyan), 0.08);
   --ai-board-copper: rgba(var(--ai-board-copper-rgb), 0.72);
   --ai-board-copper-soft: rgba(var(--ai-board-copper-rgb), 0.32);
+  --ai-tron-notch: 18px;
+  --ai-tron-clip: polygon(0 0, calc(100% - var(--ai-tron-notch)) 0, 100% var(--ai-tron-notch), 100% 100%, var(--ai-tron-notch) 100%, 0 calc(100% - var(--ai-tron-notch)));
+  --ai-tron-frame-accent: var(--ai-read-accent, rgb(var(--ai-board-cyan)));
 
   position: relative;
   isolation: isolate;
   overflow: hidden;
   border-radius: 14px !important;
-  border: 1px solid rgba(var(--ai-board-cyan), 0.44) !important;
-  clip-path: none;
+  border: 1px solid transparent !important;
+  clip-path: var(--ai-tron-clip);
   background:
-    radial-gradient(circle at 12% 20%, rgba(var(--ai-board-cyan), 0.1), transparent 24%),
-    radial-gradient(circle at 88% 75%, rgba(var(--ai-board-copper-rgb), 0.11), transparent 28%),
-    linear-gradient(135deg, rgba(1, 9, 17, 0.985), rgba(2, 15, 27, 0.965) 48%, rgba(1, 5, 13, 0.99)) !important;
+    radial-gradient(circle at 12% 20%, rgba(var(--ai-board-cyan), 0.1), transparent 24%) padding-box,
+    radial-gradient(circle at 88% 75%, rgba(var(--ai-board-copper-rgb), 0.11), transparent 28%) padding-box,
+    linear-gradient(135deg, rgba(1, 9, 17, 0.985), rgba(2, 15, 27, 0.965) 48%, rgba(1, 5, 13, 0.99)) padding-box,
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--ai-tron-frame-accent) 58%, transparent),
+      rgba(255, 255, 255, 0.12) 28%,
+      rgba(var(--ai-board-cyan), 0.18) 52%,
+      rgba(var(--ai-board-copper-rgb), 0.42) 74%,
+      color-mix(in srgb, var(--ai-tron-frame-accent) 34%, transparent)) border-box !important;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
-    inset 0 0 32px rgba(var(--ai-board-cyan), 0.055),
-    inset 0 0 78px rgba(0, 0, 0, 0.72),
+    var(--dd-glass-live-shadow),
+    inset 0 0 42px rgba(var(--ai-board-cyan), 0.05),
+    inset 0 0 76px rgba(0, 0, 0, 0.58),
     0 0 22px rgba(var(--ai-board-cyan), 0.11),
-    0 18px 48px rgba(0, 0, 0, 0.36) !important;
+    0 18px 48px rgba(0, 0, 0, 0.34) !important;
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .report-shell .ai-surface-r3f,
+  .report-shell .ai-read-panel-r3f,
+  .ai-surface-r3f,
+  .ai-read-panel-r3f {
+    background:
+      radial-gradient(circle at 12% 20%, rgba(var(--ai-board-packet-rgb), 0.13), transparent 24%) padding-box,
+      radial-gradient(circle at 88% 75%, rgba(var(--ai-board-copper-rgb), 0.12), transparent 28%) padding-box,
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--dd-glass-live-bg) 82%, rgba(2, 15, 27, 0.58)),
+        color-mix(in srgb, var(--dd-glass-live-bg-soft) 76%, rgba(1, 8, 16, 0.68)) 52%,
+        rgba(1, 5, 13, 0.58)) padding-box,
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--ai-tron-frame-accent) 62%, transparent),
+        rgba(255, 255, 255, 0.14) 28%,
+        rgba(var(--ai-board-cyan), 0.2) 52%,
+        rgba(var(--ai-board-copper-rgb), 0.46) 74%,
+        color-mix(in srgb, var(--ai-tron-frame-accent) 36%, transparent)) border-box !important;
+    -webkit-backdrop-filter: blur(var(--dd-glass-blur, var(--dd-glass-blur-live))) saturate(1.5);
+    backdrop-filter: blur(var(--dd-glass-blur, var(--dd-glass-blur-live))) saturate(1.5);
+    box-shadow:
+      var(--dd-glass-live-shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.13),
+      inset 0 0 42px rgba(var(--ai-board-cyan), 0.045),
+      inset 0 0 70px rgba(0, 0, 0, 0.44),
+      0 0 24px rgba(var(--ai-board-cyan), 0.12),
+      0 20px 52px rgba(0, 0, 0, 0.34) !important;
+  }
+}
+
+@supports not (clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%)) {
+  .report-shell .ai-surface-r3f,
+  .report-shell .ai-read-panel-r3f,
+  .ai-surface-r3f,
+  .ai-read-panel-r3f {
+    clip-path: none;
+    border-color: color-mix(in srgb, var(--ai-tron-frame-accent) 42%, rgba(255, 255, 255, 0.1)) !important;
+  }
 }
 
 .ai-surface-r3f.ai-action-queue-do,
@@ -687,12 +737,13 @@
 
 /* SVG circuit layer, deliberately secondary */
 .ai-tron-static-traces {
-  opacity: 0.12 !important;
+  opacity: 0.2 !important;
   animation: none !important;
 }
 
 .ai-tron-static-traces path {
   stroke-linecap: square !important;
+  stroke-linejoin: round !important;
 }
 
 .ai-tron-static-nodes,
@@ -702,47 +753,50 @@
 }
 
 .ai-tron-junction-flares {
-  opacity: 0.22 !important;
-  filter: drop-shadow(0 0 5px rgba(var(--ai-board-cyan), 0.16)) !important;
+  opacity: 0.36 !important;
+  filter:
+    drop-shadow(0 0 7px rgba(var(--ai-board-cyan), 0.26))
+    drop-shadow(0 0 13px rgba(var(--ai-board-copper-rgb), 0.1)) !important;
 }
 
 .ai-tron-signals {
-  opacity: 0.24 !important;
+  opacity: 0.34 !important;
   filter:
-    drop-shadow(0 0 2px rgba(var(--ai-board-cyan), 0.12)) drop-shadow(0 0 6px rgba(var(--ai-board-cyan), 0.04)) !important;
+    drop-shadow(0 0 3px rgba(var(--ai-board-cyan), 0.18))
+    drop-shadow(0 0 7px rgba(var(--ai-board-cyan), 0.06)) !important;
 }
 
 .ai-tron-signals path {
-  stroke-opacity: 0.18 !important;
+  stroke-opacity: 0.28 !important;
 }
 
 .ai-tron-signals ellipse {
-  opacity: 0.38 !important;
+  opacity: 0.52 !important;
 }
 
 .ai-tron-signals circle {
-  opacity: 0.16 !important;
+  opacity: 0.28 !important;
 }
 
 .ai-read-panel-roster .ai-tron-static-traces,
 .ai-read-panel-market .ai-tron-static-traces,
 .ai-read-panel-trade .ai-tron-static-traces,
 .ai-read-panel-monthly .ai-tron-static-traces {
-  opacity: 0.18 !important;
+  opacity: 0.26 !important;
 }
 
 .ai-read-panel-roster .ai-tron-signals,
 .ai-read-panel-market .ai-tron-signals,
 .ai-read-panel-trade .ai-tron-signals,
 .ai-read-panel-monthly .ai-tron-signals {
-  opacity: 0.32 !important;
+  opacity: 0.42 !important;
 }
 
 .ai-read-panel-roster .ai-tron-junction-flares,
 .ai-read-panel-market .ai-tron-junction-flares,
 .ai-read-panel-trade .ai-tron-junction-flares,
 .ai-read-panel-monthly .ai-tron-junction-flares {
-  opacity: 0.28 !important;
+  opacity: 0.44 !important;
 }
 
 /* Text hierarchy */
@@ -784,19 +838,19 @@
 
 /* Context panels are supporting reads — dial the title back so they don't compete with the verdict. */
 .ai-read-panel-context .ai-read-title-row .ai-read-title-icon {
-  width: 1.78rem !important;
-  height: 1.78rem !important;
-  opacity: 0.82 !important;
+  width: 2.14rem !important;
+  height: 2.14rem !important;
+  opacity: 0.88 !important;
 }
 
 .ai-read-panel-context .ai-read-title-row .ai-read-title-icon svg {
-  width: 1.36rem !important;
-  height: 1.36rem !important;
+  width: 1.48rem !important;
+  height: 1.48rem !important;
 }
 
 .ai-read-panel-context.ai-read-panel-r3f .ai-read-panel-head h4,
 .ai-read-panel-context .ai-read-title-row h4 {
-  font-size: clamp(0.92rem, 0.9vw, 1.12rem) !important;
+  font-size: 0.98rem !important;
   color: rgba(204, 224, 242, 0.9) !important;
   text-shadow:
     0 0 6px rgba(var(--ai-board-cyan), 0.22) !important;
@@ -804,49 +858,101 @@
 
 .ai-read-title-icon {
   display: inline-flex !important;
-  width: 2.05rem !important;
-  height: 2.05rem !important;
+  position: relative !important;
+  width: 2.42rem !important;
+  height: 2.42rem !important;
   flex: 0 0 auto !important;
   align-items: center !important;
   justify-content: center !important;
+  border: 1px solid color-mix(in srgb, var(--ai-tron-frame-accent) 48%, rgba(255, 255, 255, 0.12)) !important;
+  border-radius: 0.42rem !important;
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
+  background:
+    radial-gradient(circle at 28% 24%, rgba(var(--ai-board-packet-rgb), 0.2), transparent 42%),
+    linear-gradient(135deg, rgba(var(--ai-board-cyan), 0.14), rgba(2, 9, 18, 0.48) 48%, rgba(var(--ai-board-copper-rgb), 0.11)) !important;
   color: rgba(var(--ai-board-cyan), 0.98) !important;
   opacity: 1 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.42),
+    0 0 12px rgba(var(--ai-board-cyan), 0.28),
+    0 0 20px rgba(var(--ai-board-copper-rgb), 0.08) !important;
   filter:
     drop-shadow(0 0 8px rgba(var(--ai-board-cyan), 0.5)) drop-shadow(0 0 20px rgba(var(--ai-board-cyan), 0.16)) !important;
 }
 
-.ai-read-title-icon svg {
+.ai-read-title-icon::before,
+.ai-read-title-icon::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.ai-read-title-icon::before {
+  inset: 0.42rem 0.34rem;
+  background:
+    linear-gradient(90deg, transparent, rgba(var(--ai-board-cyan), 0.42), transparent),
+    linear-gradient(180deg, transparent, rgba(var(--ai-board-copper-rgb), 0.28), transparent);
+  opacity: 0.46;
+}
+
+.ai-read-title-icon::after {
+  right: 0.38rem;
+  bottom: 0.38rem;
+  width: 0.26rem;
+  height: 0.26rem;
+  border-radius: 999px;
+  background: rgba(var(--ai-board-packet-rgb), 0.96);
+  box-shadow:
+    0 0 6px rgba(var(--ai-board-cyan), 0.7),
+    0 0 14px rgba(var(--ai-board-cyan), 0.24);
+}
+
+.ai-read-title-icon svg,
+.ai-read-title-glyph {
   display: block !important;
-  width: 1.62rem !important;
-  height: 1.62rem !important;
-  stroke-width: 2.15 !important;
+  position: relative !important;
+  z-index: 1 !important;
+  width: 1.72rem !important;
+  height: 1.72rem !important;
+  stroke-width: 2.35 !important;
 }
 
 .ai-read-panel-r3f .ai-read-panel-head h4,
 .ai-read-title-row h4 {
   margin: 0 !important;
   color: rgba(var(--ai-board-cyan), 0.98) !important;
-  font-size: clamp(1.02rem, 1vw, 1.32rem) !important;
+  font-size: 1.08rem !important;
   font-weight: 900 !important;
   line-height: 1.05 !important;
-  letter-spacing: 0.12em !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase !important;
   text-shadow:
     0 0 9px rgba(var(--ai-board-cyan), 0.38),
     0 0 22px rgba(var(--ai-board-cyan), 0.14) !important;
 }
 
 .ai-read-label-row-under-title {
-  margin-top: 0.68rem !important;
+  margin-top: 0.54rem !important;
   margin-bottom: 0 !important;
-  padding-left: 2.82rem !important;
-  gap: 0.52rem;
+  padding-left: 3.2rem !important;
+  gap: 0.46rem;
+}
+
+.ai-read-panel-r3f .ai-read-type {
+  border-radius: 0.36rem !important;
+  padding: 0.18rem 0.48rem !important;
+  font-size: 0.58rem !important;
+  letter-spacing: 0.16em !important;
+  line-height: 1 !important;
 }
 
 .ai-read-subtitle-inline {
   color: rgba(204, 224, 242, 0.68) !important;
-  font-size: 0.7rem !important;
+  font-size: 0.68rem !important;
   font-weight: 700 !important;
-  letter-spacing: 0.08em !important;
+  letter-spacing: 0.11em !important;
   text-transform: uppercase !important;
 }
 
@@ -858,7 +964,7 @@
   max-width: 92% !important;
   max-height: none !important;
   height: auto !important;
-  padding-left: 2.82rem !important;
+  padding-left: 3.2rem !important;
   text-shadow: 0 0 12px rgba(var(--ai-board-cyan), 0.06);
 }
 
@@ -1092,22 +1198,22 @@
 }
 
 .ai-read-panel-r3f .ai-tron-static-traces {
-  opacity: 0.1 !important;
+  opacity: 0.18 !important;
 }
 
 .ai-read-panel-r3f .ai-tron-signals {
-  opacity: 0.18 !important;
+  opacity: 0.3 !important;
 }
 
 .ai-read-panel-r3f .ai-tron-junction-flares {
-  opacity: 0.18 !important;
+  opacity: 0.34 !important;
 }
 
 .ai-read-panel-roster .ai-tron-signals,
 .ai-read-panel-market .ai-tron-signals,
 .ai-read-panel-trade .ai-tron-signals,
 .ai-read-panel-monthly .ai-tron-signals {
-  opacity: 0.26 !important;
+  opacity: 0.38 !important;
 }
 
 .owner-intel-pcb-system {

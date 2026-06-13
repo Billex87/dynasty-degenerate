@@ -98,7 +98,7 @@ export function HomeLandingFeatureCards() {
 
   return (
     <div
-      className="home-feature-carousel-window"
+      className="home-feature-carousel-window dd-edge-fade-rail"
       role="region"
       aria-label="Feature carousel"
       tabIndex={0}

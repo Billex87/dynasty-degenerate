@@ -3,6 +3,7 @@ import { X as XIcon } from "lucide-react";
 import { filterCompletedFuturePickPortfolios } from "@shared/pickPortfolioFilters";
 import type { ManagerIntelPlayer, ReportData } from "@shared/types";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
+import { ReportTooltip } from "../reportPrimitives";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
 import { getLeagueRosterScannerProfileLabel } from "@/lib/managerProfileLabels";
 import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
@@ -461,9 +462,11 @@ export function LeagueRosterScanner({
                 </span>
               </summary>
               <div className="trade-war-manager-board-meta">
-                <span title="Blended roster score: starters, value, balance, picks, youth, and trade efficiency.">
-                  Power {powerRow?.score ?? "-"}
-                </span>
+                <ReportTooltip content="Blended roster score: starters, value, balance, picks, youth, and trade efficiency.">
+                  <span>
+                    Power {powerRow?.score ?? "-"}
+                  </span>
+                </ReportTooltip>
                 <span>Value #{overviewRow?.rank_value ?? "-"}</span>
                 <span>
                   Record{" "}
@@ -557,32 +560,24 @@ export function LeagueRosterScanner({
                                     <div className="trade-war-manager-board-player">
                                       <TradeWarAssetLabel asset={asset} />
                                     </div>
-                                    <span
-                                      className="trade-war-manager-board-overall-rank"
-                                      title={
-                                        isPickSection
-                                          ? "Pick value"
-                                          : "Overall asset rank"
-                                      }
-                                    >
-                                      {isPickSection
-                                        ? formatCompactValue(
-                                            getTradeWarAssetValue(asset, mode)
-                                          )
-                                        : overallRank || "-"}
-                                    </span>
-                                    <span
-                                      className={`trade-war-manager-board-position-rank trade-war-manager-board-position-rank-${rankTone}`}
-                                      title={
-                                        isTradeWarPickAsset(asset)
-                                          ? "Pick round"
-                                          : "Position rank"
-                                      }
-                                    >
-                                      {isTradeWarPickAsset(asset)
-                                        ? `R${asset.pickRound || "-"}`
-                                        : positionRank || "-"}
-                                    </span>
+                                    <ReportTooltip content={isPickSection ? "Pick value" : "Overall asset rank"}>
+                                      <span className="trade-war-manager-board-overall-rank">
+                                        {isPickSection
+                                          ? formatCompactValue(
+                                              getTradeWarAssetValue(asset, mode)
+                                            )
+                                          : overallRank || "-"}
+                                      </span>
+                                    </ReportTooltip>
+                                    <ReportTooltip content={isTradeWarPickAsset(asset) ? "Pick round" : "Position rank"}>
+                                      <span
+                                        className={`trade-war-manager-board-position-rank trade-war-manager-board-position-rank-${rankTone}`}
+                                      >
+                                        {isTradeWarPickAsset(asset)
+                                          ? `R${asset.pickRound || "-"}`
+                                          : positionRank || "-"}
+                                      </span>
+                                    </ReportTooltip>
                                   </button>
                                 );
                               })

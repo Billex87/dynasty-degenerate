@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { ArrowRight, Bot, ClipboardList } from "lucide-react";
 import { AITronSurface, type AITronTheme } from "@/components/AITronSurface";
 import { getAIDeltaBriefCopy } from "@/lib/aiVoice";
 import type { ReportNextMoveDestination } from "@/features/report/lib/reportNextMoveBrief";
+import { DURATION, MotionReveal, useAnimationsEnabled } from "@/lib/motion";
 
 export type ReportDeltaTone = "good" | "info" | "warn" | "danger" | "neutral";
 
@@ -50,16 +52,46 @@ export function ReportSinceLastReportBrief({
   previousSavedAt?: number | null;
   onFollowChange?: (destination: ReportNextMoveDestination) => void;
 }) {
+  const animationsEnabled = useAnimationsEnabled();
+  const [activeTickerIndex, setActiveTickerIndex] = useState(0);
+  const [isTickerPaused, setIsTickerPaused] = useState(false);
+
+  useEffect(() => {
+    setActiveTickerIndex(0);
+  }, [changes.length, changes[0]?.id]);
+
+  useEffect(() => {
+    if (!animationsEnabled || isTickerPaused || changes.length <= 1) return;
+
+    const intervalId = window.setInterval(() => {
+      setActiveTickerIndex(index => (index + 1) % changes.length);
+    }, 3500);
+
+    return () => window.clearInterval(intervalId);
+  }, [animationsEnabled, changes.length, isTickerPaused]);
+
   if (!changes.length) return null;
   const visibleChanges = changes.slice(0, 3);
   const primaryChange = visibleChanges[0];
   const hiddenCount = Math.max(0, changes.length - visibleChanges.length);
   const deltaCopy = getAIDeltaBriefCopy(hiddenCount);
+  const activeTickerChange =
+    animationsEnabled
+      ? changes[activeTickerIndex % changes.length] || primaryChange
+      : primaryChange;
 
   return (
     <section
       className={`report-delta-brief ai-surface-r3f ai-neural-surface-tron ${getReportDeltaSurfaceClass(primaryChange.tone)}`}
       aria-label="Changed since last report"
+      onBlur={event => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setIsTickerPaused(false);
+        }
+      }}
+      onFocus={() => setIsTickerPaused(true)}
+      onMouseEnter={() => setIsTickerPaused(true)}
+      onMouseLeave={() => setIsTickerPaused(false)}
     >
       <AITronSurface
         theme={getReportDeltaTronTheme(primaryChange.tone)}
@@ -73,6 +105,20 @@ export function ReportSinceLastReportBrief({
           <em>Since {formatReportDeltaSavedAt(previousSavedAt)}</em>
         </span>
         <h2>{deltaCopy.title}</h2>
+        <div className="report-delta-brief-ticker">
+          <span className="report-delta-brief-ticker-kicker">League wire</span>
+          <div className="report-delta-brief-ticker-window">
+            <MotionReveal
+              className="report-delta-brief-ticker-item"
+              durationMs={DURATION.base - 20}
+              key={activeTickerChange.id}
+              y={8}
+            >
+              <b>{activeTickerChange.label}</b>
+              <span>{activeTickerChange.summary}</span>
+            </MotionReveal>
+          </div>
+        </div>
         <p>{primaryChange.summary}</p>
       </div>
       <div className="report-delta-brief-list">

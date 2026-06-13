@@ -10,11 +10,12 @@ import {
 } from "./shared";
 import { getPillToneClass, titleCasePill } from "./ownerIntelTags";
 import { getBalancedGridStyle } from "../../lib/balancedGrid";
+import { TileRippleGrid } from "@/lib/motion";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
 import { ManagerDepthTile } from "./OwnerIntelDepthComponents";
 import { PlayerInsightTile } from "./OwnerIntelPlayerTile";
 import { ChampionAvatarFrame, ManagerChampionshipPills } from "../ManagerChampionships";
-import type { ReportData } from "@shared/types";
+import type { ManagerIntelPlayer, ReportData } from "@shared/types";
 
 type ManagerIntelligenceCardsProps = {
   data?: ReportData["managerRosterIntelligence"];
@@ -22,6 +23,14 @@ type ManagerIntelligenceCardsProps = {
   playerDetailsById?: PlayerDetailsById;
   leagueId?: string;
   leagueLogo?: string | null;
+};
+
+type InsightTileConfig = {
+  label: string;
+  player: ManagerIntelPlayer | null | undefined;
+  tone?: "warn" | "danger";
+  crownedRank?: string | null;
+  topAsset?: boolean;
 };
 
 export function ManagerIntelligenceCards({
@@ -39,20 +48,28 @@ export function ManagerIntelligenceCards({
   const selectedRow = selectedManager
     ? data.find(row => row.manager === selectedManager)
     : null;
-  const selectedInsightPlayerCount = selectedRow
+  const selectedInsightTiles: InsightTileConfig[] = selectedRow
     ? [
-        selectedRow.bestBenchStash,
-        selectedRow.weakestStarter,
-        selectedRow.oldestPlayer,
-        selectedRow.youngCorePlayer,
-        selectedRow.breakoutCandidate,
-        selectedRow.buyTarget,
-        selectedRow.sellCandidate,
-        selectedRow.tradeChip,
-        selectedRow.injuryInsurance,
-        selectedRow.lastSeasonStud,
-      ].filter(Boolean).length
-    : 0;
+        { label: "Bench Stash", player: selectedRow.bestBenchStash },
+        { label: "Upgrade Spot", player: selectedRow.weakestStarter, tone: "warn" as const },
+        { label: "Age Risk", player: selectedRow.oldestPlayer, tone: "danger" as const },
+        { label: "Young Core", player: selectedRow.youngCorePlayer, topAsset: true },
+        { label: "Upside Play", player: selectedRow.breakoutCandidate },
+        { label: "Buy Target", player: selectedRow.buyTarget },
+        { label: "Sell Candidate", player: selectedRow.sellCandidate, tone: "warn" as const },
+        { label: "Trade Chip", player: selectedRow.tradeChip },
+        { label: "Insurance", player: selectedRow.injuryInsurance },
+        {
+          label: selectedRow.lastSeasonStud?.lastSeasonYear
+            ? `${selectedRow.lastSeasonStud.lastSeasonYear} Stud`
+            : "Previous Stud",
+          player: selectedRow.lastSeasonStud,
+          crownedRank: selectedRow.lastSeasonStud?.lastSeasonPositionRank || null,
+          topAsset: Boolean(selectedRow.lastSeasonStud?.lastSeasonPositionRank),
+        },
+      ]
+    : [];
+  const selectedInsightPlayerCount = selectedInsightTiles.filter(item => item.player).length;
 
   return (
     <>
@@ -269,103 +286,31 @@ export function ManagerIntelligenceCards({
                 <div className="manager-command-grid">
                   <div className="manager-command-section">
                     <h4>Key Players</h4>
-                    <div
+                    <TileRippleGrid
                       className="manager-intel-player-grid balanced-tile-grid"
                       style={getBalancedGridStyle(selectedInsightPlayerCount)}
                     >
-                      <PlayerInsightTile
-                        label="Bench Stash"
-                        player={selectedRow.bestBenchStash}
-                        manager={selectedRow.manager}
-                        managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
-                        playerDetailsById={playerDetailsById}
-                        onSelect={setSelectedPlayer}
-                      />
-                      <PlayerInsightTile
-                        label="Upgrade Spot"
-                        player={selectedRow.weakestStarter}
-                        manager={selectedRow.manager}
-                        managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
-                        playerDetailsById={playerDetailsById}
-                        onSelect={setSelectedPlayer}
-                        tone="warn"
-                      />
-                      <PlayerInsightTile
-                        label="Age Risk"
-                        player={selectedRow.oldestPlayer}
-                        manager={selectedRow.manager}
-                        managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
-                        playerDetailsById={playerDetailsById}
-                        onSelect={setSelectedPlayer}
-                        tone="danger"
-                      />
-                      <PlayerInsightTile
-                        label="Young Core"
-                        player={selectedRow.youngCorePlayer}
-                        manager={selectedRow.manager}
-                        managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
-                        playerDetailsById={playerDetailsById}
-                        onSelect={setSelectedPlayer}
-                      />
-                      <PlayerInsightTile
-                        label="Upside Play"
-                        player={selectedRow.breakoutCandidate}
-                        manager={selectedRow.manager}
-                        managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
-                        playerDetailsById={playerDetailsById}
-                        onSelect={setSelectedPlayer}
-                      />
-                      <PlayerInsightTile
-                        label="Buy Target"
-                        player={selectedRow.buyTarget}
-                        manager={selectedRow.manager}
-                        managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
-                        playerDetailsById={playerDetailsById}
-                        onSelect={setSelectedPlayer}
-                      />
-                      <PlayerInsightTile
-                        label="Sell Candidate"
-                        player={selectedRow.sellCandidate}
-                        manager={selectedRow.manager}
-                        managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
-                        playerDetailsById={playerDetailsById}
-                        onSelect={setSelectedPlayer}
-                        tone="warn"
-                      />
-                      <PlayerInsightTile
-                        label="Trade Chip"
-                        player={selectedRow.tradeChip}
-                        manager={selectedRow.manager}
-                        managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
-                        playerDetailsById={playerDetailsById}
-                        onSelect={setSelectedPlayer}
-                      />
-                      <PlayerInsightTile
-                        label="Insurance"
-                        player={selectedRow.injuryInsurance}
-                        manager={selectedRow.manager}
-                        managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
-                        playerDetailsById={playerDetailsById}
-                        onSelect={setSelectedPlayer}
-                      />
-                      <PlayerInsightTile
-                        label={
-                          selectedRow.lastSeasonStud?.lastSeasonYear
-                            ? `${selectedRow.lastSeasonStud.lastSeasonYear} Stud`
-                            : "Previous Stud"
-                        }
-                        player={selectedRow.lastSeasonStud}
-                        manager={selectedRow.manager}
-                        managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
-                        playerDetailsById={playerDetailsById}
-                        onSelect={setSelectedPlayer}
-                        crownedRank={
-                          selectedRow.lastSeasonStud?.lastSeasonPositionRank
-                            ? selectedRow.lastSeasonStud.lastSeasonPositionRank
-                            : null
-                        }
-                      />
-                    </div>
+                      {({ getTileMotionProps }) => (
+                        <>
+                          {selectedInsightTiles.filter(item => item.player).map((item, index) => (
+                            <PlayerInsightTile
+                              key={item.label}
+                              label={item.label}
+                              player={item.player}
+                              manager={selectedRow.manager}
+                              managerAvatarUrl={managerAvatars?.[selectedRow.manager]}
+                              playerDetailsById={playerDetailsById}
+                              onSelect={setSelectedPlayer}
+                              tone={item.tone}
+                              crownedRank={item.crownedRank}
+                              motionProps={getTileMotionProps(index, {
+                                topAsset: item.topAsset,
+                              })}
+                            />
+                          ))}
+                        </>
+                      )}
+                    </TileRippleGrid>
                   </div>
 
                   <div className="manager-command-section manager-command-read">

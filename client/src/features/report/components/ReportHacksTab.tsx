@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import { ShieldCheck } from "lucide-react";
 
+import { ReportMotionSectionStack } from "@/features/report/components/ReportMotionSectionStack";
 import type { ReportData } from "@shared/types";
 
 type ReportHacksTabProps = {
@@ -92,13 +93,13 @@ export function ReportHacksTab({
   AdminDiagnosticsShell,
 }: ReportHacksTabProps) {
   return (
-    <div className="report-command-section-stack space-y-6 sm:space-y-8">
+    <ReportMotionSectionStack className="report-command-section-stack space-y-6 sm:space-y-8">
       <StoredTransactionSyncSnapshotCard reportData={reportDataForView} />
       <AdminScheduleEdgeSection reportData={reportDataForView} />
       <AdminDiagnosticsShell
         reportData={reportDataForView}
         onLeagueSelect={onAnalyze}
       />
-    </div>
+    </ReportMotionSectionStack>
   );
 }

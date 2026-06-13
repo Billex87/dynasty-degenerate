@@ -31,10 +31,11 @@ export function AIVoiceModeMenu({
         <Button
           type="button"
           variant="outline"
-          className="report-header-action report-footer-primary-action report-ai-voice-trigger !w-full max-w-[32rem] justify-between gap-2 sm:!w-auto sm:max-w-none"
+          className="report-header-action report-footer-primary-action report-ai-voice-trigger dd-current !w-full max-w-[32rem] justify-between gap-2 sm:!w-auto sm:max-w-none"
           aria-label={`AI voice mode: ${getAIVoiceModeLabel(mode)}`}
           title={getAIVoiceModeDescription(mode)}
         >
+          <span className="dd-current-line" aria-hidden="true" />
           <span className="flex min-w-0 flex-1 items-center gap-1.5">
             <Bot className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span className="report-header-action-label min-w-0 truncate">

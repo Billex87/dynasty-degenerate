@@ -1,4 +1,4 @@
-import { useId, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   BarChart3,
   Box,
@@ -18,6 +18,7 @@ import {
   getVoicedAIReadDecision,
 } from '@/lib/aiVoice';
 import { cn } from '@/lib/utils';
+import { useAnimationsEnabled } from '@/lib/motion';
 import type { AIEvidenceResult } from '@shared/aiEvidenceEngine';
 
 export type AIReadSeverity = 'neutral' | 'good' | 'info' | 'warn' | 'danger';
@@ -72,6 +73,91 @@ export interface AIReadPanelProps {
   quietMode?: boolean;
   backgroundVariant?: AIReadBackgroundVariant;
   className?: string;
+}
+
+const AI_READ_TYPEWRITER_MS_PER_CHAR = 18;
+const AI_READ_CURSOR_FADE_MS = 700;
+const typedAIReadBodyKeys = new Set<string>();
+
+function getAIReadBodyKey(body: string) {
+  let hash = 0;
+  for (let index = 0; index < body.length; index += 1) {
+    hash = Math.imul(31, hash) + body.charCodeAt(index);
+    hash |= 0;
+  }
+  return `${body.length}:${hash}`;
+}
+
+function AIReadTypewriterBody({ body }: { body: string }) {
+  const animationsEnabled = useAnimationsEnabled();
+  const bodyKey = useMemo(() => getAIReadBodyKey(body), [body]);
+  const hasTypedBefore = typedAIReadBodyKeys.has(bodyKey);
+  const shouldType = animationsEnabled && !hasTypedBefore && body.length > 0;
+  const [visibleText, setVisibleText] = useState(() => (shouldType ? '' : body));
+  const [cursorState, setCursorState] = useState<'typing' | 'fading' | 'hidden'>(
+    () => (shouldType ? 'typing' : 'hidden')
+  );
+
+  useEffect(() => {
+    const alreadyTyped = typedAIReadBodyKeys.has(bodyKey);
+    if (!animationsEnabled || alreadyTyped || body.length === 0 || typeof window === 'undefined') {
+      typedAIReadBodyKeys.add(bodyKey);
+      setVisibleText(body);
+      setCursorState('hidden');
+      return;
+    }
+
+    let index = 0;
+    let typeTimer = 0;
+    let cursorTimer = 0;
+    setVisibleText('');
+    setCursorState('typing');
+
+    const tick = () => {
+      index += 1;
+      setVisibleText(body.slice(0, index));
+
+      if (index < body.length) {
+        typeTimer = window.setTimeout(tick, AI_READ_TYPEWRITER_MS_PER_CHAR);
+        return;
+      }
+
+      typedAIReadBodyKeys.add(bodyKey);
+      setCursorState('fading');
+      cursorTimer = window.setTimeout(
+        () => setCursorState('hidden'),
+        AI_READ_CURSOR_FADE_MS
+      );
+    };
+
+    typeTimer = window.setTimeout(tick, AI_READ_TYPEWRITER_MS_PER_CHAR);
+
+    return () => {
+      window.clearTimeout(typeTimer);
+      window.clearTimeout(cursorTimer);
+    };
+  }, [animationsEnabled, body, bodyKey]);
+
+  return (
+    <>
+      <p className="ai-read-typewriter-sr">{body}</p>
+      <p
+        className={cn(
+          'ai-read-typewriter',
+          cursorState === 'fading' && 'ai-read-typewriter-cursor-fading'
+        )}
+        aria-hidden="true"
+      >
+        <span className="ai-read-typewriter-reserve">{body}</span>
+        <span className="ai-read-typewriter-visible">
+          {visibleText}
+          {cursorState !== 'hidden' && (
+            <span className="ai-read-typewriter-cursor" aria-hidden="true" />
+          )}
+        </span>
+      </p>
+    </>
+  );
 }
 
 function normalizeConfidence(value?: number | null) {
@@ -403,14 +489,18 @@ function buildCircuitLayout(routeKey: string) {
   const topY = pick(9, [10, 13, 16, 19, 22]);
   const topBreak = pick(10, [42, 48, 54, 60]);
   const topEndY = topY + pick(11, [6, 8, 10, 12]);
+  const topStart = pick(17, [8, 11, 14]);
+  const topEndX = pick(18, [76, 82, 88]);
+  const topDropY = topEndY + pick(19, [6, 9, 12]);
   const extraY = pick(12, [32, 38, 44, 52, 58]);
   const orangeBottomY = pick(13, [91, 93, 95, 97]);
   const cyanDuration = pick(14, [5.2, 5.8, 6.4, 7.1]);
   const orangeDuration = pick(15, [5.9, 6.6, 7.5, 8.2]);
   const topDuration = pick(16, [6.8, 7.7, 8.6, 9.4]);
+  const lowerStepY = lowerY - lowerRise - 7;
 
-  const lower = `M 3 ${lowerY} H ${lowerA} V ${lowerY - lowerRise} H ${lowerB} L ${lowerB + 8} ${lowerY - lowerRise - 7} H ${lowerC} L ${lowerC + 9} ${lowerEndY} H 96`;
-  const top = `M ${pick(17, [8, 11, 14])} ${topY} H ${topBreak} L ${topBreak + 8} ${topEndY} H ${pick(18, [76, 82, 88])} V ${topEndY + pick(19, [6, 9, 12])} H 96`;
+  const lower = `M 3 ${lowerY} H ${lowerA} V ${lowerY - lowerRise} H ${lowerB} V ${lowerStepY} H ${lowerB + 8} H ${lowerC} V ${lowerEndY} H ${lowerC + 9} H 96`;
+  const top = `M ${topStart} ${topY} H ${topBreak} V ${topEndY} H ${topBreak + 8} H ${topEndX} V ${topDropY} H 96`;
   const amberMode = (hash >>> 13) % 4;
   const amberSideX = pick(22, [88, 91, 94]);
   const amberStepY = rightLowY + pick(23, [10, 13, 16]);
@@ -556,7 +646,7 @@ function AIReadPanelContent({
         <div className="ai-read-panel-title-lockup">
           <div className="ai-read-title-row">
             <span className="ai-read-title-icon" aria-hidden="true">
-              <ReadIcon className="h-5 w-5" />
+              <ReadIcon className="ai-read-title-glyph" />
             </span>
             <h4>{title}</h4>
           </div>
@@ -603,7 +693,11 @@ function AIReadPanelContent({
 
       {chips?.length ? <div className="ai-read-chip-row">{chips.map(renderChip)}</div> : null}
 
-      <div className="ai-read-body">{typeof body === 'string' ? <p>{body}</p> : body}</div>
+      <div className="ai-read-body">
+        {typeof body === 'string' ? (
+          <AIReadTypewriterBody key={getAIReadBodyKey(body)} body={body} />
+        ) : body}
+      </div>
 
       <AIReadTrace
         groups={[
@@ -697,8 +791,8 @@ function AIReadChrome({ primary = false, routeKey }: { primary?: boolean; routeK
     overflow: 'visible',
     opacity: primary ? 1 : 0.82,
     filter: primary
-      ? 'drop-shadow(0 0 11px rgba(96, 245, 255, 0.32)) drop-shadow(0 0 20px rgba(255, 174, 76, 0.16))'
-      : 'drop-shadow(0 0 8px rgba(96, 245, 255, 0.2))',
+      ? 'drop-shadow(0 0 11px rgba(var(--ai-board-packet-rgb), 0.32)) drop-shadow(0 0 20px rgba(var(--ai-board-copper-rgb), 0.16))'
+      : 'drop-shadow(0 0 8px rgba(var(--ai-board-packet-rgb), 0.2))',
   };
 
   return (
@@ -725,7 +819,7 @@ function AIReadChrome({ primary = false, routeKey }: { primary?: boolean; routeK
           <path
             id={lowerRouteId}
             d={layout.lower}
-            stroke="rgba(96,245,255,0.9)"
+            stroke="rgba(var(--ai-board-packet-rgb),0.9)"
             strokeWidth={primary ? 0.62 : 0.42}
             strokeOpacity={railOpacity}
           />
@@ -733,7 +827,7 @@ function AIReadChrome({ primary = false, routeKey }: { primary?: boolean; routeK
           <path
             id={topRouteId}
             d={layout.top}
-            stroke="rgba(96,245,255,0.32)"
+            stroke="rgba(var(--ai-board-cyan),0.32)"
             strokeWidth={primary ? 0.34 : 0.24}
             strokeOpacity={quietOpacity}
           />
@@ -741,7 +835,7 @@ function AIReadChrome({ primary = false, routeKey }: { primary?: boolean; routeK
           <path
             id={rightRouteId}
             d={layout.right}
-            stroke="rgba(255,174,76,0.82)"
+            stroke="rgba(var(--ai-board-copper-rgb),0.82)"
             strokeWidth={primary ? 0.58 : 0.4}
             strokeOpacity={primary ? 0.9 : 0.58}
           />
@@ -749,26 +843,26 @@ function AIReadChrome({ primary = false, routeKey }: { primary?: boolean; routeK
           <path
             id={returnRouteId}
             d={layout.orangeReturn}
-            stroke="rgba(255,174,76,0.62)"
+            stroke="rgba(var(--ai-board-copper-rgb),0.62)"
             strokeWidth={primary ? 0.38 : 0.26}
             strokeOpacity={primary ? 0.62 : 0.34}
           />
 
           <path
             d={layout.interiorA}
-            stroke="rgba(96,245,255,0.18)"
+            stroke="rgba(var(--ai-board-cyan),0.18)"
             strokeWidth="0.18"
             strokeOpacity={quietOpacity * 0.8}
           />
           <path
             d={layout.interiorB}
-            stroke="rgba(96,245,255,0.16)"
+            stroke="rgba(var(--ai-board-cyan),0.16)"
             strokeWidth="0.14"
             strokeOpacity={quietOpacity * 0.72}
           />
           <path
             d={layout.interiorC}
-            stroke="rgba(255,174,76,0.42)"
+            stroke="rgba(var(--ai-board-copper-rgb),0.42)"
             strokeWidth="0.18"
             strokeOpacity={quietOpacity}
           />
@@ -819,7 +913,7 @@ function AIReadChrome({ primary = false, routeKey }: { primary?: boolean; routeK
               cx={node.x}
               cy={node.y}
               r={index === 2 ? cyanNodeRadius * 1.08 : index === 4 ? cyanNodeRadius * 0.48 : cyanNodeRadius * 0.82}
-              fill="rgba(96,245,255,0.95)"
+              fill="rgba(var(--ai-board-packet-rgb),0.95)"
               opacity={index === 4 ? nodeOpacity * 0.56 : nodeOpacity * 0.84}
             />
           ))}
@@ -829,7 +923,7 @@ function AIReadChrome({ primary = false, routeKey }: { primary?: boolean; routeK
               cx={node.x}
               cy={node.y}
               r={index === 0 ? amberNodeRadius * 1.04 : amberNodeRadius * 0.78}
-              fill="rgba(255,174,76,0.94)"
+              fill="rgba(var(--ai-board-copper-rgb),0.94)"
               opacity={index === 0 ? nodeOpacity : nodeOpacity * 0.74}
             />
           ))}

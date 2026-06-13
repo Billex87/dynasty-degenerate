@@ -35,7 +35,7 @@ export function ClownEasterEggDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="clown-easter-egg-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg">
+      <DialogContent className="clown-easter-egg-dialog dd-glass-strong text-slate-100 sm:max-w-lg">
         <DialogHeader className="text-center">
           <DialogTitle className="athletic-headline text-3xl text-orange-400">
             Rival Alert
@@ -190,7 +190,7 @@ export function AdminAccessDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="admin-unlock-dialog border-orange-400/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/30 sm:max-w-lg">
+      <DialogContent className="admin-unlock-dialog dd-glass-strong text-slate-100 sm:max-w-lg">
         <DialogHeader className="text-center sm:text-center">
           <DialogTitle className="athletic-headline text-center text-3xl text-orange-300">
             Unlock Admin Tools
@@ -251,7 +251,7 @@ export function AdminUnlockDialog({
         if (!nextOpen) onDismiss();
       }}
     >
-      <DialogContent className="admin-unlock-dialog border-orange-400/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-orange-950/30 sm:max-w-lg">
+      <DialogContent className="admin-unlock-dialog dd-glass-strong text-slate-100 sm:max-w-lg">
         <DialogHeader className="text-center sm:text-center">
           <DialogTitle className="athletic-headline text-center text-3xl text-orange-300">
             Congrats

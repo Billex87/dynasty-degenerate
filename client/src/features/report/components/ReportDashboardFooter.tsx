@@ -40,7 +40,7 @@ export function ReportDashboardFooter({
   onAnalyzeAnotherLeague,
 }: ReportDashboardFooterProps) {
   return (
-    <footer className="report-footer border-t border-orange-500/20 bg-slate-950/80 backdrop-blur">
+    <footer className="report-footer dd-glass">
       <HeaderCssLights className="dd-footer-css-lights" />
       <div className="dd-header-content mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
         <ReportFooterActions

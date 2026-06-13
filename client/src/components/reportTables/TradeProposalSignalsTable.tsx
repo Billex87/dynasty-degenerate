@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
+import { ReportTooltip } from "../reportPrimitives";
 import {
   CommandMiniBadge,
   TradeEmptyState,
@@ -92,10 +93,8 @@ export function TradeProposalSignalsTable({
                     </CommandMiniBadge>
                   </TableCell>
                   <TableCell className="align-top">
-                    <div
-                      className="flex flex-wrap gap-2"
-                      title={signal.managers.join(" · ") || "Unknown"}
-                    >
+                    <ReportTooltip content={signal.managers.join(" · ") || "Unknown"}>
+                      <div className="flex flex-wrap gap-2">
                       {signal.managers.length ? (
                         <>
                           {signal.managers.slice(0, 3).map(manager => (
@@ -114,13 +113,12 @@ export function TradeProposalSignalsTable({
                       ) : (
                         <TradeProposalEmpty>Unknown</TradeProposalEmpty>
                       )}
-                    </div>
+                      </div>
+                    </ReportTooltip>
                   </TableCell>
                   <TableCell className="align-top">
-                    <div
-                      className="space-y-2"
-                      title={assetSummary || "No asset labels returned"}
-                    >
+                    <ReportTooltip content={assetSummary || "No asset labels returned"}>
+                      <div className="space-y-2">
                       {visiblePlayers.length > 0 && (
                         <TradeProposalAssetGroup label="Players">
                           {visiblePlayers.map(player => (
@@ -167,7 +165,8 @@ export function TradeProposalSignalsTable({
                           No asset labels returned
                         </TradeProposalEmpty>
                       )}
-                    </div>
+                      </div>
+                    </ReportTooltip>
                   </TableCell>
                   <TableCell className="align-top text-slate-300">
                     {signal.note}

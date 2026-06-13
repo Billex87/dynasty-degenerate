@@ -1,5 +1,6 @@
 import type { ReportData } from "@shared/types";
 import type { ManagerIntelPlayer } from "@shared/types";
+import type { CSSProperties } from "react";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
 import { getTeamTileStyle } from "@/lib/teamTileStyle";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
@@ -16,6 +17,7 @@ import {
   getPlayerValueForMode,
 } from "@/lib/leagueValueMode";
 import { type PlayerModalData } from "../PlayerDetailModal";
+import { ReportTooltip } from "../reportPrimitives";
 
 export function PlayerInsightTile({
   label,
@@ -28,6 +30,7 @@ export function PlayerInsightTile({
   extraPill,
   crownedRank,
   leagueValueMode = "dynasty",
+  motionProps,
 }: {
   label: string;
   player: ManagerIntelPlayer | null | undefined;
@@ -39,6 +42,11 @@ export function PlayerInsightTile({
   extraPill?: string | null;
   crownedRank?: string | null;
   leagueValueMode?: ReportData["leagueValueMode"];
+  motionProps?: {
+    "data-animate-in"?: "true" | "false";
+    "data-top-asset"?: "true";
+    style?: CSSProperties;
+  };
 }) {
   if (!player) return null;
   const normalizedMode = normalizeLeagueValueMode(leagueValueMode);
@@ -71,55 +79,58 @@ export function PlayerInsightTile({
   const insightTitle = getPlayerInsightLabelHelp(label);
 
   return (
-    <button
-      type="button"
-      className={`player-team-tile manager-intel-player ${tone === "warn" ? "manager-intel-player-warn" : ""} ${tone === "danger" ? "manager-intel-player-danger" : ""}`}
-      data-insight-label={insightKey}
-      style={getTeamTileStyle(playerTeam)}
-      title={insightTitle}
-      aria-label={`${label}: ${player.name}`}
-      onClick={() =>
-        onSelect(
-          buildPlayerModalData({
-            playerId: player.player_id,
-            playerName: player.name,
-            playerPos: player.pos,
-            value: displayedValue,
-            playerDetails,
-            playerDetailsById,
-            currentPositionRank:
-              displayedRank ||
-              player.currentPositionRank ||
-              player.seasonPositionRank,
-            manager: player.owner || manager,
-            managerAvatarUrl: player.owner ? undefined : managerAvatarUrl,
-            valueMode: normalizedMode,
-          })
-        )
-      }
-    >
-      <div className="manager-intel-player-kicker">{label}</div>
-      <div className="manager-intel-player-main">
-        <PlayerNameWithHeadshot
-          playerId={player.player_id}
-          playerName={player.name}
-          team={playerTeam}
-          position={player.pos}
-        />
-      </div>
-      <div className="manager-intel-player-pills">
-        <TeamLogoPill team={playerTeam} />
-        <PositionRankPill rank={displayedRank || player.pos} />
-        {extraPill && <span>{extraPill}</span>}
-        <span>{formatCompactValue(displayedValue)}</span>
-      </div>
-      {crownedRank && (
-        <div className="manager-intel-crown-rank">
-          <Crown className="h-3.5 w-3.5" />
-          <span>{crownedRank}</span>
+    <ReportTooltip content={insightTitle}>
+      <button
+        type="button"
+        className={`player-team-tile manager-intel-player ${tone === "warn" ? "manager-intel-player-warn" : ""} ${tone === "danger" ? "manager-intel-player-danger" : ""}`}
+        data-animate-in={motionProps?.["data-animate-in"]}
+        data-insight-label={insightKey}
+        data-top-asset={motionProps?.["data-top-asset"]}
+        style={{ ...getTeamTileStyle(playerTeam), ...motionProps?.style }}
+        aria-label={`${label}: ${player.name}`}
+        onClick={() =>
+          onSelect(
+            buildPlayerModalData({
+              playerId: player.player_id,
+              playerName: player.name,
+              playerPos: player.pos,
+              value: displayedValue,
+              playerDetails,
+              playerDetailsById,
+              currentPositionRank:
+                displayedRank ||
+                player.currentPositionRank ||
+                player.seasonPositionRank,
+              manager: player.owner || manager,
+              managerAvatarUrl: player.owner ? undefined : managerAvatarUrl,
+              valueMode: normalizedMode,
+            })
+          )
+        }
+      >
+        <div className="manager-intel-player-kicker">{label}</div>
+        <div className="manager-intel-player-main">
+          <PlayerNameWithHeadshot
+            playerId={player.player_id}
+            playerName={player.name}
+            team={playerTeam}
+            position={player.pos}
+          />
         </div>
-      )}
-    </button>
+        <div className="manager-intel-player-pills">
+          <TeamLogoPill team={playerTeam} />
+          <PositionRankPill rank={displayedRank || player.pos} />
+          {extraPill && <span>{extraPill}</span>}
+          <span>{formatCompactValue(displayedValue)}</span>
+        </div>
+        {crownedRank && (
+          <div className="manager-intel-crown-rank">
+            <Crown className="h-3.5 w-3.5" />
+            <span>{crownedRank}</span>
+          </div>
+        )}
+      </button>
+    </ReportTooltip>
   );
 }
 

@@ -30,7 +30,7 @@ export function HomeLandingFeatureCard({
 }: HomeLandingFeatureCardProps) {
   return (
     <article
-      className={`dd-tile dd-cut-frame u-dd-scanlines home-feature-card ${card.colorClass} p-4 sm:p-6 space-y-3${
+      className={`dd-tile dd-glass-cold dd-cut-frame u-dd-scanlines home-feature-card ${card.colorClass} p-4 sm:p-6 space-y-3${
         isClone ? " home-feature-card-clone" : ""
       }`}
       data-dd-tone={getFeatureTileTone(card.colorClass)}

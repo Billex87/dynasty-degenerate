@@ -1,5 +1,8 @@
-import type { ComponentType } from "react";
+import { useMemo, type ComponentType } from "react";
+import { ReportSkeleton } from "@/components/reportPrimitives";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
+import { ReportMotionSectionStack } from "@/features/report/components/ReportMotionSectionStack";
+import { TeamProfileRadar, hasTeamProfileRadarData } from "@/features/report/components/TeamProfileRadar";
 import type { OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
 import type { ReportNextMoveTarget } from "@/features/report/lib/reportNextMoveBrief";
 import type { ReportData } from "@shared/types";
@@ -84,9 +87,31 @@ export function ReportRankingsTab({
     nextMoveTarget?.sectionKey === "full-roster-rankings"
       ? nextMoveTarget.openSignal
       : 0;
+  const hasTeamProfileInputs = useMemo(
+    () =>
+      hasTeamProfileRadarData({
+        reportData,
+        viewerManager: effectiveViewerManager,
+        leagueValueMode,
+      }),
+    [effectiveViewerManager, leagueValueMode, reportData]
+  );
 
   return (
-    <div className="report-command-section-stack space-y-6 sm:space-y-8">
+    <ReportMotionSectionStack className="report-command-section-stack space-y-6 sm:space-y-8">
+      {hasTeamProfileInputs ? (
+        <CollapsibleReportSection
+          title="Team Profile"
+          kicker="Blueprint radar"
+          targetKey="team-profile"
+        >
+          <TeamProfileRadar
+            reportData={reportData}
+            viewerManager={effectiveViewerManager}
+            leagueValueMode={leagueValueMode}
+          />
+        </CollapsibleReportSection>
+      ) : null}
       {reportData.managerRosterIntelligence?.length ? (
         <CollapsibleReportSection
           title="Scout Leaguemates"
@@ -145,7 +170,7 @@ export function ReportRankingsTab({
         openSignal={fullRankingsOpenSignal}
       >
         {rankingsQueryIsLoading && !rankingsForReport ? (
-          <div className="rankings-empty-state">Loading league-matched rankings...</div>
+          <ReportSkeleton variant="table" rows={7} />
         ) : (
           <div className="space-y-4 sm:space-y-5">
             <RankingsMarketRead data={reportDataForView} />
@@ -177,9 +202,7 @@ export function ReportRankingsTab({
           }
         >
           {rankingsQueryIsLoading && !rankingsForReport ? (
-            <div className="rankings-empty-state">
-              Loading college prospect rankings...
-            </div>
+            <ReportSkeleton variant="table" rows={7} />
           ) : (
             <RankingsBoard
               rankings={rankingsForReport}
@@ -198,6 +221,6 @@ export function ReportRankingsTab({
           )}
         </CollapsibleReportSection>
       )}
-    </div>
+    </ReportMotionSectionStack>
   );
 }

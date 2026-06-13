@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 import { Tabs } from "@/components/ui/tabs";
@@ -11,6 +12,11 @@ import type { ReportData } from "@shared/types";
 import { ChangeLeagueDialog } from "@/features/home/components/HomeLeagueDialogs";
 import { ReportDashboardFooter } from "@/features/report/components/ReportDashboardFooter";
 import { ReportDashboardHeader } from "@/features/report/components/ReportDashboardHeader";
+import {
+  useAnimationsEnabled,
+  useCursorReactiveGrid,
+  useScrollProgressBeam,
+} from "@/lib/motion";
 
 type ReportDashboardShellHeaderProps = {
   hasAdminPermissions: boolean;
@@ -143,12 +149,22 @@ export function ReportDashboardShell({
   resolvedActiveTab,
   shouldShowDraftHistoryTab,
 }: ReportDashboardShellProps) {
+  const reportShellRef = useRef<HTMLDivElement | null>(null);
+  const animationsEnabled = useAnimationsEnabled();
+  useScrollProgressBeam(reportShellRef, { source: "document" });
+  useCursorReactiveGrid(reportShellRef, {
+    disabled: isLoadingRevealPhase || isChangeLeagueModalOpen,
+  });
+
   return (
     <ManagerChampionshipProvider championships={managerChampionships}>
       <div
+        ref={reportShellRef}
         className={`report-shell min-h-screen flex flex-col ${isLoadingRevealPhase ? "report-shell-entering" : ""}`}
         data-ai-voice-mode={aiVoiceMode}
+        data-dd-effects={animationsEnabled ? "on" : "off"}
       >
+        <span className="dd-reading-beam dd-reading-beam-report" aria-hidden="true" />
         <PremiumFxLayer
           variant={reportFxVariant}
           intensity={resolvedActiveTab === "overview" ? "low" : "medium"}

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useId, useRef, type ReactNode } from 'react';
+import { useMemo, useState, useEffect, useId, useRef, type CSSProperties, type ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -38,12 +38,14 @@ import { getPlayerValueFraming, PLAYER_VALUE_LANGUAGE } from '@/lib/playerValueF
 import { buildPlayerActionArchetypeRead } from '@/lib/playerActionArchetype';
 import { loadStaticPlayerValueTimeline } from '@/lib/playerValueHistoryShards';
 import { getVoicedAIConfidenceLabel } from '@/lib/aiVoice';
+import { DURATION, useAnimationsEnabled, useDrawPath, useScrollProgressBeam } from '@/lib/motion';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { TeamLogoPill } from './TeamLogoPill';
 import { AIReadPanel, type AIReadChip } from './AIReadPanel';
 import { PremiumFxLayer } from './PremiumFxLayer';
 import { WeeklyProjectionReceipt } from './WeeklyProjectionReceipt';
+import { ReportSkeleton, ReportTooltip } from './reportPrimitives';
 
 const SLEEPER_SESSION_KEY = 'dynasty-degenerates:sleeper-session:v1';
 const ADMIN_PASSPHRASE_VERIFIED_SESSION_KEY = 'dynasty-degenerates:admin-passphrase-verified-session:v1';
@@ -229,6 +231,7 @@ export function PlayerDetailModal({
   const [expandedAvailabilitySeason, setExpandedAvailabilitySeason] = useState<string | null>(null);
   const playerTitleRef = useRef<HTMLHeadingElement | null>(null);
   const playerModalReturnFocusRef = useRef<HTMLElement | null>(null);
+  const playerModalScrollRef = useRef<HTMLDivElement | null>(null);
   const pick = focusedPeerPick || selectedPick;
   const [headshot, setHeadshot] = useState<string | null>(null);
   const [directImageFailed, setDirectImageFailed] = useState(false);
@@ -319,6 +322,7 @@ export function PlayerDetailModal({
     refetchOnWindowFocus: false,
     staleTime: 1000 * 60 * 5,
   });
+  useScrollProgressBeam(playerModalScrollRef);
 
   useEffect(() => {
     setHeadshot(null);
@@ -619,8 +623,8 @@ export function PlayerDetailModal({
       <DialogContent
         showCloseButton={false}
         overlayClassName="player-detail-modal-overlay"
-        className={`player-detail-modal ${isCollegeProspect ? 'player-detail-modal-prospect' : ''} max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-slate-700/70 bg-[#121827] p-0 text-slate-100 shadow-2xl shadow-black/60 sm:max-h-[88vh] sm:max-w-2xl`}
-        style={{ ...collegeTileStyle, background: modalBackground }}
+        className={`player-detail-modal dd-glass-strong ${isCollegeProspect ? 'player-detail-modal-prospect' : ''} max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden p-0 text-slate-100 sm:max-h-[88vh] sm:max-w-2xl`}
+        style={{ ...collegeTileStyle, "--dd-glass-bg": modalBackground } as CSSProperties}
         onOpenAutoFocus={(event) => {
           const activeElement = document.activeElement;
           if (activeElement instanceof HTMLElement) {
@@ -639,7 +643,11 @@ export function PlayerDetailModal({
         }}
       >
         <PremiumFxLayer variant="player-modal" intensity="low" />
-        <div className="max-h-[calc(100dvh-1rem)] overflow-y-auto pb-[env(safe-area-inset-bottom)] sm:max-h-[88vh]">
+        <div
+          ref={playerModalScrollRef}
+          className="player-detail-modal-scroll-body dd-report-scroll max-h-[calc(100dvh-1rem)] overflow-y-auto pb-[env(safe-area-inset-bottom)] sm:max-h-[88vh]"
+        >
+          <span className="dd-reading-beam dd-reading-beam-modal" aria-hidden="true" />
           <div
             className="relative overflow-hidden border-b border-cyan-400/20 px-4 pb-5 pt-5 sm:px-6 sm:pb-7 sm:pt-6"
             style={{
@@ -1667,7 +1675,7 @@ function AvailabilitySeasonLogDialog({
       <DialogContent
         showCloseButton={false}
         overlayClassName="player-availability-log-overlay"
-        className="player-availability-log-modal max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[86vh] sm:max-w-2xl"
+        className="player-availability-log-modal dd-glass-strong max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden p-0 text-slate-100 sm:max-h-[86vh] sm:max-w-2xl"
       >
         <div className="player-availability-log-modal-inner">
           <button type="button" className="manager-modal-close" onClick={onClose} aria-label={`Close ${playerName} ${season} weekly availability log`}>
@@ -2418,13 +2426,7 @@ function RedraftValueTimelinePanel({
   }, [activeScopeKey, preferredScope, scopes]);
 
   if (isLoading && !timeline) {
-    return (
-      <div className="player-value-confidence-card player-value-confidence-card-info">
-        <span>Redraft History</span>
-        <strong>Loading player shard</strong>
-        <p>Pulling the redraft value timeline without loading the full archive into the report.</p>
-      </div>
-    );
+    return <ReportSkeleton variant="cards" rows={2} className="player-value-timeline-skeleton" />;
   }
 
   if (!preferredScope) {
@@ -2574,6 +2576,11 @@ function PlayerValueTimelineCard({
   const isNegative = (delta || 0) < 0;
   const strokeColor = getTimelineMovementColor(delta);
   const path = useMemo(() => buildTimelinePath(displayWindow.points, 260, 86), [displayWindow.points]);
+  const miniHaloPathRef = useRef<SVGPathElement | null>(null);
+  const miniValuePathRef = useRef<SVGPathElement | null>(null);
+  const miniReplayKey = `${displayWindowKey}:${leagueValueMode || 'dynasty'}`;
+  useDrawPath(miniHaloPathRef, { durationMs: DURATION.draw, replayKey: miniReplayKey });
+  useDrawPath(miniValuePathRef, { durationMs: DURATION.draw, replayKey: miniReplayKey });
   const deltaLabel = buildTimelineWindowDeltaLabel({ delta, deltaPct: displayWindow.deltaPct }) || 'Flat';
 
   return (
@@ -2625,15 +2632,17 @@ function PlayerValueTimelineCard({
           >
             <line x1="8" y1="72" x2="252" y2="72" stroke="rgba(148,163,184,0.24)" strokeWidth="1" />
             <line x1="8" y1="12" x2="252" y2="12" stroke="rgba(148,163,184,0.14)" strokeWidth="1" />
-            <path d={path} fill="none" stroke="rgba(15,23,42,0.85)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-            <path d={path} fill="none" stroke={strokeColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            <path ref={miniHaloPathRef} d={path} fill="none" stroke="rgba(15,23,42,0.85)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+            <path ref={miniValuePathRef} d={path} fill="none" stroke={strokeColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
             {buildTimelineCoordinates(displayWindow.points, 260, 86).map((point, index) => (
               <circle
-                key={`${displayWindow.points[index].date}-${displayWindow.points[index].value}`}
+                key={`${miniReplayKey}-${displayWindow.points[index].date}-${displayWindow.points[index].value}`}
+                className={index === displayWindow.points.length - 1 ? 'dd-motion-chart-end-marker' : undefined}
                 cx={point.x}
                 cy={point.y}
                 r={index === 0 || index === displayWindow.points.length - 1 ? 3.5 : 2.2}
                 fill={index === displayWindow.points.length - 1 ? strokeColor : 'rgba(226,232,240,0.86)'}
+                style={index === displayWindow.points.length - 1 ? { animationDelay: `${DURATION.draw + 80}ms` } : undefined}
               />
             ))}
           </svg>
@@ -2787,6 +2796,13 @@ function PlayerValueTimelineDetailDialog({
   const firstRankPoint = rankChartPoints[0] || null;
   const lastRankPoint = rankChartPoints[rankChartPoints.length - 1] || null;
   const chartAxisLabels = getTimelineChartAxisLabels(visibleChartMode, activePoints, rankChartPoints);
+  const animationsEnabled = useAnimationsEnabled();
+  const detailReplayKey = `${activeWindowKey}:${visibleChartMode}`;
+  const detailHaloPathRef = useRef<SVGPathElement | null>(null);
+  const detailValuePathRef = useRef<SVGPathElement | null>(null);
+  useDrawPath(detailHaloPathRef, { durationMs: DURATION.draw, replayKey: detailReplayKey });
+  useDrawPath(detailValuePathRef, { durationMs: DURATION.draw, replayKey: detailReplayKey });
+  const areaDelayMs = Math.round(DURATION.draw * 0.7);
   const chartSummaryLabel = visibleChartMode === 'rank'
     ? `${firstRankPoint?.rankLabel || '-'} to ${lastRankPoint?.rankLabel || '-'}`
     : `${formatValueLens(firstPoint.value)} to ${formatValueLens(lastPoint.value)}`;
@@ -2816,7 +2832,7 @@ function PlayerValueTimelineDetailDialog({
       <DialogContent
         showCloseButton={false}
         overlayClassName="player-value-timeline-overlay"
-        className="player-value-timeline-modal max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden border-cyan-300/20 bg-slate-950 p-0 text-slate-100 shadow-2xl shadow-black/70 sm:max-h-[86vh] sm:max-w-3xl"
+        className="player-value-timeline-modal dd-glass-strong max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)] overflow-hidden p-0 text-slate-100 sm:max-h-[86vh] sm:max-w-3xl"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           titleRef.current?.focus({ preventScroll: true });
@@ -2985,18 +3001,26 @@ function PlayerValueTimelineDetailDialog({
                     />
                   )}
                   {chartAreaPath && (
-                    <path d={chartAreaPath} fill={`url(#${chartGradientId})`} className="player-value-chart-area" />
+                    <path
+                      key={`area-${detailReplayKey}`}
+                      d={chartAreaPath}
+                      fill={`url(#${chartGradientId})`}
+                      className="player-value-chart-area dd-motion-chart-area"
+                      style={{ animationDelay: animationsEnabled ? `${areaDelayMs}ms` : undefined }}
+                    />
                   )}
-                  <path d={chartPath} fill="none" stroke="rgba(15,23,42,0.9)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d={chartPath} fill="none" stroke={activeStrokeColor} strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path ref={detailHaloPathRef} d={chartPath} fill="none" stroke="rgba(15,23,42,0.9)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+                  <path ref={detailValuePathRef} d={chartPath} fill="none" stroke={activeStrokeColor} strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
                   {chartPoints.map((point, index) => {
                     const timelinePoint = chartTimelinePoints[index];
                     const hasEvents = showSourceAdmin && Boolean(timelinePoint.events?.length);
                     const showMarker = visibleMarkerIndexes.has(index);
+                    const isEndMarker = index === chartPoints.length - 1;
                     return (
                       <g
-                        key={`${visibleChartMode}-${timelinePoint.date}-${timelinePoint.value}`}
-                        className={`player-value-chart-point-group ${selectedPointIndex === index ? 'player-value-chart-point-group-selected' : ''}`}
+                        key={`${detailReplayKey}-${timelinePoint.date}-${timelinePoint.value}`}
+                        className={`player-value-chart-point-group ${selectedPointIndex === index ? 'player-value-chart-point-group-selected' : ''} ${isEndMarker ? 'dd-motion-chart-end-marker' : ''}`}
+                        style={isEndMarker ? { animationDelay: animationsEnabled ? `${DURATION.draw + 80}ms` : undefined } : undefined}
                       >
                         <circle
                           cx={point.x}
@@ -4915,13 +4939,15 @@ function ProspectCollegePill({
   const logoSrc = logoFailed ? null : getCollegeLogoUrl(college, logoUrl);
 
   return (
-    <span className="player-modal-college-pill" title={label} aria-label={label}>
-      {logoSrc ? (
-        <img src={logoSrc} alt="" loading="lazy" aria-hidden="true" onError={() => setLogoFailed(true)} />
-      ) : (
-        <span className="player-modal-college-fallback" aria-hidden="true">{getCollegeInitials(college)}</span>
-      )}
-    </span>
+    <ReportTooltip content={label}>
+      <span className="player-modal-college-pill" aria-label={label}>
+        {logoSrc ? (
+          <img src={logoSrc} alt="" loading="lazy" aria-hidden="true" onError={() => setLogoFailed(true)} />
+        ) : (
+          <span className="player-modal-college-fallback" aria-hidden="true">{getCollegeInitials(college)}</span>
+        )}
+      </span>
+    </ReportTooltip>
   );
 }
 

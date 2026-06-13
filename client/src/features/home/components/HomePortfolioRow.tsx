@@ -20,6 +20,7 @@ export function HomePortfolioRow({
       key={row.id}
       className={[
         "home-portfolio-row",
+        "dd-glass-cold",
         row.leagueCount > 1 ? "is-overlap" : "",
         row.leagueCount >= 3 ? "is-high-exposure" : "",
       ]

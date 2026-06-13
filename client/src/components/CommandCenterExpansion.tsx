@@ -71,6 +71,12 @@ import {
 import { AIActionQueue } from '@/components/AIActionQueue';
 import { buildAutopilotData } from '@/lib/autopilot/buildAutopilotData';
 import { AUTOPILOT_MOCK_DATA } from '@/lib/autopilot/mockData';
+import {
+  DURATION,
+  useAnimationsEnabled,
+  useMotionInViewOnce,
+  useSpringValue,
+} from '@/lib/motion';
 
 type ManagerAvatars = ReportData['managerAvatars'];
 type BlueprintSignal = 'buy' | 'hold' | 'sell';
@@ -92,6 +98,138 @@ type BlueprintTrendPoint = {
   x: number;
   y: number;
 };
+
+const BLUEPRINT_GRADE_PARTICLES = [
+  { x: 0, y: -36 },
+  { x: 25, y: -25 },
+  { x: 36, y: 0 },
+  { x: 25, y: 25 },
+  { x: 0, y: 36 },
+  { x: -25, y: 25 },
+  { x: -36, y: 0 },
+  { x: -25, y: -25 },
+] as const;
+
+function normalizeBlueprintGrade(value: number | string | null | undefined) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 5;
+  return Math.max(0, Math.min(10, numeric));
+}
+
+function getBlueprintLetterGrade(value: number | string | null | undefined) {
+  const score = normalizeBlueprintGrade(value);
+  if (score >= 9.5) return 'A+';
+  if (score >= 8.5) return 'A';
+  if (score >= 7.5) return 'B+';
+  if (score >= 6.5) return 'B';
+  if (score >= 5.5) return 'C+';
+  if (score >= 4.5) return 'C';
+  if (score >= 3.5) return 'D';
+  return 'F';
+}
+
+function BlueprintGradeBurst({ className = '' }: { className?: string }) {
+  return (
+    <span className={`blueprint-grade-burst ${className}`} aria-hidden="true">
+      {BLUEPRINT_GRADE_PARTICLES.map((particle, index) => (
+        <i
+          key={`${particle.x}:${particle.y}`}
+          style={{
+            '--blueprint-burst-x': `${particle.x}px`,
+            '--blueprint-burst-y': `${particle.y}px`,
+            '--blueprint-burst-index': index,
+          } as CSSProperties}
+        />
+      ))}
+    </span>
+  );
+}
+
+function BlueprintGradeStamp({
+  grade,
+}: {
+  grade: number | string | null | undefined;
+}) {
+  const { hasEntered, ref } = useMotionInViewOnce<HTMLElement>();
+  const animationsEnabled = useAnimationsEnabled();
+  const normalized = normalizeBlueprintGrade(grade);
+  const animate = animationsEnabled && hasEntered;
+
+  return (
+    <strong
+      ref={ref}
+      className="blueprint-grade-stamp"
+      data-animate={animate ? 'true' : 'false'}
+      style={{
+        '--blueprint-grade-stamp-delay': `${Math.round(DURATION.draw * 0.48)}ms`,
+      } as CSSProperties}
+    >
+      <span>{Number.isInteger(normalized) ? normalized.toFixed(0) : normalized.toFixed(1)}</span>
+      <b>{getBlueprintLetterGrade(normalized)}</b>
+      <BlueprintGradeBurst />
+    </strong>
+  );
+}
+
+function BlueprintGradeRing({
+  score,
+  label,
+  detail,
+}: {
+  score: number;
+  label: string;
+  detail: string;
+}) {
+  const { hasEntered, ref } = useMotionInViewOnce<HTMLDivElement>();
+  const animationsEnabled = useAnimationsEnabled();
+  const targetScore = normalizeBlueprintGrade(score);
+  const animatedScore = useSpringValue(
+    animationsEnabled && hasEntered ? targetScore : animationsEnabled ? 0 : targetScore,
+    { stiffness: 125, damping: 22 }
+  );
+  const displayedScore = Math.max(0, Math.min(10, animationsEnabled ? animatedScore : targetScore));
+  const radius = 42;
+  const circumference = Math.PI * 2 * radius;
+  const progress = animationsEnabled && !hasEntered ? 0 : targetScore / 10;
+  const animate = animationsEnabled && hasEntered;
+
+  return (
+    <div
+      ref={ref}
+      className="blueprint-grade-ring"
+      data-animate={animate ? 'true' : 'false'}
+      style={{
+        '--blueprint-grade-draw-ms': `${Math.round(DURATION.draw * 0.8)}ms`,
+        '--blueprint-grade-stamp-delay': `${Math.round(DURATION.draw * 0.8 * 0.6)}ms`,
+      } as CSSProperties}
+    >
+      <svg viewBox="0 0 112 112" aria-hidden="true">
+        <circle
+          className="blueprint-grade-ring-track"
+          cx="56"
+          cy="56"
+          r={radius}
+        />
+        <circle
+          className="blueprint-grade-ring-progress"
+          cx="56"
+          cy="56"
+          r={radius}
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - progress)}
+        />
+      </svg>
+      <em className="blueprint-grade-ring-label">{label}</em>
+      <strong>
+        <span className="blueprint-grade-ring-reserve">{targetScore.toFixed(1)}</span>
+        <span className="blueprint-grade-ring-live">{displayedScore.toFixed(1)}</span>
+      </strong>
+      <small>{detail}</small>
+      <b className="blueprint-grade-letter-stamp">{getBlueprintLetterGrade(targetScore)}</b>
+      <BlueprintGradeBurst className="blueprint-grade-ring-burst" />
+    </div>
+  );
+}
 
 const BLUEPRINT_TIERS = ['Elite', 'Championship', 'Contending', 'Reload', 'Rebuild'];
 const WATCH_ALERT_PREFERENCES_KEY = 'dynasty-degenerates:watch-alert-preferences:v1';
@@ -1745,19 +1883,19 @@ export function MonthlyTeamBlueprint({
               <div className="team-blueprint-grade-grid">
                 {positionGrades.map((item) => (
                   <span key={item.position}>
-                    <strong>{item.grade}</strong>
+                    <BlueprintGradeStamp grade={item.grade} />
                     <em>{item.position}</em>
                     <small>{item.rank ? `Rank #${item.rank}` : 'No rank'}</small>
                     <small className="team-blueprint-grade-note">{item.note}</small>
                   </span>
                 ))}
                 <span>
-                  <strong>{getRankGrade(null)}</strong>
+                  <BlueprintGradeStamp grade={getRankGrade(null)} />
                   <em>Bench</em>
                   <small>{formatCompactValue(intel.benchValue)}</small>
                 </span>
                 <span>
-                  <strong>{getRankGrade(pickPortfolio ? leagueSize - Math.min(leagueSize - 1, Math.round((pickPortfolio.totalValue || 0) / 1200)) : null, leagueSize)}</strong>
+                  <BlueprintGradeStamp grade={getRankGrade(pickPortfolio ? leagueSize - Math.min(leagueSize - 1, Math.round((pickPortfolio.totalValue || 0) / 1200)) : null, leagueSize)} />
                   <em>Draft Capital</em>
                   <small>{pickPortfolio ? formatCompactValue(pickPortfolio.totalValue) : 'No picks'}</small>
                 </span>
@@ -1766,9 +1904,11 @@ export function MonthlyTeamBlueprint({
 
             <section className="team-blueprint-panel team-blueprint-panel-wide team-blueprint-grade-strip">
               <div className="team-blueprint-overall-grade">
-                <span>Overall Grade</span>
-                <strong>{overallEnhancedGrade.toFixed(1)}</strong>
-                <small>Value safety, production, and schedule/role blend</small>
+                <BlueprintGradeRing
+                  score={overallEnhancedGrade}
+                  label="Overall Grade"
+                  detail="Value safety, production, and schedule/role blend"
+                />
               </div>
               <div className="team-blueprint-grade-strip-meta">
                 <span>

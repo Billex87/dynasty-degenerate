@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
+import { ReportMotionSectionStack } from "@/features/report/components/ReportMotionSectionStack";
 import type { ReportNextMoveTarget } from "@/features/report/lib/reportNextMoveBrief";
 import {
   buildDepthChartMoverPreviewMetrics,
@@ -51,7 +52,7 @@ export function ReportMomentumTab({
       : 0;
 
   return (
-    <div className="report-command-section-stack space-y-6 sm:space-y-8">
+    <ReportMotionSectionStack className="report-command-section-stack space-y-6 sm:space-y-8">
       <CollapsibleReportSection
         title="Waiver Intelligence"
         kicker={
@@ -170,6 +171,6 @@ export function ReportMomentumTab({
           leagueValueMode={leagueValueMode}
         />
       </CollapsibleReportSection>
-    </div>
+    </ReportMotionSectionStack>
   );
 }

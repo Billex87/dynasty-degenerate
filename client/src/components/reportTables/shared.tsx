@@ -21,9 +21,10 @@ import {
   type LeagueValueMode,
 } from "@/lib/leagueValueMode";
 import { ChampionAvatarFrame } from "../ManagerChampionships";
+import { ManagerTrendAvatar } from "../ManagerTrendAvatar";
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import type { PlayerModalData } from "../PlayerDetailModal";
-import { EmptyState, MetricPill } from "../reportPrimitives";
+import { EmptyState, MetricPill, ReportTooltip } from "../reportPrimitives";
 import {
   getPlayerAvailability,
   getPlayerAvailabilityClass,
@@ -218,11 +219,13 @@ export function TradeValuePill({
   className?: string;
   title?: string;
 }) {
-  return (
-    <span className={`value-pill report-pill-shell report-inline-pill ${className}`.trim()} title={title}>
+  const pill = (
+    <span className={`value-pill report-pill-shell report-inline-pill ${className}`.trim()}>
       {children}
     </span>
   );
+
+  return title ? <ReportTooltip content={title}>{pill}</ReportTooltip> : pill;
 }
 
 export function TradeSummaryManager({
@@ -271,12 +274,11 @@ export function TradeSummaryManager({
 
 export function TradeBuildPill({ lens }: { lens: TradeBuildLens }) {
   return (
-    <span
-      className={`trade-build-pill trade-build-pill-${lens.tone}`}
-      title={lens.reason}
-    >
-      {lens.label}
-    </span>
+    <ReportTooltip content={lens.reason}>
+      <span className={`trade-build-pill trade-build-pill-${lens.tone}`}>
+        {lens.label}
+      </span>
+    </ReportTooltip>
   );
 }
 
@@ -871,19 +873,20 @@ export function TradeOutcomeAssetLine({
         {childText}
         {extraBadge}
       </span>
-      <strong
-        className={
-          asset.valueDelta > 0
-            ? "text-emerald-300"
-            : asset.valueDelta < 0
-              ? "text-rose-300"
-              : "text-slate-300"
-        }
-        title="Current value minus the value at the time of the trade"
-      >
-        <span className="trade-outcome-change-label">Value change</span>
-        <span>{formatOutcomeDeltaLabel(asset.valueDelta)}</span>
-      </strong>
+      <ReportTooltip content="Current value minus the value at the time of the trade">
+        <strong
+          className={
+            asset.valueDelta > 0
+              ? "text-emerald-300"
+              : asset.valueDelta < 0
+                ? "text-rose-300"
+                : "text-slate-300"
+          }
+        >
+          <span className="trade-outcome-change-label">Value change</span>
+          <span>{formatOutcomeDeltaLabel(asset.valueDelta)}</span>
+        </strong>
+      </ReportTooltip>
     </li>
   );
 }
@@ -1098,14 +1101,15 @@ export function CommandMiniBadge({
   as?: "span" | "em";
 }) {
   const Component = as;
-  return (
+  const badge = (
     <Component
       className={`command-mini-badge report-pill-shell report-inline-pill command-mini-badge-${tone || "neutral"} ${className}`.trim()}
-      title={title}
     >
       {children}
     </Component>
   );
+
+  return title ? <ReportTooltip content={title}>{badge}</ReportTooltip> : badge;
 }
 
 export function TradeProposalMorePill({ count }: { count: number }) {
@@ -1137,12 +1141,14 @@ export function OwnerSummaryTile({
   children,
   onClick,
   className = "",
+  trendDelta = null,
 }: {
   manager: string;
   avatarUrl?: string | null;
   children: ReactNode;
   onClick?: () => void;
   className?: string;
+  trendDelta?: number | null;
 }) {
   const isViewerTile = className.includes("viewer-owned-highlight");
   const content = (
@@ -1155,22 +1161,28 @@ export function OwnerSummaryTile({
       )}
       <span className="owner-summary-scrim" />
       <span className="owner-summary-main">
-        <ChampionAvatarFrame
-          managerName={manager}
-          className="owner-summary-avatar-frame"
+        <ManagerTrendAvatar
+          manager={manager}
+          trendDelta={trendDelta}
+          className="owner-summary-trend-avatar"
         >
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={manager}
-              className="owner-summary-avatar"
-            />
-          ) : (
-            <span className="owner-summary-avatar">
-              {manager[0]?.toUpperCase() || "?"}
-            </span>
-          )}
-        </ChampionAvatarFrame>
+          <ChampionAvatarFrame
+            managerName={manager}
+            className="owner-summary-avatar-frame"
+          >
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={manager}
+                className="owner-summary-avatar"
+              />
+            ) : (
+              <span className="owner-summary-avatar">
+                {manager[0]?.toUpperCase() || "?"}
+              </span>
+            )}
+          </ChampionAvatarFrame>
+        </ManagerTrendAvatar>
         <span className="owner-summary-name-lockup">
           <span className="owner-summary-name">{manager}</span>
         </span>
@@ -1252,13 +1264,14 @@ export function renderActivityManagerAvatar(
 ) {
   if (!manager) {
     return (
-      <span
-        className="activity-manager-avatar activity-manager-avatar-empty"
-        aria-label="Available player"
-        title="Available"
-      >
-        FA
-      </span>
+      <ReportTooltip content="Available">
+        <span
+          className="activity-manager-avatar activity-manager-avatar-empty"
+          aria-label="Available player"
+        >
+          FA
+        </span>
+      </ReportTooltip>
     );
   }
 
@@ -1266,21 +1279,22 @@ export function renderActivityManagerAvatar(
   const initial = manager.trim()[0]?.toUpperCase() || "?";
 
   return (
-    <span
-      className="activity-manager-avatar"
-      aria-label={`Rostered by ${manager}`}
-      title={manager}
-    >
-      <ChampionAvatarFrame managerName={manager} showAccolades={false}>
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" />
-        ) : (
-          <span aria-hidden="true" className="activity-manager-avatar-fallback">
-            {initial}
-          </span>
-        )}
-      </ChampionAvatarFrame>
-    </span>
+    <ReportTooltip content={manager}>
+      <span
+        className="activity-manager-avatar"
+        aria-label={`Rostered by ${manager}`}
+      >
+        <ChampionAvatarFrame managerName={manager} showAccolades={false}>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" />
+          ) : (
+            <span aria-hidden="true" className="activity-manager-avatar-fallback">
+              {initial}
+            </span>
+          )}
+        </ChampionAvatarFrame>
+      </span>
+    </ReportTooltip>
   );
 }
 

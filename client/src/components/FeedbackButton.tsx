@@ -161,7 +161,7 @@ export function FeedbackButton({
       ) : null}
 
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-        <DialogContent className="feedback-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-lg">
+        <DialogContent className="feedback-dialog dd-glass-strong text-slate-100 sm:max-w-lg">
           <DialogHeader className="text-center sm:text-center">
             <DialogTitle className="athletic-headline feedback-dialog-title">
               Got Ideas For Us?

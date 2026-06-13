@@ -1,4 +1,12 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { TabsContent } from "@/components/ui/tabs";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -37,6 +45,7 @@ import type {
   HomePortfolioRow,
 } from "@/features/home/components/HomeLeagueSelection";
 import type { HomePortfolioExposureFilter } from "@/features/home/lib/portfolioRows";
+import { DURATION, MotionReveal, isViewTransitionActive } from "@/lib/motion";
 
 import { AdminDiagnosticsShell } from "@/features/admin/components/AdminDiagnosticsShell";
 import { AdminScheduleEdgeSection } from "@/features/admin/components/AdminScheduleEdgeSections";
@@ -222,6 +231,23 @@ function markReportNextMoveFocus(element: HTMLElement) {
   element.setAttribute("data-report-next-move-focus", "true");
 }
 
+function ReportTabEnter({ children }: { children: ReactNode }) {
+  if (isViewTransitionActive()) {
+    return <div className="dd-motion-tab-enter">{children}</div>;
+  }
+
+  return (
+    <MotionReveal
+      className="dd-motion-tab-enter"
+      durationMs={DURATION.fast + 80}
+      x={18}
+      y={0}
+    >
+      {children}
+    </MotionReveal>
+  );
+}
+
 type ReportDashboardContentProps = {
   reportData: ReportData;
   reportDataForView: ReportData;
@@ -327,6 +353,8 @@ export function ReportDashboardContent({
 }: ReportDashboardContentProps) {
   const [nextMoveTarget, setNextMoveTarget] =
     useState<ReportNextMoveTarget | null>(null);
+  const visitedTabsRef = useRef<Set<string>>(new Set());
+  const shouldAnimateHeroMetrics = !visitedTabsRef.current.has(resolvedActiveTab);
   const isPreDraftReport =
     reportData.leagueDiagnostics?.draftStatus === "pre_draft" ||
     reportData.leagueDiagnostics?.draftStatus === "drafting" ||
@@ -347,6 +375,10 @@ export function ReportDashboardContent({
     },
     [onReportTabChange]
   );
+
+  useEffect(() => {
+    visitedTabsRef.current.add(resolvedActiveTab);
+  }, [resolvedActiveTab]);
 
   useEffect(() => {
     if (!nextMoveTarget || nextMoveTarget.tab !== resolvedActiveTab) return;
@@ -407,6 +439,7 @@ export function ReportDashboardContent({
               activeTab={resolvedActiveTab}
               leagueValueMode={leagueValueMode}
               reportData={reportDataForView}
+              shouldAnimateMetrics={shouldAnimateHeroMetrics}
             />
           ) : null}
           {!isPreDraftReport && resolvedActiveTab === "overview" ? (
@@ -432,65 +465,67 @@ export function ReportDashboardContent({
           ) : null}
           <Suspense fallback={<ReportSectionLoadingFallback />}>
             <TabsContent value="overview" className="report-tab-content">
-              {isPreDraftReport ? (
-                <div className="space-y-6">
-                  <LeagueSettingsSummary
-                    diagnostics={reportData.leagueDiagnostics}
-                    leagueName={leagueName}
+              <ReportTabEnter>
+                {isPreDraftReport ? (
+                  <div className="space-y-6">
+                    <LeagueSettingsSummary
+                      diagnostics={reportData.leagueDiagnostics}
+                      leagueName={leagueName}
+                      leagueValueMode={leagueValueMode}
+                    />
+                    <EmptyState
+                      className="report-pre-draft-empty-state"
+                      title="Roster overview unlocks after the draft"
+                      description={preDraftDescription}
+                    />
+                  </div>
+                ) : (
+                  <ReportOverviewTab
+                    reportData={reportData}
+                    reportDataForView={reportDataForView}
+                    canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+                    isRedraftReport={isRedraftReport}
                     leagueValueMode={leagueValueMode}
+                    leagueName={leagueName}
+                    leagueFormat={leagueFormat}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                    homePortfolioRows={homePortfolioRows}
+                    filteredHomePortfolioRows={filteredHomePortfolioRows}
+                    orderedUserLeagues={orderedUserLeagues}
+                    isHomePortfolioLoading={isHomePortfolioLoading}
+                    portfolioSearch={portfolioSearch}
+                    portfolioExposureFilter={portfolioExposureFilter}
+                    portfolioLeagueFilter={portfolioLeagueFilter}
+                    onPortfolioSearchChange={onPortfolioSearchChange}
+                    onPortfolioExposureFilterChange={
+                      onPortfolioExposureFilterChange
+                    }
+                    onPortfolioLeagueFilterChange={onPortfolioLeagueFilterChange}
+                    effectiveViewerManager={effectiveViewerManager}
+                    ownerIntelSortMode={ownerIntelSortMode}
+                    onOwnerIntelSortModeChange={onOwnerIntelSortModeChange}
+                    ownerTitle={ownerTitle}
+                    ownerKicker={ownerKicker}
+                    rosterTitle={rosterTitle}
+                    rosterKicker={rosterKicker}
+                    showAssistantFeatureRadar={showAssistantFeatureRadar}
+                    OverviewAIPulse={OverviewAIPulse}
+                    MonthlyTeamBlueprint={MonthlyTeamBlueprint}
+                    LeaguePowerRankings={LeaguePowerRankings}
+                    TeamBreakdownRecon={TeamBreakdownRecon}
+                    TradeFinderGenerator={TradeFinderGenerator}
+                    TradePartnerFinder={TradePartnerFinder}
+                    LeagueExploits={LeagueExploits}
+                    AssistantFeatureShells={AssistantFeatureShells}
+                    OwnerIntelSortControls={OwnerIntelSortControls}
+                    OwnerIntelMatrix={OwnerIntelMatrix}
+                    LeagueCommandCenter={LeagueCommandCenter}
+                    ManagerPositionCountsTable={ManagerPositionCountsTable}
+                    nextMoveTarget={nextMoveTarget}
                   />
-                  <EmptyState
-                    className="report-pre-draft-empty-state"
-                    title="Roster overview unlocks after the draft"
-                    description={preDraftDescription}
-                  />
-                </div>
-              ) : (
-                <ReportOverviewTab
-                  reportData={reportData}
-                  reportDataForView={reportDataForView}
-                  canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
-                  isRedraftReport={isRedraftReport}
-                  leagueValueMode={leagueValueMode}
-                  leagueName={leagueName}
-                  leagueFormat={leagueFormat}
-                  leagueId={leagueId}
-                  leagueLogo={leagueLogo}
-                  homePortfolioRows={homePortfolioRows}
-                  filteredHomePortfolioRows={filteredHomePortfolioRows}
-                  orderedUserLeagues={orderedUserLeagues}
-                  isHomePortfolioLoading={isHomePortfolioLoading}
-                  portfolioSearch={portfolioSearch}
-                  portfolioExposureFilter={portfolioExposureFilter}
-                  portfolioLeagueFilter={portfolioLeagueFilter}
-                  onPortfolioSearchChange={onPortfolioSearchChange}
-                  onPortfolioExposureFilterChange={
-                    onPortfolioExposureFilterChange
-                  }
-                  onPortfolioLeagueFilterChange={onPortfolioLeagueFilterChange}
-                  effectiveViewerManager={effectiveViewerManager}
-                  ownerIntelSortMode={ownerIntelSortMode}
-                  onOwnerIntelSortModeChange={onOwnerIntelSortModeChange}
-                  ownerTitle={ownerTitle}
-                  ownerKicker={ownerKicker}
-                  rosterTitle={rosterTitle}
-                  rosterKicker={rosterKicker}
-                  showAssistantFeatureRadar={showAssistantFeatureRadar}
-                  OverviewAIPulse={OverviewAIPulse}
-                  MonthlyTeamBlueprint={MonthlyTeamBlueprint}
-                  LeaguePowerRankings={LeaguePowerRankings}
-                  TeamBreakdownRecon={TeamBreakdownRecon}
-                  TradeFinderGenerator={TradeFinderGenerator}
-                  TradePartnerFinder={TradePartnerFinder}
-                  LeagueExploits={LeagueExploits}
-                  AssistantFeatureShells={AssistantFeatureShells}
-                  OwnerIntelSortControls={OwnerIntelSortControls}
-                  OwnerIntelMatrix={OwnerIntelMatrix}
-                  LeagueCommandCenter={LeagueCommandCenter}
-                  ManagerPositionCountsTable={ManagerPositionCountsTable}
-                  nextMoveTarget={nextMoveTarget}
-                />
-              )}
+                )}
+              </ReportTabEnter>
             </TabsContent>
 
             {canViewAutopilotTab && (
@@ -498,19 +533,21 @@ export function ReportDashboardContent({
                 value="autopilot"
                 className="report-tab-content report-command-tab-body"
               >
-                <ErrorBoundary
-                  fallback={(error, reset) => (
-                    <AutopilotErrorFallback error={error} onRetry={reset} />
-                  )}
-                >
-                  <AITeamAutopilot
-                    reportData={reportDataForView}
-                    leagueId={leagueId}
-                    leagueName={leagueName}
-                    leagueFormat={leagueFormat}
-                    leagueValueMode={leagueValueMode}
-                  />
-                </ErrorBoundary>
+                <ReportTabEnter>
+                  <ErrorBoundary
+                    fallback={(error, reset) => (
+                      <AutopilotErrorFallback error={error} onRetry={reset} />
+                    )}
+                  >
+                    <AITeamAutopilot
+                      reportData={reportDataForView}
+                      leagueId={leagueId}
+                      leagueName={leagueName}
+                      leagueFormat={leagueFormat}
+                      leagueValueMode={leagueValueMode}
+                    />
+                  </ErrorBoundary>
+                </ReportTabEnter>
               </TabsContent>
             )}
 
@@ -518,88 +555,94 @@ export function ReportDashboardContent({
               value="momentum"
               className="report-tab-content report-command-tab-body"
             >
-              <ReportMomentumTab
-                reportData={reportData}
-                leagueValueMode={leagueValueMode}
-                isRedraftReport={isRedraftReport}
-                leagueId={leagueId}
-                leagueLogo={leagueLogo}
-                effectiveViewerManager={effectiveViewerManager}
-                WaiverIntelligencePanel={WaiverIntelligencePanel}
-                RecentTransactionsPanel={RecentTransactionsPanel}
-                WeeklyMomentumTable={WeeklyMomentumTable}
-                TrendingPlayersTable={TrendingPlayersTable}
-                nextMoveTarget={nextMoveTarget}
-              />
+              <ReportTabEnter>
+                <ReportMomentumTab
+                  reportData={reportData}
+                  leagueValueMode={leagueValueMode}
+                  isRedraftReport={isRedraftReport}
+                  leagueId={leagueId}
+                  leagueLogo={leagueLogo}
+                  effectiveViewerManager={effectiveViewerManager}
+                  WaiverIntelligencePanel={WaiverIntelligencePanel}
+                  RecentTransactionsPanel={RecentTransactionsPanel}
+                  WeeklyMomentumTable={WeeklyMomentumTable}
+                  TrendingPlayersTable={TrendingPlayersTable}
+                  nextMoveTarget={nextMoveTarget}
+                />
+              </ReportTabEnter>
             </TabsContent>
 
             <TabsContent
               value="rankings"
               className="report-tab-content report-command-tab-body"
             >
-              <ReportRankingsTab
-                reportData={reportData}
-                reportDataForView={reportDataForView}
-                isRedraftReport={isRedraftReport}
-                leagueValueMode={leagueValueMode}
-                leagueId={leagueId}
-                leagueLogo={leagueLogo}
-                effectiveViewerManager={effectiveViewerManager}
-                leagueRosterScannerMode={leagueRosterScannerMode}
-                setLeagueRosterScannerMode={setLeagueRosterScannerMode}
-                rosterScannerFocusKey={rosterScannerFocusKey}
-                rankingsForReport={rankingsForReport}
-                rankingsQueryIsLoading={rankingsQueryIsLoading}
-                LeagueRosterScannerModeControls={
-                  LeagueRosterScannerModeControls
-                }
-                LeagueRosterScanner={LeagueRosterScanner}
-                RankingsBoard={RankingsBoard}
-                RankingsMarketRead={RankingsMarketRead}
-                nextMoveTarget={nextMoveTarget}
-              />
+              <ReportTabEnter>
+                <ReportRankingsTab
+                  reportData={reportData}
+                  reportDataForView={reportDataForView}
+                  isRedraftReport={isRedraftReport}
+                  leagueValueMode={leagueValueMode}
+                  leagueId={leagueId}
+                  leagueLogo={leagueLogo}
+                  effectiveViewerManager={effectiveViewerManager}
+                  leagueRosterScannerMode={leagueRosterScannerMode}
+                  setLeagueRosterScannerMode={setLeagueRosterScannerMode}
+                  rosterScannerFocusKey={rosterScannerFocusKey}
+                  rankingsForReport={rankingsForReport}
+                  rankingsQueryIsLoading={rankingsQueryIsLoading}
+                  LeagueRosterScannerModeControls={
+                    LeagueRosterScannerModeControls
+                  }
+                  LeagueRosterScanner={LeagueRosterScanner}
+                  RankingsBoard={RankingsBoard}
+                  RankingsMarketRead={RankingsMarketRead}
+                  nextMoveTarget={nextMoveTarget}
+                />
+              </ReportTabEnter>
             </TabsContent>
 
             <TabsContent
               value="trades"
               className="report-tab-content report-command-tab-body"
             >
-              {isPreDraftReport ? (
-                <EmptyState
-                  className="report-pre-draft-empty-state"
-                  title="Trade reads unlock after the draft"
-                  description={preDraftDescription}
-                />
-              ) : (
-                <ReportTradesTab
-                  reportData={reportData}
-                  reportDataForView={reportDataForView}
-                  showManagerPersonalityIntel={canViewAdminDiagnostics}
-                  showPendingSleeperActivity={true}
-                  onScoutLeaguemates={onScoutLeaguemates}
-                  leagueId={leagueId}
-                  leagueLogo={leagueLogo}
-                  leagueValueMode={leagueValueMode}
-                  isImportingSleeperTradeCenterSnapshot={
-                    isImportingSleeperTradeCenterSnapshot
-                  }
-                  onImportSleeperTradeCenterSnapshot={
-                    onImportSleeperTradeCenterSnapshot
-                  }
-                  effectiveViewerManager={effectiveViewerManager}
-                  rankingsForReport={rankingsForReport}
-                  tradeWarKicker={tradeWarKicker}
-                  showTradeMarketRadar={showTradeMarketRadar}
-                  TradeBrowserRead={TradeBrowserRead}
-                  TradeMarketRadar={TradeMarketRadar}
-                  TradeProposalSignalsTable={TradeProposalSignalsTable}
-                  TradeWarRoom={TradeWarRoom}
-                  TradeProfitLeaderboardTable={TradeProfitLeaderboardTable}
-                  TradeTheftDetector={TradeTheftDetector}
-                  TradeHistoryTable={TradeHistoryTable}
-                  nextMoveTarget={nextMoveTarget}
-                />
-              )}
+              <ReportTabEnter>
+                {isPreDraftReport ? (
+                  <EmptyState
+                    className="report-pre-draft-empty-state"
+                    title="Trade reads unlock after the draft"
+                    description={preDraftDescription}
+                  />
+                ) : (
+                  <ReportTradesTab
+                    reportData={reportData}
+                    reportDataForView={reportDataForView}
+                    showManagerPersonalityIntel={canViewAdminDiagnostics}
+                    showPendingSleeperActivity={true}
+                    onScoutLeaguemates={onScoutLeaguemates}
+                    leagueId={leagueId}
+                    leagueLogo={leagueLogo}
+                    leagueValueMode={leagueValueMode}
+                    isImportingSleeperTradeCenterSnapshot={
+                      isImportingSleeperTradeCenterSnapshot
+                    }
+                    onImportSleeperTradeCenterSnapshot={
+                      onImportSleeperTradeCenterSnapshot
+                    }
+                    effectiveViewerManager={effectiveViewerManager}
+                    rankingsForReport={rankingsForReport}
+                    tradeWarKicker={tradeWarKicker}
+                    showTradeMarketRadar={showTradeMarketRadar}
+                    TradeBrowserRead={TradeBrowserRead}
+                    TradeMarketRadar={TradeMarketRadar}
+                    TradeProposalSignalsTable={TradeProposalSignalsTable}
+                    TradeWarRoom={TradeWarRoom}
+                    TradeProfitLeaderboardTable={TradeProfitLeaderboardTable}
+                    TradeTheftDetector={TradeTheftDetector}
+                    TradeHistoryTable={TradeHistoryTable}
+                    nextMoveTarget={nextMoveTarget}
+                  />
+                )}
+              </ReportTabEnter>
             </TabsContent>
 
             {shouldShowDraftHistoryTab && (
@@ -607,32 +650,34 @@ export function ReportDashboardContent({
                 value="draft"
                 className="report-tab-content report-command-tab-body"
               >
-                {isPreDraftReport ? (
-                  <EmptyState
-                    className="report-pre-draft-empty-state"
-                    title="Draft receipts unlock after the draft"
-                    description={preDraftDescription}
-                  />
-                ) : (
-                  <DraftAnalysis
-                    draftPicks={reportData.draftPicks || []}
-                    draftStats={reportData.draftStats || []}
-                    managerRosterIntelligence={
-                      reportData.managerRosterIntelligence
-                    }
-                    managerAvatars={reportData.managerAvatars}
-                    playerDetailsById={reportData.playerDetailsById}
-                    leagueId={leagueId}
-                    leagueLogo={leagueLogo}
-                    viewerManager={effectiveViewerManager}
-                    currentStandings={reportData.currentStandings}
-                    leagueOverview={reportData.leagueOverview}
-                    leagueValueMode={leagueValueMode}
-                    leagueDiagnostics={reportData.leagueDiagnostics}
-                    calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
-                    showAIReads={canViewAdminFeatureExpansion}
-                  />
-                )}
+                <ReportTabEnter>
+                  {isPreDraftReport ? (
+                    <EmptyState
+                      className="report-pre-draft-empty-state"
+                      title="Draft receipts unlock after the draft"
+                      description={preDraftDescription}
+                    />
+                  ) : (
+                    <DraftAnalysis
+                      draftPicks={reportData.draftPicks || []}
+                      draftStats={reportData.draftStats || []}
+                      managerRosterIntelligence={
+                        reportData.managerRosterIntelligence
+                      }
+                      managerAvatars={reportData.managerAvatars}
+                      playerDetailsById={reportData.playerDetailsById}
+                      leagueId={leagueId}
+                      leagueLogo={leagueLogo}
+                      viewerManager={effectiveViewerManager}
+                      currentStandings={reportData.currentStandings}
+                      leagueOverview={reportData.leagueOverview}
+                      leagueValueMode={leagueValueMode}
+                      leagueDiagnostics={reportData.leagueDiagnostics}
+                      calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
+                      showAIReads={canViewAdminFeatureExpansion}
+                    />
+                  )}
+                </ReportTabEnter>
               </TabsContent>
             )}
 
@@ -641,12 +686,14 @@ export function ReportDashboardContent({
                 value="hacks"
                 className="report-tab-content report-command-tab-body"
               >
-                <ReportHacksTab
-                  reportDataForView={reportDataForView}
-                  onAnalyze={onAnalyze}
-                  AdminScheduleEdgeSection={AdminScheduleEdgeSection}
-                  AdminDiagnosticsShell={AdminDiagnosticsShell}
-                />
+                <ReportTabEnter>
+                  <ReportHacksTab
+                    reportDataForView={reportDataForView}
+                    onAnalyze={onAnalyze}
+                    AdminScheduleEdgeSection={AdminScheduleEdgeSection}
+                    AdminDiagnosticsShell={AdminDiagnosticsShell}
+                  />
+                </ReportTabEnter>
               </TabsContent>
             )}
           </Suspense>

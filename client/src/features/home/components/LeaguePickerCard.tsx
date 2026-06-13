@@ -49,6 +49,8 @@ export function LeaguePickerCard({
     : `${league.name} ${desktopFormat}`;
   const cardClassName = [
     "home-league-card",
+    "dd-glass-cold",
+    "dd-pressable",
     disabled ? "home-league-card-disabled" : "",
     isRecommended ? "home-league-card-recommended" : "",
   ]

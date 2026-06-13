@@ -100,7 +100,7 @@ const mobileHandoffSteps = [
 
 function SleeperHelperPage() {
   return (
-    <main className="min-h-screen overflow-hidden bg-[#050914] text-slate-100">
+    <main className="sleeper-helper-page dd-app-page min-h-screen overflow-hidden bg-[#050914] text-slate-100">
       <section className="relative isolate px-5 py-10 sm:px-8 lg:px-12">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_18%_5%,rgba(249,115,22,0.32),transparent_32%),radial-gradient(circle_at_90%_12%,rgba(34,211,238,0.22),transparent_30%),linear-gradient(135deg,#050914,#071625_55%,#120915)]" />
         <div className="absolute inset-x-0 top-0 -z-10 h-px bg-gradient-to-r from-transparent via-orange-300/60 to-transparent" />

@@ -510,11 +510,9 @@
       button.player-trade-comp-card
     ):focus-visible,
   .autopilot-dashboard :is(button, summary):focus-visible {
-    outline: 2px solid var(--dd-tron-cyan);
-    outline-offset: 3px;
-    box-shadow:
-      0 0 0 4px rgba(65, 230, 255, 0.16),
-      0 16px 36px rgba(0, 0, 0, 0.28);
+    outline: var(--dd-focus-ring-w) solid var(--dd-focus-ring-color);
+    outline-offset: var(--dd-focus-ring-offset);
+    box-shadow: var(--dd-focus-ring);
   }
 
   .report-shell .balanced-tile-grid {
@@ -697,17 +695,47 @@
     ) {
     --dd-tile-accent: var(--dd-tron-cyan);
     --dd-tile-accent-rgb: 65, 230, 255;
+    --dd-glass-bg: var(--dd-glass-cold-bg);
+    --dd-glass-shadow: var(--dd-glass-cold-shadow);
     position: relative;
     isolation: isolate;
-    border-color: color-mix(
-      in srgb,
-      var(--dd-tile-accent) 26%,
-      rgba(148, 163, 184, 0.18)
-    );
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.045),
-      0 12px 28px rgba(0, 0, 0, 0.22),
-      0 0 16px rgba(var(--dd-tile-accent-rgb), 0.055);
+    overflow: hidden;
+    border-color: var(--dd-glass-cold-border);
+    background: var(--dd-glass-bg) !important;
+    box-shadow: var(--dd-glass-shadow) !important;
+  }
+
+  :is(.report-shell, .player-detail-modal)
+    :is(
+      .player-team-tile,
+      .owner-summary-tile,
+      .command-depth-tile,
+      .ranking-player-card,
+      .trade-market-card,
+      .rookie-player-tile,
+      .waiver-intel-card,
+      .weekly-momentum-tile,
+      .trending-player-card,
+      .recent-transaction-player,
+      .trade-war-player-card,
+      .trade-war-selected-asset,
+      .trade-war-value-match-asset,
+      .manager-command-player-tile,
+      .starter-player-tile,
+      .player-modal-metric-tile,
+      .player-intelligence-card,
+      .player-value-confidence-card,
+      .player-trade-comp-card
+    )::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border-radius: inherit;
+    background: linear-gradient(115deg, transparent 26%, rgba(255, 255, 255, 0.18) 44%, transparent 60%);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-120%);
   }
 
   :is(.report-shell, .player-detail-modal)
@@ -729,6 +757,21 @@
   :is(.report-shell, .player-detail-modal) :is(.manager-intel-player-danger) {
     --dd-tile-accent: var(--dd-danger);
     --dd-tile-accent-rgb: 255, 100, 134;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .report-shell[data-dd-effects="on"]
+      :is(
+        button.player-team-tile,
+        button.owner-summary-tile,
+        button.command-depth-tile,
+        button.ranking-player-card,
+        button.recent-transaction-player,
+        button.trade-war-player-card,
+        button.player-trade-comp-card
+      ):is(:hover, :focus-visible)::before {
+      animation: dd-glass-sheen var(--dd-duration-current) var(--dd-ease-pop) both;
+    }
   }
 
   :is(.report-shell, .player-detail-modal)

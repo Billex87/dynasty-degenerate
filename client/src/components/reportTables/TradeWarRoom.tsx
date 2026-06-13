@@ -21,6 +21,12 @@ import { sortRowsByViewerAndStanding } from "@/lib/managerOrdering";
 import { getTeamTileStyle } from "@/lib/teamTileStyle";
 import { trpc } from "@/lib/trpc";
 import {
+  DURATION,
+  formatCount,
+  useAnimationsEnabled,
+  useSpringValue,
+} from "@/lib/motion";
+import {
   buildTradeStatusCalibration,
   getTradeStatusCalibrationForManager,
   type TradeStatusCalibrationSummary,
@@ -638,6 +644,128 @@ function getTradeWarGapLabel(gap: number): {
   if (absGap <= 1400)
     return { label: "Side Needs Help", className: "trade-war-gap-warn" };
   return { label: "Too Lopsided", className: "trade-war-gap-danger" };
+}
+
+function getTradeVerdictPercent({
+  valueGap,
+  sideATotal,
+  sideBTotal,
+}: {
+  valueGap: number;
+  sideATotal: number;
+  sideBTotal: number;
+}) {
+  const denominator = Math.max(sideATotal, sideBTotal, Math.abs(valueGap), 1);
+  return Math.max(-99, Math.min(99, (valueGap / denominator) * 100));
+}
+
+function getTradeVerdictCopy({
+  valueGap,
+  percent,
+  managerALabel,
+  managerBLabel,
+  viewerManager,
+}: {
+  valueGap: number;
+  percent: number;
+  managerALabel: string;
+  managerBLabel: string;
+  viewerManager?: string | null;
+}) {
+  if (Math.abs(valueGap) <= 250) {
+    return {
+      label: "Balanced",
+      detail: "Clean enough",
+    };
+  }
+
+  const favoredManager = valueGap > 0 ? managerALabel : managerBLabel;
+  const viewerIsFavored = viewerManager
+    ? normalizeTradeWarName(favoredManager) === normalizeTradeWarName(viewerManager)
+    : false;
+  const favoredLabel = viewerIsFavored
+    ? "you"
+    : viewerManager
+      ? "them"
+      : favoredManager;
+
+  return {
+    label: `Favors ${favoredLabel} +${formatCount(Math.abs(percent))}%`,
+    detail: valueGap > 0
+      ? `${managerALabel} receives more`
+      : `${managerBLabel} receives more`,
+  };
+}
+
+function TradeVerdictMeter({
+  valueGap,
+  sideATotal,
+  sideBTotal,
+  gapRead,
+  managerALabel,
+  managerBLabel,
+  viewerManager,
+}: {
+  valueGap: number;
+  sideATotal: number;
+  sideBTotal: number;
+  gapRead: ReturnType<typeof getTradeWarGapLabel>;
+  managerALabel: string;
+  managerBLabel: string;
+  viewerManager?: string | null;
+}) {
+  const animationsEnabled = useAnimationsEnabled();
+  const targetPercent = getTradeVerdictPercent({ valueGap, sideATotal, sideBTotal });
+  const springPercent = useSpringValue(targetPercent, { stiffness: 150, damping: 14 });
+  const [showVerdict, setShowVerdict] = React.useState(!animationsEnabled);
+  const visiblePercent = animationsEnabled ? springPercent : targetPercent;
+  const needlePercent = Math.max(3, Math.min(97, 50 + visiblePercent / 2));
+  const verdict = getTradeVerdictCopy({
+    valueGap,
+    percent: targetPercent,
+    managerALabel,
+    managerBLabel,
+    viewerManager,
+  });
+  const displayedPercent = formatCount(Math.abs(visiblePercent));
+
+  React.useEffect(() => {
+    if (!animationsEnabled) {
+      setShowVerdict(true);
+      return;
+    }
+
+    setShowVerdict(false);
+    const timeout = window.setTimeout(
+      () => setShowVerdict(true),
+      DURATION.settle + 260
+    );
+    return () => window.clearTimeout(timeout);
+  }, [animationsEnabled, targetPercent]);
+
+  return (
+    <div
+      className={`trade-war-gap ${gapRead.className} trade-verdict-meter`}
+      aria-label={`${gapRead.label}. ${verdict.label}. ${verdict.detail}.`}
+    >
+      <span>{gapRead.label}</span>
+      <strong>{displayedPercent}%</strong>
+      <div className="trade-verdict-track" aria-hidden="true">
+        <i className="trade-verdict-track-give" />
+        <i className="trade-verdict-track-get" />
+        <b className="trade-verdict-center-tick" />
+        <em
+          className="trade-verdict-needle"
+          style={{ left: `${needlePercent}%` }}
+        />
+      </div>
+      <small
+        className={showVerdict ? "trade-verdict-chip trade-verdict-chip-visible" : "trade-verdict-chip"}
+      >
+        {verdict.label}
+      </small>
+    </div>
+  );
 }
 
 function normalizeTradeWarName(value?: string | null): string {
@@ -3270,21 +3398,16 @@ export default function TradeWarRoom({
               <span>{managerALabel} sends</span>
               <strong>{sideATotal.toLocaleString()}</strong>
             </div>
-            <div
-              className={`trade-war-gap ${gapRead.className}`}
+            <TradeVerdictMeter
               key={tradeWarPulseKey}
-              aria-live="polite"
-            >
-              <span>{gapRead.label}</span>
-              <strong>{Math.abs(valueGap).toLocaleString()}</strong>
-              <small>
-                {valueGap === 0
-                  ? "No value gap"
-                  : valueGap > 0
-                    ? `${managerALabel} receives more`
-                    : `${managerBLabel} receives more`}
-              </small>
-            </div>
+              valueGap={valueGap}
+              sideATotal={sideATotal}
+              sideBTotal={sideBTotal}
+              gapRead={gapRead}
+              managerALabel={managerALabel}
+              managerBLabel={managerBLabel}
+              viewerManager={viewerManager}
+            />
             <div
               className="trade-war-score-card"
               key={`score-b-${mode}-${sideBTotal}`}

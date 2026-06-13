@@ -44,6 +44,7 @@ export function StatTile({
 }: HTMLAttributes<HTMLElement> & StatTileProps) {
   const safeValueProps = valueProps || {};
   const Tag = as;
+  const usesGlassSurface = className.includes("dd-glass");
 
   return (
     <Tag
@@ -51,7 +52,7 @@ export function StatTile({
         tone,
         size,
         variant: "stat",
-        className,
+        className: `${usesGlassSurface ? "" : "dd-current"} ${className}`.trim(),
         state: disabled
           ? "disabled"
           : selected
@@ -62,6 +63,7 @@ export function StatTile({
       aria-disabled={disabled || undefined}
       {...rest}
     >
+      {usesGlassSurface ? null : <span className="dd-current-line" aria-hidden="true" />}
       {label ? <span className="dd-tile__label">{label}</span> : null}
       {children && childrenPosition === "before" ? children : null}
       {value !== undefined ? (

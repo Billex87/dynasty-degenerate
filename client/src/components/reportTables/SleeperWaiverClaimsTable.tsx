@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { ManagerNameWithAvatar } from "../ManagerNameWithAvatar";
 import { PlayerNameWithHeadshot } from "../PlayerNameWithHeadshot";
+import { ReportTooltip } from "../reportPrimitives";
 import {
   CommandMiniBadge,
   TradeEmptyState,
@@ -98,10 +99,8 @@ export function SleeperWaiverClaimsTable({
                     </CommandMiniBadge>
                   </TableCell>
                   <TableCell className="align-top">
-                    <div
-                      className="flex flex-wrap gap-2"
-                      title={signal.managers.join(" · ") || "Unknown"}
-                    >
+                    <ReportTooltip content={signal.managers.join(" · ") || "Unknown"}>
+                      <div className="flex flex-wrap gap-2">
                       {signal.managers.length ? (
                         <>
                           {signal.managers.slice(0, 3).map(manager => (
@@ -120,15 +119,12 @@ export function SleeperWaiverClaimsTable({
                       ) : (
                         <TradeProposalEmpty>Unknown</TradeProposalEmpty>
                       )}
-                    </div>
+                      </div>
+                    </ReportTooltip>
                   </TableCell>
                   <TableCell className="align-top">
-                    <div
-                      className="space-y-2"
-                      title={
-                        visibleAssets.join(" · ") || "No claim assets returned"
-                      }
-                    >
+                    <ReportTooltip content={visibleAssets.join(" · ") || "No claim assets returned"}>
+                      <div className="space-y-2">
                       {claimPlayers.length > 0 && (
                         <TradeProposalAssetGroup label="Claim">
                           {claimPlayers.map(player => (
@@ -172,7 +168,8 @@ export function SleeperWaiverClaimsTable({
                           No claim assets returned
                         </TradeProposalEmpty>
                       )}
-                    </div>
+                      </div>
+                    </ReportTooltip>
                   </TableCell>
                   <TableCell className="align-top">
                     <CommandMiniBadge tone={statusTone}>

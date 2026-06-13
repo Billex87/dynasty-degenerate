@@ -47,6 +47,9 @@ const THEME_COLORS: Record<AITronTheme, { packet: string; trace: string; accent:
   blue: { packet: '#7df7ff', trace: '#35dfff', accent: '#ffb45a' },
 };
 
+const BOARD_CORNER_RADIUS = 0.82;
+const HAIRLINE_CORNER_RADIUS = 0.56;
+
 function hashSeed(value: string): number {
   return value.split('').reduce((hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) >>> 0, 2166136261);
 }
@@ -79,8 +82,97 @@ function usePrefersReducedMotion() {
   return reducedMotion;
 }
 
-function pathFromPoints(points: CircuitPoint[]) {
-  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+function formatCircuitCoord(value: number) {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function formatCircuitPoint(point: CircuitPoint) {
+  return `${formatCircuitCoord(point.x)} ${formatCircuitCoord(point.y)}`;
+}
+
+function isSameCircuitPoint(a: CircuitPoint, b: CircuitPoint) {
+  return a.x === b.x && a.y === b.y;
+}
+
+function normalizeCircuitNodes(points: CircuitPoint[]) {
+  if (points.length < 2) return points;
+
+  const routed: CircuitPoint[] = [points[0]];
+
+  points.slice(1).forEach((point) => {
+    const previous = routed[routed.length - 1];
+    if (isSameCircuitPoint(previous, point)) return;
+
+    if (previous.x !== point.x && previous.y !== point.y) {
+      const beforePrevious = routed[routed.length - 2];
+      const verticalFirst = beforePrevious
+        ? beforePrevious.y === previous.y
+        : Math.abs(point.y - previous.y) > Math.abs(point.x - previous.x);
+      const elbow = verticalFirst
+        ? { x: previous.x, y: point.y }
+        : { x: point.x, y: previous.y };
+
+      if (!isSameCircuitPoint(previous, elbow)) {
+        routed.push(elbow);
+      }
+    }
+
+    if (!isSameCircuitPoint(routed[routed.length - 1], point)) {
+      routed.push(point);
+    }
+  });
+
+  return routed;
+}
+
+function isCircuitBend(previous: CircuitPoint, point: CircuitPoint, next: CircuitPoint) {
+  return !(
+    (previous.x === point.x && point.x === next.x) ||
+    (previous.y === point.y && point.y === next.y)
+  );
+}
+
+function segmentLength(a: CircuitPoint, b: CircuitPoint) {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function moveToward(from: CircuitPoint, to: CircuitPoint, distance: number): CircuitPoint {
+  if (from.x === to.x) {
+    return { x: from.x, y: from.y + Math.sign(to.y - from.y) * distance };
+  }
+
+  return { x: from.x + Math.sign(to.x - from.x) * distance, y: from.y };
+}
+
+function pathFromPoints(points: CircuitPoint[], cornerRadius = BOARD_CORNER_RADIUS) {
+  const routed = normalizeCircuitNodes(points);
+  if (!routed.length) return '';
+
+  const commands = [`M ${formatCircuitPoint(routed[0])}`];
+
+  for (let index = 1; index < routed.length; index += 1) {
+    const point = routed[index];
+    const previous = routed[index - 1];
+    const next = routed[index + 1];
+
+    if (!next || !isCircuitBend(previous, point, next)) {
+      commands.push(`L ${formatCircuitPoint(point)}`);
+      continue;
+    }
+
+    const radius = Math.min(cornerRadius, segmentLength(previous, point) / 2, segmentLength(point, next) / 2);
+    if (radius <= 0) {
+      commands.push(`L ${formatCircuitPoint(point)}`);
+      continue;
+    }
+
+    const beforeBend = moveToward(point, previous, radius);
+    const afterBend = moveToward(point, next, radius);
+    commands.push(`L ${formatCircuitPoint(beforeBend)}`);
+    commands.push(`Q ${formatCircuitPoint(point)} ${formatCircuitPoint(afterBend)}`);
+  }
+
+  return commands.join(' ');
 }
 
 function pickCircuitValue<T>(rand: () => number, values: T[]) {
@@ -286,21 +378,22 @@ function makeBoardRoute(index: number, theme: AITronTheme, prefix: string, seed:
   }
 
   const isAccent = variant === 1 || variant === 5 || ((seed >>> (index % 16)) & 3) === 0;
+  const routedNodes = normalizeCircuitNodes(nodes);
 
   return {
     id: `${prefix}-board-route-${index}`,
-    d: pathFromPoints(nodes),
+    d: pathFromPoints(routedNodes),
     color: isAccent ? colors.accent : colors.packet,
-    opacity: isAccent ? 0.43 : 0.52,
-    width: isAccent ? 0.32 : 0.38,
+    opacity: isAccent ? 0.52 : 0.62,
+    width: isAccent ? 0.42 : 0.48,
     duration: isAccent ? 7.4 + rand() * 2.4 : 6.2 + rand() * 2.8,
     delay: -(0.4 + index * 0.72 + rand() * 1.1),
-    pulse: isAccent ? 0.68 : 0.72,
+    pulse: isAccent ? 0.74 : 0.8,
     dash: isAccent ? '6 260' : '7 240',
     reverse: rand() > 0.5,
     isHero: index < 3,
     isBus: true,
-    nodes,
+    nodes: routedNodes,
   };
 }
 
@@ -318,19 +411,20 @@ function makeHairlineRoute(index: number, theme: AITronTheme, prefix: string, se
     { x: mid, y: y + bend },
     { x: end, y: y + bend },
   ];
+  const routedNodes = normalizeCircuitNodes(nodes);
 
   return {
     id: `${prefix}-hairline-${index}`,
-    d: pathFromPoints(nodes),
+    d: pathFromPoints(routedNodes, HAIRLINE_CORNER_RADIUS),
     color: rand() > 0.76 ? colors.accent : colors.packet,
-    opacity: rand() > 0.72 ? 0.14 : 0.075,
-    width: 0.12,
+    opacity: rand() > 0.72 ? 0.18 : 0.1,
+    width: 0.14,
     duration: 7.2 + rand() * 3.6,
     delay: -(rand() * 8),
     pulse: 0.18,
     dash: '3 240',
     reverse: rand() > 0.66,
-    nodes,
+    nodes: routedNodes,
   };
 }
 
@@ -355,19 +449,20 @@ function makePadRoute(index: number, theme: AITronTheme, prefix: string, seed: n
     [{ x: 6, y: sidePadY }, { x: sidePadX, y: sidePadY }, { x: sidePadX, y: sidePadDrop }],
   ];
   const nodes = padRoutes[index % padRoutes.length];
+  const routedNodes = normalizeCircuitNodes(nodes);
 
   return {
     id: `${prefix}-pad-route-${index}`,
-    d: pathFromPoints(nodes),
+    d: pathFromPoints(routedNodes, HAIRLINE_CORNER_RADIUS),
     color: rand() > 0.5 ? colors.packet : colors.accent,
-    opacity: 0.2,
-    width: 0.16,
+    opacity: 0.26,
+    width: 0.18,
     duration: 8.5 + rand() * 3.5,
     delay: -(rand() * 7),
     pulse: 0.22,
     dash: '4 170',
     reverse: rand() > 0.5,
-    nodes,
+    nodes: routedNodes,
   };
 }
 
@@ -378,20 +473,27 @@ function getAnimateValues(path: CircuitPath) {
 function getHeroFlares(paths: CircuitPath[]): JunctionFlare[] {
   return paths
     .filter((path) => path.isHero || path.isBus)
-    .flatMap((path, pathIndex) =>
-      path.nodes.slice(1, -1)
-        .filter((_, nodeIndex) => path.isHero ? nodeIndex % 2 === 0 : nodeIndex === 1)
+    .flatMap((path, pathIndex) => {
+      const lastIndex = path.nodes.length - 1;
+
+      return path.nodes
+        .filter((_, nodeIndex) => (
+          path.isHero ||
+          nodeIndex === 0 ||
+          nodeIndex === lastIndex ||
+          nodeIndex % 3 === 0
+        ))
         .map((node, nodeIndex) => ({
           id: `${path.id}-flare-${nodeIndex}`,
           x: node.x,
           y: node.y,
           color: path.color,
           delay: -(pathIndex * 0.8 + nodeIndex * 0.42),
-          radius: path.isHero ? 0.72 : 0.34,
-          opacity: path.isHero ? 0.72 : 0.38,
+          radius: path.isHero ? 0.92 : 0.48,
+          opacity: path.isHero ? 0.82 : 0.5,
           hero: path.isHero,
-        })),
-    );
+        }));
+    });
 }
 
 export function AITronSurface({ theme = 'cyan', density = 'medium', routeKey }: AITronSurfaceProps) {
@@ -419,8 +521,19 @@ export function AITronSurface({ theme = 'cyan', density = 'medium', routeKey }: 
 
   const nodes = useMemo(
     () => paths
-      .flatMap((path) => path.nodes.map((node, index) => ({ ...node, key: `${path.id}-node-${index}`, color: path.color, isBus: path.isBus })))
-      .filter((node, index) => node.isBus ? index % 3 === 0 : hashSeed(node.key) % 17 === 0),
+      .flatMap((path) => {
+        const lastIndex = path.nodes.length - 1;
+
+        return path.nodes.map((node, index) => ({
+          ...node,
+          key: `${path.id}-node-${index}`,
+          color: path.color,
+          isBus: path.isBus,
+          isHero: path.isHero,
+          isTerminal: index === 0 || index === lastIndex,
+        }));
+      })
+      .filter((node) => node.isBus || node.isTerminal || hashSeed(node.key) % 13 === 0),
     [paths],
   );
 
@@ -460,31 +573,42 @@ export function AITronSurface({ theme = 'cyan', density = 'medium', routeKey }: 
               fill="none"
               stroke={path.color}
               strokeWidth={path.width}
-              strokeOpacity={path.isBus ? Math.min(path.opacity + 0.04, 0.58) : path.opacity}
+              strokeOpacity={path.isBus ? Math.min(path.opacity + 0.06, 0.7) : path.opacity}
               strokeLinecap="square"
-              strokeLinejoin="miter"
+              strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
             />
           ))}
         </g>
 
-        <g className="ai-tron-static-nodes">
-          {nodes.map((node) => (
-            <g key={node.key}>
-              <circle cx={node.x} cy={node.y} r={node.isBus ? '0.22' : '0.1'} fill={node.color} opacity={node.isBus ? '0.42' : '0.14'} />
-              {node.isBus && <circle cx={node.x} cy={node.y} r="0.07" fill="#ffffff" opacity="0.24" />}
-            </g>
-          ))}
+        <g className="ai-tron-static-nodes" filter={`url(#${prefix}-flare-glow)`}>
+          {nodes.map((node) => {
+            const haloRadius = node.isBus ? (node.isHero ? 0.82 : 0.64) : 0.42;
+            const coreRadius = node.isBus ? (node.isHero ? 0.34 : 0.28) : 0.18;
+            const hotRadius = node.isBus ? (node.isHero ? 0.1 : 0.08) : 0.05;
+            const coreOpacity = node.isBus ? (node.isHero ? 0.8 : 0.66) : 0.38;
+
+            return (
+              <g key={node.key}>
+                <circle cx={node.x} cy={node.y} r={haloRadius} fill={node.color} opacity={node.isBus ? 0.16 : 0.08} />
+                <circle cx={node.x} cy={node.y} r={coreRadius} fill={node.color} opacity={coreOpacity} />
+                <circle cx={node.x} cy={node.y} r={hotRadius} fill="#ffffff" opacity={node.isBus ? 0.72 : 0.38} />
+              </g>
+            );
+          })}
         </g>
 
         <g className="ai-tron-junction-flares" filter={`url(#${prefix}-flare-glow)`}>
           {flares.map((flare) => (
             <g key={flare.id}>
+              <circle cx={flare.x} cy={flare.y} r={flare.radius * 1.55} fill={flare.color} opacity={flare.opacity * 0.16}>
+                <animate attributeName="opacity" values={`${flare.opacity * 0.06};${flare.opacity * 0.16};${flare.opacity * 0.06}`} dur={flare.hero ? '5.4s' : '7.2s'} begin={`${flare.delay}s`} repeatCount="indefinite" />
+              </circle>
               <circle cx={flare.x} cy={flare.y} r={flare.radius} fill={flare.color} opacity={flare.opacity}>
                 <animate attributeName="opacity" values={`${flare.opacity * 0.28};${flare.opacity};${flare.opacity * 0.28}`} dur={flare.hero ? '5.4s' : '7.2s'} begin={`${flare.delay}s`} repeatCount="indefinite" />
               </circle>
-              <circle cx={flare.x} cy={flare.y} r={flare.hero ? '0.14' : '0.08'} fill="#ffffff" opacity={flare.hero ? '0.64' : '0.36'}>
-                <animate attributeName="opacity" values="0.18;0.78;0.18" dur={flare.hero ? '5.4s' : '7.2s'} begin={`${flare.delay}s`} repeatCount="indefinite" />
+              <circle cx={flare.x} cy={flare.y} r={flare.hero ? '0.18' : '0.1'} fill="#ffffff" opacity={flare.hero ? '0.74' : '0.46'}>
+                <animate attributeName="opacity" values="0.22;0.86;0.22" dur={flare.hero ? '5.4s' : '7.2s'} begin={`${flare.delay}s`} repeatCount="indefinite" />
               </circle>
             </g>
           ))}
@@ -501,9 +625,9 @@ export function AITronSurface({ theme = 'cyan', density = 'medium', routeKey }: 
                   fill="none"
                   stroke={path.color}
                   strokeWidth={path.isBus ? path.width * 1.95 : path.width * 1.1}
-                  strokeOpacity={path.isBus ? '0.54' : '0.1'}
+                  strokeOpacity={path.isBus ? '0.62' : '0.14'}
                   strokeLinecap="square"
-                  strokeLinejoin="miter"
+                  strokeLinejoin="round"
                   strokeDasharray={path.dash}
                   vectorEffect="non-scaling-stroke"
                 >

@@ -12,6 +12,7 @@ import { PlayerNameWithHeadshot } from '../PlayerNameWithHeadshot';
 import { ChampionAvatarFrame, ManagerChampionshipPills } from '../ManagerChampionships';
 import { PlayerDetailModal, type PlayerModalData } from '../PlayerDetailModal';
 import { TeamLogoPill } from '../TeamLogoPill';
+import { getManagerTrendDelta } from '../ManagerTrendAvatar';
 import {
   buildPlayerModalData,
   getManagerHeadingClassName,
@@ -172,6 +173,7 @@ export function ManagerPositionCountsTable({
   leagueId,
   leagueLogo,
   viewerManager,
+  managerRosterValueGrowth,
 }: {
   data: ReportData['managerPositionCounts'];
   positionDepth?: ReportData['positionDepth'];
@@ -181,6 +183,7 @@ export function ManagerPositionCountsTable({
   leagueLogo?: string | null;
   viewerManager?: string | null;
   leagueValueMode?: ReportData['leagueValueMode'];
+  managerRosterValueGrowth?: ReportData['managerRosterValueGrowth'];
 }) {
   const [selectedManager, setSelectedManager] = useState<ReportData['managerPositionCounts'][number] | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerModalData | null>(null);
@@ -217,6 +220,7 @@ export function ManagerPositionCountsTable({
               manager={row.manager}
               avatarUrl={managerAvatars?.[row.manager]}
               className={`${viewerOwnedHighlightClass(row.manager, viewerManager)} position-count-summary-tile`}
+              trendDelta={getManagerTrendDelta(row.manager, managerRosterValueGrowth)}
               onClick={() => setSelectedManager(row)}
             >
               {visibleCountPositions.map((position) => {

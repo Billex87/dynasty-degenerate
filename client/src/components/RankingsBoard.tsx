@@ -1,15 +1,25 @@
-import { useDeferredValue, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { ArrowDown, ArrowDownUp, ArrowUp, ChevronLeft, ChevronRight, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TeamLogoPill } from './TeamLogoPill';
 import { PlayerDetailModal, type PlayerModalData } from './PlayerDetailModal';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
-import { EmptyState } from './reportPrimitives';
+import { EmptyState, ReportSkeleton, ReportTooltip } from './reportPrimitives';
 import { trpc } from '@/lib/trpc';
 import { getPositionRankClass, getPositionRankPillClass } from '@/lib/positionRank';
 import { getCachedDraftBuzzImageUrl, getCollegeInitials, getCollegeLogoUrl, getCollegeTileStyle, getTeamTileStyle, normalizeNflTeamAbbr } from '@/lib/teamTileStyle';
-import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
+import {
+  DURATION,
+  FlipItem,
+  FlipList,
+  buildSparklinePath,
+  useAnimationsEnabled,
+  useDrawPath,
+  useMotionInViewOnce,
+  useValueBlip,
+} from '@/lib/motion';
+import { isViewerManagerMatch, viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 import type { DraftBuzzScoreboardEntry, PlayerDetails, RankingPlayer, RankingProfileOption, ReportData } from '@shared/types';
 import {
   getLeagueModeCopy,
@@ -75,6 +85,8 @@ const DRAFT_BUZZ_SORT_COLUMNS: Array<{ key: DraftBuzzSortKey; label: string }> =
   { key: 'height', label: 'Height' },
   { key: 'weight', label: 'Weight' },
 ];
+const RANKING_SPARKLINE_WIDTH = 56;
+const RANKING_SPARKLINE_HEIGHT = 18;
 const POSITION_FILTERS: Array<{
   key: PositionFilter;
   label: string;
@@ -200,6 +212,11 @@ const NFL_TEAM_SEARCH_TERMS: Record<string, string[]> = {
 function formatValue(value?: number | null): string {
   if (!value) return '-';
   return value.toLocaleString();
+}
+
+function formatRankingBlipDelta(delta: number): string {
+  const absoluteDelta = Math.abs(Math.round(delta));
+  return `${delta > 0 ? '+' : '-'}${formatValue(absoluteDelta)}`;
 }
 
 function formatFantasyPointTotal(value?: number | null): string | null {
@@ -354,6 +371,31 @@ function getDraftBuzzScore(player: RankingPlayer): number | null {
 function getRankingAgeValue(player: RankingPlayer): number | null {
   const age = Number(player.age || 0);
   return Number.isFinite(age) && age > 0 ? age : null;
+}
+
+function getRankingRowKey(player: RankingPlayer): string {
+  return [
+    player.id || player.player_id || player.name,
+    player.player_id || player.owner || player.team || player.college || 'asset',
+  ].filter(Boolean).join(':');
+}
+
+function getRankingSparklinePoints(movement?: number | null): number[] {
+  const value = Number(movement);
+  if (!Number.isFinite(value) || value === 0) return [];
+  const bend = Math.max(1, Math.abs(value));
+  return value > 0
+    ? [0, value * 0.28, value * 0.64 + bend * 0.05, value]
+    : [0, value * 0.22, value * 0.7 - bend * 0.05, value];
+}
+
+function getSparklineEndY(points: readonly number[], height: number): number {
+  if (points.length < 2) return height / 2;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min;
+  if (range === 0) return height / 2;
+  return height - ((points[points.length - 1] - min) / range) * height;
 }
 
 function formatDraftBuzzScore(value?: number | null): string {
@@ -627,9 +669,11 @@ function RankingOwnerIcon({ owner, managerAvatars }: { owner?: string | null; ma
   const label = owner || 'Free Agent';
 
   return (
-    <span className="ranking-owner-avatar-wrap" title={label} aria-label={label}>
-      <RankingOwnerAvatar owner={owner} managerAvatars={managerAvatars} />
-    </span>
+    <ReportTooltip content={label}>
+      <span className="ranking-owner-avatar-wrap" aria-label={label}>
+        <RankingOwnerAvatar owner={owner} managerAvatars={managerAvatars} />
+      </span>
+    </ReportTooltip>
   );
 }
 
@@ -645,15 +689,17 @@ function CollegeTeamPill({ college, logoUrl }: { college?: string | null; logoUr
   const logoSrc = logoFailed ? null : getCollegeLogoUrl(college, logoUrl);
 
   return (
-    <span className="ranking-college-pill ranking-college-pill-icon-only" title={label} aria-label={label}>
-      {logoSrc ? (
-        <img src={logoSrc} alt="" loading="lazy" aria-hidden="true" onError={() => setLogoFailed(true)} />
-      ) : (
-        <span className="ranking-college-fallback-icon" aria-hidden="true">
-          {getCollegeInitials(college)}
-        </span>
-      )}
-    </span>
+    <ReportTooltip content={label}>
+      <span className="ranking-college-pill ranking-college-pill-icon-only" aria-label={label}>
+        {logoSrc ? (
+          <img src={logoSrc} alt="" loading="lazy" aria-hidden="true" onError={() => setLogoFailed(true)} />
+        ) : (
+          <span className="ranking-college-fallback-icon" aria-hidden="true">
+            {getCollegeInitials(college)}
+          </span>
+        )}
+      </span>
+    </ReportTooltip>
   );
 }
 
@@ -697,7 +743,89 @@ function getRankingValueProfile(
   };
 }
 
-function RankingValueRow({ player, config, playerDetailsById, managerAvatars, viewerManager, onSelect, showAIReads }: { player: RankingPlayer; config: RankingsTableConfig; playerDetailsById?: ReportData['playerDetailsById']; managerAvatars?: ReportData['managerAvatars']; viewerManager?: string | null; onSelect: (player: RankingPlayer) => void; showAIReads?: boolean }) {
+function RankingMovementSparkline({
+  player,
+  delayMs,
+}: {
+  player: RankingPlayer;
+  delayMs: number;
+}) {
+  const points = useMemo(() => getRankingSparklinePoints(player.movement), [player.movement]);
+  const path = useMemo(
+    () => buildSparklinePath(points, RANKING_SPARKLINE_WIDTH, RANKING_SPARKLINE_HEIGHT),
+    [points]
+  );
+  const endY = useMemo(() => getSparklineEndY(points, RANKING_SPARKLINE_HEIGHT), [points]);
+  const pathRef = useRef<SVGPathElement | null>(null);
+  const { animationsEnabled, hasEntered, ref } = useMotionInViewOnce<SVGSVGElement>({
+    rootMargin: '0px 0px -5% 0px',
+    threshold: 0.4,
+  });
+
+  useDrawPath(pathRef, {
+    delayMs,
+    durationMs: 600,
+    enabled: hasEntered,
+    replayKey: path,
+  });
+
+  if (!path) return null;
+
+  const direction = (player.movement || 0) >= 0 ? 'up' : 'down';
+  const markerDelay = animationsEnabled ? `${delayMs + 600}ms` : undefined;
+
+  return (
+    <svg
+      ref={ref}
+      viewBox={`0 0 ${RANKING_SPARKLINE_WIDTH} ${RANKING_SPARKLINE_HEIGHT}`}
+      width={RANKING_SPARKLINE_WIDTH}
+      height={RANKING_SPARKLINE_HEIGHT}
+      className={`ranking-movement-sparkline ranking-movement-sparkline-${direction}`}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        ref={pathRef}
+        d={path}
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <circle
+        className="ranking-movement-sparkline-dot"
+        cx={RANKING_SPARKLINE_WIDTH}
+        cy={endY}
+        r="2.4"
+        fill="currentColor"
+        style={{ animationDelay: markerDelay }}
+      />
+    </svg>
+  );
+}
+
+function RankingValueRow({
+  player,
+  config,
+  playerDetailsById,
+  managerAvatars,
+  viewerManager,
+  onSelect,
+  showAIReads,
+  motionIndex,
+  shouldFlash,
+}: {
+  player: RankingPlayer;
+  config: RankingsTableConfig;
+  playerDetailsById?: ReportData['playerDetailsById'];
+  managerAvatars?: ReportData['managerAvatars'];
+  viewerManager?: string | null;
+  onSelect: (player: RankingPlayer) => void;
+  showAIReads?: boolean;
+  motionIndex: number;
+  shouldFlash?: boolean;
+}) {
   const details = player.player_id ? playerDetailsById?.[player.player_id] : undefined;
   const rankingValueProfile = getRankingValueProfile(player, details, config.leagueValueMode);
   const prospectPills = player.isDevy && player.prospectProfile ? ([
@@ -725,9 +853,14 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
     context: 'rankings',
   });
   const valueLabel = player.isDevy ? getProspectPositionRank(player) : formatValue(primaryValue);
+  const valueBlip = useValueBlip(
+    !player.isDevy && !player.isPick && motionIndex < 6 ? primaryValue : null,
+    { deltaFormatter: formatRankingBlipDelta }
+  );
   const valueClassName = [
     'ranking-inline-value',
     'value-board__value',
+    'dd-value-blip-anchor',
     player.isDevy ? 'value-board__value-position' : '',
     player.isDevy ? getPositionRankClass(valueLabel) : '',
   ].filter(Boolean).join(' ');
@@ -749,15 +882,26 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
     player.isDevy ? 'ranking-player-card-devy value-board__row-devy' : '',
     player.isPick ? 'ranking-player-card-pick ranking-player-card-static' : '',
     viewerOwnedHighlightClass(player.owner, viewerManager),
+    shouldFlash ? 'dd-motion-row-flash' : '',
   ].filter(Boolean).join(' ');
-  const rowStyle = player.isDevy ? getCollegeTileStyle(player.college) : getTeamTileStyle(details?.team || player.team);
+  const hasMovementSparkline = Boolean(!player.isDevy && !player.isPick && player.movementLabel && getRankingSparklinePoints(player.movement).length);
+  const sparklineDelayMs = Math.min(motionIndex * 45, 600);
+  const rowStyle = {
+    ...(player.isDevy ? getCollegeTileStyle(player.college) : getTeamTileStyle(details?.team || player.team)),
+    '--dd-sparkline-delay': `${sparklineDelayMs}ms`,
+  } as CSSProperties;
   const rowContent = (
     <>
       <div className="value-board__score">
         <span className="ranking-overall-rank value-board__rank">{rankLabel}</span>
-        <span className={valueClassName}>
+        <span className={valueClassName} data-blip-direction={valueBlip?.direction}>
           <span className="value-board__value-label">{config.board === 'devy' ? 'Rank' : config.valueLabel}</span>
           <strong>{valueLabel}</strong>
+          {valueBlip && (
+            <span key={valueBlip.id} className="dd-value-blip-floater" aria-hidden="true">
+              {valueBlip.label}
+            </span>
+          )}
         </span>
       </div>
 
@@ -805,10 +949,12 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
           ) : player.isDevy ? (
             <span className="ranking-devy-class-pill ranking-devy-class-pill-empty">-</span>
           ) : player.age ? (
-            <span className="value-board__age-pill" title={`${player.age} year old`}>
-              <span className="value-board__age-full">{player.age} Year Old</span>
-              <span className="value-board__age-short">{player.age} Y.O.</span>
-            </span>
+            <ReportTooltip content={`${player.age} year old`}>
+              <span className="value-board__age-pill">
+                <span className="value-board__age-full">{player.age} Year Old</span>
+                <span className="value-board__age-short">{player.age} Y.O.</span>
+              </span>
+            </ReportTooltip>
           ) : (
             <span className="value-board__age-empty">-</span>
           )}
@@ -827,14 +973,19 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
 
       {!player.isDevy && showMovement ? (
         <div className="value-board__movement">
-          <span className={`ranking-movement-pill ${movementClass}`}>
+          {hasMovementSparkline ? (
+            <RankingMovementSparkline player={player} delayMs={sparklineDelayMs} />
+          ) : null}
+          <span className={`ranking-movement-pill ${movementClass} ${hasMovementSparkline ? 'ranking-movement-pill-animated' : ''}`}>
             {player.movementLabel || 'Stable'}
             {movementIcon}
           </span>
           {!player.isPick && showAIReads ? (
-            <span className="ranking-ai-read-chip" title="Open the player card for the full AI read">
-              AI Read
-            </span>
+            <ReportTooltip content="Open the player card for the full AI read">
+              <span className="ranking-ai-read-chip">
+                AI Read
+              </span>
+            </ReportTooltip>
           ) : null}
         </div>
       ) : null}
@@ -861,19 +1012,25 @@ function RankingValueRow({ player, config, playerDetailsById, managerAvatars, vi
       {!player.isDevy && !player.isPick ? (
         <div className="value-board__previous-season">
           {previousSeasonSummary ? (
-            <span className="ranking-last-season-summary-pill" title={previousSeasonSummary.title}>
-              <span className="ranking-last-season-summary-full">{previousSeasonSummary.label}</span>
-              <span className="ranking-last-season-summary-compact">{previousSeasonSummary.compactLabel}</span>
-            </span>
+            <ReportTooltip content={previousSeasonSummary.title}>
+              <span className="ranking-last-season-summary-pill">
+                <span className="ranking-last-season-summary-full">{previousSeasonSummary.label}</span>
+                <span className="ranking-last-season-summary-compact">{previousSeasonSummary.compactLabel}</span>
+              </span>
+            </ReportTooltip>
           ) : showRookiePreviousSeasonBadge ? (
-            <span className="ranking-last-season-rookie-pill" title={`${player.name} is a rookie with no previous-season NFL production`}>
-              <span className="ranking-last-season-rookie-star" aria-hidden="true">R</span>
-              <span className="ranking-last-season-rookie-label">Rookie</span>
-            </span>
+            <ReportTooltip content={`${player.name} is a rookie with no previous-season NFL production`}>
+              <span className="ranking-last-season-rookie-pill">
+                <span className="ranking-last-season-rookie-star" aria-hidden="true">R</span>
+                <span className="ranking-last-season-rookie-label">Rookie</span>
+              </span>
+            </ReportTooltip>
           ) : (
-            <span className="ranking-last-season-empty" title={`${player.name} has no ${previousSeasonShortLabel || 'previous'} production in this data set`}>
-              No {previousSeasonShortLabel || 'Prev'} Data
-            </span>
+            <ReportTooltip content={`${player.name} has no ${previousSeasonShortLabel || 'previous'} production in this data set`}>
+              <span className="ranking-last-season-empty">
+                No {previousSeasonShortLabel || 'Prev'} Data
+              </span>
+            </ReportTooltip>
           )}
         </div>
       ) : null}
@@ -929,10 +1086,12 @@ function DraftBuzzTeamLogo({ entry }: { entry: DraftBuzzScoreboardEntry }) {
   }
 
   return (
-    <span className="draftbuzz-table__logo-cell" title={team} aria-label={team}>
-      <TeamLogoPill team={team} className="draftbuzz-team-school__team" />
-      <span className="draftbuzz-table__logo-label">{team}</span>
-    </span>
+    <ReportTooltip content={team}>
+      <span className="draftbuzz-table__logo-cell" aria-label={team}>
+        <TeamLogoPill team={team} className="draftbuzz-team-school__team" />
+        <span className="draftbuzz-table__logo-label">{team}</span>
+      </span>
+    </ReportTooltip>
   );
 }
 
@@ -948,10 +1107,12 @@ function DraftBuzzSchoolLogo({ entry }: { entry: DraftBuzzScoreboardEntry }) {
   }
 
   return (
-    <span className="draftbuzz-table__logo-cell" title={school} aria-label={school}>
-      <CollegeTeamPill college={school} logoUrl={entry.collegeLogoUrl} />
-      <span className="draftbuzz-table__logo-label">{school}</span>
-    </span>
+    <ReportTooltip content={school}>
+      <span className="draftbuzz-table__logo-cell" aria-label={school}>
+        <CollegeTeamPill college={school} logoUrl={entry.collegeLogoUrl} />
+        <span className="draftbuzz-table__logo-label">{school}</span>
+      </span>
+    </ReportTooltip>
   );
 }
 
@@ -1219,6 +1380,11 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   const [query, setQuery] = useState(() => getUrlSearchParam(`${urlPrefix}Search`) || '');
   const deferredQuery = useDeferredValue(query);
   const [page, setPage] = useState(1);
+  const [pageRenderKey, setPageRenderKey] = useState(0);
+  const [flashRowKey, setFlashRowKey] = useState<string | null>(null);
+  const animationsEnabled = useAnimationsEnabled();
+  const sortSignature = `${sortMode}:${movementSortDirection}:${prospectSortDirection}:${ageSortDirection}`;
+  const previousSortSignature = useRef(sortSignature);
 
   useEffect(() => {
     const urlProfileKey = getUrlSearchParam(`${urlPrefix}Profile`);
@@ -1349,6 +1515,30 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
   const pageRows = filteredRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   useEffect(() => {
+    const previous = previousSortSignature.current;
+    previousSortSignature.current = sortSignature;
+    if (previous === sortSignature) return;
+
+    setFlashRowKey(null);
+    if (!animationsEnabled || !viewerManager) return;
+
+    const viewerRow = pageRows.find((row) => isViewerManagerMatch(row.owner, viewerManager));
+    if (!viewerRow) return;
+
+    const rowKey = getRankingRowKey(viewerRow);
+    let clearTimer = 0;
+    const settleTimer = window.setTimeout(() => {
+      setFlashRowKey(rowKey);
+      clearTimer = window.setTimeout(() => setFlashRowKey(null), 1300);
+    }, DURATION.flip + 90);
+
+    return () => {
+      window.clearTimeout(settleTimer);
+      if (clearTimer) window.clearTimeout(clearTimer);
+    };
+  }, [animationsEnabled, pageRows, sortSignature, viewerManager]);
+
+  useEffect(() => {
     setPage(1);
   }, [ageSortDirection, includePicksWithOverall, movementSortDirection, prospectSortDirection, query, selectedDraftClass, selectedPositions, selectedProfileKey, sortMode]);
 
@@ -1432,6 +1622,18 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
 
     setSelectedPositions([]);
     setIncludePicksWithOverall(false);
+  };
+
+  const goToPreviousPage = () => {
+    setPageRenderKey(value => value + 1);
+    setFlashRowKey(null);
+    setPage(value => Math.max(1, value - 1));
+  };
+
+  const goToNextPage = () => {
+    setPageRenderKey(value => value + 1);
+    setFlashRowKey(null);
+    setPage(value => Math.min(pageCount, value + 1));
   };
 
   return (
@@ -1549,11 +1751,7 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
         </div>
       </div>
 
-      {isProfileLoading ? (
-        <div className="rankings-empty-state">
-          Loading selected ranking profile...
-        </div>
-      ) : null}
+      {isProfileLoading ? <ReportSkeleton variant="table" rows={6} /> : null}
 
       {config.board !== 'devy' ? (
         <div className="rankings-value-basis" aria-label={`Value basis: ${config.valueLabel}`}>
@@ -1578,9 +1776,32 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
           <span>{config.board === 'devy' ? 'Prospect' : 'Weekly'}</span>
           <span>{config.board === 'devy' ? 'Pos Rank' : config.valueLabel}</span>
         </div>
-        {pageRows.map((player, index) => (
-          <RankingValueRow key={`${player.id}-${index}`} player={player} config={config} playerDetailsById={playerDetailsById} managerAvatars={managerAvatars} viewerManager={viewerManager} onSelect={onSelectPlayer} showAIReads={showAIReads} />
-        ))}
+        <FlipList
+          key={`${config.board}-${pageRenderKey}`}
+          className="value-board__row-list"
+          in="view"
+          delayStepMs={45}
+          y={8}
+        >
+          {pageRows.map((player, index) => {
+            const rowKey = getRankingRowKey(player);
+            return (
+              <FlipItem key={rowKey} index={index}>
+                <RankingValueRow
+                  player={player}
+                  config={config}
+                  playerDetailsById={playerDetailsById}
+                  managerAvatars={managerAvatars}
+                  viewerManager={viewerManager}
+                  onSelect={onSelectPlayer}
+                  showAIReads={showAIReads}
+                  motionIndex={index}
+                  shouldFlash={flashRowKey === rowKey}
+                />
+              </FlipItem>
+            );
+          })}
+        </FlipList>
       </div>
 
       {filteredRows.length === 0 && !isProfileLoading ? (
@@ -1591,14 +1812,14 @@ function RankingsTable({ config, rankings, playerDetailsById, managerAvatars, vi
         />
       ) : (
         <div className="rankings-pagination" aria-label={`${config.title} pagination`}>
-          <button type="button" onClick={() => setPage(value => Math.max(1, value - 1))} disabled={currentPage <= 1}>
+          <button type="button" onClick={goToPreviousPage} disabled={currentPage <= 1}>
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             Prev
           </button>
           <span>
             Page {currentPage} of {pageCount}
           </span>
-          <button type="button" onClick={() => setPage(value => Math.min(pageCount, value + 1))} disabled={currentPage >= pageCount}>
+          <button type="button" onClick={goToNextPage} disabled={currentPage >= pageCount}>
             Next
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -1821,9 +2042,7 @@ export function RankingsBoard({ rankings, playerDetailsById, managerAvatars, lea
       ))}
 
       {shouldShowDraftBuzzScoreboard ? draftBuzzQuery.isLoading && !draftBuzzEntries.length ? (
-        <div className="rankings-empty-state">
-          Loading prospect score archive...
-        </div>
+        <ReportSkeleton variant="table" rows={5} />
       ) : draftBuzzEntries.length ? (
         <DraftBuzzScoreboard entries={draftBuzzEntries} onSelectEntry={handleSelectDraftBuzzEntry} />
       ) : (

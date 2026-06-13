@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import { Layers2, Shield, Users } from "lucide-react";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
+import { ReportMotionSectionStack } from "@/features/report/components/ReportMotionSectionStack";
 import {
   buildManagerPositionRoomPreviewMetrics,
   buildOwnerIntelPreviewMetrics,
@@ -107,6 +108,7 @@ type ReportOverviewTabProps = {
     leagueLogo?: string | null;
     viewerManager?: string | null;
     leagueValueMode?: ReportData["leagueValueMode"];
+    managerRosterValueGrowth?: ReportData["managerRosterValueGrowth"];
   }>;
   nextMoveTarget?: ReportNextMoveTarget | null;
 };
@@ -218,7 +220,7 @@ export function ReportOverviewTab({
   ) : null;
 
   return (
-    <div className="dashboard-overview-section-stack space-y-6 sm:space-y-8">
+    <ReportMotionSectionStack className="dashboard-overview-section-stack space-y-6 sm:space-y-8">
       {/* Premium command-center expansions remain admin-gated */}
       {canViewAdminFeatureExpansion && (
         <>
@@ -484,9 +486,10 @@ export function ReportOverviewTab({
             leagueLogo={leagueLogo}
             viewerManager={effectiveViewerManager}
             leagueValueMode={leagueValueMode}
+            managerRosterValueGrowth={reportData.managerRosterValueGrowth}
           />
         </CollapsibleReportSection>
       )}
-    </div>
+    </ReportMotionSectionStack>
   );
 }

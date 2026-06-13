@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ChampionAvatarFrame, ManagerChampionshipPills } from "../ManagerChampionships";
+import { getManagerTrendDelta } from "../ManagerTrendAvatar";
 import { PlayerDetailModal, type PlayerModalData } from "../PlayerDetailModal";
 import { getBalancedGridStyle } from "@/lib/balancedGrid";
 import { normalizeLeagueValueMode } from "@/lib/leagueValueMode";
@@ -53,6 +54,7 @@ export default function TradeProfitLeaderboardTable({
   currentStandings,
   standingsHistory,
   leagueValueMode = "dynasty",
+  managerRosterValueGrowth,
 }: {
   data: ReportData["tradeProfitLeaderboard"];
   managerAvatars?: ManagerAvatars;
@@ -71,6 +73,7 @@ export default function TradeProfitLeaderboardTable({
   currentStandings?: ReportData["currentStandings"];
   standingsHistory?: ReportData["standingsHistory"];
   leagueValueMode?: ReportData["leagueValueMode"];
+  managerRosterValueGrowth?: ReportData["managerRosterValueGrowth"];
 }) {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [selectedManagerTradeKey, setSelectedManagerTradeKey] = useState<
@@ -188,6 +191,7 @@ export default function TradeProfitLeaderboardTable({
               manager={row.manager}
               avatarUrl={managerAvatars?.[row.manager]}
               className={viewerOwnedHighlightClass(row.manager, viewerManager)}
+              trendDelta={getManagerTrendDelta(row.manager, managerRosterValueGrowth)}
               onClick={() => setSelectedManager(row.manager)}
             >
               <OwnerMetricPill label="Wins" value={row.wins} tone="warn" />

@@ -11,6 +11,7 @@ import { EmptyState, MetricPill, PlayerPill, type PreviewMetric } from './report
 import { AIReadPanel } from './AIReadPanel';
 import { DraftCollapsibleSection } from '@/features/report/components/DraftCollapsibleSection';
 import { DraftOpportunityNote } from '@/features/report/components/DraftOpportunityNote';
+import { ReportMotionSectionStack } from '@/features/report/components/ReportMotionSectionStack';
 import {
   type DraftDecisionAudit,
   buildManagerDraftDecisionAudits,
@@ -251,7 +252,7 @@ export function DraftAnalysis({
     : `${topDraftGain?.playerName || 'No player'} is the biggest ${topDraftGainKind} value gain in the returned data. ${biggestDraftLeak && (biggestDraftLeak.valueGain || 0) < 0 ? `${biggestDraftLeak.playerName} is the draft-capital leak to audit before repeating that profile.` : 'No major negative value swing was returned.'}`;
 
   return (
-    <div className="draft-analysis-stack report-command-section-stack space-y-6 sm:space-y-8">
+    <ReportMotionSectionStack className="draft-analysis-stack report-command-section-stack space-y-6 sm:space-y-8">
       {showAIReads && (
         <AIReadPanel
           title={isRedraft ? 'Draft recap AI read' : 'Draft capital AI read'}
@@ -689,7 +690,7 @@ export function DraftAnalysis({
         calibrationProfile={calibrationProfile}
         showAIRead={showAIReads}
       />
-    </div>
+    </ReportMotionSectionStack>
   );
 }
 

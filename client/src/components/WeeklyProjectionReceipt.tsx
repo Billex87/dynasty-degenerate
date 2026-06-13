@@ -1,4 +1,5 @@
 import React from "react";
+import { ReportTooltip } from "@/components/reportPrimitives";
 import type { WeeklyProjectionContext } from "@shared/types";
 
 type WeeklyProjectionReceiptVariant = "card" | "fact" | "pill";
@@ -66,10 +67,12 @@ export function WeeklyProjectionReceipt({
 
   if (variant === "pill") {
     return (
-      <span {...commonProps} title={[...metaItems, ...detailItems].join(" · ")}>
-        {parts.points} · {parts.week}
-        {parts.tepAdjustment ? ` · ${parts.tepAdjustment}` : ""}
-      </span>
+      <ReportTooltip content={[...metaItems, ...detailItems].join(" · ")}>
+        <span {...commonProps}>
+          {parts.points} · {parts.week}
+          {parts.tepAdjustment ? ` · ${parts.tepAdjustment}` : ""}
+        </span>
+      </ReportTooltip>
     );
   }
 

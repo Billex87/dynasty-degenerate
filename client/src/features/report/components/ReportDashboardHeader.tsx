@@ -78,7 +78,7 @@ export function ReportDashboardHeader({
           </div>
 
           <TabsList
-            className={`${reportTabsClassName} ${canViewAutopilotTab ? "report-tabs-with-autopilot" : ""} report-header-tabs`}
+            className={`${reportTabsClassName} ${canViewAutopilotTab ? "report-tabs-with-autopilot" : ""} report-header-tabs dd-glass`}
             data-active-tab={resolvedActiveTab}
             style={reportTabsStyle}
           >

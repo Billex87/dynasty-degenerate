@@ -237,8 +237,8 @@ export default function LegalPage({ section }: { section: LegalSectionKey }) {
   const content = SECTIONS[section];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-8 sm:px-6 lg:px-8">
+    <div className="legal-page-shell dd-app-page min-h-screen bg-slate-950 text-slate-100">
+      <main className="legal-page-card dd-glass-strong mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6">
           <Button asChild variant="ghost" className="text-slate-200 hover:bg-slate-900 hover:text-cyan-100">
             <Link href="/">
@@ -261,7 +261,7 @@ export default function LegalPage({ section }: { section: LegalSectionKey }) {
 
         <div className="grid gap-5">
           {content.rows.map((row) => (
-            <section key={row.heading} className="rounded border border-slate-800 bg-slate-900/60 p-5">
+            <section key={row.heading} className="legal-section-row rounded border border-slate-800 bg-slate-900/60 p-5">
               <h2 className="text-lg font-black uppercase tracking-wide text-cyan-100">{row.heading}</h2>
               <div className="mt-3 space-y-3 text-sm leading-6 text-slate-300">
                 {row.body.map((paragraph) => (

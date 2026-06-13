@@ -12,6 +12,7 @@ import {
   type PlayerDetailsById,
 } from './shared';
 import { getPlayerValueForMode, normalizeLeagueValueMode } from '@/lib/leagueValueMode';
+import { TileRippleGrid } from '@/lib/motion';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 
@@ -50,15 +51,18 @@ export default function TrendingPlayersTable({
           {displaySections.map(section => (
             <section key={section.title} className="trending-section">
               <h4>{section.title}</h4>
-              <div className="trending-card-grid">
-                {section.data.slice(0, 5).map((row) => {
+              <TileRippleGrid className="trending-card-grid">
+                {({ getTileMotionProps }) => section.data.slice(0, 5).map((row, index) => {
                   const playerDetails = row.playerDetails || (row.player_id ? playerDetailsById?.[row.player_id] : undefined);
                   return (
                     <button
                       key={`${section.title}-${row.player_id}`}
                       type="button"
                       className={`player-team-tile trending-player-card ${viewerOwnedHighlightClass(row.owner, viewerManager)}`}
-                      style={getTeamTileStyle(playerDetails?.team || row.team)}
+                      {...getTileMotionProps(index, {
+                        style: getTeamTileStyle(playerDetails?.team || row.team),
+                        topAsset: index === 0 && (row.ktcValue || 0) >= 5000,
+                      })}
                       onClick={() => setSelectedPlayer(buildPlayerModalData({
                         playerId: row.player_id,
                         playerName: row.name,
@@ -107,7 +111,7 @@ export default function TrendingPlayersTable({
                     </button>
                   );
                 })}
-              </div>
+              </TileRippleGrid>
             </section>
           ))}
         </div>

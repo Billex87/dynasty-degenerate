@@ -50,6 +50,62 @@
   --dd-focus-ring-color: var(--dd-tron-cyan);
   --dd-focus-ring: 0 0 0 var(--dd-focus-ring-w)
     color-mix(in srgb, var(--dd-tron-cyan) 75%, transparent);
+
+  /* ── Shared material system ─────────────────────────────────────────────
+     Live glass may blur; cold glass is a non-blur material for repeated cards,
+     rows, chips, and tiles. Keep fills, edges, shadows, blur, scrollbars, and
+     grain here so report/home/utility pages use one material language. */
+  --dd-glass-live-bg: rgba(16, 28, 48, 0.42);
+  --dd-glass-live-bg-soft: rgba(16, 28, 48, 0.55);
+  --dd-glass-live-bg-strong: rgba(16, 28, 48, 0.55);
+  --dd-glass-live-border: rgba(255, 255, 255, 0.1);
+  --dd-glass-live-border-strong: rgba(255, 255, 255, 0.14);
+  --dd-glass-live-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(2, 7, 18, 0.5);
+  --dd-glass-live-shadow-strong:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(2, 7, 18, 0.58),
+    0 22px 54px rgba(0, 0, 0, 0.42);
+  --dd-glass-blur-live: 14px;
+  --dd-glass-blur-soft: 8px;
+  --dd-glass-blur-strong: 20px;
+  --dd-glass-blur-live-mobile: 7px;
+  --dd-glass-blur-soft-mobile: 4px;
+  --dd-glass-blur-strong-mobile: 10px;
+  --dd-glass-cold-bg:
+    radial-gradient(circle at 7% 0%, color-mix(in srgb, var(--team-primary, #22d3ee) 16%, transparent), transparent 44%),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--team-secondary, #f97316) 14%, transparent), transparent 48%),
+    rgba(16, 28, 48, 0.5);
+  --dd-glass-cold-border: rgba(255, 255, 255, 0.1);
+  --dd-glass-cold-shadow: var(--dd-glass-live-shadow);
+  --dd-glass-sheen:
+    linear-gradient(115deg, transparent 26%, rgba(255, 255, 255, 0.18) 44%, transparent 60%);
+  --dd-scrollbar-thumb: rgba(34, 211, 238, 0.58);
+  --dd-scrollbar-thumb-soft: rgba(34, 211, 238, 0.48);
+  --dd-scrollbar-thumb-hover: rgba(103, 232, 249, 0.76);
+  --dd-scrollbar-track: rgba(15, 23, 42, 0.12);
+  --dd-selection-bg: rgba(34, 211, 238, 0.78);
+  --dd-selection-color: #020617;
+  --dd-material-grain-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
+
+  /* ── Motion primitives ─────────────────────────────────────────────────
+     Keep phase motion values here so CSS, framer wrappers, and docs share a
+     single vocabulary instead of per-surface duration/easing drift. */
+  --dd-duration-press: 60ms;
+  --dd-duration-fast: 180ms;
+  --dd-duration-base: 320ms;
+  --dd-duration-settle: 450ms;
+  --dd-duration-current: 550ms;
+  --dd-duration-ring: 700ms;
+  --dd-duration-blip: 900ms;
+  --dd-ease-rise: cubic-bezier(0.2, 0.8, 0.3, 1);
+  --dd-ease-overshoot: cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  --dd-ease-pop: cubic-bezier(0.14, 0.84, 0.14, 1);
+  --dd-ease: var(--dd-ease-rise);
+  --dd-motion-fast: var(--dd-duration-fast);
+  --dd-motion-medium: 220ms;
+  --dd-motion-ease-out: var(--dd-ease-rise);
 }
 
 /* ── Brand wordmark / hero titles stay on Oswald ──────────────────────────

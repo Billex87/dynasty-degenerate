@@ -17,6 +17,7 @@ import {
   REPORT_CACHE_DATA_VERSION,
   showMutationErrorToast,
 } from "@/features/home/lib/reportCache";
+import { runViewTransition, useAnimationsEnabled } from "@/lib/motion";
 import {
   getReportModeBucket,
   getViewportBucket,
@@ -133,6 +134,7 @@ export function useHomeReportAnalysis({
   setReportData,
   setReportDataCacheVersion,
 }: UseHomeReportAnalysisOptions) {
+  const animationsEnabled = useAnimationsEnabled();
   const analyzeMutation = trpc.league.analyze.useMutation({
     onMutate: variables => {
       analyzeRequestStartedAtRef.current = {
@@ -351,23 +353,29 @@ export function useHomeReportAnalysis({
           reportData?.viewerManager ?? null
         )
       : [];
-    if (!isSameLeague) {
-      setAdminViewerManager(null);
-    }
-    setLeagueId(nextLeagueId);
-    rememberLeagueId(nextLeagueId);
-    clearBrowserReportCache(nextLeagueId);
-    setReportData(null);
-    void beginAnalysisLoading(nextLeagueId, [], initialManagerAnchors).finally(
-      () => {
-        if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
-        analyzeMutation.mutate({
-          leagueId: nextLeagueId,
-          viewerUserId: getValidSleeperUserId(viewerUserId) || undefined,
-          liveRefresh: true,
-        });
+    const startAnalysis = () => {
+      if (!isSameLeague) {
+        setAdminViewerManager(null);
       }
-    );
+      setLeagueId(nextLeagueId);
+      rememberLeagueId(nextLeagueId);
+      clearBrowserReportCache(nextLeagueId);
+      setReportData(null);
+      void beginAnalysisLoading(nextLeagueId, [], initialManagerAnchors).finally(
+        () => {
+          if (activeAnalysisLeagueIdRef.current !== nextLeagueId) return;
+          analyzeMutation.mutate({
+            leagueId: nextLeagueId,
+            viewerUserId: getValidSleeperUserId(viewerUserId) || undefined,
+            liveRefresh: true,
+          });
+        }
+      );
+    };
+
+    runViewTransition(startAnalysis, {
+      enabled: animationsEnabled && !isSameLeague && Boolean(reportData),
+    });
   };
 
   return {

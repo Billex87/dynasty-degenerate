@@ -1,10 +1,12 @@
 import { SupportButton } from "@/components/SupportButton";
 import { FeedbackButton } from "@/components/FeedbackButton";
+import { Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AIVoiceModeMenu } from "@/features/report/components/AIVoiceModeMenu";
 import { AdminManagerSwitcher } from "@/features/report/components/AdminManagerSwitcher";
 import type { AIVoiceMode } from "@/lib/aiVoice";
+import { useEffectsPreference } from "@/lib/motion";
 import type { ReportData } from "@shared/types";
 
 interface ReportFooterActionsProps {
@@ -42,6 +44,10 @@ export function ReportFooterActions({
   leagueName,
   leagueFormat,
 }: ReportFooterActionsProps) {
+  const { effectsEnabled, osReducedMotion, setEffectsEnabled } =
+    useEffectsPreference();
+  const effectsLabel = effectsEnabled ? "Effects On" : "Effects Off";
+
   return (
     <div className="report-footer-actions">
       <div className="report-footer-primary-actions">
@@ -53,7 +59,7 @@ export function ReportFooterActions({
                 type="button"
                 onClick={onAdminToolsClick}
                 variant="outline"
-                className={`report-header-action report-footer-primary-action !w-auto shrink-0 px-2.5 sm:px-3 report-header-admin-toggle ${
+                className={`report-header-action report-footer-primary-action dd-current !w-auto shrink-0 px-2.5 sm:px-3 report-header-admin-toggle ${
                   canViewAdminFeatureExpansion ? "report-header-admin-toggle-active" : ""
                 }`}
                 aria-pressed={canViewAdminFeatureExpansion}
@@ -72,6 +78,7 @@ export function ReportFooterActions({
                       : "Enter the admin passphrase for this browser session"
                 }
               >
+                <span className="dd-current-line" aria-hidden="true" />
                 <span className="report-header-action-label truncate">
                   {canViewAdminFeatureExpansion
                     ? "Regular Report"
@@ -94,11 +101,35 @@ export function ReportFooterActions({
           onChange={onAIVoiceModeChange}
         />
         <Button
+          type="button"
+          variant="outline"
+          className="report-header-action report-footer-primary-action report-effects-toggle dd-current !w-full max-w-[32rem] justify-between gap-2 sm:!w-auto sm:max-w-none"
+          aria-label={
+            osReducedMotion
+              ? "Effects are off because reduced motion is enabled"
+              : `Turn ${effectsEnabled ? "off" : "on"} report effects`
+          }
+          aria-pressed={effectsEnabled}
+          onClick={() => setEffectsEnabled(!effectsEnabled)}
+          title={
+            osReducedMotion
+              ? "OS reduced-motion is active; report effects stay off."
+              : "Toggle report motion effects for this browser."
+          }
+        >
+          <span className="dd-current-line" aria-hidden="true" />
+          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="report-header-action-label min-w-0 truncate">
+            {effectsLabel}
+          </span>
+        </Button>
+        <Button
           onClick={onAnalyzeAnotherLeague}
           variant="outline"
-          className="report-header-action report-footer-primary-action report-switch-league-trigger !w-full max-w-[32rem] sm:!w-auto sm:max-w-none"
+          className="report-header-action report-footer-primary-action report-switch-league-trigger dd-current !w-full max-w-[32rem] sm:!w-auto sm:max-w-none"
           aria-label="Switch to another league report"
         >
+          <span className="dd-current-line" aria-hidden="true" />
           <span className="report-header-action-label">
             Switch League
           </span>

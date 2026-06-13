@@ -1,6 +1,16 @@
 import { type CSSProperties, type ReactNode } from "react";
 
+import { ManagerTrendAvatar } from "@/components/ManagerTrendAvatar";
+import { ReportTooltip } from "@/components/reportPrimitives";
 import { StatTile } from "@/components/tiles";
+import {
+  DURATION,
+  Odometer,
+  formatCount,
+  useCountUp,
+  useMotionInViewOnce,
+  useValueBlip,
+} from "@/lib/motion";
 
 export type DashboardMetricTone = "neutral" | "info" | "good" | "warn" | "danger";
 export type DashboardVisualMetricKind =
@@ -21,12 +31,15 @@ export type DashboardMetricBadge = {
   label: ReactNode;
   tone?: DashboardMetricTone;
 };
+export type DashboardMetricValueFormatter = (value: number) => string;
 
 export type DashboardHeroMetric = {
   key: string;
   kind?: DashboardVisualMetricKind;
   label: string;
   value: ReactNode;
+  numericValue?: number | null;
+  valueFormatter?: DashboardMetricValueFormatter;
   subLabel?: ReactNode;
   helper?: ReactNode;
   score?: number | null;
@@ -35,6 +48,7 @@ export type DashboardHeroMetric = {
   badges?: DashboardMetricBadge[];
   targetManager?: string | null;
   avatarUrl?: string | null;
+  managerTrendDelta?: number | null;
   deltaDirection?: "up" | "down" | "flat";
 };
 
@@ -46,6 +60,85 @@ export type DashboardSpotlightBlock = {
   tone?: DashboardMetricTone;
 };
 
+function getFiniteMetricNumber(value?: number | null) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function formatDashboardAnimatedValue(
+  value: number,
+  formatter?: DashboardMetricValueFormatter
+) {
+  return formatter ? formatter(value) : formatCount(value);
+}
+
+function formatDashboardBlipDelta(
+  delta: number,
+  formatter?: DashboardMetricValueFormatter
+) {
+  const label = formatter ? formatter(delta) : formatCount(delta, { plus: true });
+  return delta > 0 && !label.startsWith("+") ? `+${label}` : label;
+}
+
+function DashboardMetricValue({
+  metric,
+  mode = "count",
+}: {
+  metric: DashboardHeroMetric;
+  mode?: "count" | "odometer";
+}) {
+  const numericValue = getFiniteMetricNumber(metric.numericValue);
+  const { hasEntered, ref } = useMotionInViewOnce<HTMLSpanElement>();
+  const countTarget = numericValue !== null && hasEntered ? numericValue : 0;
+  const countedValue = useCountUp(countTarget, {
+    durationMs: DURATION.count,
+    formatter: metric.valueFormatter,
+  });
+  const blip = useValueBlip(numericValue, {
+    deltaFormatter: delta => formatDashboardBlipDelta(delta, metric.valueFormatter),
+  });
+
+  if (numericValue === null) {
+    return <>{metric.value}</>;
+  }
+
+  const finalValue = formatDashboardAnimatedValue(
+    numericValue,
+    metric.valueFormatter
+  );
+
+  return (
+    <span
+      className="dd-motion-count-value dd-value-blip-anchor"
+      data-blip-direction={blip?.direction}
+      ref={ref}
+    >
+      <span aria-hidden="true" className="dd-motion-count-reserve">
+        {finalValue}
+      </span>
+      <span className="dd-motion-count-live">
+        {mode === "odometer" ? (
+          <Odometer
+            value={countTarget}
+            formatter={metric.valueFormatter}
+          />
+        ) : (
+          countedValue
+        )}
+      </span>
+      {blip && (
+        <span
+          key={blip.id}
+          aria-hidden="true"
+          className="dd-value-blip-floater"
+          data-direction={blip.direction}
+        >
+          {blip.label}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function getDashboardFallbackInitials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
@@ -55,14 +148,20 @@ function getDashboardFallbackInitials(name: string): string {
 export function DashboardManagerAvatar({
   manager,
   avatarUrl,
+  trendDelta,
 }: {
   manager: string;
   avatarUrl?: string | null;
+  trendDelta?: number | null;
 }) {
-  return avatarUrl ? (
-    <img src={avatarUrl} alt="" aria-hidden="true" />
-  ) : (
-    <span aria-hidden="true">{getDashboardFallbackInitials(manager)}</span>
+  return (
+    <ManagerTrendAvatar manager={manager} trendDelta={trendDelta}>
+      {avatarUrl ? (
+        <img src={avatarUrl} alt="" aria-hidden="true" />
+      ) : (
+        <span aria-hidden="true">{getDashboardFallbackInitials(manager)}</span>
+      )}
+    </ManagerTrendAvatar>
   );
 }
 
@@ -197,6 +296,19 @@ export function DashboardMeterMetric({
 export function DashboardMiniBarStack({ metric }: { metric: DashboardHeroMetric }) {
   const bars = (metric.bars || []).slice(0, 4);
   const maxValue = Math.max(1, ...bars.map(bar => Math.max(0, bar.value)));
+  const leadingBarIndex = bars.reduce(
+    (bestIndex, bar, index) =>
+      Math.max(0, bar.value) > Math.max(0, bars[bestIndex]?.value || 0)
+        ? index
+        : bestIndex,
+    0
+  );
+  const {
+    animationsEnabled,
+    hasEntered,
+    ref: barsRef,
+  } = useMotionInViewOnce<HTMLDivElement>();
+  const animateIn = !animationsEnabled || hasEntered;
 
   return (
     <StatTile
@@ -212,40 +324,88 @@ export function DashboardMiniBarStack({ metric }: { metric: DashboardHeroMetric 
             <DashboardManagerAvatar
               manager={metric.targetManager}
               avatarUrl={metric.avatarUrl}
+              trendDelta={metric.managerTrendDelta}
             />
           </div>
-          <strong>{metric.value}</strong>
+          <strong>
+            <DashboardMetricValue metric={metric} />
+          </strong>
         </div>
       ) : (
-        <strong>{metric.value}</strong>
+        <strong>
+          <DashboardMetricValue metric={metric} />
+        </strong>
       )}
       {bars.length ? (
-        <div className="dashboard-mini-bars" aria-hidden="true">
-          {bars.map(bar => (
-            <div
+        <div
+          className="dashboard-mini-bars"
+          data-animate-in={animateIn ? "true" : "false"}
+          ref={barsRef}
+          aria-hidden="true"
+        >
+          {bars.map((bar, index) => (
+            <DashboardMiniBarRow
+              animateValue={animateIn}
+              bar={bar}
+              index={index}
+              isLead={index === leadingBarIndex}
               key={bar.label}
-              className="dashboard-mini-bar-row"
-              data-tone={bar.tone || metric.tone || "info"}
-            >
-              <b>{bar.label}</b>
-              <i>
-                <span
-                  style={
-                    {
-                      "--dashboard-bar-score": `${Math.max(
-                        6,
-                        Math.round((Math.max(0, bar.value) / maxValue) * 100)
-                      )}%`,
-                    } as CSSProperties
-                  }
-                />
-              </i>
-              <em>{bar.displayValue ?? bar.value}</em>
-            </div>
+              maxValue={maxValue}
+              tone={bar.tone || metric.tone || "info"}
+            />
           ))}
         </div>
       ) : null}
     </StatTile>
+  );
+}
+
+function DashboardMiniBarRow({
+  animateValue,
+  bar,
+  index,
+  isLead,
+  maxValue,
+  tone,
+}: {
+  animateValue: boolean;
+  bar: DashboardMetricBar;
+  index: number;
+  isLead: boolean;
+  maxValue: number;
+  tone: DashboardMetricTone;
+}) {
+  const rawDisplayValue = bar.displayValue ?? bar.value;
+  const numericDisplayValue =
+    typeof rawDisplayValue === "number" && Number.isFinite(rawDisplayValue)
+      ? rawDisplayValue
+      : null;
+  const countedValue = useCountUp(
+    numericDisplayValue !== null && animateValue ? numericDisplayValue : 0,
+    { durationMs: DURATION.count }
+  );
+
+  const barStyle = {
+    "--dashboard-bar-score": `${Math.max(
+      6,
+      Math.round((Math.max(0, bar.value) / maxValue) * 100)
+    )}%`,
+    "--dd-motion-bar-delay": `${index * 120}ms`,
+  } as CSSProperties;
+
+  return (
+    <div
+      className="dashboard-mini-bar-row"
+      data-lead={isLead ? "true" : undefined}
+      data-tone={tone}
+      style={barStyle}
+    >
+      <b>{bar.label}</b>
+      <i>
+        <span />
+      </i>
+      <em>{numericDisplayValue !== null ? countedValue : rawDisplayValue}</em>
+    </div>
   );
 }
 
@@ -262,15 +422,24 @@ export function DashboardDeltaMetric({ metric }: { metric: DashboardHeroMetric }
   const valueTitle =
     typeof metric.value === "string" ? metric.value : undefined;
   const nameSize = getDashboardVisualNameSize(metric.value);
+  const {
+    animationsEnabled,
+    hasEntered,
+    ref: valueRef,
+  } = useMotionInViewOnce<HTMLElement>();
+  const direction = metric.deltaDirection || "flat";
+  const shouldPulse = animationsEnabled && hasEntered && direction !== "flat";
 
   return (
     <StatTile
-      className="dashboard-metric-card dashboard-delta-metric"
+      className={`dashboard-metric-card dashboard-delta-metric ${
+        shouldPulse ? "dd-motion-delta-pulse" : ""
+      }`.trim()}
       tone={metric.tone || "neutral"}
       label={metric.label}
       helper={metric.helper}
       subLabel={metric.subLabel}
-      data-direction={metric.deltaDirection || "flat"}
+      data-direction={direction}
     >
       {metric.targetManager ? (
         <div className="dashboard-target-lockup">
@@ -278,16 +447,21 @@ export function DashboardDeltaMetric({ metric }: { metric: DashboardHeroMetric }
             <DashboardManagerAvatar
               manager={metric.targetManager}
               avatarUrl={metric.avatarUrl}
+              trendDelta={metric.managerTrendDelta}
             />
           </div>
-          <strong title={valueTitle} data-name-size={nameSize}>
-            {metric.value}
-          </strong>
+          <ReportTooltip content={valueTitle}>
+            <strong ref={valueRef} data-name-size={nameSize}>
+              <DashboardMetricValue metric={metric} />
+            </strong>
+          </ReportTooltip>
         </div>
       ) : (
-        <strong title={valueTitle} data-name-size={nameSize}>
-          {metric.value}
-        </strong>
+        <ReportTooltip content={valueTitle}>
+          <strong ref={valueRef} data-name-size={nameSize}>
+            <DashboardMetricValue metric={metric} />
+          </strong>
+        </ReportTooltip>
       )}
     </StatTile>
   );
@@ -312,12 +486,15 @@ export function DashboardTargetMetric({ metric }: { metric: DashboardHeroMetric 
             <DashboardManagerAvatar
               manager={metric.targetManager}
               avatarUrl={metric.avatarUrl}
+              trendDelta={metric.managerTrendDelta}
             />
           </div>
         )}
-        <strong title={valueTitle} data-name-size={nameSize}>
-          {metric.value}
-        </strong>
+        <ReportTooltip content={valueTitle}>
+          <strong data-name-size={nameSize}>
+            <DashboardMetricValue metric={metric} />
+          </strong>
+        </ReportTooltip>
       </div>
       {metric.badges?.length ? (
         <div className="dashboard-metric-badges">
@@ -355,14 +532,21 @@ export function DashboardBadgeListMetric({
             <DashboardManagerAvatar
               manager={metric.targetManager}
               avatarUrl={metric.avatarUrl}
+              trendDelta={metric.managerTrendDelta}
             />
           </div>
-          <strong title={valueTitle} data-name-size={nameSize}>
-            {metric.value}
-          </strong>
+          <ReportTooltip content={valueTitle}>
+            <strong data-name-size={nameSize}>
+              <DashboardMetricValue metric={metric} />
+            </strong>
+          </ReportTooltip>
         </div>
       ) : (
-        <strong title={valueTitle}>{metric.value}</strong>
+        <ReportTooltip content={valueTitle}>
+          <strong>
+            <DashboardMetricValue metric={metric} />
+          </strong>
+        </ReportTooltip>
       )}
       {metric.badges?.length ? (
         <div className="dashboard-metric-badges">
@@ -395,7 +579,12 @@ export function DashboardVisualMetric({
     return (
       <DashboardRingMetric
         title={metric.label}
-        value={metric.value}
+        value={
+          <DashboardMetricValue
+            metric={metric}
+            mode={metric.key === "team-value" ? "odometer" : "count"}
+          />
+        }
         score={metric.score ?? null}
         label={metric.subLabel || ""}
         tone={getDashboardVisualTone(tone)}
@@ -408,7 +597,7 @@ export function DashboardVisualMetric({
     return (
       <DashboardMeterMetric
         label={metric.label}
-        value={metric.value}
+        value={<DashboardMetricValue metric={metric} />}
         subLabel={metric.subLabel}
         score={metric.score ?? null}
         tone={getDashboardVisualTone(tone)}
@@ -436,7 +625,12 @@ export function DashboardVisualMetric({
   return (
     <DashboardMetricCard
       label={metric.label}
-      value={metric.value}
+      value={
+        <DashboardMetricValue
+          metric={metric}
+          mode={metric.key === "team-value" ? "odometer" : "count"}
+        />
+      }
       subLabel={metric.subLabel}
       tone={tone}
       helper={metric.helper}
@@ -456,7 +650,7 @@ export function DashboardSpotlightFocusGrid({
       {blocks.map(block => (
         <StatTile
           key={block.key}
-          className="dashboard-spotlight-focus-card"
+          className="dashboard-spotlight-focus-card dd-glass"
           tone={block.tone || "neutral"}
           label={block.label}
           value={block.value}

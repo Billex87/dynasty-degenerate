@@ -15,6 +15,7 @@ import {
   ValueTrendIcon,
 } from './shared';
 import { getPlayerValueForMode, normalizeLeagueValueMode } from '@/lib/leagueValueMode';
+import { TileRippleGrid } from '@/lib/motion';
 import { getTeamTileStyle } from '@/lib/teamTileStyle';
 import { viewerOwnedHighlightClass } from '@/lib/viewerHighlight';
 
@@ -63,8 +64,8 @@ export default function WeeklyMomentumTable({
           {displaySections.map(section => (
             <section key={section.title} className="weekly-momentum-section">
               <h4>{section.title}</h4>
-              <div className="weekly-momentum-grid">
-                {section.data.slice(0, 5).map((row) => {
+              <TileRippleGrid className="weekly-momentum-grid">
+                {({ getTileMotionProps }) => section.data.slice(0, 5).map((row, index) => {
                   const playerDetails = row.playerDetails || (row.player_id ? playerDetailsById?.[row.player_id] : undefined);
                   const isPositive = row.pct_change >= 0;
                   return (
@@ -72,7 +73,10 @@ export default function WeeklyMomentumTable({
                       key={`${section.title}-${row.player_id || row.name}-${row.owner}`}
                       type="button"
                       className={`player-team-tile weekly-momentum-tile ${isPositive ? 'weekly-momentum-tile-up' : 'weekly-momentum-tile-down'} ${viewerOwnedHighlightClass(row.owner, viewerManager)}`}
-                      style={getTeamTileStyle(playerDetails?.team)}
+                      {...getTileMotionProps(index, {
+                        style: getTeamTileStyle(playerDetails?.team),
+                        topAsset: index === 0 && Math.abs(row.val_now || 0) >= 5000,
+                      })}
                       onClick={() => setSelectedPlayer(buildPlayerModalData({
                         playerId: row.player_id,
                         playerName: row.name,
@@ -136,7 +140,7 @@ export default function WeeklyMomentumTable({
                     </button>
                   );
                 })}
-              </div>
+              </TileRippleGrid>
             </section>
           ))}
         </div>

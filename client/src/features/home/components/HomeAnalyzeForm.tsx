@@ -44,7 +44,7 @@ export function HomeAnalyzeForm({
   handleAnalyze,
 }: HomeAnalyzeFormProps) {
   return (
-    <div className="home-analyze-card space-y-3 sm:space-y-4 p-4 sm:p-8">
+    <div className="home-analyze-card dd-glass-strong space-y-3 sm:space-y-4 p-4 sm:p-8">
       <div className="text-center">
         <label
           htmlFor="sleeper-username"
@@ -72,7 +72,7 @@ export function HomeAnalyzeForm({
               onBlur={() =>
                 window.setTimeout(() => onFocusedAutocompleteChange(null), 120)
               }
-              className="home-entry-field home-entry-field--cyan text-center sm:text-left focus:border-cyan-300"
+              className="home-entry-field home-entry-field--cyan dd-glass-cold text-center sm:text-left focus:border-cyan-300"
               onKeyDown={e => e.key === "Enter" && handleFindLeagues()}
             />
             {focusedAutocomplete === "username" ? (
@@ -89,7 +89,7 @@ export function HomeAnalyzeForm({
             type="button"
             onClick={handleFindLeagues}
             disabled={isFindLeaguesPending}
-            className="home-find-leagues-button h-12 w-full shrink-0 rounded-lg border border-orange-400/40 bg-gradient-to-r from-orange-500 to-orange-600 px-5 font-bold text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
+            className="home-find-leagues-button dd-pressable h-12 w-full shrink-0 rounded-lg border border-orange-400/40 bg-gradient-to-r from-orange-500 to-orange-600 px-5 font-bold text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
           >
             {isFindLeaguesPending ? "Finding Leagues..." : "Find Leagues"}
           </Button>
@@ -99,7 +99,7 @@ export function HomeAnalyzeForm({
           variant="ghost"
           onClick={onViewSampleReport}
           disabled={isAnalysisBusy || isFindLeaguesPending}
-          className="home-sample-report-button mt-3 h-auto min-h-10 w-full rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10 sm:w-auto"
+          className="home-sample-report-button dd-pressable mt-3 h-auto min-h-10 w-full rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-white/10 sm:w-auto"
         >
           View Sample Report
         </Button>
@@ -146,7 +146,7 @@ export function HomeAnalyzeForm({
                     120
                   )
                 }
-                className="home-entry-field home-entry-field--orange text-center focus:border-orange-400"
+                className="home-entry-field home-entry-field--orange dd-glass-cold text-center focus:border-orange-400"
                 onKeyDown={e => e.key === "Enter" && handleAnalyze()}
               />
               <datalist id="sleeper-league-id-history">
@@ -169,7 +169,7 @@ export function HomeAnalyzeForm({
           <Button
             onClick={() => handleAnalyze()}
             disabled={isAnalysisBusy}
-            className="home-analyze-button w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-base gap-2 rounded-lg transition-all duration-200 shadow-lg"
+            className="home-analyze-button dd-pressable w-full h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-base gap-2 rounded-lg transition-all duration-200 shadow-lg"
           >
             Run Degenerate Analysis
           </Button>

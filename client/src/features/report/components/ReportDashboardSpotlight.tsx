@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import {
   CardTile,
@@ -13,6 +13,7 @@ import {
   type DashboardHeroMetric,
   type DashboardSpotlightBlock,
 } from "@/features/report/components/ReportDashboardMetrics";
+import { useTilt } from "@/lib/motion";
 
 export type DashboardSpotlightRankCard = {
   position: string;
@@ -40,6 +41,7 @@ export type DashboardSpotlightConfig = {
 type ReportDashboardSpotlightProps = {
   manager: string;
   managerAvatarUrl?: string | null;
+  managerTrendDelta?: number | null;
   spotlightConfig: DashboardSpotlightConfig;
   positionRankCards: DashboardSpotlightRankCard[];
   starterRankGroups: DashboardSpotlightStarterGroup[];
@@ -61,14 +63,14 @@ function getReportDashboardSpotlightClassName({
   inlineSpotlightOpen: boolean;
 }) {
   if (variant !== "inline") {
-    return `report-dashboard-spotlight report-dashboard-spotlight-${variant}`;
+    return `report-dashboard-spotlight report-dashboard-spotlight-${variant} dd-glass`;
   }
 
   return [
     "report-dashboard-spotlight-inline",
     inlineSpotlightOpen
-      ? "report-dashboard-spotlight"
-      : "dashboard-spotlight-inline-glass",
+      ? "report-dashboard-spotlight dd-glass"
+      : "dashboard-spotlight-inline-glass dd-glass",
   ]
     .filter(Boolean)
     .join(" ");
@@ -117,6 +119,7 @@ function getSpotlightChipTone(chip: string): TileTone {
 export function ReportDashboardSpotlight({
   manager,
   managerAvatarUrl,
+  managerTrendDelta,
   spotlightConfig,
   positionRankCards,
   starterRankGroups,
@@ -126,19 +129,25 @@ export function ReportDashboardSpotlight({
   variant = "sidebar",
 }: ReportDashboardSpotlightProps) {
   const [inlineSpotlightOpen, setInlineSpotlightOpen] = useState(false);
+  const spotlightTiltRef = useRef<HTMLElement | null>(null);
+  const tilt = useTilt(spotlightTiltRef, { maxX: 8, maxY: 10 });
+  const setSpotlightTiltRef = (node: HTMLElement | null) => {
+    spotlightTiltRef.current = node;
+  };
   const rankGridClassName = hasSpecialTeamRanks
     ? "dashboard-position-ranks dashboard-rank-grid dashboard-rank-grid-special"
     : "dashboard-position-ranks dashboard-rank-grid";
 
   const spotlightHeader = (
     <div className="dashboard-spotlight-header">
-      <span className="dashboard-spotlight-avatar">
+      <span className="dashboard-spotlight-avatar" style={tilt.avatarStyle}>
         <DashboardManagerAvatar
           manager={manager}
           avatarUrl={managerAvatarUrl}
+          trendDelta={managerTrendDelta}
         />
       </span>
-      <div>
+      <div style={tilt.copyStyle}>
         <span>{spotlightConfig.eyebrow}</span>
         <strong>{manager}</strong>
       </div>
@@ -147,14 +156,14 @@ export function ReportDashboardSpotlight({
 
   const spotlightBody = (
     <>
-      <div className="dashboard-spotlight-metrics">
+      <div className="dashboard-spotlight-metrics" style={tilt.copyStyle}>
         {spotlightConfig.metrics.map(metric => (
           <DashboardVisualMetric key={metric.key} metric={metric} />
         ))}
       </div>
       {isOverviewSpotlight ? (
         <>
-          <div className="dashboard-position-rank-block">
+          <div className="dashboard-position-rank-block" style={tilt.copyStyle}>
             <span>Full Roster Position Ranks</span>
             <div className={rankGridClassName}>
               {positionRankCards.map(({ position, rank, tier }) =>
@@ -163,7 +172,7 @@ export function ReportDashboardSpotlight({
             </div>
           </div>
           {starterRankGroups.length > 0 && (
-            <div className="dashboard-starter-ranks">
+            <div className="dashboard-starter-ranks" style={tilt.copyStyle}>
               <span>Projected Starter Slot Ranks</span>
               <div className={rankGridClassName}>
                 {starterRankGroups.map(group =>
@@ -180,7 +189,7 @@ export function ReportDashboardSpotlight({
         <DashboardSpotlightFocusGrid blocks={spotlightConfig.blocks} />
       )}
       {spotlightConfig.chips.length > 0 && (
-        <div className="dashboard-spotlight-chip-row">
+        <div className="dashboard-spotlight-chip-row" style={tilt.copyStyle}>
           {spotlightConfig.chips.map(chip => (
             <CompactTile
               key={chip}
@@ -194,7 +203,7 @@ export function ReportDashboardSpotlight({
         </div>
       )}
       {isOverviewSpotlight && swapSignals.length > 0 && (
-        <div className="dashboard-swap-signals">
+        <div className="dashboard-swap-signals" style={tilt.copyStyle}>
           <span>Start/Sit Swap Signals</span>
           {swapSignals.slice(0, 2).map(signal => (
             <StatTile
@@ -209,7 +218,7 @@ export function ReportDashboardSpotlight({
           ))}
         </div>
       )}
-      <div className="dashboard-spotlight-read">
+      <div className="dashboard-spotlight-read" style={tilt.copyStyle}>
         <span>{spotlightConfig.readTitle}</span>
         <p>{spotlightConfig.read}</p>
       </div>
@@ -219,12 +228,15 @@ export function ReportDashboardSpotlight({
   if (variant === "inline") {
     return (
       <details
+        ref={setSpotlightTiltRef}
         className={getReportDashboardSpotlightClassName({
           variant,
           inlineSpotlightOpen,
         })}
+        data-tilt={tilt.enabled ? "true" : undefined}
         aria-label="Manager spotlight"
         onToggle={event => setInlineSpotlightOpen(event.currentTarget.open)}
+        style={tilt.cardStyle}
       >
         <summary className="dashboard-spotlight-inline-summary">
           {spotlightHeader}
@@ -245,14 +257,21 @@ export function ReportDashboardSpotlight({
   }
 
   return (
-    <CardTile
-      as="aside"
-      className={`report-dashboard-spotlight report-dashboard-spotlight-${variant}`}
-      tone="brand"
-      aria-label="Manager spotlight"
+    <div
+      ref={setSpotlightTiltRef}
+      className="report-dashboard-spotlight-tilt-shell"
+      data-tilt={tilt.enabled ? "true" : undefined}
+      style={tilt.cardStyle}
     >
-      {spotlightHeader}
-      {spotlightBody}
-    </CardTile>
+      <CardTile
+        as="aside"
+        className={`report-dashboard-spotlight report-dashboard-spotlight-${variant} dd-glass`}
+        tone="brand"
+        aria-label="Manager spotlight"
+      >
+        {spotlightHeader}
+        {spotlightBody}
+      </CardTile>
+    </div>
   );
 }

@@ -1,8 +1,10 @@
-import type { ReactNode } from 'react';
+import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { cn } from '@/lib/utils';
 import { PlayerNameWithHeadshot } from './PlayerNameWithHeadshot';
 import { ManagerNameWithAvatar } from './ManagerNameWithAvatar';
 import { TeamLogoPill } from './TeamLogoPill';
+import { useAnimationsEnabled, useMotionInViewOnce } from '@/lib/motion';
 import {
   getPrimaryValueLabel,
   normalizeLeagueValueMode,
@@ -12,10 +14,131 @@ import {
 
 export type ReportTone = 'neutral' | 'good' | 'warn' | 'danger' | 'info' | 'positive' | 'negative';
 
+const NATIVE_TOOLTIP_FOCUSABLE = new Set([
+  'a',
+  'button',
+  'input',
+  'select',
+  'summary',
+  'textarea',
+]);
+
+type ReportTooltipChildProps = {
+  className?: string;
+  tabIndex?: number;
+  title?: string;
+};
+
 function ownerMetricTone(tone: ReportTone): 'neutral' | 'good' | 'warn' | 'danger' | 'info' {
   if (tone === 'positive') return 'good';
   if (tone === 'negative') return 'danger';
   return tone;
+}
+
+function isNativeTooltipFocusable(child: ReactElement<ReportTooltipChildProps>) {
+  return typeof child.type === 'string' && NATIVE_TOOLTIP_FOCUSABLE.has(child.type);
+}
+
+export function ReportTooltip({
+  children,
+  content,
+  side = 'top',
+}: {
+  children: ReactElement<ReportTooltipChildProps>;
+  content?: ReactNode;
+  side?: TooltipPrimitive.TooltipContentProps['side'];
+}) {
+  if (!content) return children;
+
+  const child = isValidElement<ReportTooltipChildProps>(children)
+    ? children
+    : <span>{children}</span>;
+  const triggerProps: ReportTooltipChildProps = {
+    className: cn(child.props.className, 'report-tooltip-trigger'),
+    title: undefined,
+  };
+
+  if (!isNativeTooltipFocusable(child) && child.props.tabIndex === undefined) {
+    triggerProps.tabIndex = 0;
+  }
+
+  return (
+    <TooltipPrimitive.Provider delayDuration={350} skipDelayDuration={120}>
+      <TooltipPrimitive.Root>
+        <TooltipPrimitive.Trigger asChild>
+          {cloneElement(child, triggerProps)}
+        </TooltipPrimitive.Trigger>
+        <TooltipPrimitive.Portal>
+          <TooltipPrimitive.Content
+            className="report-glass-tooltip dd-glass-soft"
+            collisionPadding={12}
+            role="tooltip"
+            side={side}
+            sideOffset={8}
+          >
+            {content}
+            <TooltipPrimitive.Arrow className="report-glass-tooltip-arrow" />
+          </TooltipPrimitive.Content>
+        </TooltipPrimitive.Portal>
+      </TooltipPrimitive.Root>
+    </TooltipPrimitive.Provider>
+  );
+}
+
+export function ReportSkeleton({
+  className,
+  rows = 3,
+  variant = 'section',
+}: {
+  className?: string;
+  rows?: number;
+  variant?: 'section' | 'table' | 'cards' | 'metrics';
+}) {
+  const rowCount = Math.max(1, rows);
+  return (
+    <div
+      className={cn('report-skeleton report-skeleton-shimmer', `report-skeleton-${variant}`, className)}
+      role="status"
+      aria-live="polite"
+      aria-label="Loading report section"
+    >
+      <span className="sr-only">Loading report section</span>
+      <span className="report-skeleton-heading" aria-hidden="true" />
+      <span className="report-skeleton-grid" aria-hidden="true">
+        {Array.from({ length: rowCount }).map((_, index) => (
+          <span key={index} className="report-skeleton-row">
+            <span />
+            <span />
+            <span />
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+export function ReportMicroLoader({
+  className,
+  label = 'Loading',
+}: {
+  className?: string;
+  label?: string;
+}) {
+  const animationsEnabled = useAnimationsEnabled();
+
+  return (
+    <span
+      className={cn('report-micro-loader', className)}
+      data-animate={animationsEnabled ? 'true' : 'false'}
+      role="status"
+      aria-label={label}
+    >
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M3.6 10c1.3-4.6 7.1-7.5 11.7-4.9 2.4 4.1-.3 9.7-5 11.3-4.7-1.4-7.2-6-6.7-6.4Zm2.8-1.9c2.4 1.2 5.1 2.6 7.2 5.6M8.1 6.8l3.8 6.4m.2-7.2c-.7 2.6-2.4 4.7-5.2 6.3" />
+      </svg>
+      <span className="sr-only">{label}</span>
+    </span>
+  );
 }
 
 export function ReportSectionHeader({
@@ -29,12 +152,29 @@ export function ReportSectionHeader({
   description?: string;
   className?: string;
 }) {
+  const {
+    animationsEnabled,
+    hasEntered,
+    ref,
+  } = useMotionInViewOnce<HTMLDivElement>({
+    rootMargin: '0px 0px -8% 0px',
+    threshold: 0.18,
+  });
+  const kickerEntered = !animationsEnabled || hasEntered;
+
   return (
-    <div className={cn('report-section-header mb-4 text-center sm:mb-5', className)}>
+    <div
+      ref={ref}
+      className={cn('report-section-header mb-4 text-center sm:mb-5', className)}
+      data-kicker-entered={kicker ? (kickerEntered ? 'true' : 'false') : undefined}
+    >
       {kicker && (
-        <p className="report-section-kicker text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/80">
-          {kicker}
-        </p>
+        <span className="report-section-kicker-wrap">
+          <p className="report-section-kicker text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/80">
+            {kicker}
+          </p>
+          <span className="report-section-kicker-rule" aria-hidden="true" />
+        </span>
       )}
       <h2 className="report-section-title athletic-headline mt-1 text-xl font-black text-orange-400 sm:text-2xl">
         {title}
@@ -52,7 +192,7 @@ export function ReportCard({
   className?: string;
 }) {
   return (
-    <div className={cn('report-card-surface', className)}>
+    <div className={cn('report-card-surface dd-glass', className)}>
       {children}
     </div>
   );
@@ -121,19 +261,20 @@ export function ValuePill({
     : null;
 
   return (
-    <span
-      className={cn(
-        'value-pill value-pill-mode-aware',
-        `value-pill-${normalizedMode}`,
-        delta !== null && delta !== undefined && (delta > 0 ? 'value-pill-positive' : delta < 0 ? 'value-pill-negative' : 'value-pill-neutral'),
-        className,
-      )}
-      title={label}
-    >
-      <em>{label}</em>
-      <strong>{formattedValue}</strong>
-      {deltaLabel && <small>{deltaLabel}</small>}
-    </span>
+    <ReportTooltip content={label}>
+      <span
+        className={cn(
+          'value-pill value-pill-mode-aware',
+          `value-pill-${normalizedMode}`,
+          delta !== null && delta !== undefined && (delta > 0 ? 'value-pill-positive' : delta < 0 ? 'value-pill-negative' : 'value-pill-neutral'),
+          className,
+        )}
+      >
+        <em>{label}</em>
+        <strong>{formattedValue}</strong>
+        {deltaLabel && <small>{deltaLabel}</small>}
+      </span>
+    </ReportTooltip>
   );
 }
 

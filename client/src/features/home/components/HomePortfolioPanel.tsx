@@ -102,7 +102,7 @@ export function HomePortfolioPanel({
       className={["home-portfolio-shell", className].filter(Boolean).join(" ")}
       aria-label="Sleeper roster portfolio"
     >
-      <div className="home-portfolio-panel">
+      <div className="home-portfolio-panel dd-glass-strong">
         <div className="home-portfolio-header">
           <div>
             <h3>Player Hoard</h3>
@@ -150,8 +150,8 @@ export function HomePortfolioPanel({
                 type="button"
                 className={
                   exposureFilter === filter.value
-                    ? "home-portfolio-filter is-active"
-                    : "home-portfolio-filter"
+                    ? "home-portfolio-filter dd-pressable is-active"
+                    : "home-portfolio-filter dd-pressable"
                 }
                 aria-pressed={exposureFilter === filter.value}
                 onClick={() => onExposureFilterChange(filter.value)}
@@ -171,8 +171,8 @@ export function HomePortfolioPanel({
                 type="button"
                 className={
                   exposureFilter === filter.value
-                    ? "home-portfolio-filter is-active"
-                    : "home-portfolio-filter"
+                    ? "home-portfolio-filter dd-pressable is-active"
+                    : "home-portfolio-filter dd-pressable"
                 }
                 aria-pressed={exposureFilter === filter.value}
                 onClick={() => onExposureFilterChange(filter.value)}
@@ -221,7 +221,7 @@ export function HomePortfolioPanel({
           </label>
           <button
             type="button"
-            className="home-portfolio-reset"
+            className="home-portfolio-reset dd-pressable"
             disabled={!hasActiveFilters}
             onClick={resetFilters}
           >
@@ -241,7 +241,7 @@ export function HomePortfolioPanel({
       </div>
 
       {showLeagueChooser && onLeagueSelect ? (
-        <aside className="home-league-chooser" aria-label="Choose your league">
+        <aside className="home-league-chooser dd-glass-strong" aria-label="Choose your league">
           <div className="home-league-chooser-header">
             <h3>Pick The Target</h3>
             <p>Choose where the AI starts doing damage.</p>

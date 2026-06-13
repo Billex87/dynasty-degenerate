@@ -13,6 +13,7 @@ import { ChevronDown } from "lucide-react";
 
 import {
   PreviewMetricChips,
+  ReportSkeleton,
   ReportSectionHeader,
   type PreviewMetric,
 } from "@/components/reportPrimitives";
@@ -25,11 +26,7 @@ import {
 } from "@/components/ui/dialog";
 
 export function ReportSectionLoadingFallback() {
-  return (
-    <div className="rankings-empty-state" role="status" aria-live="polite">
-      Loading report section...
-    </div>
-  );
+  return <ReportSkeleton variant="section" rows={4} />;
 }
 
 type ReportSectionAccordionContextValue = {
@@ -130,7 +127,7 @@ export function CollapsibleReportSection({
       onToggle={handleToggle}
       data-report-section-target={targetKey || undefined}
     >
-      <summary ref={summaryRef} className="report-disclosure-summary">
+      <summary ref={summaryRef} className="report-disclosure-summary dd-glass-soft">
         <ReportSectionHeader title={title} kicker={kicker} />
         {previewAccessory ? (
           useMiddleAccessoryLayout ? (
@@ -227,7 +224,7 @@ export function ModalReportSection({
     <section className="report-section report-disclosure report-modal-section">
       <button
         type="button"
-        className="report-disclosure-summary report-modal-trigger"
+        className="report-disclosure-summary report-modal-trigger dd-glass-soft"
         onClick={() => setIsOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={isOpen}

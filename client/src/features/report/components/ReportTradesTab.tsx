@@ -12,7 +12,6 @@ import {
   Check,
   Copy,
   ExternalLink,
-  Loader2,
   ShieldCheck,
 } from "lucide-react";
 import { track } from "@vercel/analytics";
@@ -20,7 +19,7 @@ import { CollapsibleReportSection } from "@/features/report/components/ReportSec
 import { ModalReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import { Button } from "@/components/ui/button";
 import { PlayerDetailModal, type PlayerModalData } from "@/components/PlayerDetailModal";
-import { PlayerIdentityRow } from "@/components/reportPrimitives";
+import { PlayerIdentityRow, ReportMicroLoader } from "@/components/reportPrimitives";
 import { TeamLogoPill } from "@/components/TeamLogoPill";
 import { summarizeFantasyProsExpertSpreadRows } from "@shared/fantasyProsExpertSpread";
 import type { ReportData, SleeperExtensionTradeCenterSnapshot } from "@shared/types";
@@ -34,7 +33,9 @@ import {
 import { buildMomentumPreviewMetrics } from "@/features/report/lib/reportOverviewPreview";
 import { buildTradeProposalPreviewMetrics } from "@/features/report/lib/reportOverviewPreview";
 import { buildTradePreviewMetrics } from "@/features/report/lib/reportOverviewPreview";
+import { ReportMotionSectionStack } from "@/features/report/components/ReportMotionSectionStack";
 import type { ReportNextMoveTarget } from "@/features/report/lib/reportNextMoveBrief";
+import { EASE_OVERSHOOT, STAGGER_STEP, StaggerGroup, StaggerItem } from "@/lib/motion";
 
 type ReportTradesTabProps = {
   reportData: ReportData;
@@ -101,6 +102,7 @@ type ReportTradesTabProps = {
     currentStandings?: ReportData["currentStandings"];
     standingsHistory?: ReportData["standingsHistory"];
     leagueValueMode?: ReportData["leagueValueMode"];
+    managerRosterValueGrowth?: ReportData["managerRosterValueGrowth"];
   }>;
   TradeTheftDetector: ComponentType<{
     data: ReportData["tradeHistory"];
@@ -1434,7 +1436,12 @@ function PendingSleeperActivityList({
   }
 
   return (
-    <div className="space-y-3">
+    <StaggerGroup
+      className="space-y-3"
+      delayStepMs={STAGGER_STEP.loose}
+      in="view"
+      y={10}
+    >
       {signals.map(signal => {
         const kind = getPendingActivityKind(signal);
         const isWaiver = kind === "waiver";
@@ -1463,109 +1470,113 @@ function PendingSleeperActivityList({
               managerRosterIntelligence,
             });
         return (
-          <article
+          <StaggerItem
             key={`${signal.id}:${signal.date}`}
-            className="overflow-hidden rounded-2xl border border-cyan-300/15 bg-slate-950/45 shadow-[0_18px_60px_rgba(8,47,73,0.20)]"
+            durationMs={420}
+            ease={EASE_OVERSHOOT}
+            rotate={-2}
           >
-            <div className="flex flex-col gap-3 border-b border-white/10 bg-white/[0.035] p-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-full px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] ${
-                    isWaiver
-                      ? "border border-sky-300/25 bg-sky-300/10 text-sky-100"
-                      : "border border-orange-300/25 bg-orange-300/10 text-orange-100"
-                  }`}>
-                    {isWaiver ? "Waiver claim" : "Trade offer"}
-                  </span>
-                  <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-emerald-100">
-                    {signal.status || "Pending"}
-                  </span>
-                  {isWaiver && typeof signal.waiverBid === "number" ? (
-                    <span className="rounded-full border border-sky-300/25 bg-sky-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-sky-100">
-                      Bid {signal.waiverBid.toLocaleString()} FAAB
+            <article className="overflow-hidden rounded-2xl border border-cyan-300/15 bg-slate-950/45 shadow-[0_18px_60px_rgba(8,47,73,0.20)]">
+              <div className="flex flex-col gap-3 border-b border-white/10 bg-white/[0.035] p-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] ${
+                      isWaiver
+                        ? "border border-sky-300/25 bg-sky-300/10 text-sky-100"
+                        : "border border-orange-300/25 bg-orange-300/10 text-orange-100"
+                    }`}>
+                      {isWaiver ? "Waiver claim" : "Trade offer"}
                     </span>
-                  ) : null}
+                    <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-emerald-100">
+                      {signal.status || "Pending"}
+                    </span>
+                    {isWaiver && typeof signal.waiverBid === "number" ? (
+                      <span className="rounded-full border border-sky-300/25 bg-sky-300/10 px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-sky-100">
+                        Bid {signal.waiverBid.toLocaleString()} FAAB
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-slate-300">
+                    {formatPendingActivityDate(signal.date)}
+                  </p>
                 </div>
-                <p className="mt-2 text-sm font-semibold text-slate-300">
-                  {formatPendingActivityDate(signal.date)}
-                </p>
+                <Button
+                  type="button"
+                  onClick={() => onViewInTradeWarRoom(signal)}
+                  className="h-10 bg-cyan-300 text-slate-950 hover:bg-cyan-200"
+                >
+                  <ArrowRightLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+                  View in Trade War Room
+                </Button>
               </div>
-              <Button
-                type="button"
-                onClick={() => onViewInTradeWarRoom(signal)}
-                className="h-10 bg-cyan-300 text-slate-950 hover:bg-cyan-200"
-              >
-                <ArrowRightLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-                View in Trade War Room
-              </Button>
-            </div>
-            <PendingActivitySummaryStrip summary={summary} />
-            <div className="p-4">
-              {isWaiver ? (
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-2xl border border-sky-300/15 bg-sky-950/20 p-3">
-                    <ManagerActivityChip
-                      manager={signal.managers?.[0] || "Manager"}
-                      managerAvatars={managerAvatars}
-                      verb="Claims"
-                    />
-                    <div className="mt-3">
-                    <PendingPlayerAssetGrid
-                      label=""
-                      playerIds={signal.waiverAdds?.playerIds || signal.playerIds || []}
-                      playerNames={adds}
-                      playerDetailsById={playerDetailsById}
-                      currentPositionRankById={currentPositionRankById}
-                      waiverIntelligence={waiverIntelligence}
-                      managerName={signal.managers?.[0] || null}
-                      managerAvatars={managerAvatars}
-                      leagueValueMode={leagueValueMode}
-                      rankings={rankings}
-                      onSelectPlayer={onSelectPlayer}
-                    />
+              <PendingActivitySummaryStrip summary={summary} />
+              <div className="p-4">
+                {isWaiver ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-sky-300/15 bg-sky-950/20 p-3">
+                      <ManagerActivityChip
+                        manager={signal.managers?.[0] || "Manager"}
+                        managerAvatars={managerAvatars}
+                        verb="Claims"
+                      />
+                      <div className="mt-3">
+                        <PendingPlayerAssetGrid
+                          label=""
+                          playerIds={signal.waiverAdds?.playerIds || signal.playerIds || []}
+                          playerNames={adds}
+                          playerDetailsById={playerDetailsById}
+                          currentPositionRankById={currentPositionRankById}
+                          waiverIntelligence={waiverIntelligence}
+                          managerName={signal.managers?.[0] || null}
+                          managerAvatars={managerAvatars}
+                          leagueValueMode={leagueValueMode}
+                          rankings={rankings}
+                          onSelectPlayer={onSelectPlayer}
+                        />
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-rose-300/15 bg-rose-950/10 p-3">
+                      <ManagerActivityChip
+                        manager={signal.managers?.[0] || "Manager"}
+                        managerAvatars={managerAvatars}
+                        verb="Drops"
+                      />
+                      <div className="mt-3">
+                        <PendingPlayerAssetGrid
+                          label=""
+                          playerIds={signal.waiverDrops?.playerIds || []}
+                          playerNames={drops}
+                          emptyLabel="No drop attached"
+                          playerDetailsById={playerDetailsById}
+                          currentPositionRankById={currentPositionRankById}
+                          waiverIntelligence={waiverIntelligence}
+                          managerName={signal.managers?.[0] || null}
+                          managerAvatars={managerAvatars}
+                          leagueValueMode={leagueValueMode}
+                          rankings={rankings}
+                          onSelectPlayer={onSelectPlayer}
+                        />
+                      </div>
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-rose-300/15 bg-rose-950/10 p-3">
-                    <ManagerActivityChip
-                      manager={signal.managers?.[0] || "Manager"}
-                      managerAvatars={managerAvatars}
-                      verb="Drops"
-                    />
-                    <div className="mt-3">
-                    <PendingPlayerAssetGrid
-                      label=""
-                      playerIds={signal.waiverDrops?.playerIds || []}
-                      playerNames={drops}
-                      emptyLabel="No drop attached"
-                      playerDetailsById={playerDetailsById}
-                      currentPositionRankById={currentPositionRankById}
-                      waiverIntelligence={waiverIntelligence}
-                      managerName={signal.managers?.[0] || null}
-                      managerAvatars={managerAvatars}
-                      leagueValueMode={leagueValueMode}
-                      rankings={rankings}
-                      onSelectPlayer={onSelectPlayer}
-                    />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <PendingTradeSides
-                  signal={signal}
-                  playerDetailsById={playerDetailsById}
-                  currentPositionRankById={currentPositionRankById}
-                  waiverIntelligence={waiverIntelligence}
-                  leagueValueMode={leagueValueMode}
-                  managerAvatars={managerAvatars}
-                  rankings={rankings}
-                  onSelectPlayer={onSelectPlayer}
-                />
-              )}
-            </div>
-          </article>
+                ) : (
+                  <PendingTradeSides
+                    signal={signal}
+                    playerDetailsById={playerDetailsById}
+                    currentPositionRankById={currentPositionRankById}
+                    waiverIntelligence={waiverIntelligence}
+                    leagueValueMode={leagueValueMode}
+                    managerAvatars={managerAvatars}
+                    rankings={rankings}
+                    onSelectPlayer={onSelectPlayer}
+                  />
+                )}
+              </div>
+            </article>
+          </StaggerItem>
         );
       })}
-    </div>
+    </StaggerGroup>
   );
 }
 
@@ -2060,7 +2071,7 @@ export function ReportTradesTab({
   };
 
   return (
-    <div className="trade-sections report-command-section-stack space-y-6 sm:space-y-8">
+    <ReportMotionSectionStack className="trade-sections report-command-section-stack space-y-6 sm:space-y-8">
       {showTradeMarketRadar && (
         <CollapsibleReportSection
           title="Trade Market Radar"
@@ -2310,7 +2321,7 @@ export function ReportTradesTab({
                     }`}
                   >
                     {isHelperImporting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                      <ReportMicroLoader className="mr-2" label="Importing pending transactions" />
                     ) : (
                       <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" />
                     )}
@@ -2431,6 +2442,7 @@ export function ReportTradesTab({
           currentStandings={reportData.currentStandings}
           standingsHistory={reportData.standingsHistory}
           leagueValueMode={leagueValueMode}
+          managerRosterValueGrowth={reportData.managerRosterValueGrowth}
         />
       </CollapsibleReportSection>
       <CollapsibleReportSection
@@ -2490,6 +2502,6 @@ export function ReportTradesTab({
           variant="modal"
         />
       </ModalReportSection>
-    </div>
+    </ReportMotionSectionStack>
   );
 }

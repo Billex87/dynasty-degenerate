@@ -57,7 +57,7 @@ export function LeaguePickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="league-switch-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-2xl">
+      <DialogContent className="league-switch-dialog dd-glass-strong text-slate-100 sm:max-w-2xl">
         <DialogHeader className="league-switch-header text-center sm:text-center">
           <DialogTitle className="athletic-headline league-switch-title-gradient text-3xl">
             Pick Another League
@@ -119,7 +119,7 @@ export function LeaguePickerDialog({
             type="button"
             onClick={onStartOver}
             variant="outline"
-            className="league-switch-start-over-button border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
+            className="league-switch-start-over-button dd-pressable border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
           >
             Back to Sign In
           </Button>
@@ -142,7 +142,7 @@ export function ChangeLeagueDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="league-switch-dialog change-league-dialog border-cyan-500/25 bg-slate-950/95 text-slate-100 shadow-2xl shadow-cyan-950/30 sm:max-w-md">
+      <DialogContent className="league-switch-dialog change-league-dialog dd-glass-strong text-slate-100 sm:max-w-md">
         <DialogHeader className="change-league-header text-center sm:text-center">
           <DialogTitle className="athletic-headline change-league-title text-3xl text-orange-400">
             Change Leagues?
@@ -157,14 +157,14 @@ export function ChangeLeagueDialog({
           <button
             type="button"
             onClick={onStay}
-            className="support-button support-button-compact change-league-stay-button"
+            className="support-button support-button-compact change-league-stay-button dd-pressable"
           >
             Stay Here
           </button>
           <Button
             type="button"
             onClick={onStartOver}
-            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
+            className="dd-pressable w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 sm:w-auto"
           >
             Back to Home
           </Button>

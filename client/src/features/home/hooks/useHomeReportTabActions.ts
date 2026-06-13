@@ -11,6 +11,7 @@ import {
   getInitialReportTabFromUrl,
   updateReportTabUrl,
 } from "@/features/home/lib/reportRouteState";
+import { runViewTransition, useAnimationsEnabled } from "@/lib/motion";
 import type { ReportData } from "@shared/types";
 
 type UseHomeReportTabActionsOptions = {
@@ -41,6 +42,7 @@ export function useHomeReportTabActions({
   setRosterScannerFocusKey,
 }: UseHomeReportTabActionsOptions) {
   const autopilotAccessToastShownRef = useRef(false);
+  const animationsEnabled = useAnimationsEnabled();
 
   const showAutopilotAccessToast = useCallback(() => {
     if (autopilotAccessToastShownRef.current) return;
@@ -66,10 +68,22 @@ export function useHomeReportTabActions({
         isBlockedAutopilotTab || isBlockedDraftTab || isBlockedHacksTab
           ? "overview"
           : nextTab;
-      setActiveTab(allowedNextTab);
-      updateReportTabUrl(allowedNextTab, leagueId);
+      if (allowedNextTab === activeTab) {
+        updateReportTabUrl(allowedNextTab, leagueId);
+        return;
+      }
+
+      runViewTransition(
+        () => {
+          setActiveTab(allowedNextTab);
+          updateReportTabUrl(allowedNextTab, leagueId);
+        },
+        { enabled: animationsEnabled }
+      );
     },
     [
+      activeTab,
+      animationsEnabled,
       canViewAutopilotTab,
       canViewHacksTab,
       leagueId,
@@ -80,12 +94,23 @@ export function useHomeReportTabActions({
   );
 
   const handleScoutLeaguemates = useCallback(() => {
-    setActiveTab("rankings");
-    updateReportTabUrl("rankings", leagueId);
+    runViewTransition(
+      () => {
+        setActiveTab("rankings");
+        updateReportTabUrl("rankings", leagueId);
+      },
+      { enabled: animationsEnabled && activeTab !== "rankings" }
+    );
     window.setTimeout(() => {
       setRosterScannerFocusKey(current => current + 1);
     }, 0);
-  }, [leagueId, setActiveTab, setRosterScannerFocusKey]);
+  }, [
+    activeTab,
+    animationsEnabled,
+    leagueId,
+    setActiveTab,
+    setRosterScannerFocusKey,
+  ]);
 
   useEffect(() => {
     if (activeTab === "autopilot" && !canViewAutopilotTab && !isAuthLoading) {
