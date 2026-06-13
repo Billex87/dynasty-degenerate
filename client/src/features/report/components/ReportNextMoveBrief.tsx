@@ -43,13 +43,13 @@ export function ReportNextMoveBrief({
   reportData,
   leagueId,
   leagueValueMode,
-  canViewAdminFeatureExpansion = false,
+  showReportAIReads = false,
   onFollowDestination,
 }: {
   reportData: ReportData;
   leagueId?: string | null;
   leagueValueMode?: LeagueValueMode | null;
-  canViewAdminFeatureExpansion?: boolean;
+  showReportAIReads?: boolean;
   onFollowDestination?: (destination: ReportNextMoveDestination) => void;
 }) {
   const items = useMemo(
@@ -68,10 +68,10 @@ export function ReportNextMoveBrief({
         ? getReportNextMoveDestination({
             item: primary,
             reportData,
-            canViewAdminFeatureExpansion,
+            showReportAIReads,
           })
         : null,
-    [canViewAdminFeatureExpansion, primary, reportData]
+    [primary, reportData, showReportAIReads]
   );
   const trackedEventKeyRef = useRef<string | null>(null);
   const telemetryEventKey = primary

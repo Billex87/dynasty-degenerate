@@ -828,6 +828,7 @@ export default function Home() {
     hasAdminPermissions,
     hasAuthenticatedAdminPermissions,
     isAdminUnlockModalOpen,
+    showReportAIReads,
   } = useHomeAdminAccess({
     activeCachedSleeperUser,
     adminViewMode,
@@ -1052,6 +1053,7 @@ export default function Home() {
         onStartOver={handleStartOver}
         canOpenAdminToolsEntry={canOpenAdminToolsEntry}
         canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+        showReportAIReads={showReportAIReads}
         canViewAdminDiagnostics={canViewAdminDiagnostics}
         isAdminPassphraseVerifiedForSession={
           isAdminPassphraseVerifiedForSession

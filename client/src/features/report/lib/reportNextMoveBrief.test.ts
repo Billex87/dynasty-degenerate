@@ -18,7 +18,7 @@ function expectDestination(
   expected: Partial<ReportNextMoveDestination>,
   options: {
     reportData?: ReportData;
-    canViewAdminFeatureExpansion?: boolean;
+    showReportAIReads?: boolean;
   } = {}
 ) {
   expect(
@@ -68,7 +68,7 @@ describe("getReportNextMoveDestination", () => {
     );
   });
 
-  it("keeps strategy actions on public overview intel unless admin expansion is available", () => {
+  it("routes strategy actions to owner intel unless report AI reads are visible", () => {
     expectDestination("strategy", {
       tab: "overview",
       sectionKey: "owner-intel",
@@ -82,7 +82,7 @@ describe("getReportNextMoveDestination", () => {
         sectionKey: "monthly-team-blueprint",
         buttonLabel: "Open Monthly Blueprint",
       },
-      { canViewAdminFeatureExpansion: true }
+      { showReportAIReads: true }
     );
   });
 });

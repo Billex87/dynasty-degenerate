@@ -87,6 +87,7 @@ export function useHomeAdminAccess({
       ? adminViewMode === "admin"
       : hasSleeperAdminPermissions && adminViewMode === "admin");
   const canViewAdminDiagnostics = canViewAdminFeatureExpansion;
+  const showReportAIReads = true;
 
   const persistAdminViewMode = useCallback(
     (mode: AdminViewMode) => {
@@ -179,5 +180,6 @@ export function useHomeAdminAccess({
     hasAdminPermissions,
     hasAuthenticatedAdminPermissions,
     isAdminUnlockModalOpen,
+    showReportAIReads,
   };
 }

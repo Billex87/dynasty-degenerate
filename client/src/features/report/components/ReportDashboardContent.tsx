@@ -251,9 +251,9 @@ function ReportTabEnter({ children }: { children: ReactNode }) {
 type ReportDashboardContentProps = {
   reportData: ReportData;
   reportDataForView: ReportData;
-  canViewAdminFeatureExpansion: boolean;
   canViewAdminDiagnostics: boolean;
   canViewAutopilotTab: boolean;
+  showReportAIReads: boolean;
   shouldShowDraftHistoryTab: boolean;
   isRedraftReport: boolean;
   leagueValueMode: LeagueValueMode;
@@ -305,8 +305,8 @@ type ReportDashboardContentProps = {
 
 export function ReportDashboardContent({
   canViewAdminDiagnostics,
-  canViewAdminFeatureExpansion,
   canViewAutopilotTab,
+  showReportAIReads,
   dashboardViewerManager,
   isRedraftReport,
   leagueFormat,
@@ -447,7 +447,7 @@ export function ReportDashboardContent({
               reportData={reportDataForView}
               leagueId={leagueId}
               leagueValueMode={leagueValueMode}
-              canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+              showReportAIReads={showReportAIReads}
               onFollowDestination={handleReportNextMoveFollow}
             />
           ) : null}
@@ -483,7 +483,7 @@ export function ReportDashboardContent({
                   <ReportOverviewTab
                     reportData={reportData}
                     reportDataForView={reportDataForView}
-                    canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
+                    showReportAIReads={showReportAIReads}
                     isRedraftReport={isRedraftReport}
                     leagueValueMode={leagueValueMode}
                     leagueName={leagueName}
@@ -590,6 +590,7 @@ export function ReportDashboardContent({
                   rosterScannerFocusKey={rosterScannerFocusKey}
                   rankingsForReport={rankingsForReport}
                   rankingsQueryIsLoading={rankingsQueryIsLoading}
+                  showReportAIReads={showReportAIReads}
                   LeagueRosterScannerModeControls={
                     LeagueRosterScannerModeControls
                   }
@@ -674,7 +675,7 @@ export function ReportDashboardContent({
                       leagueValueMode={leagueValueMode}
                       leagueDiagnostics={reportData.leagueDiagnostics}
                       calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
-                      showAIReads={canViewAdminFeatureExpansion}
+                      showAIReads={showReportAIReads}
                     />
                   )}
                 </ReportTabEnter>

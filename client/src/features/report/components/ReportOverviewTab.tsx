@@ -21,7 +21,7 @@ import type { HomePortfolioExposureFilter } from "@/features/home/lib/portfolioR
 type ReportOverviewTabProps = {
   reportData: ReportData;
   reportDataForView: ReportData;
-  canViewAdminFeatureExpansion: boolean;
+  showReportAIReads: boolean;
   isRedraftReport: boolean;
   leagueValueMode: "redraft" | "dynasty";
   leagueName: string;
@@ -116,7 +116,7 @@ type ReportOverviewTabProps = {
 export function ReportOverviewTab({
   reportData,
   reportDataForView,
-  canViewAdminFeatureExpansion,
+  showReportAIReads,
   isRedraftReport,
   leagueValueMode,
   leagueName,
@@ -221,8 +221,7 @@ export function ReportOverviewTab({
 
   return (
     <ReportMotionSectionStack className="dashboard-overview-section-stack space-y-6 sm:space-y-8">
-      {/* Premium command-center expansions remain admin-gated */}
-      {canViewAdminFeatureExpansion && (
+      {showReportAIReads && (
         <>
           <OverviewAIPulse data={reportDataForView} />
           {playerHoardSection}

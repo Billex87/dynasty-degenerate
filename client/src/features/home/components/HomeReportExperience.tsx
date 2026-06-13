@@ -75,6 +75,7 @@ type HomeReportExperienceProps = {
   onStartOver: () => void;
   canOpenAdminToolsEntry: boolean;
   canViewAdminFeatureExpansion: boolean;
+  showReportAIReads: boolean;
   canViewAdminDiagnostics: boolean;
   isAdminPassphraseVerifiedForSession: boolean;
   adminViewerManager: string | null;
@@ -170,6 +171,7 @@ export function HomeReportExperience({
   resolvedActiveTab,
   rosterScannerFocusKey,
   shouldShowDraftHistoryTab,
+  showReportAIReads,
 }: HomeReportExperienceProps) {
   const leagueValueMode = normalizeLeagueValueMode(
     reportData.leagueDiagnostics?.valueMode || reportData.leagueValueMode
@@ -267,8 +269,8 @@ export function HomeReportExperience({
         >
           <ReportDashboardContent
             canViewAdminDiagnostics={canViewAdminDiagnostics}
-            canViewAdminFeatureExpansion={canViewAdminFeatureExpansion}
             canViewAutopilotTab={canViewAutopilotTab}
+            showReportAIReads={showReportAIReads}
             dashboardViewerManager={dashboardViewerManager}
             isRedraftReport={isRedraftReport}
             leagueFormat={leagueFormat}

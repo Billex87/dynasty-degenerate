@@ -20,6 +20,7 @@ type ReportRankingsTabProps = {
   rosterScannerFocusKey: number;
   rankingsForReport?: ReportData["rankings"];
   rankingsQueryIsLoading: boolean;
+  showReportAIReads: boolean;
   LeagueRosterScannerModeControls: ComponentType<{
     value: OwnerIntelSortMode;
     onChange: (nextValue: OwnerIntelSortMode) => void;
@@ -73,6 +74,7 @@ export function ReportRankingsTab({
   rosterScannerFocusKey,
   rankingsForReport,
   rankingsQueryIsLoading,
+  showReportAIReads,
   LeagueRosterScannerModeControls,
   LeagueRosterScanner,
   RankingsBoard,
@@ -186,7 +188,7 @@ export function ReportRankingsTab({
               leagueValueMode={leagueValueMode}
               leagueDiagnostics={reportData.leagueDiagnostics}
               calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
-              showAIReads
+              showAIReads={showReportAIReads}
             />
           </div>
         )}
@@ -216,7 +218,7 @@ export function ReportRankingsTab({
               leagueValueMode={leagueValueMode}
               leagueDiagnostics={reportData.leagueDiagnostics}
               calibrationProfile={reportData.aiCalibrationAdjustmentProfile}
-              showAIReads
+              showAIReads={showReportAIReads}
             />
           )}
         </CollapsibleReportSection>

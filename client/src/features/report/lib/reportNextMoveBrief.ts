@@ -88,11 +88,11 @@ export function createPublicNextMoveFallback(
 export function getReportNextMoveDestination({
   item,
   reportData,
-  canViewAdminFeatureExpansion = false,
+  showReportAIReads = false,
 }: {
   item: AIActionQueueItem;
   reportData?: ReportData | null;
-  canViewAdminFeatureExpansion?: boolean;
+  showReportAIReads?: boolean;
 }): ReportNextMoveDestination {
   if (item.source === "waiver") {
     return {
@@ -135,7 +135,7 @@ export function getReportNextMoveDestination({
         };
   }
 
-  if (canViewAdminFeatureExpansion) {
+  if (showReportAIReads) {
     return {
       tab: "overview",
       sectionKey: "monthly-team-blueprint",
