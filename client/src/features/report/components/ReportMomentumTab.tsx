@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import { ReportMotionSectionStack } from "@/features/report/components/ReportMotionSectionStack";
+import { MarketPulseLine } from "@/features/report/components/MarketPulseLine";
 import type { ReportNextMoveTarget } from "@/features/report/lib/reportNextMoveBrief";
 import {
   buildDepthChartMoverPreviewMetrics,
@@ -53,6 +54,7 @@ export function ReportMomentumTab({
 
   return (
     <ReportMotionSectionStack className="report-command-section-stack space-y-6 sm:space-y-8">
+      <MarketPulseLine transactions={reportData.recentTransactions} />
       <CollapsibleReportSection
         title="Waiver Intelligence"
         kicker={

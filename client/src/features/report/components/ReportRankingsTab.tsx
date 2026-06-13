@@ -3,6 +3,7 @@ import { ReportSkeleton } from "@/components/reportPrimitives";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import { ReportMotionSectionStack } from "@/features/report/components/ReportMotionSectionStack";
 import { TeamProfileRadar, hasTeamProfileRadarData } from "@/features/report/components/TeamProfileRadar";
+import { HeadToHeadTug } from "@/features/report/components/HeadToHeadTug";
 import type { OwnerIntelSortMode } from "@/features/report/components/OwnerIntelControls";
 import type { ReportNextMoveTarget } from "@/features/report/lib/reportNextMoveBrief";
 import type { ReportData } from "@shared/types";
@@ -129,6 +130,10 @@ export function ReportRankingsTab({
             ) : undefined
           }
         >
+          <HeadToHeadTug
+            reportData={reportData}
+            viewerManager={effectiveViewerManager}
+          />
           <LeagueRosterScanner
             data={reportData.managerRosterIntelligence}
             managerAvatars={reportData.managerAvatars}

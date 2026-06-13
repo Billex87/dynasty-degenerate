@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import { Layers2, Shield, Users } from "lucide-react";
 import { CollapsibleReportSection } from "@/features/report/components/ReportSectionDisclosure";
 import { ReportMotionSectionStack } from "@/features/report/components/ReportMotionSectionStack";
+import { MarketMoversTicker } from "@/features/report/components/MarketMoversTicker";
 import {
   buildManagerPositionRoomPreviewMetrics,
   buildOwnerIntelPreviewMetrics,
@@ -221,6 +222,10 @@ export function ReportOverviewTab({
 
   return (
     <ReportMotionSectionStack className="dashboard-overview-section-stack space-y-6 sm:space-y-8">
+      <MarketMoversTicker
+        risers={reportData.weeklyRisers}
+        fallers={reportData.weeklyFallers}
+      />
       {showReportAIReads && (
         <>
           <OverviewAIPulse data={reportDataForView} />

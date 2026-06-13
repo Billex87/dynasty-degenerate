@@ -15,6 +15,7 @@ import {
   type DashboardMetricBar,
   type DashboardMetricTone,
   type DashboardSpotlightBlock,
+  type DashboardSpotlightPlayerCard,
 } from "@/features/report/components/ReportDashboardMetrics";
 import { ReportOverviewHero as ReportOverviewHeroSection } from "@/features/report/components/ReportOverviewHero";
 import {
@@ -155,11 +156,98 @@ function getDashboardStarterRank(
 function getDashboardPlayerValue(player: unknown): number | null {
   if (!player || typeof player !== "object") return null;
   const record = player as Record<string, unknown>;
-  for (const key of ["seasonValue", "value", "val", "ktc_value"]) {
+  for (const key of [
+    "seasonValue",
+    "value",
+    "val",
+    "val_now",
+    "currentKtcValue",
+    "ktcValue",
+    "ktc_value",
+  ]) {
     const value = record[key];
     if (typeof value === "number" && Number.isFinite(value)) return value;
   }
   return null;
+}
+
+function getDashboardPlayerAge(player: unknown): number | null {
+  if (!player || typeof player !== "object") return null;
+  const record = player as Record<string, unknown>;
+  if (typeof record.age === "number" && Number.isFinite(record.age)) {
+    return record.age;
+  }
+  const details = record.playerDetails;
+  if (details && typeof details === "object") {
+    const age = (details as { age?: unknown }).age;
+    return typeof age === "number" && Number.isFinite(age) ? age : null;
+  }
+  return null;
+}
+
+function getDashboardPlayerTrend(player: unknown): string | null {
+  if (!player || typeof player !== "object") return null;
+  const record = player as Record<string, unknown>;
+  if (typeof record.movementLabel === "string" && record.movementLabel) {
+    return record.movementLabel;
+  }
+  if (typeof record.rankMovementLabel === "string" && record.rankMovementLabel) {
+    return record.rankMovementLabel;
+  }
+  if (typeof record.positionRankChange === "string" && record.positionRankChange) {
+    return record.positionRankChange;
+  }
+  if (typeof record.pct_change === "number" && Number.isFinite(record.pct_change)) {
+    return formatDashboardSignedPercentLabel(record.pct_change);
+  }
+  if (typeof record.valueGain === "number" && Number.isFinite(record.valueGain)) {
+    return formatDashboardSignedNumber(record.valueGain);
+  }
+  if (typeof record.diff === "number" && Number.isFinite(record.diff)) {
+    return formatDashboardSignedNumber(record.diff);
+  }
+  return null;
+}
+
+function getDashboardSpotlightPlayerCard(
+  player: unknown,
+  overrides: Partial<DashboardSpotlightPlayerCard> = {},
+): DashboardSpotlightPlayerCard | null {
+  if (!player || typeof player !== "object") return null;
+  const record = player as Record<string, unknown>;
+  const name =
+    overrides.name ||
+    (typeof record.name === "string" ? record.name : null) ||
+    (typeof record.playerName === "string" ? record.playerName : null);
+
+  if (!name) return null;
+
+  const position = overrides.position || getDashboardPlayerPosition(player);
+  const fallbackPositionRank = getDashboardStarterRank(player);
+  const positionRank =
+    overrides.positionRank ||
+    (fallbackPositionRank && fallbackPositionRank !== "-"
+      ? fallbackPositionRank
+      : position);
+  const value = overrides.value ?? getDashboardPlayerValue(player);
+  const tier =
+    overrides.tier ??
+    (typeof record.tier === "string" || typeof record.tier === "number"
+      ? record.tier
+      : null);
+
+  return {
+    name,
+    position,
+    positionRank,
+    value,
+    valueLabel:
+      overrides.valueLabel ||
+      (value !== null ? formatDashboardCompactNumber(value) : null),
+    age: overrides.age ?? getDashboardPlayerAge(player),
+    trend: overrides.trend ?? getDashboardPlayerTrend(player),
+    tier,
+  };
 }
 
 function sumDashboardPlayerValues(players: unknown[]): number | null {
@@ -2035,6 +2123,11 @@ function getReportDashboardSpotlightConfig({
           value: getDashboardPlayerName(topRiser),
           subLabel: formatDashboardSignedPercentLabel(topRiser?.pct_change),
           tone: "good",
+          player: getDashboardSpotlightPlayerCard(topRiser, {
+            value: topRiser?.val_now ?? null,
+            trend: formatDashboardSignedPercentLabel(topRiser?.pct_change),
+            tier: topRiser?.owner || "Market riser",
+          }),
         },
         {
           key: "faller",
@@ -2042,6 +2135,11 @@ function getReportDashboardSpotlightConfig({
           value: getDashboardPlayerName(topFaller),
           subLabel: formatDashboardSignedPercentLabel(topFaller?.pct_change),
           tone: "danger",
+          player: getDashboardSpotlightPlayerCard(topFaller, {
+            value: topFaller?.val_now ?? null,
+            trend: formatDashboardSignedPercentLabel(topFaller?.pct_change),
+            tier: topFaller?.owner || "Market faller",
+          }),
         },
         {
           key: "add",
@@ -2051,6 +2149,10 @@ function getReportDashboardSpotlightConfig({
             ? `${formatDashboardWholeNumber(topAdd.count)} adds`
             : "No add heat",
           tone: "good",
+          player: getDashboardSpotlightPlayerCard(topAdd, {
+            trend: topAdd ? `${formatDashboardWholeNumber(topAdd.count)} adds` : null,
+            tier: "Waiver heat",
+          }),
         },
         {
           key: "drop",
@@ -2060,6 +2162,10 @@ function getReportDashboardSpotlightConfig({
             ? `${formatDashboardWholeNumber(topDrop.count)} drops`
             : "No drop heat",
           tone: "danger",
+          player: getDashboardSpotlightPlayerCard(topDrop, {
+            trend: topDrop ? `${formatDashboardWholeNumber(topDrop.count)} drops` : null,
+            tier: "Drop heat",
+          }),
         },
       ],
       chips: [
@@ -2144,6 +2250,9 @@ function getReportDashboardSpotlightConfig({
             topRosterPlayer?.pos ||
             "Indexed assets",
           tone: topRosterPlayer ? "good" : rankingRowCount ? "info" : "warn",
+          player: getDashboardSpotlightPlayerCard(topRosterPlayer, {
+            tier: topRosterPlayer?.tier ?? valueRankTier,
+          }),
         },
         {
           key: "value-rank",
@@ -2326,6 +2435,20 @@ function getReportDashboardSpotlightConfig({
               ? formatDashboardSignedNumber(managerDraftStats.bestPick.valueGain)
               : "No best pick",
           tone: managerDraftStats?.bestPick ? "good" : "neutral",
+          player: getDashboardSpotlightPlayerCard(managerDraftStats?.bestPick, {
+            name: managerDraftStats?.bestPick?.playerName,
+            position: managerDraftStats?.bestPick?.playerPos,
+            positionRank:
+              managerDraftStats?.bestPick?.currentPositionRank ||
+              managerDraftStats?.bestPick?.positionRankMay2025 ||
+              managerDraftStats?.bestPick?.playerPos,
+            trend:
+              managerDraftStats?.bestPick?.valueGain !== null &&
+              managerDraftStats?.bestPick?.valueGain !== undefined
+                ? formatDashboardSignedNumber(managerDraftStats.bestPick.valueGain)
+                : null,
+            tier: "Best pick",
+          }),
         },
         {
           key: "worst",
@@ -2337,6 +2460,20 @@ function getReportDashboardSpotlightConfig({
               ? formatDashboardSignedNumber(managerDraftStats.worstPick.valueGain)
               : "No miss logged",
           tone: managerDraftStats?.worstPick ? "danger" : "neutral",
+          player: getDashboardSpotlightPlayerCard(managerDraftStats?.worstPick, {
+            name: managerDraftStats?.worstPick?.playerName,
+            position: managerDraftStats?.worstPick?.playerPos,
+            positionRank:
+              managerDraftStats?.worstPick?.currentPositionRank ||
+              managerDraftStats?.worstPick?.positionRankMay2025 ||
+              managerDraftStats?.worstPick?.playerPos,
+            trend:
+              managerDraftStats?.worstPick?.valueGain !== null &&
+              managerDraftStats?.worstPick?.valueGain !== undefined
+                ? formatDashboardSignedNumber(managerDraftStats.worstPick.valueGain)
+                : null,
+            tier: "Worst pick",
+          }),
         },
         {
           key: "starters",

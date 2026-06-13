@@ -32,6 +32,16 @@ export type DashboardMetricBadge = {
   tone?: DashboardMetricTone;
 };
 export type DashboardMetricValueFormatter = (value: number) => string;
+export type DashboardSpotlightPlayerCard = {
+  name: string;
+  position?: string | null;
+  value?: number | null;
+  valueLabel?: string | null;
+  positionRank?: string | null;
+  age?: number | null;
+  trend?: string | null;
+  tier?: string | number | null;
+};
 
 export type DashboardHeroMetric = {
   key: string;
@@ -58,6 +68,7 @@ export type DashboardSpotlightBlock = {
   value: ReactNode;
   subLabel?: string;
   tone?: DashboardMetricTone;
+  player?: DashboardSpotlightPlayerCard | null;
 };
 
 function getFiniteMetricNumber(value?: number | null) {
@@ -635,30 +646,5 @@ export function DashboardVisualMetric({
       tone={tone}
       helper={metric.helper}
     />
-  );
-}
-
-export function DashboardSpotlightFocusGrid({
-  blocks,
-}: {
-  blocks: DashboardSpotlightBlock[];
-}) {
-  if (!blocks.length) return null;
-
-  return (
-    <div className="dashboard-spotlight-focus-grid">
-      {blocks.map(block => (
-        <StatTile
-          key={block.key}
-          className="dashboard-spotlight-focus-card dd-glass"
-          tone={block.tone || "neutral"}
-          label={block.label}
-          value={block.value}
-          subLabel={block.subLabel}
-          size="sm"
-          data-tone={block.tone || "neutral"}
-        />
-      ))}
-    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import {
   CardTile,
@@ -8,12 +8,13 @@ import {
 import type { TileTone } from "@/components/tiles/tileUtils";
 import {
   DashboardManagerAvatar,
-  DashboardSpotlightFocusGrid,
   DashboardVisualMetric,
   type DashboardHeroMetric,
   type DashboardSpotlightBlock,
+  type DashboardSpotlightPlayerCard,
 } from "@/features/report/components/ReportDashboardMetrics";
-import { useTilt } from "@/lib/motion";
+import { useAnimationsEnabled, useTilt } from "@/lib/motion";
+import { formatMarketCompactValue } from "@/features/report/lib/marketMotion";
 
 export type DashboardSpotlightRankCard = {
   position: string;
@@ -116,6 +117,111 @@ function getSpotlightChipTone(chip: string): TileTone {
   return "brand";
 }
 
+function getNodeText(value: ReactNode): string {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+  return "Spotlight card";
+}
+
+function getSpotlightPlayerValueLabel(
+  player: DashboardSpotlightPlayerCard | null | undefined,
+  fallback?: ReactNode,
+) {
+  if (player?.valueLabel) return player.valueLabel;
+  if (typeof player?.value === "number" && Number.isFinite(player.value)) {
+    return formatMarketCompactValue(player.value);
+  }
+  return getNodeText(fallback);
+}
+
+function getSpotlightPlayerStatRows(
+  block: DashboardSpotlightBlock,
+): Array<{ label: string; value: string }> {
+  const player = block.player;
+  return [
+    {
+      label: "Pos Rank",
+      value: player?.positionRank || player?.position || block.subLabel || "-",
+    },
+    {
+      label: "Age",
+      value:
+        typeof player?.age === "number" && Number.isFinite(player.age)
+          ? player.age.toFixed(1).replace(/\.0$/, "")
+          : "-",
+    },
+    {
+      label: "Trend",
+      value: player?.trend || block.subLabel || "-",
+    },
+    {
+      label: "Tier",
+      value:
+        player?.tier !== null && player?.tier !== undefined
+          ? String(player.tier)
+          : block.label,
+    },
+  ];
+}
+
+function SpotlightFlipCard({ block }: { block: DashboardSpotlightBlock }) {
+  const [flipped, setFlipped] = useState(false);
+  const animationsEnabled = useAnimationsEnabled();
+  const playerName = block.player?.name || getNodeText(block.value);
+  const valueLabel = getSpotlightPlayerValueLabel(block.player, block.subLabel);
+  const statRows = getSpotlightPlayerStatRows(block);
+  const statSummary = statRows
+    .map(row => `${row.label}: ${row.value}`)
+    .join("; ");
+
+  return (
+    <button
+      type="button"
+      className="dashboard-spotlight-flip-card dd-pressable"
+      data-animated={animationsEnabled ? "true" : undefined}
+      data-flipped={flipped ? "true" : undefined}
+      data-tone={block.tone || "neutral"}
+      aria-pressed={flipped}
+      aria-label={`${block.label}: ${playerName}. ${statSummary}.`}
+      onClick={() => setFlipped(current => !current)}
+    >
+      <span className="dashboard-spotlight-flip-inner">
+        <span className="dashboard-spotlight-flip-face dashboard-spotlight-flip-front">
+          <span>{block.label}</span>
+          <strong>{playerName}</strong>
+          <b>{valueLabel}</b>
+          <em>{block.player?.position || block.subLabel || "Featured asset"}</em>
+        </span>
+        <span className="dashboard-spotlight-flip-face dashboard-spotlight-flip-back">
+          <span>Stat splits</span>
+          <strong>{playerName}</strong>
+          <span className="dashboard-spotlight-flip-stat-grid">
+            {statRows.map(row => (
+              <span key={row.label}>
+                <em>{row.label}</em>
+                <b>{row.value}</b>
+              </span>
+            ))}
+          </span>
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function SpotlightFlipGrid({ blocks }: { blocks: DashboardSpotlightBlock[] }) {
+  if (!blocks.length) return null;
+
+  return (
+    <div className="dashboard-spotlight-flip-grid">
+      {blocks.map(block => (
+        <SpotlightFlipCard key={block.key} block={block} />
+      ))}
+    </div>
+  );
+}
+
 export function ReportDashboardSpotlight({
   manager,
   managerAvatarUrl,
@@ -186,7 +292,7 @@ export function ReportDashboardSpotlight({
           )}
         </>
       ) : (
-        <DashboardSpotlightFocusGrid blocks={spotlightConfig.blocks} />
+        <SpotlightFlipGrid blocks={spotlightConfig.blocks} />
       )}
       {spotlightConfig.chips.length > 0 && (
         <div className="dashboard-spotlight-chip-row" style={tilt.copyStyle}>

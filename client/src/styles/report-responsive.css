@@ -21422,13 +21422,6 @@
   white-space: normal !important;
 }
 
-.report-shell .dashboard-spotlight-focus-card em {
-  overflow: visible !important;
-  overflow-wrap: anywhere !important;
-  text-overflow: clip !important;
-  white-space: normal !important;
-}
-
 .report-shell .report-overview-metrics .dashboard-target-lockup {
   display: grid !important;
   width: 100% !important;
@@ -21439,7 +21432,6 @@
   overflow: visible !important;
 }
 
-.report-shell .dashboard-spotlight-focus-card .dd-tile__value,
 .report-shell .report-overview-metrics .dashboard-target-lockup > strong {
   display: block !important;
   width: min(100%, 7.8rem) !important;
@@ -21451,13 +21443,6 @@
   justify-self: center !important;
 }
 
-.report-shell .dashboard-spotlight-focus-card .dd-tile__value {
-  overflow: visible !important;
-  overflow-wrap: anywhere !important;
-  text-overflow: clip !important;
-  white-space: normal !important;
-  word-break: break-word !important;
-}
 
 .report-shell .report-overview-metrics .dashboard-target-lockup > strong {
   overflow: hidden !important;
