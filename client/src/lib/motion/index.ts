@@ -15,5 +15,6 @@ export * from "./Flip";
 export * from "./DrawPath";
 export * from "./MotionReveal";
 export * from "./TileRipple";
+export * from "./SharedLayout";
 export * from "./sparklinePath";
 export * from "./viewTransitions";

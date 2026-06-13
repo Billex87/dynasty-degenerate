@@ -8199,6 +8199,68 @@ body {
   line-height: 1.35;
 }
 
+.team-profile-radar-active-label {
+  width: fit-content;
+  border: 1px solid rgba(var(--ai-board-cyan), 0.16);
+  border-radius: 999px;
+  background: rgba(8, 18, 31, 0.58);
+  padding: 0.22rem 0.48rem;
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.team-profile-radar-weighting {
+  display: inline-flex;
+  width: fit-content;
+  min-width: 0;
+  align-items: center;
+  gap: 0.16rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(16, 28, 48, 0.55);
+  padding: 0.18rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(2, 7, 18, 0.42);
+}
+
+.team-profile-radar-weighting button {
+  min-height: 1.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.36rem 0.62rem;
+  color: rgba(203, 213, 225, 0.76);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  transition:
+    background-color var(--dd-duration-fast) var(--dd-ease-rise),
+    color var(--dd-duration-fast) var(--dd-ease-rise),
+    box-shadow var(--dd-duration-fast) var(--dd-ease-rise);
+}
+
+.team-profile-radar-weighting button.active {
+  background: rgba(var(--ai-board-cyan), 0.16);
+  color: #f8fafc;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 18px rgba(var(--ai-board-cyan), 0.18);
+}
+
+.team-profile-radar-weighting button:focus-visible {
+  outline: var(--dd-focus-ring-w) solid var(--dd-focus-ring-color);
+  outline-offset: var(--dd-focus-ring-offset);
+  box-shadow: var(--dd-focus-ring);
+}
+
 .team-profile-radar svg {
   width: min(100%, 13rem);
   aspect-ratio: 1;

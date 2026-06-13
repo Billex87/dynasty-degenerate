@@ -22,6 +22,8 @@ import { getTeamTileStyle } from "@/lib/teamTileStyle";
 import { trpc } from "@/lib/trpc";
 import {
   DURATION,
+  SharedLayoutGroup,
+  SharedLayoutItem,
   formatCount,
   useAnimationsEnabled,
   useSpringValue,
@@ -3111,8 +3113,9 @@ export default function TradeWarRoom({
         {assets.map(asset => {
           const team = getTradeWarAssetTeam(asset);
           return (
-            <div
+            <SharedLayoutItem
               key={asset.player_id}
+              layoutId={`trade-war-selected-${getTradeWarAssetSelectionKey(asset)}`}
               className="player-team-tile trade-war-selected-asset"
               style={getTeamTileStyle(team)}
             >
@@ -3140,7 +3143,7 @@ export default function TradeWarRoom({
               >
                 <XIcon className="h-4 w-4" aria-hidden="true" />
               </button>
-            </div>
+            </SharedLayoutItem>
           );
         })}
       </div>
@@ -3419,28 +3422,30 @@ export default function TradeWarRoom({
         </>
       )}
 
-      <div className="trade-war-side-grid">
-        {renderTradeSide({
-          label: "Side A",
-          sideKey: "A",
-          manager: managerA,
-          otherManager: managerB,
-          query: queryA,
-          setQuery: setQueryA,
-          assets: sideAAssets,
-          total: sideATotal,
-        })}
-        {renderTradeSide({
-          label: "Side B",
-          sideKey: "B",
-          manager: managerB,
-          otherManager: managerA,
-          query: queryB,
-          setQuery: setQueryB,
-          assets: sideBAssets,
-          total: sideBTotal,
-        })}
-      </div>
+      <SharedLayoutGroup id={`trade-war-selected-assets-${leagueId || "report"}`}>
+        <div className="trade-war-side-grid">
+          {renderTradeSide({
+            label: "Side A",
+            sideKey: "A",
+            manager: managerA,
+            otherManager: managerB,
+            query: queryA,
+            setQuery: setQueryA,
+            assets: sideAAssets,
+            total: sideATotal,
+          })}
+          {renderTradeSide({
+            label: "Side B",
+            sideKey: "B",
+            manager: managerB,
+            otherManager: managerA,
+            query: queryB,
+            setQuery: setQueryB,
+            assets: sideBAssets,
+            total: sideBTotal,
+          })}
+        </div>
+      </SharedLayoutGroup>
 
       <div className="trade-war-read-grid">
         {managerA
